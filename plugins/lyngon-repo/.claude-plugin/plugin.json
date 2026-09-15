@@ -1,0 +1,13 @@
+{
+  "name": "lyngon-repo",
+  "version": "0.1.0",
+  "description": "Set up or adopt a repository to Lyngon conventions: interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv and git hooks.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/skills",
+  "repository": "https://github.com/lyngon/skills",
+  "license": "Apache-2.0",
+  "keywords": ["repository", "scaffold", "devenv", "adr", "concepts"]
+}

@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "lyngon-dev": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  },
+  "enabledPlugins": {
+    "lyngon-repo@lyngon-dev": true
+  }
+}

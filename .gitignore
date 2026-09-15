@@ -1,0 +1,23 @@
+# Agent scratch output. May be deleted at any time.
+tmp/
+# Human experiments. May live for weeks, never committed.
+sandbox/
+
+# devenv (generated or per-user)
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+.pre-commit-config.yaml
+.mcp.json
+
+# direnv
+.direnv/
+
+# Claude Code per-user overrides (.claude/settings.json is committed)
+.claude/settings.local.json
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
