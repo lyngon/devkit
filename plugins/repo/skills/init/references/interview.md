@@ -37,7 +37,7 @@ Adapt wording to the repository.
 - **13. Secrets.** Does anything in the repository need secrets (API keys, tokens, credentials)? If yes, `secretspec` is wired; ask which secrets by name and which provider (keyring, dotenv, env, onepassword, lastpass) per profile. Do not ask which mechanism; it is always `secretspec`.
 - **14. Services.** Does local development need a database, cache, queue or similar? Name each one. Wire a devenv `services.*` entry only for services the user confirms by name.
 - **15. Test strategy.** What counts as "tests pass": unit only, integration against services, end-to-end? What should `devenv test` run beyond the hooks?
-- **16. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `repo` is recommended so the repository can be re-adopted later. Enable nothing else by default.
+- **16. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `all` is recommended: it bundles every plugin a Lyngon repository uses and keeps adoption to one install command for colleagues. A subset is named plugin by plugin; `repo` brings `discover` with it.
 
 ### Round 3 and later, as unblocked
 

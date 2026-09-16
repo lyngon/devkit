@@ -150,6 +150,13 @@ Run every check the way CI does:
 devenv test
 ```
 
+Claude Code registers the `lyngon` plugin marketplace from `.claude/settings.json` when you trust the folder.
+Install the plugins once:
+
+```sh
+claude plugin install all@lyngon
+```
+
 {Per-artifact usage or delivery instructions, from the delivery question.}
 
 ## Contributing
@@ -180,7 +187,8 @@ One item per line, with the date it was deferred.
 ## .claude/settings.json
 
 Committed, hand-maintained.
-Registers the marketplace so colleagues get it without manual setup; enables only the plugins the user chose.
+Registers the marketplace, which Claude Code adds for colleagues once they trust the folder, and enables the plugins the user chose, `all@lyngon` unless they named a subset.
+Plugins are not installed for colleagues automatically (Claude Code 2.1.195 and later); Claude Code shows them the install command, and the README repeats it.
 The key under `extraKnownMarketplaces` must equal the marketplace manifest name (`lyngon`): Claude Code registers under the manifest name and the `@marketplace` suffixes in `enabledPlugins` must match it. Project marketplaces are applied once per Claude Code process start, after the folder is trusted.
 
 ```json
@@ -194,7 +202,7 @@ The key under `extraKnownMarketplaces` must equal the marketplace manifest name 
     }
   },
   "enabledPlugins": {
-    "repo@lyngon": true
+    "all@lyngon": true
   }
 }
 ```

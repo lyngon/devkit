@@ -83,7 +83,7 @@ The full set:
 - `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention that needs more than a line.
 - `.gitignore` with the baseline patterns, `tmp/`, `sandbox/`, and the stack patterns.
 - `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
-- `.claude/settings.json` registering the `lyngon` marketplace and enabling the plugins the user chose.
+- `.claude/settings.json` registering the `lyngon` marketplace and enabling `all@lyngon`, or the subset the user chose.
 - `.github/workflows/ci.yml` (or the equivalent for the chosen host).
 - `packages/<name>/` with its own `devenv.nix` for every artifact named in the interview, imported from the root `devenv.yaml`.
 - `secretspec.toml` and the `secretspec` section in `devenv.yaml` when the repository needs secrets.
