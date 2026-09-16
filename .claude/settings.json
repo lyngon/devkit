@@ -1,6 +1,6 @@
 {
   "extraKnownMarketplaces": {
-    "lyngon-dev": {
+    "lyngon": {
       "source": {
         "source": "directory",
         "path": "."
@@ -8,9 +8,9 @@
     }
   },
   "enabledPlugins": {
-    "repo@lyngon-dev": true,
-    "discover@lyngon-dev": true,
-    "devkit@lyngon-dev": true,
-    "skill-creator@lyngon-dev": true
+    "repo@lyngon": true,
+    "discover@lyngon": true,
+    "devkit@lyngon": true,
+    "skill-creator@lyngon": true
   }
 }

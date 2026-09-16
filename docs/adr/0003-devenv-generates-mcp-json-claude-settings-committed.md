@@ -12,4 +12,5 @@ devenv writes only `.mcp.json` through its generic `files` option, so the devenv
 
 - Two files, two owners. A change to the MCP server goes in `devenv.nix`; a change to plugins or permissions goes in `.claude/settings.json`.
 - A contributor without devenv still gets the marketplace registration, but not the MCP server.
+- The key under `extraKnownMarketplaces` is cosmetic: Claude Code registers the marketplace under its manifest name, so the key and the `@marketplace` suffixes in `enabledPlugins` must equal that name (verified 2026-09-16 with Claude Code 2.1.268).
 - If the module later gains a settings passthrough, this decision should be revisited.

@@ -58,7 +58,7 @@ Run every check the way CI does:
 devenv test
 ```
 
-This repository registers itself as the marketplace `lyngon-dev` in `.claude/settings.json`, so a Claude Code session opened here loads the plugins from the working tree.
+This repository registers itself as the marketplace `lyngon` from the working tree in `.claude/settings.json`, so a Claude Code session opened here installs the plugins from this checkout. Project marketplaces are applied once per Claude Code process start, so a new registration needs a fresh session, not `/reload-plugins`.
 
 ## Adding a plugin
 

@@ -180,6 +180,7 @@ One item per line, with the date it was deferred.
 
 Committed, hand-maintained.
 Registers the marketplace so colleagues get it without manual setup; enables only the plugins the user chose.
+The key under `extraKnownMarketplaces` must equal the marketplace manifest name (`lyngon`): Claude Code registers under the manifest name and the `@marketplace` suffixes in `enabledPlugins` must match it. Project marketplaces are applied once per Claude Code process start, after the folder is trusted.
 
 ```json
 {
