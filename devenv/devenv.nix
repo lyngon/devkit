@@ -25,10 +25,24 @@
 {
   lib,
   config,
+  pkgs,
   ...
 }:
 let
   cfg = config.lyngon;
+
+  # Em and en dashes and curly quotes in Markdown and commit messages. The
+  # deterministic half of prose quality; the judgment half is the writing
+  # plugin's unslop skill.
+  proseLint = pkgs.writeShellApplication {
+    name = "prose-lint";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gawk
+      pkgs.gnugrep
+    ];
+    text = builtins.readFile ./prose-lint.sh;
+  };
 in
 {
   options.lyngon = {
@@ -77,6 +91,18 @@ in
       trim-trailing-whitespace.enable = lib.mkDefault true;
       check-merge-conflicts.enable = lib.mkDefault true;
       commitizen.enable = lib.mkDefault true;
+      prose-lint = {
+        enable = lib.mkDefault true;
+        name = lib.mkDefault "prose lint";
+        entry = lib.mkDefault (lib.getExe proseLint);
+        files = lib.mkDefault "\\.md$";
+      };
+      prose-lint-commit-msg = {
+        enable = lib.mkDefault true;
+        name = lib.mkDefault "prose lint (commit message)";
+        entry = lib.mkDefault "${lib.getExe proseLint} --commit-msg";
+        stages = lib.mkDefault [ "commit-msg" ];
+      };
       actionlint.enable = lib.mkDefault true;
       yamllint = {
         enable = lib.mkDefault true;
