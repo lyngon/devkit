@@ -62,6 +62,46 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
+## What a Lyngon repository looks like
+
+Every repository is a polyglot monorepo with one flat `packages/` directory, one package per artifact, whatever its language.
+This is what `/repo:init` produces; package names are examples.
+
+```text
+my-service/
+├── packages/
+│   ├── api/                    Python service, delivered as a container image
+│   │   ├── devenv.nix          languages, hooks and tasks for this package only
+│   │   ├── README.md           what it is, how to run it
+│   │   └── docs/adr/           decisions local to this package
+│   ├── web/                    TypeScript frontend
+│   ├── core/                   Rust library the others import
+│   └── cli/                    Go binary release
+├── docs/
+│   ├── adr/                    decisions about the whole repository
+│   ├── conventions/            repository-specific conventions too long for a CLAUDE.md line
+│   └── TODO.md                 work the owner explicitly deferred
+├── .claude/settings.json       registers the lyngon marketplace, enables all@lyngon
+├── .github/workflows/ci.yml    runs devenv test
+├── .vscode/extensions.json     recommends the direnv extension
+├── .envrc                      loads the devenv shell through direnv
+├── devenv.yaml                 imports lyngon/devenv and every packages/*/devenv.nix
+├── devenv.nix                  lyngon.enable = true, plus repository-wide hooks and tasks
+├── secretspec.toml             declared secrets; values never enter the repository
+├── INTENT.md                   why and for whom
+├── CLAUDE.md                   how to work (AGENTS.md is a symlink to it)
+├── CONCEPTS.md                 the terms
+└── README.md                   how to use
+```
+
+And the way of working in it, in the order things happen:
+
+- `/repo:init` once, to set the repository up or bring an existing one onto the baseline.
+- `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
+- An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
+- `/writing:unslop` before any prose is handed over.
+- `devenv test` before every commit; it runs every git hook on every file, and no hook is ever disabled to make it pass.
+
 ## Installing the plugins
 
 For yourself, in Claude Code:
