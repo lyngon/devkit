@@ -1,0 +1,13 @@
+{
+  "name": "discover",
+  "version": "0.1.0",
+  "description": "Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": ["discovery", "interview", "grilling", "domain-model", "adr", "concepts"]
+}

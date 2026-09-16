@@ -1,6 +1,5 @@
 # {plugin-name}
 
-- **Kind**: pinned | vendored
 - **Upstream**: {upstream repository URL}
 - **Upstream commit**: {40-character sha}
 - **Upstream path**: {path inside the upstream repository, or `.`}
@@ -11,10 +10,6 @@
 ## Why it is in the catalog
 
 {One paragraph: which problem it solves for Lyngon and why this one over alternatives.}
-
-## Local patches
-
-{"None", or one bullet per change made to the vendored copy and why.}
 
 ## Review notes
 

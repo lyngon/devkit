@@ -19,10 +19,17 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+  lyngon:
+    url: github:lyngon/devkit
+    flake: false
 
 imports:
+  - lyngon/devenv
   - ./packages/{name}
 ```
+
+The `lyngon` input is the shared baseline module from the Lyngon devkit; `devenv update lyngon` bumps it.
+The `git-hooks` input must be declared here because a remote import cannot add inputs.
 
 Add `nixpkgs.allow_unfree: true` only when a package needs an unfree tool, and say which in a comment.
 Add the `secretspec` section when the repository needs secrets (see below).
@@ -37,49 +44,12 @@ Add the `secretspec` section when the repository needs secrets (see below).
   ...
 }:
 {
+  # Baseline git hooks, the devenv MCP server file, and the Nix and shell
+  # languages come from the lyngon input. Override a baseline hook only with
+  # a comment saying why, e.g. `git-hooks.hooks.typos.enable = false;`.
+  lyngon.enable = true;
+
   packages = [ pkgs.jq ];
-
-  languages.nix.enable = true;
-  languages.shell.enable = true;
-
-  # devenv generates .mcp.json (gitignored). .claude/settings.json is committed.
-  files.".mcp.json".json = {
-    mcpServers.devenv = {
-      type = "stdio";
-      command = "devenv";
-      args = [ "mcp" ];
-      env.DEVENV_ROOT = config.devenv.root;
-    };
-  };
-
-  git-hooks.hooks = {
-    # Lyngon baseline, identical in every repository.
-    nixfmt.enable = true;
-    shellcheck.enable = true;
-    markdownlint = {
-      enable = true;
-      settings.configuration = {
-        default = true;
-        # Semantic line breaks: one sentence per line, no length limit.
-        MD013 = false;
-        MD024.siblings_only = true;
-      };
-    };
-    ripsecrets.enable = true;
-    typos.enable = true;
-    end-of-file-fixer = {
-      enable = true;
-      excludes = [ "devenv.lock" ];
-    };
-    trim-trailing-whitespace.enable = true;
-    check-merge-conflicts.enable = true;
-    commitizen.enable = true;
-    actionlint.enable = true;
-    yamllint = {
-      enable = true;
-      settings.preset = "relaxed";
-    };
-  };
 
   # `devenv test` runs every git hook on every file first, then this.
   enterTest = ''
@@ -87,6 +57,8 @@ Add the `secretspec` section when the repository needs secrets (see below).
   '';
 }
 ```
+
+The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, commitizen, actionlint, yamllint (relaxed).
 
 Do not enable `claude.code.enable`.
 It would take over `.claude/settings.json` with a fixed key set and drop the marketplace registration.

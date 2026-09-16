@@ -1,52 +1,15 @@
 # The interview
 
-The interview method is adapted from Matt Pocock's `grilling` skill (<https://github.com/mattpocock/skills>, MIT).
-
-## Method
-
-Map the repository as a **design tree**: every decision branches into the decisions that hang off it.
-Work the tree in **rounds**.
-The **frontier** is every question whose prerequisites are settled, so it can be asked now without guessing at answers not yet heard.
-Ask the whole frontier in one round, numbered, each with a recommended answer.
-Then wait.
-
-Each round of answers reshapes the tree: settled decisions unblock the questions that depended on them.
-Recompute the frontier and ask the next round.
-A question whose answer depends on another question still open in this round belongs to a later round.
-
-Facts are your job, never the user's.
-When a question needs a fact from the environment, look it up (or dispatch a sub-agent) instead of asking.
-Decisions are the user's: put each one to them and wait.
-
-The interview is done when the frontier is empty.
-Do not write files until the user confirms the shared understanding (step 3 of the skill).
-
-## Round format
-
-```text
-❓ **Q1 - <question title>**: <question body, may include options>
-
-➡️ <your recommended answer>
-
----
-
-❓ **Q2 - <question title>**: ...
-
-➡️ ...
-```
-
-Number questions continuously across rounds (round 2 starts where round 1 ended).
-Open every round after the first by naming the questions the user skipped and the recommendation each one took.
-A recommended answer is mandatory for every question.
-Give a reason for the recommendation when the choice genuinely branches; skip the reason when it does not.
+The method (design tree, rounds, frontier, recommended answers) is `discover:interview`; invoke it first.
+This file holds what is specific to repository setup.
 
 ## Rules
 
 - Challenge vague ideas the moment they appear. "A tool for data" is not a purpose. Ask what breaks without it.
-- When a term is overloaded or two words are used for one thing, stop and settle the term (see `concepts-format.md`).
+- When a term is overloaded or two words are used for one thing, stop and settle it with `discover:domain-model`, which writes the `CONCEPTS.md` entry as soon as it settles.
 - Never ask what the inventory already answered.
 - Do not create `docs/TODO.md` items for questions the user left open. Only what the user explicitly says to defer goes there.
-- Offer an ADR only for decisions that meet all three criteria in `adr-format.md`; say which decision you intend to record and why.
+- Offer an ADR only for decisions that meet the three criteria in `discover:domain-model`; say which decision you intend to record and why.
 
 ## Question catalog
 
@@ -74,7 +37,7 @@ Adapt wording to the repository.
 - **13. Secrets.** Does anything in the repository need secrets (API keys, tokens, credentials)? If yes, `secretspec` is wired; ask which secrets by name and which provider (keyring, dotenv, env, onepassword, lastpass) per profile. Do not ask which mechanism; it is always `secretspec`.
 - **14. Services.** Does local development need a database, cache, queue or similar? Name each one. Wire a devenv `services.*` entry only for services the user confirms by name.
 - **15. Test strategy.** What counts as "tests pass": unit only, integration against services, end-to-end? What should `devenv test` run beyond the hooks?
-- **16. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `lyngon-repo` is recommended so the repository can be re-adopted later. Enable nothing else by default.
+- **16. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `repo` is recommended so the repository can be re-adopted later. Enable nothing else by default.
 
 ### Round 3 and later, as unblocked
 
@@ -96,4 +59,5 @@ Adapt wording to the repository.
 | Services, test strategy | `devenv.nix` (`services.*`, `enterTest`), `CLAUDE.md` checks section |
 | Lyngon plugins | `.claude/settings.json` |
 | Terms | `CONCEPTS.md` |
+| Repository-specific conventions longer than a line | `docs/conventions/<topic>.md` |
 | Explicit deferrals | `docs/TODO.md` |

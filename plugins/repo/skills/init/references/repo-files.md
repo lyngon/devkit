@@ -12,6 +12,7 @@ Do not leave template comments in generated files.
 | `README.md` | Humans | How to use: getting started, layout, contributing, license |
 | `CLAUDE.md` | Agents | How to work: checks and tests, layout, conventions, where docs go, do-not-touch list |
 | `CONCEPTS.md` | Both | Terms only, no implementation |
+| `docs/conventions/<topic>.md` | Agents and humans | Repository-specific conventions too long for a `CLAUDE.md` line. Never organization-wide conventions, which come from plugins. Created lazily |
 
 Anything that fits two files goes in the one whose audience needs it first; the other links to it.
 `README.md` and `CLAUDE.md` point to `INTENT.md` and `CONCEPTS.md` in their first lines rather than repeating them.
@@ -74,7 +75,7 @@ Decisions are in [docs/adr/](docs/adr/).
 
 ## Checks
 
-Everything runs inside the devenv shell.
+Every tool comes from `devenv.nix`. If one is missing, add it there; never install anything imperatively.
 
 ```sh
 devenv test
@@ -91,6 +92,7 @@ Never disable a hook to make a check pass.
 {One line per existing package: what it is.}
 - `docs/adr/NNNN-slug.md`: decisions about the repository. Package-local decisions live in `packages/<name>/docs/adr/`.
 - `docs/TODO.md`: deferred work the owner explicitly chose not to do yet.
+- `docs/conventions/<topic>.md`: conventions specific to this repository that need more than a line. {Omit until the first one exists.}
 - `tmp/`: agent scratch output, gitignored, may be deleted at any time.
 - `sandbox/`: human experiments, gitignored, may live for weeks. Do not write there unless asked.
 
@@ -106,6 +108,7 @@ Never disable a hook to make a check pass.
 ## Documents
 
 INTENT.md is why and for whom, README.md is how to use, CLAUDE.md is how to work, CONCEPTS.md is terms only.
+A convention specific to this repository that needs more than a line goes in `docs/conventions/<topic>.md`, with a one-line pointer here.
 Anything that fits two files goes in the one whose audience needs it first, and the other links to it.
 Record a decision as an ADR only when it is hard to reverse, surprising without context, and the result of a real trade-off.
 ````
@@ -184,12 +187,12 @@ Registers the marketplace so colleagues get it without manual setup; enables onl
     "lyngon": {
       "source": {
         "source": "github",
-        "repo": "lyngon/skills"
+        "repo": "lyngon/devkit"
       }
     }
   },
   "enabledPlugins": {
-    "lyngon-repo@lyngon": true
+    "repo@lyngon": true
   }
 }
 ```

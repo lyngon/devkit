@@ -9,3 +9,8 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+
+# The Lyngon baseline, consumed from this repository's own working tree.
+# Other repositories import it as `lyngon/devenv` from the `lyngon` input.
+imports:
+  - ./devenv

@@ -1,16 +1,11 @@
-# CONCEPTS.md
+# CONCEPTS.md format
 
 `CONCEPTS.md` is the repository's glossary: the ubiquitous language of its domain or problem.
-The format is adapted from Matt Pocock's `domain-modeling` skill (<https://github.com/mattpocock/skills>, MIT), which calls the file `CONTEXT.md`.
-Lyngon repositories call it `CONCEPTS.md`.
-If an existing repository has a `CONTEXT.md`, propose renaming it and ask.
 
-## During the interview
+Single source in `shared/` of the Lyngon devkit marketplace; plugins symlink it.
+A repository may override it with `docs/conventions/concepts.md`.
 
-- **Challenge against the glossary.** When the user uses a term that conflicts with an existing definition, say so immediately and ask which meaning is right.
-- **Sharpen fuzzy language.** When a word is vague or overloaded ("account", "job", "config"), propose a precise canonical term and list the alternatives to avoid.
-- **Probe with scenarios.** When two concepts seem close, invent a concrete edge case that forces a boundary between them.
-- **Write entries as they settle.** Draft the entry in the round where the term is agreed. Do not batch them for the end.
+Format adapted from Matt Pocock's `domain-modeling` skill (<https://github.com/mattpocock/skills>, MIT), which calls the file `CONTEXT.md`.
 
 ## Structure
 
@@ -37,15 +32,15 @@ _Avoid_: Client, buyer, account
 ## Rules
 
 - Be opinionated. When several words exist for one concept, pick the best and list the rest under `_Avoid_`.
-- Keep definitions to one or two sentences.
-- Only terms specific to this repository's domain belong. General programming concepts do not, even when used heavily.
+- Keep definitions to one or two sentences. Define what it is, not what it does.
+- Only terms specific to this repository's domain belong. General programming concepts (timeouts, error types, utility patterns) do not, even when used heavily. Before adding a term, ask: is this unique to this context, or a general programming concept?
 - No implementation details. `CONCEPTS.md` is not a spec, a scratchpad, or a place for decisions. Decisions go in ADRs.
-- Group terms under subheadings only when natural clusters emerge.
+- Group terms under subheadings only when natural clusters emerge. A flat list is fine.
 - Add a `## Relationships` section when the relationships between terms are not obvious from the definitions.
 
-## Monorepo layout
+## Single context versus several
 
-Default: one `CONCEPTS.md` at the repository root.
+Default: one `CONCEPTS.md` at the repository root. This fits almost every repository.
 
 When packages have genuinely different domains, each package gets its own `packages/<name>/CONCEPTS.md`, and the root `CONCEPTS.md` becomes a map:
 
@@ -62,4 +57,11 @@ When packages have genuinely different domains, each package gets its own `packa
 - **Ordering → Billing**: Ordering emits `OrderPlaced`; Billing consumes it.
 ```
 
+How to tell which applies:
+
+- A root `CONCEPTS.md` with a `## Contexts` section is a map; follow it to the per-package files.
+- A root `CONCEPTS.md` with a `## Language` section is the single context.
+- Neither exists: create the root file lazily when the first term is settled.
+
+When several contexts exist, infer which one the current topic belongs to. If unclear, ask.
 Create per-package files lazily, when the first package-specific term is settled, never speculatively.

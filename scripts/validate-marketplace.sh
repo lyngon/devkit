@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Validate the marketplace manifest, every plugin directory, every SKILL.md
-# and every catalog record. Encodes the rules from CLAUDE.md and ADR 0002.
+# Validate the marketplace manifest, every plugin directory, every SKILL.md,
+# every vendored skill's provenance and every catalog record.
+# Encodes the rules from CLAUDE.md and ADRs 0006 to 0008.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -31,13 +32,28 @@ jq -e '.name and .owner.name and (.plugins | type == "array")' "$manifest" >/dev
 
 check_skill() {
   local skill=$1
-  local dir name
-  dir=$(basename "$(dirname "$skill")")
+  local skilldir dir name
+  skilldir=$(dirname "$skill")
+  dir=$(basename "$skilldir")
   [[ "$dir" =~ $kebab && ${#dir} -le 64 ]] || fail "$skill: directory name '$dir' is not kebab-case or is longer than 64 characters"
   [[ "$(head -n 1 "$skill")" == "---" ]] || fail "$skill: frontmatter must start on line 1"
   grep -qE '^description:[[:space:]]*[^[:space:]]' "$skill" || fail "$skill: frontmatter needs a non-empty description"
   name=$(sed -n '2,/^---$/p' "$skill" | sed -nE 's/^name:[[:space:]]*//p' | head -n 1)
   [[ -z "$name" || "$name" == "$dir" ]] || fail "$skill: frontmatter name '$name' differs from directory name '$dir'"
+
+  # Vendored skill: UPSTREAM.md and LICENSE travel together.
+  local has_upstream=0 has_license=0
+  [[ -f "$skilldir/UPSTREAM.md" ]] && has_upstream=1
+  ls "$skilldir"/LICENSE* >/dev/null 2>&1 && has_license=1
+  if [[ "$has_upstream" == 1 ]]; then
+    [[ "$has_license" == 1 ]] || fail "$skilldir: vendored skill has UPSTREAM.md but no upstream LICENSE file"
+    grep -qE '^- \*\*Upstream\*\*: ' "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs an '- **Upstream**:' line"
+    grep -qE "^- \*\*Upstream commit\*\*: [0-9a-f]{40}$" "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs a 40-character '- **Upstream commit**:' line"
+    grep -qE '^- \*\*Upstream license\*\*: ' "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs an '- **Upstream license**:' line"
+    grep -qE '^- \*\*Reviewed\*\*: ' "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs a '- **Reviewed**:' line"
+  elif [[ "$has_license" == 1 ]]; then
+    fail "$skilldir: has a LICENSE file but no UPSTREAM.md; in-house skills carry no license file, vendored skills need both"
+  fi
 }
 
 check_local_plugin() {
@@ -70,9 +86,8 @@ check_local_plugin() {
   while IFS= read -r skill; do
     check_skill "$skill"
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
-  if [[ "$dir" == plugins/third-party/* ]]; then
-    [[ -f "catalog/$entry_name.md" ]] || fail "$entry_name: vendored plugin needs catalog/$entry_name.md"
-    ls "$dir"/LICENSE* >/dev/null 2>&1 || fail "$entry_name: vendored plugin must keep its upstream LICENSE file"
+  if [[ -f "catalog/$entry_name.md" ]]; then
+    fail "$entry_name: local plugins do not get catalog records; vendored skills use UPSTREAM.md"
   fi
 }
 
@@ -112,18 +127,36 @@ while IFS= read -r entry; do
 done < <(jq -c '.plugins[]' "$manifest")
 
 # Every plugin directory must be listed.
-for dir in plugins/*/ plugins/third-party/*/; do
+for dir in plugins/*/; do
   [[ -d "$dir" ]] || continue
   name=$(basename "$dir")
-  [[ "$name" == "third-party" ]] && continue
   [[ -n "${listed[$name]:-}" ]] || fail "plugins directory '$dir' is not listed in $manifest"
 done
 
-# Every catalog record must belong to a listed third-party plugin.
+# Every catalog record must belong to a listed pinned plugin.
 for record in catalog/*.md; do
   name=$(basename "$record" .md)
-  [[ "$name" == "README" || "$name" == "TEMPLATE" ]] && continue
+  [[ "$name" == "README" || "$name" == *TEMPLATE ]] && continue
   [[ -n "${listed[$name]:-}" ]] || fail "$record has no matching marketplace entry"
+done
+
+# Symlinks under plugins/ must resolve and point into shared/ (dereferenced at install time).
+while IFS= read -r link; do
+  target=$(readlink -f "$link" || true)
+  [[ -n "$target" && -f "$target" ]] || {
+    fail "$link: symlink does not resolve to a file"
+    continue
+  }
+  case "$target" in
+    "$PWD/shared/"*) ;;
+    *) fail "$link: symlink must point into shared/, got $target" ;;
+  esac
+done < <(find plugins -type l)
+
+# Everything in shared/ must be a regular file that some plugin links to.
+for doc in shared/*; do
+  [[ -f "$doc" && ! -L "$doc" ]] || fail "$doc: shared/ holds regular files only"
+  [[ -n $(find plugins -type l -lname "*/shared/$(basename "$doc")") ]] || fail "$doc: nothing under plugins/ links to it"
 done
 
 if ((errors > 0)); then

@@ -1,25 +1,30 @@
-# Architecture decision records
+# ADR format
+
+Single source in `shared/` of the Lyngon devkit marketplace; plugins symlink it.
+A repository may override it with `docs/conventions/adr.md`.
 
 Format adapted from Matt Pocock's `domain-modeling` skill (<https://github.com/mattpocock/skills>, MIT).
 
 ADRs live in `docs/adr/` with sequential numbering: `0001-slug.md`, `0002-slug.md`.
 Package-local decisions live in `packages/<name>/docs/adr/` with their own numbering.
 Scan the directory for the highest number and increment.
+Create the directory lazily, when the first ADR is needed.
 
 ## Template
 
 ```md
-# {Short title of the decision, stated as the decision}
+# {Short title, stated as the decision}
 
 {One to three sentences: context, what was decided, why.}
 ```
 
 That is the whole ADR.
-A single paragraph is a complete ADR; the value is in recording that the decision was made and why.
+A single paragraph is a complete ADR; the value is in recording that the decision was made and why, not in filling out sections.
 
 ## Optional sections
 
-Only when they add something a reader would otherwise miss:
+Only when they add something a reader would otherwise miss.
+Most ADRs need none.
 
 - `## Considered options`: when the rejected alternatives are worth remembering, so nobody proposes them again in six months.
 - `## Consequences`: when non-obvious downstream effects need calling out.
@@ -36,12 +41,14 @@ All three must be true:
 If any is missing, skip it.
 Easy-to-reverse decisions get reversed; unsurprising ones need no explanation; decisions with no alternative are just the obvious thing.
 
-## What typically qualifies during initialization
+## What qualifies
 
 - Architectural shape: monorepo, event sourcing, a chosen boundary between packages.
-- Technology choices with lock-in: database, message bus, auth provider, deployment target. Not every library.
-- Deliberate deviations from the obvious path.
-- Constraints not visible in the code: compliance, contracts, platforms.
+- Integration patterns between contexts: events versus synchronous calls.
+- Technology choices with lock-in: database, message bus, auth provider, deployment target. Not every library, just the ones that would take a quarter to swap.
+- Boundary and scope decisions. The explicit no-s are as valuable as the yes-s.
+- Deliberate deviations from the obvious path. These stop the next engineer from "fixing" something that was deliberate.
+- Constraints not visible in the code: compliance, contracts, platforms, response-time budgets.
 - Rejected alternatives when the rejection is non-obvious.
 
-What does not qualify: the license, the git host, the package layout (that is a convention, not a decision), and the choice of devenv (organization-wide, already decided).
+What does not qualify during repository setup: the license, the git host, the package layout (a convention, not a decision), and the choice of devenv (organization-wide, already decided).

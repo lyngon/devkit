@@ -47,14 +47,11 @@ Whatever the inventory settled is not asked again.
 
 ### 2. Interview
 
-Follow [references/interview.md](references/interview.md) exactly: the rounds format, the frontier rule, the question catalog, and the first question ("what would make this repository a failure in a year?").
+Invoke two skills from the `discover` plugin, which this plugin depends on: `discover:interview` for the rounds-and-frontier method, and `discover:domain-model` for settling terms into `CONCEPTS.md` and recording ADRs.
+Then follow [references/interview.md](references/interview.md) for the question catalog, the first question ("what would make this repository a failure in a year?"), the rules specific to repository setup, and where each answer lands.
 
 Every question carries a recommended answer.
 Skipped questions take the recommendation, and you say so at the start of the next round.
-
-While interviewing, do domain modeling as described in [references/concepts-format.md](references/concepts-format.md):
-challenge vague or overloaded terms, propose the canonical one, and draft the `CONCEPTS.md` entry as soon as the user settles it.
-Offer an ADR only when a decision meets all three criteria in [references/adr-format.md](references/adr-format.md).
 
 Do not turn a "don't know" or "later" into a `docs/TODO.md` item on your own.
 Only what the user explicitly defers goes there.
@@ -83,7 +80,7 @@ The full set:
 
 - `INTENT.md` from the round 1 answers: product, for whom, done, failure, non-goals, horizon.
 - `CLAUDE.md` as the source file, `AGENTS.md` as a symlink to it.
-- `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something.
+- `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention that needs more than a line.
 - `.gitignore` with the baseline patterns, `tmp/`, `sandbox/`, and the stack patterns.
 - `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
 - `.claude/settings.json` registering the `lyngon` marketplace and enabling the plugins the user chose.

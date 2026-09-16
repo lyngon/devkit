@@ -5,16 +5,24 @@
     "url": "https://lyngon.com"
   },
   "metadata": {
-    "description": "Lyngon's Claude Code plugin marketplace: in-house plugins and a catalog of vetted third-party plugins.",
+    "description": "Lyngon's Claude Code plugin marketplace: plugins by concern, holding in-house and vetted vendored skills, plus pinned third-party plugins.",
     "pluginRoot": "./plugins"
   },
   "plugins": [
     {
-      "name": "lyngon-repo",
-      "source": "./plugins/lyngon-repo",
+      "name": "repo",
+      "source": "./plugins/repo",
       "description": "Set up or adopt a repository to Lyngon conventions: interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv and git hooks.",
       "category": "engineering",
       "keywords": ["repository", "scaffold", "devenv", "adr", "concepts"],
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "discover",
+      "source": "./plugins/discover",
+      "description": "Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise.",
+      "category": "engineering",
+      "keywords": ["discovery", "interview", "grilling", "domain-model", "adr", "concepts"],
       "license": "Apache-2.0"
     }
   ]

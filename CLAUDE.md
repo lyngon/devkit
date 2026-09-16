@@ -1,6 +1,6 @@
-# Lyngon skills
+# Lyngon devkit
 
-Claude Code plugin marketplace for Lyngon: in-house plugins under `plugins/`, vetted third-party plugins in `catalog/` records.
+Claude Code plugin marketplace for Lyngon: one plugin per concern under `plugins/`, holding in-house and vendored skills; pinned third-party plugins have records in `catalog/`.
 Purpose, audiences, done and non-goals are in [INTENT.md](INTENT.md).
 How to use and contribute is in [README.md](README.md).
 Terms are in [CONCEPTS.md](CONCEPTS.md).
@@ -8,7 +8,7 @@ Decisions are in [docs/adr/](docs/adr/).
 
 ## Checks
 
-Everything runs inside the devenv shell.
+Every tool comes from `devenv.nix`. If one is missing, add it there; never install anything imperatively.
 
 ```sh
 devenv test
@@ -21,9 +21,11 @@ Never disable a hook to make a check pass.
 
 ## Layout
 
-- `plugins/<name>/`: one in-house plugin per concern, each with `.claude-plugin/plugin.json`, `CHANGELOG.md` and `skills/<skill>/SKILL.md`.
-- `plugins/third-party/<name>/`: vendored third-party plugins. Do not edit these directly; bump them from upstream and update the catalog record.
-- `catalog/<name>.md`: one vetting record per third-party plugin, pinned or vendored. Template in `catalog/TEMPLATE.md`.
+- `plugins/<concern>/`: one plugin per concern, each with `.claude-plugin/plugin.json`, `CHANGELOG.md` and `skills/<skill>/SKILL.md`.
+- `plugins/<concern>/skills/<skill>/UPSTREAM.md`: marks a vendored skill, next to its upstream `LICENSE`. Every change to a vendored skill is listed under its "Local patches". Template in `catalog/UPSTREAM-TEMPLATE.md`.
+- `catalog/<plugin>.md`: provenance record for each pinned third-party plugin. Template in `catalog/TEMPLATE.md`.
+- `shared/`: convention documents used by more than one plugin, symlinked from the plugins. Edit them here; never edit through a symlink target inside a plugin.
+- `devenv/`: the shared devenv module (`lyngon.enable`) that every Lyngon repository imports as `lyngon/devenv`. This repository imports it as `./devenv`, so `devenv test` here tests the module. Every value in it must be a `mkDefault` so consumers can override with a reason.
 - `docs/adr/NNNN-slug.md`: decisions about this repository.
 - `docs/TODO.md`: deferred work, only items the owner explicitly deferred.
 - `tmp/`: agent scratch output, gitignored, may be deleted at any time.
@@ -32,7 +34,9 @@ Never disable a hook to make a check pass.
 ## Conventions
 
 - Plugin `version` lives in `plugin.json` only. Bump it and add a `CHANGELOG.md` entry with every user-visible change.
-- Marketplace entries for third-party plugins need a 40-character `sha` and a catalog record.
+- Marketplace entries for pinned plugins need a 40-character `sha` and a catalog record. Vendored skills need `UPSTREAM.md` with a 40-character upstream commit.
+- Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, `packages/`), not merged. Compare against upstream at bump time and carry changes over by hand.
+- Plugins share documents only through symlinks into `shared/`, and behaviour only through `dependencies` in `plugin.json`. Never copy a file from one plugin into another.
 - A SKILL.md has frontmatter on line 1, a `description`, and a `name` equal to its directory.
   Skill bodies stay agent-neutral: no Claude-specific wording unless the feature is Claude-only.
 - Long skill content goes into `references/` files next to the SKILL.md, linked by relative path.
@@ -47,5 +51,6 @@ INTENT.md is why and for whom: product, audiences, done, failure, non-goals, hor
 README.md is how to use: getting started, layout, contributing, license.
 CLAUDE.md is how to work: checks, layout, conventions, what not to touch.
 CONCEPTS.md is terms only, no implementation details.
+A convention specific to this repository that needs more than a line goes in `docs/conventions/<topic>.md`, with a one-line pointer here; the directory is created when the first one exists.
 Anything that fits two files goes in the one whose audience needs it first, and the other links to it.
 Record a decision as an ADR only when it is hard to reverse, surprising without context, and the result of a real trade-off.

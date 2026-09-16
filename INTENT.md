@@ -5,7 +5,7 @@ It changes when the purpose changes, not when the plan changes.
 
 ## Product
 
-**Lyngon skills** is Lyngon's Claude Code plugin marketplace: the plugins Lyngon writes, and a catalog of third-party plugins someone at Lyngon has read and pinned.
+**Lyngon devkit** is Lyngon's Claude Code plugin marketplace: one plugin per concern, holding in-house skills and vendored third-party skills, plus pinned third-party plugins that someone at Lyngon has read.
 
 ## For whom
 
@@ -14,14 +14,14 @@ It changes when the purpose changes, not when the plan changes.
 
 ## Done means
 
-- A new repository set up with `/lyngon-repo:init` looks and behaves like every other Lyngon repository.
+- A new repository set up with `/repo:init` looks and behaves like every other Lyngon repository.
 - Every skill used at Lyngon is installed from this marketplace, never copy-pasted.
-- Every third-party plugin listed here was read by a named person at a recorded commit.
+- Every vendored skill and pinned plugin was read by a named person at a recorded commit.
 
 ## Failure means
 
 - Skills drift between repositories because copying was easier than installing.
-- A third-party plugin lands in a project without a catalog record.
+- A vendored skill or pinned plugin lands in a project without a provenance record.
 - The marketplace is a second place to maintain what `CLAUDE.md` files already say.
 
 ## Non-goals

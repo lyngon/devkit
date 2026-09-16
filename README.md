@@ -1,7 +1,7 @@
-# Lyngon skills
+# Lyngon devkit
 
 Lyngon's Claude Code plugin marketplace.
-It holds the plugins Lyngon writes and a catalog of third-party plugins that someone at Lyngon has read and pinned.
+It holds one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
 
 ## Intent
 
@@ -11,12 +11,14 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 
 ```text
 .claude-plugin/marketplace.json   the marketplace manifest
-plugins/<name>/                   in-house plugins, one per concern
-plugins/third-party/<name>/       vendored third-party plugins, with their upstream license
-catalog/<name>.md                 vetting record for every third-party plugin
+plugins/<concern>/                one plugin per concern, holding in-house and vendored skills
+plugins/<concern>/skills/<name>/  a skill; vendored ones carry UPSTREAM.md and the upstream LICENSE
+catalog/<plugin>.md               provenance record for every pinned third-party plugin
 docs/adr/                         decisions about this repository
 docs/TODO.md                      deferred work
 scripts/                          validation run by git hooks and CI
+shared/                           convention documents symlinked into plugins
+devenv/                           the shared devenv module every Lyngon repository imports
 INTENT.md                         what the repository is for, for whom, and what done means
 CLAUDE.md                         context for agents (AGENTS.md is a symlink to it)
 CONCEPTS.md                       the terms used in this repository
@@ -25,15 +27,17 @@ CONCEPTS.md                       the terms used in this repository
 ## Using the marketplace
 
 ```sh
-claude plugin marketplace add lyngon/skills
-claude plugin install lyngon-repo@lyngon
+claude plugin marketplace add lyngon/devkit
+claude plugin install repo@lyngon
+claude plugin install discover@lyngon
 ```
 
-Repositories set up with `/lyngon-repo:init` register the marketplace in their committed `.claude/settings.json`, so colleagues get it without these commands.
+Repositories set up with `/repo:init` register the marketplace in their committed `.claude/settings.json`, so colleagues get it without these commands.
 
 ## Developing
 
 Every tool comes from the devenv shell.
+The shell is built from `devenv/`, the same baseline module other Lyngon repositories import (see `devenv/devenv.nix` for the consumer snippet).
 
 ```sh
 devenv allow
@@ -51,7 +55,7 @@ devenv test
 
 This repository registers itself as the marketplace `lyngon-dev` in `.claude/settings.json`, so a Claude Code session opened here loads the plugins from the working tree.
 
-## Adding an in-house plugin
+## Adding a plugin
 
 1. Create `plugins/<name>/.claude-plugin/plugin.json` with `name`, `version`, `description` and `license`.
 2. Add skills under `plugins/<name>/skills/<skill>/SKILL.md`.
@@ -59,17 +63,17 @@ This repository registers itself as the marketplace `lyngon-dev` in `.claude/set
 4. Add an entry to `.claude-plugin/marketplace.json` without a `version` field; the version lives in `plugin.json`.
 5. Run `devenv test`.
 
-## Adding a third-party plugin
+## Adding third-party work
 
-Read every skill, command, agent and hook you are about to list.
-Then pick one of two kinds, see [ADR 0002](docs/adr/0002-mixed-vendoring-policy-with-mandatory-sha.md):
+Read every skill, command, agent and hook you are about to take.
+Then pick one of two kinds, see [ADR 0006](docs/adr/0006-plugins-by-concern-pin-per-plugin-vendor-per-skill.md):
 
-- **Pinned** when the upstream plugin is used whole and unmodified: add a marketplace entry with a 40-character `sha` and a `version`.
-- **Vendored** when only some skills are wanted or a local patch is needed: copy the files into `plugins/third-party/<name>/` with the upstream license file.
+- **Pin the plugin** when the upstream plugin is used whole and unmodified: add a marketplace entry with a 40-character `sha` and a `version`, and a record in `catalog/<name>.md`.
+- **Vendor the skill** when only some skills are wanted or they must be rewritten to Lyngon vocabulary: copy the skill into the plugin for its concern, with the upstream `LICENSE` and an `UPSTREAM.md` beside `SKILL.md`.
 
-Both kinds need a record in `catalog/<name>.md`, see [catalog/README.md](catalog/README.md).
+See [catalog/README.md](catalog/README.md) for both.
 
 ## License
 
 Apache-2.0 for everything Lyngon wrote.
-Vendored plugins keep their own license, next to their files.
+Vendored skills keep their upstream license, next to their files.

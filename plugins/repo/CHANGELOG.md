@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the `lyngon-repo` plugin.
+All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
 ## 0.1.0 - 2026-09-15

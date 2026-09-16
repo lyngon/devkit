@@ -1,5 +1,7 @@
 # Mixed vendoring policy with mandatory SHA for pinned entries
 
+Status: superseded by 0006
+
 Third-party plugins can be listed by pointing at upstream (pinned) or by copying the files in (vendored).
 Pinning with a 40-character `sha` is deterministic and keeps upstream authorship and license intact, but it cannot take a subset of a plugin, cannot carry a local patch, and a bump shows up in review as a hash change with no visible diff.
 Vendoring gives reviewable diffs, subsets and patches at the cost of a manual bump step.
