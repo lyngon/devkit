@@ -1,0 +1,14 @@
+{
+  "name": "devkit",
+  "version": "0.1.0",
+  "description": "Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": ["marketplace", "skills", "vetting", "provenance"],
+  "dependencies": ["discover"]
+}

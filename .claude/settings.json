@@ -9,6 +9,8 @@
   },
   "enabledPlugins": {
     "repo@lyngon-dev": true,
-    "discover@lyngon-dev": true
+    "discover@lyngon-dev": true,
+    "devkit@lyngon-dev": true,
+    "skill-creator@lyngon-dev": true
   }
 }

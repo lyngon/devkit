@@ -1,6 +1,6 @@
 # Lyngon devkit
 
-Claude Code plugin marketplace for Lyngon: one plugin per concern under `plugins/`, holding in-house and vendored skills; pinned third-party plugins have records in `catalog/`.
+The shared foundation for Lyngon software development: a Claude Code plugin marketplace (`plugins/`, one plugin per concern, in-house and vendored skills; pinned plugins recorded in `catalog/`), the shared devenv module (`devenv/`), and the convention documents behind both (`shared/`).
 Purpose, audiences, done and non-goals are in [INTENT.md](INTENT.md).
 How to use and contribute is in [README.md](README.md).
 Terms are in [CONCEPTS.md](CONCEPTS.md).
@@ -35,6 +35,7 @@ Never disable a hook to make a check pass.
 
 - Plugin `version` lives in `plugin.json` only. Bump it and add a `CHANGELOG.md` entry with every user-visible change.
 - Marketplace entries for pinned plugins need a 40-character `sha` and a catalog record. Vendored skills need `UPSTREAM.md` with a 40-character upstream commit.
+- Third-party skills enter through `/devkit:add-skill`, which applies `shared/SKILL-REVIEW.md` and refuses upstreams without a license (ADR 0010).
 - Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, `packages/`), not merged. Compare against upstream at bump time and carry changes over by hand.
 - Plugins share documents only through symlinks into `shared/`, and behaviour only through `dependencies` in `plugin.json`. Never copy a file from one plugin into another.
 - A SKILL.md has frontmatter on line 1, a `description`, and a `name` equal to its directory.

@@ -1,7 +1,12 @@
 # Lyngon devkit
 
-Lyngon's Claude Code plugin marketplace.
-It holds one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
+The shared foundation for software development at Lyngon: the reusable pieces a repository needs to work the Lyngon way.
+
+- A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
+- The shared devenv module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file and languages.
+- The convention documents behind both, in `shared/`.
+
+Other kinds of reusable pieces may join; the test is that they are used by more than one repository.
 
 ## Intent
 
@@ -65,8 +70,8 @@ This repository registers itself as the marketplace `lyngon-dev` in `.claude/set
 
 ## Adding third-party work
 
-Read every skill, command, agent and hook you are about to take.
-Then pick one of two kinds, see [ADR 0006](docs/adr/0006-plugins-by-concern-pin-per-plugin-vendor-per-skill.md):
+Run `/devkit:add-skill <name, URL or description>` from a Claude Code session in this repository; it finds, vets and installs, and refuses upstreams without a license.
+By hand, the same policy: read every skill, command, agent and hook you are about to take, then pick one of two kinds, see [ADR 0006](docs/adr/0006-plugins-by-concern-pin-per-plugin-vendor-per-skill.md):
 
 - **Pin the plugin** when the upstream plugin is used whole and unmodified: add a marketplace entry with a 40-character `sha` and a `version`, and a record in `catalog/<name>.md`.
 - **Vendor the skill** when only some skills are wanted or they must be rewritten to Lyngon vocabulary: copy the skill into the plugin for its concern, with the upstream `LICENSE` and an `UPSTREAM.md` beside `SKILL.md`.

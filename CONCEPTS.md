@@ -16,8 +16,15 @@ _Avoid_: skill pack, extension, bundle
 **Concern**:
 The activity a plugin serves, such as setting up repositories or discovery before building. One plugin per concern.
 
+**Devkit**:
+This repository: the reusable pieces a Lyngon repository needs, today the marketplace, the baseline module and the convention documents.
+
 **Marketplace**:
-This repository as a whole, described by `.claude-plugin/marketplace.json`, listing every plugin that can be installed from it.
+The part of the devkit described by `.claude-plugin/marketplace.json`, listing every plugin that can be installed from it.
+_Avoid_: using "marketplace" for the whole repository
+
+**Baseline**:
+The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the MCP server file and the languages every repository has.
 
 **In-house skill**:
 A skill authored by Lyngon.
@@ -41,7 +48,8 @@ The state of a catalog item whose text was read by a named person at the recorde
 
 ## Relationships
 
-- A **Marketplace** lists many **Plugins**; each **Plugin** serves one **Concern**.
+- The **Devkit** holds the **Marketplace**, the **Baseline** and the shared convention documents.
+- The **Marketplace** lists many **Plugins**; each **Plugin** serves one **Concern**.
 - A **Plugin** holds one or more **Skills**, each either **In-house** or **Vendored**.
 - Every **Vendored skill** and every **Pinned plugin** has exactly one **Provenance record**.
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
