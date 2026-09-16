@@ -44,15 +44,48 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
-## Using the marketplace
+## Installing the plugins
+
+For yourself, in Claude Code:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install repo@lyngon
-claude plugin install discover@lyngon
+claude plugin install all@lyngon
 ```
 
-Repositories set up with `/repo:init` register the marketplace in their committed `.claude/settings.json`, so colleagues get it without these commands.
+`all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
+For a subset, install the members by name instead; `repo` brings `discover` with it as a dependency:
+
+```sh
+claude plugin install repo@lyngon
+claude plugin install writing@lyngon
+```
+
+Pinned third-party plugins such as `skill-creator` are not in the bundle; install them by name where needed.
+
+## Adopting a repository
+
+The steps are the same for an empty repository and for one that has grown organically; `/repo:init` tells them apart by the tracked files.
+
+1. Install the plugins as above, at least `repo`.
+2. Open Claude Code in the repository and run `/repo:init`.
+   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon`, or the subset you chose.
+3. Commit.
+
+In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.
+
+Colleagues who clone the repository get the marketplace registered as soon as they trust the folder.
+Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command, which with the bundle is one:
+
+```sh
+claude plugin install all@lyngon
+```
+
+To add a plugin to an adopted repository later, `--scope project` writes it into the committed settings:
+
+```sh
+claude plugin install writing@lyngon --scope project
+```
 
 ## Developing
 
