@@ -1,0 +1,13 @@
+{
+  "name": "writing",
+  "version": "0.1.0",
+  "description": "Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": ["writing", "prose", "editing", "documentation", "voice"]
+}

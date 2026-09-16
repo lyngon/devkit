@@ -52,6 +52,20 @@
       "license": "Apache-2.0"
     },
     {
+      "name": "writing",
+      "source": "./plugins/writing",
+      "description": "Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person.",
+      "category": "writing",
+      "keywords": [
+        "writing",
+        "prose",
+        "editing",
+        "documentation",
+        "voice"
+      ],
+      "license": "Apache-2.0"
+    },
+    {
       "name": "skill-creator",
       "source": {
         "source": "git-subdir",
