@@ -2,6 +2,16 @@
 
 The shared foundation for software development at Lyngon: the reusable pieces a repository needs to work the Lyngon way.
 
+The Lyngon way is opinionated, and this repository exists to make those opinions cheap to follow and hard to drift from.
+Every tool comes from devenv and Nix, never from a global install.
+Every repository is a polyglot monorepo under `packages/`, even with one package.
+The same git hooks run everywhere and are never disabled to make a commit pass.
+INTENT.md, CLAUDE.md, CONCEPTS.md and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
+Every third-party skill was read by a named person at a recorded commit before it got in.
+A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
+
+The pieces:
+
 - A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
 - The shared devenv module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file and languages.
 - The convention documents behind both, in `shared/`.
@@ -15,18 +25,26 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 ## Layout
 
 ```text
-.claude-plugin/marketplace.json   the marketplace manifest
-plugins/<concern>/                one plugin per concern, holding in-house and vendored skills
-plugins/<concern>/skills/<name>/  a skill; vendored ones carry UPSTREAM.md and the upstream LICENSE
-catalog/<plugin>.md               provenance record for every pinned third-party plugin
-docs/adr/                         decisions about this repository
-docs/TODO.md                      deferred work
-scripts/                          validation run by git hooks and CI
-shared/                           convention documents symlinked into plugins
-devenv/                           the shared devenv module every Lyngon repository imports
-INTENT.md                         what the repository is for, for whom, and what done means
-CLAUDE.md                         context for agents (AGENTS.md is a symlink to it)
-CONCEPTS.md                       the terms used in this repository
+.
+├── .claude-plugin/
+│   └── marketplace.json    the marketplace manifest
+├── plugins/
+│   ├── all/                the bundle every Lyngon repository installs
+│   └── <concern>/          one plugin per concern, in-house and vendored skills side by side
+│       ├── .claude-plugin/plugin.json
+│       ├── CHANGELOG.md
+│       └── skills/<name>/  a skill; vendored ones carry UPSTREAM.md and the upstream LICENSE
+├── catalog/
+│   └── <plugin>.md         provenance record for every pinned third-party plugin
+├── shared/                 convention documents, symlinked into the plugins that use them
+├── devenv/                 the shared devenv module every Lyngon repository imports
+├── scripts/                validation and generation run by git hooks and CI
+├── docs/
+│   ├── adr/                decisions about this repository
+│   └── TODO.md             deferred work
+├── INTENT.md               what the repository is for, for whom, and what done means
+├── CLAUDE.md               how to work here, for agents (AGENTS.md is a symlink to it)
+└── CONCEPTS.md             the terms used in this repository
 ```
 
 ## Plugins
@@ -60,8 +78,6 @@ For a subset, install the members by name instead; `repo` brings `discover` with
 claude plugin install repo@lyngon
 claude plugin install writing@lyngon
 ```
-
-Pinned third-party plugins such as `skill-creator` are not in the bundle; install them by name where needed.
 
 ## Adopting a repository
 
