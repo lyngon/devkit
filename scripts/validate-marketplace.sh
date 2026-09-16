@@ -78,11 +78,19 @@ check_local_plugin() {
   [[ "$(jq -r '.description // ""' "$pj")" != "" ]] || fail "$pj: description is required"
   [[ "$(jq -r '.license // ""' "$pj")" != "" ]] || fail "$pj: license is required"
   [[ -f "$dir/CHANGELOG.md" ]] || fail "$entry_name: CHANGELOG.md is required in the plugin directory"
-  local content=0 skill
+  local content=0 skill dep
   for sub in skills commands agents hooks; do
     [[ -e "$dir/$sub" ]] && content=1
   done
-  [[ "$content" == 1 ]] || fail "$entry_name: plugin has no skills, commands, agents or hooks"
+  # A plugin with dependencies and no components is a bundle (ADR 0011).
+  if [[ "$content" == 0 && "$(jq -r '.dependencies // [] | length' "$pj")" == 0 ]]; then
+    fail "$entry_name: plugin has no skills, commands, agents, hooks or dependencies"
+  fi
+  while IFS= read -r dep; do
+    [[ -n "$dep" ]] || continue
+    jq -e --arg d "$dep" '.plugins[] | select(.name == $d)' "$manifest" >/dev/null ||
+      fail "$pj: dependency '$dep' is not a marketplace entry"
+  done < <(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' "$pj")
   while IFS= read -r skill; do
     check_skill "$skill"
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
@@ -125,6 +133,14 @@ while IFS= read -r entry; do
     check_pinned_plugin "$name" "$entry"
   fi
 done < <(jq -c '.plugins[]' "$manifest")
+
+# The `all` bundle lists every local plugin except itself and the ones in
+# category `devkit`, which maintain this repository and are useless elsewhere.
+if [[ -f plugins/all/.claude-plugin/plugin.json ]]; then
+  expected=$(jq -r '.plugins[] | select(.source | type == "string") | select(.category != "devkit") | select(.name != "all") | .name' "$manifest" | sort)
+  actual=$(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' plugins/all/.claude-plugin/plugin.json | sort)
+  [[ "$expected" == "$actual" ]] || fail "plugins/all: dependencies must be exactly: $(tr '\n' ' ' <<<"$expected")"
+fi
 
 # Every plugin directory must be listed.
 for dir in plugins/*/; do
