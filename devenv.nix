@@ -15,6 +15,15 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-marketplace.sh" "$@"'';
   };
+  renderPluginList = pkgs.writeShellApplication {
+    name = "render-plugin-list";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.git
+      pkgs.gawk
+    ];
+    text = ''exec "${config.devenv.root}/scripts/render-plugin-list.sh" "$@"'';
+  };
 in
 {
   # Baseline hooks, MCP server file and languages come from ./devenv.
@@ -22,10 +31,11 @@ in
 
   packages = [
     validateMarketplace
+    renderPluginList
     pkgs.jq
   ];
 
-  # Repository-specific hook.
+  # Repository-specific hooks.
   git-hooks.hooks.validate-marketplace = {
     enable = true;
     name = "validate marketplace";
@@ -33,9 +43,17 @@ in
     files = "^(\\.claude-plugin/|plugins/|catalog/|shared/)";
     pass_filenames = false;
   };
+  git-hooks.hooks.render-plugin-list = {
+    enable = true;
+    name = "render plugin list";
+    entry = lib.getExe renderPluginList;
+    files = "^(\\.claude-plugin/marketplace\\.json|README\\.md|plugins/[^/]+/(\\.claude-plugin/plugin\\.json|skills/[^/]+/SKILL\\.md))$";
+    pass_filenames = false;
+  };
 
-  # `devenv test` runs every git hook on every file first, then this.
+  # `devenv test` runs every git hook on every file first, then these.
   enterTest = ''
     validate-marketplace
+    render-plugin-list
   '';
 }

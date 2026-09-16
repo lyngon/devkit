@@ -29,6 +29,21 @@ CLAUDE.md                         context for agents (AGENTS.md is a symlink to 
 CONCEPTS.md                       the terms used in this repository
 ```
 
+## Plugins
+
+Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do not edit between the markers.
+
+<!-- plugins:start -->
+| Plugin | Skills | Description |
+| --- | --- | --- |
+| `all` | bundle of `repo`, `discover`, `writing` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `repo` | `/repo:init` | Set up or adopt a repository to Lyngon conventions: interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv and git hooks. |
+| `discover` | `/discover:approach`, `/discover:domain-model`, `/discover:interview` | Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise. |
+| `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
+| `writing` | `/writing:unslop` | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
+| `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
+<!-- plugins:end -->
+
 ## Using the marketplace
 
 ```sh
@@ -66,7 +81,8 @@ This repository registers itself as the marketplace `lyngon` from the working tr
 2. Add skills under `plugins/<name>/skills/<skill>/SKILL.md`.
 3. Add `plugins/<name>/CHANGELOG.md`.
 4. Add an entry to `.claude-plugin/marketplace.json` without a `version` field; the version lives in `plugin.json`.
-5. Run `devenv test`.
+5. Add it to the `dependencies` of `plugins/all/`, unless its marketplace category is `devkit`.
+6. Run `devenv test`; it regenerates the plugin table above and fails until the change is staged.
 
 ## Adding third-party work
 
