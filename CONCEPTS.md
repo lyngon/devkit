@@ -46,6 +46,35 @@ _Avoid_: catalog record, vetting note
 **Vetted**:
 The state of a catalog item whose text was read by a named person at the recorded commit.
 
+**Package**:
+A directory with its own manifest and declared dependencies, the unit of dependency in a Lyngon repository. Its kinds are App, Library, Contract and Tool.
+_Avoid_: project, module, component
+
+**App**:
+A package whose artifact is run by a runtime. Holds main, wiring and config, and is depended on by nothing.
+_Avoid_: service, application, executable
+
+**Library**:
+A package whose artifact is imported by other packages, inside or outside the repository.
+_Avoid_: shared, common, package in the narrow sense
+
+**Contract**:
+A package holding the published boundary shape of an app, from which one library per consuming language is generated.
+_Avoid_: interface package, shared model
+
+**Tool**:
+A package with an executable used only to develop or check its repository, never deployed or published.
+
+**Script**:
+A file under a `scripts/` directory that a devenv task or hook runs. Not a package.
+
+**Artifact**:
+An immutable build output of a package. A distributable when published under coordinates, a deployable when a platform can instantiate it.
+
+**Structure**:
+The layout, vocabulary and dependency rules every Lyngon repository follows, defined in `shared/STRUCTURE.md`.
+_Avoid_: monorepo, package layout
+
 ## Relationships
 
 - The **Devkit** holds the **Marketplace**, the **Baseline** and the shared convention documents.
@@ -53,3 +82,5 @@ The state of a catalog item whose text was read by a named person at the recorde
 - A **Plugin** holds one or more **Skills**, each either **In-house** or **Vendored**.
 - Every **Vendored skill** and every **Pinned plugin** has exactly one **Provenance record**.
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
+- The **Structure** is one of the shared convention documents; the **Baseline** enforces its dependency rules.
+- A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.

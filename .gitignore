@@ -21,3 +21,6 @@ devenv.local.yaml
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Python bytecode caches from the validators
+__pycache__/

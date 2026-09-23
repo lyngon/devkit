@@ -43,6 +43,18 @@ let
     ];
     text = builtins.readFile ./prose-lint.sh;
   };
+
+  # The layout rules of shared/STRUCTURE.md section 4.4: dependency direction
+  # between apps, libs, contracts, tools and infra, explicit workspace member
+  # lists, package documents, and no language names as path segments.
+  validateStructure = pkgs.writeShellApplication {
+    name = "validate-structure";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+    ];
+    text = ''exec python3 ${./validate-structure.py} "$@"'';
+  };
 in
 {
   options.lyngon = {
@@ -52,6 +64,12 @@ in
       type = lib.types.bool;
       default = true;
       description = "Generate .mcp.json with the devenv MCP server for Claude Code.";
+    };
+
+    structure.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "The repository follows the Lyngon structure (shared/STRUCTURE.md); enables the validate-structure hook.";
     };
   };
 
@@ -102,6 +120,14 @@ in
         name = lib.mkDefault "prose lint (commit message)";
         entry = lib.mkDefault "${lib.getExe proseLint} --commit-msg";
         stages = lib.mkDefault [ "commit-msg" ];
+      };
+      validate-structure = {
+        enable = lib.mkDefault cfg.structure.enable;
+        name = lib.mkDefault "validate structure";
+        entry = lib.mkDefault (lib.getExe validateStructure);
+        # Package directories and the root workspace files.
+        files = lib.mkDefault "^((apps|libs|contracts|tools|infra)/|(pyproject\\.toml|pnpm-workspace\\.yaml|Cargo\\.toml|go\\.work|package\\.json)$)";
+        pass_filenames = lib.mkDefault false;
       };
       actionlint.enable = lib.mkDefault true;
       yamllint = {

@@ -24,6 +24,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/render-plugin-list.sh" "$@"'';
   };
+  # Fixture tests for the baseline module's validate-structure hook.
+  testValidateStructure = pkgs.writeShellApplication {
+    name = "test-validate-structure";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+      pkgs.coreutils
+      pkgs.gnugrep
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/validate-structure.sh" "$@"'';
+  };
 in
 {
   # Baseline hooks, MCP server file and languages come from ./devenv.
@@ -55,5 +66,6 @@ in
   enterTest = ''
     validate-marketplace
     render-plugin-list
+    ${lib.getExe testValidateStructure}
   '';
 }

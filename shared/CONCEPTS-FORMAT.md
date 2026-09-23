@@ -42,15 +42,15 @@ _Avoid_: Client, buyer, account
 
 Default: one `CONCEPTS.md` at the repository root. This fits almost every repository.
 
-When packages have genuinely different domains, each package gets its own `packages/<name>/CONCEPTS.md`, and the root `CONCEPTS.md` becomes a map:
+When a repository holds several contexts, the package that owns each context gets its own `CONCEPTS.md`, and the root `CONCEPTS.md` becomes a map:
 
 ```md
 # Concepts map
 
 ## Contexts
 
-- [Ordering](packages/ordering/CONCEPTS.md): receives and tracks customer orders
-- [Billing](packages/billing/CONCEPTS.md): invoices and payments
+- [Ordering](ordering/CONCEPTS.md): receives and tracks customer orders
+- [Billing](billing/CONCEPTS.md): invoices and payments
 
 ## Relationships
 
@@ -59,9 +59,14 @@ When packages have genuinely different domains, each package gets its own `packa
 
 How to tell which applies:
 
-- A root `CONCEPTS.md` with a `## Contexts` section is a map; follow it to the per-package files.
+- A root `CONCEPTS.md` with a `## Contexts` section is a map; follow it to the per-context files.
 - A root `CONCEPTS.md` with a `## Language` section is the single context.
 - Neither exists: create the root file lazily when the first term is settled.
 
 When several contexts exist, infer which one the current topic belongs to. If unclear, ask.
-Create per-package files lazily, when the first package-specific term is settled, never speculatively.
+Create per-context files lazily, when the first context-specific term is settled, never speculatively.
+
+### With the Lyngon structure
+
+The package that owns a context is its core library, so the glossary is `libs/<ctx>/CONCEPTS.md`.
+Adapters and apps of a context never get their own glossary; their terms belong to the core library.

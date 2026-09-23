@@ -6,7 +6,7 @@ A repository may override it with `docs/conventions/adr.md`.
 Format adapted from Matt Pocock's `domain-modeling` skill (<https://github.com/mattpocock/skills>, MIT).
 
 ADRs live in `docs/adr/` with sequential numbering: `0001-slug.md`, `0002-slug.md`.
-Package-local decisions live in `packages/<name>/docs/adr/` with their own numbering.
+Package-local decisions live in the package's own `docs/adr/` with their own numbering.
 Scan the directory for the highest number and increment.
 Create the directory lazily, when the first ADR is needed.
 
@@ -51,4 +51,13 @@ Easy-to-reverse decisions get reversed; unsurprising ones need no explanation; d
 - Constraints not visible in the code: compliance, contracts, platforms, response-time budgets.
 - Rejected alternatives when the rejection is non-obvious.
 
-What does not qualify during repository setup: the license, the git host, the package layout (a convention, not a decision), and the choice of devenv (organization-wide, already decided).
+What does not qualify during repository setup: the license and the git host.
+
+### With the Lyngon structure
+
+The package layout does not qualify either; it is organization-wide, defined in `STRUCTURE.md`.
+A context's decisions live in its core library, `libs/<ctx>/docs/adr/`.
+
+### With devenv
+
+The choice of devenv does not qualify; it is organization-wide and already decided.

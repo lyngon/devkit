@@ -21,7 +21,7 @@ Most repositories have a single context:
 │   └── adr/
 │       ├── 0001-event-sourced-orders.md
 │       └── 0002-postgres-for-write-model.md
-└── packages/
+└── <packages>
 ```
 
 If the root `CONCEPTS.md` has a `## Contexts` section, the repository has several contexts and the root file is a map pointing to where each one lives:
@@ -31,14 +31,17 @@ If the root `CONCEPTS.md` has a `## Contexts` section, the repository has severa
 ├── CONCEPTS.md                       ← the map
 ├── docs/
 │   └── adr/                          ← repository-wide decisions
-└── packages/
-    ├── ordering/
-    │   ├── CONCEPTS.md
-    │   └── docs/adr/                 ← context-specific decisions
-    └── billing/
-        ├── CONCEPTS.md
-        └── docs/adr/
+├── <package owning Ordering>/
+│   ├── CONCEPTS.md
+│   └── docs/adr/                     ← context-specific decisions
+└── <package owning Billing>/
+    ├── CONCEPTS.md
+    └── docs/adr/
 ```
+
+### With the Lyngon structure
+
+The package that owns a context is its core library, `libs/<ctx>/`; adapters and apps of the context have no glossary of their own.
 
 Create files lazily: only when you have something to write.
 If no `CONCEPTS.md` exists, create one when the first term is resolved.

@@ -14,7 +14,7 @@ Every tool comes from `devenv.nix`. If one is missing, add it there; never insta
 devenv test
 ```
 
-`devenv test` runs every git hook on every file, then `validate-marketplace`.
+`devenv test` runs every git hook on every file, then `validate-marketplace` and the fixture tests of the structure validator.
 devenv detects coding agents and hides task output; run with `DEVENV_NO_AI_AGENT=1` to see it.
 The validator encodes this repository's rules; read [scripts/validate-marketplace.sh](scripts/validate-marketplace.sh) before changing the layout.
 Never disable a hook to make a check pass.
@@ -24,7 +24,7 @@ Never disable a hook to make a check pass.
 - `plugins/<concern>/`: one plugin per concern, each with `.claude-plugin/plugin.json`, `CHANGELOG.md` and `skills/<skill>/SKILL.md`.
 - `plugins/<concern>/skills/<skill>/UPSTREAM.md`: marks a vendored skill, next to its upstream `LICENSE`. Every change to a vendored skill is listed under its "Local patches". Template in `catalog/UPSTREAM-TEMPLATE.md`.
 - `catalog/<plugin>.md`: provenance record for each pinned third-party plugin. Template in `catalog/TEMPLATE.md`.
-- `shared/`: convention documents used by more than one plugin, symlinked from the plugins. Edit them here; never edit through a symlink target inside a plugin.
+- `shared/`: convention documents used by more than one plugin, symlinked from the plugins. `STRUCTURE.md` there defines the layout of every Lyngon repository; this repository is the one exception to it. Edit them here; never edit through a symlink target inside a plugin.
 - `devenv/`: the shared devenv module (`lyngon.enable`) that every Lyngon repository imports as `lyngon/devenv`. This repository imports it as `./devenv`, so `devenv test` here tests the module. Every value in it must be a `mkDefault` so consumers can override with a reason.
 - `docs/adr/NNNN-slug.md`: decisions about this repository.
 - `docs/TODO.md`: deferred work, only items the owner explicitly deferred.
@@ -36,7 +36,7 @@ Never disable a hook to make a check pass.
 - Plugin `version` lives in `plugin.json` only. Bump it and add a `CHANGELOG.md` entry with every user-visible change.
 - Marketplace entries for pinned plugins need a 40-character `sha` and a catalog record. Vendored skills need `UPSTREAM.md` with a 40-character upstream commit.
 - Third-party skills enter through `/devkit:add-skill`, which applies `shared/SKILL-REVIEW.md` and refuses upstreams without a license (ADR 0010).
-- Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, `packages/`), not merged. Compare against upstream at bump time and carry changes over by hand.
+- Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`), not merged. Compare against upstream at bump time and carry changes over by hand.
 - Plugins share documents only through symlinks into `shared/`, and behaviour only through `dependencies` in `plugin.json`. Never copy a file from one plugin into another.
 - `plugins/all/` is a bundle with no skills: its `dependencies` must list every local plugin outside marketplace category `devkit`, which is for plugins that maintain this repository (ADR 0011). The validator checks it.
 - A SKILL.md has frontmatter on line 1, a `description`, and a `name` equal to its directory.

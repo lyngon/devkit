@@ -4,7 +4,7 @@ The shared foundation for software development at Lyngon: the reusable pieces a 
 
 The Lyngon way is opinionated, and this repository exists to make those opinions cheap to follow and hard to drift from.
 Every tool comes from devenv and Nix, never from a global install.
-Every repository is a polyglot monorepo under `packages/`, even with one package.
+Every repository is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand.
 The same git hooks run everywhere and are never disabled to make a commit pass.
 INTENT.md, CLAUDE.md, CONCEPTS.md and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
 Every third-party skill was read by a named person at a recorded commit before it got in.
@@ -64,19 +64,28 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 
 ## What a Lyngon repository looks like
 
-Every repository is a polyglot monorepo with one flat `packages/` directory, one package per artifact, whatever its language.
-This is what `/repo:init` produces; package names are examples.
+Every repository is laid out by package kind, as defined in [shared/STRUCTURE.md](shared/STRUCTURE.md): entrypoints under `apps/`, libraries under `libs/`, cross-language interfaces under `contracts/`, repository-internal executables under `tools/`, and everything that references a deployable by coordinates under `infra/`.
+Language is never a path segment.
+A directory appears with its first package, so a one-package repository has `apps/<name>/` alone.
+This is what `/repo:init` and `/repo:add-package` produce; the names are examples for one context, `orders`.
 
 ```text
 my-service/
-├── packages/
-│   ├── api/                    Python service, delivered as a container image
-│   │   ├── devenv.nix          languages, hooks and tasks for this package only
-│   │   ├── README.md           what it is, how to run it
-│   │   └── docs/adr/           decisions local to this package
-│   ├── web/                    TypeScript frontend
-│   ├── core/                   Rust library the others import
-│   └── cli/                    Go binary release
+├── apps/
+│   └── orders-api/             Python entrypoint: main, wiring, config; delivered as an image
+│       ├── devenv.nix          tasks, hooks and processes for this package only
+│       ├── INTENT.md           why it exists and for whom
+│       ├── README.md           what it is, how to run it
+│       ├── CLAUDE.md           how to work here (AGENTS.md is a symlink to it)
+│       └── docs/adr/           decisions local to this package
+├── libs/
+│   ├── orders/                 core library: domain and application; holds CONCEPTS.md
+│   └── orders-postgres/        one adapter per technology
+├── contracts/
+│   └── orders-api/             schema, one generated library per language, conformance/
+├── infra/
+│   ├── modules/orders-api/     how the deployable is instantiated
+│   └── environments/prod/      one root per environment, never a branch
 ├── docs/
 │   ├── adr/                    decisions about the whole repository
 │   ├── conventions/            repository-specific conventions too long for a CLAUDE.md line
@@ -85,8 +94,9 @@ my-service/
 ├── .github/workflows/ci.yml    runs devenv test
 ├── .vscode/extensions.json     recommends the direnv extension
 ├── .envrc                      loads the devenv shell through direnv
-├── devenv.yaml                 imports lyngon/devenv and every packages/*/devenv.nix
-├── devenv.nix                  lyngon.enable = true, plus repository-wide hooks and tasks
+├── pyproject.toml              the Python workspace: explicit members, one uv.lock
+├── devenv.yaml                 imports lyngon/devenv and every package's devenv.nix
+├── devenv.nix                  lyngon.enable = true, languages, repository-wide hooks and tasks
 ├── secretspec.toml             declared secrets; values never enter the repository
 ├── INTENT.md                   why and for whom
 ├── CLAUDE.md                   how to work (AGENTS.md is a symlink to it)
@@ -97,6 +107,7 @@ my-service/
 And the way of working in it, in the order things happen:
 
 - `/repo:init` once, to set the repository up or bring an existing one onto the baseline.
+- `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
 - An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
 - `/writing:unslop` before any prose is handed over.
@@ -125,7 +136,7 @@ The steps are the same for an empty repository and for one that has grown organi
 
 1. Install the plugins as above, at least `repo`.
 2. Open Claude Code in the repository and run `/repo:init`.
-   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon`, or the subset you chose.
+   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon`, or the subset you chose.
 3. Commit.
 
 In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.

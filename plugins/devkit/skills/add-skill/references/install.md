@@ -8,7 +8,7 @@ Target: `plugins/<concern>/skills/<name>/`.
 
 1. Copy the upstream skill directory, minus files for other agents (`agents/openai.yaml` and similar) and minus anything the review blocked.
 2. Copy the upstream license file to `LICENSE` in the skill directory (repository-level license if the skill has none of its own).
-3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, `packages/<name>/`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`plugin:skill`).
+3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`plugin:skill`).
 4. Write `UPSTREAM.md` from `catalog/UPSTREAM-TEMPLATE.md`: upstream URL, path, name, version, 40-character commit, license, reviewer and date, why it is here, every local patch, the review findings.
 5. Frontmatter `name` must equal the directory name; `description` must state what and when.
 
