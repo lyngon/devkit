@@ -1,6 +1,6 @@
 {
   "name": "repo",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout.",
   "author": {
     "name": "Lyngon",

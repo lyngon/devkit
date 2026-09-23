@@ -139,6 +139,56 @@ Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 
 A stack outside this table gets `languages.<name>.enable = true` when devenv has it, no hooks beyond the baseline, and a note in `CLAUDE.md` that hooks for it are not configured.
 
+### Python: ruff.toml
+
+Written at the repository root when Python is in the stack.
+It selects every stable rule; each ignore carries its reason.
+`target-version` comes from `requires-python` in the root `pyproject.toml`.
+
+```toml
+[lint]
+select = ["ALL"]
+ignore = [
+  "COM812",  # conflicts with the formatter
+  "D105",    # magic methods document themselves
+  "D107",    # the class docstring covers __init__
+  "D203",    # D211 is kept: no blank line before a class docstring
+  "D213",    # D212 is kept: the summary starts on the first line
+  "EM101",   # a plain message literal in raise is readable
+  "FIX002",  # TODOs are allowed; TD checks their form
+  "SIM108",  # a ternary is not always clearer than if/else
+  "TC001",   # annotation imports stay at runtime: pydantic and FastAPI evaluate them
+  "TC002",
+  "TC003",
+  "TD002",   # no author on a TODO; git blame has it
+  "TD003",   # no issue link required on a TODO
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = [
+  "D1",      # test names state the behaviour
+  "INP001",  # pytest collects tests/ without __init__.py
+  "PLR2004", # expected values are literals
+  "S101",    # pytest asserts
+]
+
+[lint.flake8-import-conventions]
+banned-from = ["collections.abc", "datetime", "typing"]
+
+[lint.flake8-import-conventions.extend-aliases]
+"collections.abc" = "ct"
+"datetime" = "dt"
+"typing" = "t"
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+```
+
+It is the only ruff configuration in the repository.
+Ruff uses the nearest configuration and does not merge, so a `[tool.ruff]` table in a package's `pyproject.toml` would silently replace this file for that package.
+In adopt mode, move an existing ruff configuration here and show the diff; carry over an ignore only with its reason.
+Existing code that fails the new rules is fixed, or the owner accepts a temporary ignore with a reason; never lower the selection to make code pass.
+
 ## Secrets
 
 Always `secretspec`.

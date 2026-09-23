@@ -30,6 +30,9 @@ dev = ["pytest", "import-linter"]
 
 Root `devenv.nix`: `languages.python = { enable = true; uv.enable = true; uv.sync.enable = true; };`.
 
+Lint rules live in the root `ruff.toml` (the `init` skill's `devenv.md` reference).
+A package's `pyproject.toml` never gets a `[tool.ruff]` table; it would replace the root configuration for that package.
+
 ## TypeScript: pnpm
 
 Root `pnpm-workspace.yaml`:

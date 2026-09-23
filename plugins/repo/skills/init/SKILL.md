@@ -91,6 +91,7 @@ Documents scope:
 Baseline scope:
 
 - `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
+- `ruff.toml` when Python is in the stack.
 
 Structure scope:
 

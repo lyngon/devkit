@@ -3,6 +3,11 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.3.0 - 2026-09-23
+
+- `init` writes a root `ruff.toml` when Python is in the stack: every stable rule, a short ignore list with a reason on each entry, the `t`, `ct` and `dt` import aliases, `typing`, `collections.abc` and `datetime` banned from `from` imports, and no relative imports. In adopt mode an existing ruff configuration moves into it.
+- `add-package` never gives a Python package its own `[tool.ruff]` table, which would replace the root configuration for that package.
+
 ## 0.2.1 - 2026-09-23
 
 - The second prerequisite is called `baseline` (devenv with `lyngon/devenv` imported); the scope question and the file sets use that name.

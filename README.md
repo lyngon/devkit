@@ -97,6 +97,7 @@ my-service/
 ├── .vscode/extensions.json     recommends the direnv extension
 ├── .envrc                      loads the devenv shell through direnv
 ├── pyproject.toml              the Python workspace: explicit members, one uv.lock
+├── ruff.toml                   every stable ruff rule, each ignore with its reason
 ├── devenv.yaml                 imports lyngon/devenv and every package's devenv.nix
 ├── devenv.nix                  lyngon.enable and lyngon.structure.enable, languages, hooks and tasks
 ├── secretspec.toml             declared secrets; values never enter the repository
