@@ -5,7 +5,7 @@ Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
 ## 0.3.0 - 2026-09-23
 
-- Added `practice` to the bundle.
+- Added `practice` and `review` to the bundle.
 
 ## 0.2.1 - 2026-09-23
 

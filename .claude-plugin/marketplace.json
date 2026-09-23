@@ -75,6 +75,19 @@
       "license": "Apache-2.0"
     },
     {
+      "name": "review",
+      "source": "./plugins/review",
+      "description": "Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement.",
+      "category": "engineering",
+      "keywords": [
+        "review",
+        "code-review",
+        "subagent",
+        "feedback"
+      ],
+      "license": "Apache-2.0"
+    },
+    {
       "name": "devkit",
       "source": "./plugins/devkit",
       "description": "Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern.",
