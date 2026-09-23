@@ -8,6 +8,7 @@
     }
   },
   "enabledPlugins": {
+    "conventions@lyngon": true,
     "repo@lyngon": true,
     "discover@lyngon": true,
     "devkit@lyngon": true,

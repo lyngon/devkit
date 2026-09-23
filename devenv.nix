@@ -46,6 +46,10 @@ in
     pkgs.jq
   ];
 
+  # Eval prompts and graders have a fixed shape (frontmatter, then the prompt
+  # or rubric as the body) that cannot start with a heading.
+  git-hooks.hooks.markdownlint.excludes = [ "^plugins/[^/]+/evals/" ];
+
   # Repository-specific hooks.
   git-hooks.hooks.validate-marketplace = {
     enable = true;

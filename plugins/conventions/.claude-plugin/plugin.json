@@ -1,0 +1,14 @@
+{
+  "name": "conventions",
+  "version": "0.1.0",
+  "description": "Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": ["conventions", "style", "python", "typescript", "nix", "markdown", "adr"],
+  "dependencies": ["writing"]
+}

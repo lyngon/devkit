@@ -77,6 +77,22 @@
       "license": "Apache-2.0"
     },
     {
+      "name": "conventions",
+      "source": "./plugins/conventions",
+      "description": "Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents.",
+      "category": "conventions",
+      "keywords": [
+        "conventions",
+        "style",
+        "python",
+        "typescript",
+        "nix",
+        "markdown",
+        "adr"
+      ],
+      "license": "Apache-2.0"
+    },
+    {
       "name": "skill-creator",
       "source": {
         "source": "git-subdir",

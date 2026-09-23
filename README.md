@@ -54,11 +54,12 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 <!-- plugins:start -->
 | Plugin | Skills | Description |
 | --- | --- | --- |
-| `all` | bundle of `repo`, `discover`, `writing` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `all` | bundle of `repo`, `discover`, `writing`, `conventions` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:domain-model`, `/discover:interview` | Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise. |
 | `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
 | `writing` | `/writing:unslop` | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
+| `conventions` | `adr` (by path), `documents` (by path), `engineering` (by path), `markdown` (by path), `nix` (by path), `python` (by path), `typescript` (by path) | Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
@@ -110,6 +111,7 @@ And the way of working in it, in the order things happen:
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
 - An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
+- Conventions load on their own by file path from the `conventions` plugin: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. Nothing is copied into the repository.
 - `/writing:unslop` before any prose is handed over.
 - `devenv test` before every commit; it runs every git hook on every file, and no hook is ever disabled to make it pass.
 

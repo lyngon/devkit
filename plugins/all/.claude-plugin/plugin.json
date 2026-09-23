@@ -1,6 +1,6 @@
 {
   "name": "all",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own.",
   "author": {
     "name": "Lyngon",
@@ -10,5 +10,5 @@
   "repository": "https://github.com/lyngon/devkit",
   "license": "Apache-2.0",
   "keywords": ["bundle", "install"],
-  "dependencies": ["repo", "discover", "writing"]
+  "dependencies": ["repo", "discover", "writing", "conventions"]
 }

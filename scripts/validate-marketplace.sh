@@ -93,6 +93,11 @@ check_local_plugin() {
   done < <(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' "$pj")
   while IFS= read -r skill; do
     check_skill "$skill"
+    # Convention skills load by file path and are never invoked by name.
+    if [[ "$entry_name" == conventions ]]; then
+      sed -n '2,/^---$/p' "$skill" | grep -qE '^paths:' || fail "$skill: conventions skills need a paths list in the frontmatter"
+      sed -n '2,/^---$/p' "$skill" | grep -qE '^user-invocable:[[:space:]]*false' || fail "$skill: conventions skills need user-invocable: false"
+    fi
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
   if [[ -f "catalog/$entry_name.md" ]]; then
     fail "$entry_name: local plugins do not get catalog records; vendored skills use UPSTREAM.md"

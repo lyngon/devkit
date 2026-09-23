@@ -22,5 +22,8 @@ devenv.local.yaml
 .vscode/*
 !.vscode/extensions.json
 
+# Plugin eval runs
+plugins/*/evals/results/
+
 # Python bytecode caches from the validators
 __pycache__/

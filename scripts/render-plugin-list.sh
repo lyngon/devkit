@@ -30,7 +30,12 @@ render() {
       skills=""
       for skill in "$dir"/skills/*/; do
         [[ -d "$skill" ]] || continue
-        skills+="\`/$name:$(basename "$skill")\`, "
+        # Skills with user-invocable: false load by file path and have no slash command.
+        if sed -n '2,/^---$/p' "$skill/SKILL.md" | grep -qE '^user-invocable:[[:space:]]*false'; then
+          skills+="\`$(basename "$skill")\` (by path), "
+        else
+          skills+="\`/$name:$(basename "$skill")\`, "
+        fi
       done
       skills=${skills%, }
       if [[ -z "$skills" ]]; then
