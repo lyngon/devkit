@@ -32,7 +32,7 @@ Sterile, voiceless writing is just as obvious.
 - **Let some mess in.** Perfect structure feels algorithmic.
 - **Be specific.** Not "this is concerning" but "there's something unsettling about agents churning away at 3am."
 
-Reference documents want tight, impersonal prose: `README.md`, `CLAUDE.md`, `CONCEPTS.md`, `INTENT.md`, ADRs and API docs.
+Reference documents want tight, impersonal prose: READMEs, agent instruction files, glossaries, intent statements, ADRs and API docs.
 For those, apply every pattern below but skip "Use I" and "Let some mess in".
 
 ## Patterns to detect and fix

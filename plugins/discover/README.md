@@ -2,6 +2,8 @@
 
 Discovery before building.
 
+Prerequisites: documents
+
 ## Skills
 
 - `/discover:approach [--no-docs]`: a relentless interview that sharpens a plan or design and writes `CONCEPTS.md` terms and ADRs as they settle. User-invoked. `--no-docs` skips the docs.

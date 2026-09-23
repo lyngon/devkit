@@ -17,7 +17,7 @@ It is a single agent-neutral file with no dependencies.
 ## Local patches
 
 - Removed every em dash from the skill's own text (pattern headings now use a colon, step 2 of the process is a sentence); the em dash pattern now also names en dashes.
-- Added a paragraph to "Adding soul" scoping "Use I" and "Let some mess in" out of reference documents (README, CLAUDE.md, CONCEPTS.md, INTENT.md, ADRs, API docs).
+- Added a paragraph to "Adding soul" scoping "Use I" and "Let some mess in" out of reference documents (READMEs, agent instruction files, glossaries, intent statements, ADRs, API docs), named generically so the plugin assumes nothing about the repository.
 - Replaced the noodle-specific scheduler example in the colon pattern with a neutral setup-command example.
 - Restarted the pattern numbering in each subsection (upstream counts 1 to 25 across headings), because markdownlint MD029 rejects a list that continues past a heading.
 - Reflowed to one sentence per line and ended the process steps with full stops.

@@ -24,6 +24,15 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/render-plugin-list.sh" "$@"'';
   };
+  # The plugin prerequisites convention in docs/conventions/prerequisites.md.
+  validatePrerequisites = pkgs.writeShellApplication {
+    name = "validate-prerequisites";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+    ];
+    text = ''exec "${config.devenv.root}/scripts/validate-prerequisites.py" "$@"'';
+  };
   # Fixture tests for the baseline module's validate-structure hook.
   testValidateStructure = pkgs.writeShellApplication {
     name = "test-validate-structure";
@@ -35,6 +44,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/validate-structure.sh" "$@"'';
   };
+  testValidatePrerequisites = pkgs.writeShellApplication {
+    name = "test-validate-prerequisites";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.gnused
+    ];
+    text = ''exec "${config.devenv.root}/scripts/tests/validate-prerequisites.sh" "$@"'';
+  };
 in
 {
   # Baseline hooks, MCP server file and languages come from ./devenv.
@@ -43,6 +63,7 @@ in
   packages = [
     validateMarketplace
     renderPluginList
+    validatePrerequisites
     pkgs.jq
   ];
 
@@ -58,6 +79,13 @@ in
     files = "^(\\.claude-plugin/|plugins/|catalog/|shared/)";
     pass_filenames = false;
   };
+  git-hooks.hooks.validate-prerequisites = {
+    enable = true;
+    name = "validate prerequisites";
+    entry = lib.getExe validatePrerequisites;
+    files = "^(\\.claude-plugin/marketplace\\.json$|plugins/|shared/)";
+    pass_filenames = false;
+  };
   git-hooks.hooks.render-plugin-list = {
     enable = true;
     name = "render plugin list";
@@ -70,6 +98,8 @@ in
   enterTest = ''
     validate-marketplace
     render-plugin-list
+    validate-prerequisites
     ${lib.getExe testValidateStructure}
+    ${lib.getExe testValidatePrerequisites}
   '';
 }

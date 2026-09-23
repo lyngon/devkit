@@ -139,10 +139,10 @@ while IFS= read -r entry; do
   fi
 done < <(jq -c '.plugins[]' "$manifest")
 
-# The `all` bundle lists every local plugin except itself and the ones in
+# The `all` bundle lists every local plugin except the bundles and the ones in
 # category `devkit`, which maintain this repository and are useless elsewhere.
 if [[ -f plugins/all/.claude-plugin/plugin.json ]]; then
-  expected=$(jq -r '.plugins[] | select(.source | type == "string") | select(.category != "devkit") | select(.name != "all") | .name' "$manifest" | sort)
+  expected=$(jq -r '.plugins[] | select(.source | type == "string") | select(.category != "devkit") | select(.category != "bundle") | .name' "$manifest" | sort)
   actual=$(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' plugins/all/.claude-plugin/plugin.json | sort)
   [[ "$expected" == "$actual" ]] || fail "plugins/all: dependencies must be exactly: $(tr '\n' ' ' <<<"$expected")"
 fi

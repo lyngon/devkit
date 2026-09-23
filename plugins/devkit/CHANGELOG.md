@@ -6,6 +6,7 @@ Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 ## 0.1.1 - 2026-09-20
 
 - The install reference points vendored skills at the layout in `shared/STRUCTURE.md` instead of `packages/<name>/`.
+- Declares all three prerequisites; the plugin only runs in the devkit.
 
 ## 0.1.0 - 2026-09-16
 

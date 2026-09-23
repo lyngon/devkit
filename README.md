@@ -4,7 +4,7 @@ The shared foundation for software development at Lyngon: the reusable pieces a 
 
 The Lyngon way is opinionated, and this repository exists to make those opinions cheap to follow and hard to drift from.
 Every tool comes from devenv and Nix, never from a global install.
-Every repository is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand.
+A repository that adopts the structure is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand.
 The same git hooks run everywhere and are never disabled to make a commit pass.
 INTENT.md, CLAUDE.md, CONCEPTS.md and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
 Every third-party skill was read by a named person at a recorded commit before it got in.
@@ -52,20 +52,21 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do not edit between the markers.
 
 <!-- plugins:start -->
-| Plugin | Skills | Description |
-| --- | --- | --- |
-| `all` | bundle of `repo`, `discover`, `writing`, `conventions` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
-| `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
-| `discover` | `/discover:approach`, `/discover:domain-model`, `/discover:interview` | Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise. |
-| `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
-| `writing` | `/writing:unslop` | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
-| `conventions` | `adr` (by path), `documents` (by path), `engineering` (by path), `markdown` (by path), `nix` (by path), `python` (by path), `typescript` (by path) | Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
-| `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
+| Plugin | Skills | Prerequisites | Description |
+| --- | --- | --- | --- |
+| `all` | bundle of `repo`, `discover`, `writing`, `conventions` | documents, devenv, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `core` | bundle of `discover`, `writing`, `conventions` | documents | The plugins that work in any repository with the Lyngon documents: discover, writing and conventions. A bundle: it has no skills of its own. |
+| `repo` | `/repo:add-package`, `/repo:init` | documents, devenv, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
+| `discover` | `/discover:approach`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise. |
+| `devkit` | `/devkit:add-skill` | documents, devenv, structure | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
+| `writing` | `/writing:unslop` | git | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
+| `conventions` | `adr` (by path), `documents` (by path), `engineering` (by path), `markdown` (by path), `nix` (by path), `python` (by path), `typescript` (by path) | documents | Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
+| `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | git | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
 ## What a Lyngon repository looks like
 
-Every repository is laid out by package kind, as defined in [shared/STRUCTURE.md](shared/STRUCTURE.md): entrypoints under `apps/`, libraries under `libs/`, cross-language interfaces under `contracts/`, repository-internal executables under `tools/`, and everything that references a deployable by coordinates under `infra/`.
+A repository that adopts the structure is laid out by package kind, as defined in [shared/STRUCTURE.md](shared/STRUCTURE.md): entrypoints under `apps/`, libraries under `libs/`, cross-language interfaces under `contracts/`, repository-internal executables under `tools/`, and everything that references a deployable by coordinates under `infra/`.
 Language is never a path segment.
 A directory appears with its first package, so a one-package repository has `apps/<name>/` alone.
 This is what `/repo:init` and `/repo:add-package` produce; the names are examples for one context, `orders`.
@@ -97,7 +98,7 @@ my-service/
 ├── .envrc                      loads the devenv shell through direnv
 ├── pyproject.toml              the Python workspace: explicit members, one uv.lock
 ├── devenv.yaml                 imports lyngon/devenv and every package's devenv.nix
-├── devenv.nix                  lyngon.enable = true, languages, repository-wide hooks and tasks
+├── devenv.nix                  lyngon.enable and lyngon.structure.enable, languages, hooks and tasks
 ├── secretspec.toml             declared secrets; values never enter the repository
 ├── INTENT.md                   why and for whom
 ├── CLAUDE.md                   how to work (AGENTS.md is a symlink to it)
@@ -107,7 +108,7 @@ my-service/
 
 And the way of working in it, in the order things happen:
 
-- `/repo:init` once, to set the repository up or bring an existing one onto the baseline.
+- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those.
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
 - An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
@@ -125,6 +126,13 @@ claude plugin install all@lyngon
 ```
 
 `all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
+A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `writing` and `conventions` and needs only the Lyngon documents:
+
+```sh
+claude plugin install core@lyngon
+```
+
+The Prerequisites column says what each plugin needs from a repository; the rules are in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
 For a subset, install the members by name instead; `repo` brings `discover` with it as a dependency:
 
 ```sh

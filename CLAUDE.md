@@ -14,7 +14,7 @@ Every tool comes from `devenv.nix`. If one is missing, add it there; never insta
 devenv test
 ```
 
-`devenv test` runs every git hook on every file, then `validate-marketplace` and the fixture tests of the structure validator.
+`devenv test` runs every git hook on every file, then `validate-marketplace`, `validate-prerequisites` and the fixture tests of the validators.
 devenv detects coding agents and hides task output; run with `DEVENV_NO_AI_AGENT=1` to see it.
 The validator encodes this repository's rules; read [scripts/validate-marketplace.sh](scripts/validate-marketplace.sh) before changing the layout.
 Never disable a hook to make a check pass.
@@ -27,6 +27,7 @@ Never disable a hook to make a check pass.
 - `shared/`: convention documents used by more than one plugin, symlinked from the plugins. `STRUCTURE.md` there defines the layout of every Lyngon repository; this repository is the one exception to it. Edit them here; never edit through a symlink target inside a plugin.
 - `devenv/`: the shared devenv module (`lyngon.enable`) that every Lyngon repository imports as `lyngon/devenv`. This repository imports it as `./devenv`, so `devenv test` here tests the module. Every value in it must be a `mkDefault` so consumers can override with a reason.
 - `docs/adr/NNNN-slug.md`: decisions about this repository.
+- `docs/conventions/<topic>.md`: conventions specific to this repository that need more than a line.
 - `docs/TODO.md`: deferred work, only items the owner explicitly deferred.
 - `tmp/`: agent scratch output, gitignored, may be deleted at any time.
 - `sandbox/`: human experiments, gitignored, may live for weeks. Do not write there unless asked.
@@ -38,7 +39,8 @@ Never disable a hook to make a check pass.
 - Third-party skills enter through `/devkit:add-skill`, which applies `shared/SKILL-REVIEW.md` and refuses upstreams without a license (ADR 0010).
 - Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`), not merged. Compare against upstream at bump time and carry changes over by hand.
 - Plugins share documents only through symlinks into `shared/`, and behaviour only through `dependencies` in `plugin.json`. Never copy a file from one plugin into another.
-- `plugins/all/` is a bundle with no skills: its `dependencies` must list every local plugin outside marketplace category `devkit`, which is for plugins that maintain this repository (ADR 0011). The validator checks it.
+- Every plugin README declares its prerequisites (`documents`, `devenv`, `structure`), and its text may name an undeclared one only under a conditional heading; `validate-prerequisites` checks it. Rules in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
+- `plugins/all/` is a bundle with no skills: its `dependencies` must list every local plugin outside the marketplace categories `devkit` (plugins that maintain this repository, ADR 0011) and `bundle`. `plugins/core/` bundles the plugins whose prerequisites stop at `documents`. The validator checks both.
 - A SKILL.md has frontmatter on line 1, a `description`, and a `name` equal to its directory.
   Skill bodies stay agent-neutral: no Claude-specific wording unless the feature is Claude-only.
 - Long skill content goes into `references/` files next to the SKILL.md, linked by relative path.

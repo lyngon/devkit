@@ -5,7 +5,7 @@ Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
 ## 0.2.0 - 2026-09-20
 
-- Added `conventions` to the bundle.
+- Added `conventions` to the bundle; the bundle declares all three prerequisites.
 
 ## 0.1.0 - 2026-09-16
 

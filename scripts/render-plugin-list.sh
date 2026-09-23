@@ -18,9 +18,9 @@ if ! grep -qF "$start" "$readme" || ! grep -qF "$end" "$readme"; then
 fi
 
 render() {
-  echo "| Plugin | Skills | Description |"
-  echo "| --- | --- | --- |"
-  local entry name description dir skills deps skill
+  echo "| Plugin | Skills | Prerequisites | Description |"
+  echo "| --- | --- | --- | --- |"
+  local entry name description dir skills deps skill prerequisites
   while IFS= read -r entry; do
     name=$(jq -r '.name' <<<"$entry")
     description=$(jq -r '.description' <<<"$entry")
@@ -42,10 +42,12 @@ render() {
         deps=$(jq -r '.dependencies // [] | map("`" + (if type == "string" then . else .name end) + "`") | join(", ")' "$dir/.claude-plugin/plugin.json")
         skills="bundle of $deps"
       fi
+      prerequisites=$(sed -nE 's/^Prerequisites: //p' "$dir/README.md" | head -n 1)
     else
       skills="pinned, see [catalog/$name.md](catalog/$name.md)"
+      prerequisites="git"
     fi
-    echo "| \`$name\` | $skills | $description |"
+    echo "| \`$name\` | $skills | $prerequisites | $description |"
   done < <(jq -c '.plugins[]' "$manifest")
 }
 

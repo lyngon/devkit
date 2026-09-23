@@ -2,6 +2,8 @@
 
 Repository setup and package creation for Lyngon.
 
+Prerequisites: documents, devenv, structure
+
 ## Skills
 
 - `/repo:init`: interview the owner about purpose, audiences, stack and constraints, then create or adopt the standard repository files.

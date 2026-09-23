@@ -72,8 +72,12 @@ A file under a `scripts/` directory that a devenv task or hook runs. Not a packa
 An immutable build output of a package. A distributable when published under coordinates, a deployable when a platform can instantiate it.
 
 **Structure**:
-The layout, vocabulary and dependency rules every Lyngon repository follows, defined in `shared/STRUCTURE.md`.
+The layout, vocabulary and dependency rules a Lyngon repository follows when it has adopted them, defined in `shared/STRUCTURE.md`.
 _Avoid_: monorepo, package layout
+
+**Prerequisite**:
+Something a repository must have for a plugin to apply: the documents, devenv, or the structure. Declared per plugin; independent of each other.
+_Avoid_: assumption, tier, requirement
 
 ## Relationships
 
@@ -84,3 +88,4 @@ _Avoid_: monorepo, package layout
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
 - The **Structure** is one of the shared convention documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
+- Every **Plugin** declares its **Prerequisites**; a bundle's are the union of its members'.
