@@ -54,6 +54,8 @@ paths:
 - Checked by the `ruff-format` and `ruff` hooks against the root `ruff.toml`: every stable ruff rule, minus a short ignore list with a reason on each entry. It also enforces the import rules above, except that a `from` import names a module.
 - The root `ruff.toml` is the only ruff configuration. A `[tool.ruff]` table in a package's `pyproject.toml` silently replaces it.
 - Silence a single finding with `# noqa: CODE  # reason`. Extend the ignore list only with a reason on the entry.
+- Type-checked by the `{name}-basedpyright` hook: basedpyright in `all` mode, configured once in the root `pyproject.toml`. It reports every `Any` that reaches a name, an unannotated parameter, an override without `@t.override` and an unused call result (assign it to `_`).
+- Silence a single type finding with `# pyright: ignore[rule]  # reason`; a bare ignore is rejected.
 
 ## With the Lyngon structure
 

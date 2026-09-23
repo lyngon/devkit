@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.4.0 - 2026-09-23
+
+- The `python` skill names the type checker under `With the Lyngon baseline`: basedpyright in `all` mode through the `{name}-basedpyright` hook, and `# pyright: ignore[rule]  # reason` for a single finding.
+
 ## 0.3.0 - 2026-09-23
 
 - The `typescript` skill names the compiler flags beyond `strict: true`, and adds rules for Node builtins (`node:` prefix, namespace import), erasable syntax only (no `enum`, `namespace` or parameter properties), indexed access, boolean conditions and exhaustive `switch`. Tool configuration files are the one allowed default export.
