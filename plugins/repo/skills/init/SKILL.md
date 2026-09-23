@@ -1,6 +1,6 @@
 ---
 name: init
-description: Set up a fresh repository, or adopt an existing one, to Lyngon conventions. Interviews the owner relentlessly about purpose, failure modes, audiences, stack and constraints, then writes INTENT.md, CLAUDE.md (with AGENTS.md symlink), README.md, CONCEPTS.md, ADRs, devenv, git hooks, CI and the polyglot monorepo layout. User-invoked only.
+description: Set up a fresh repository, or adopt an existing one, to Lyngon conventions. Interviews the owner relentlessly about purpose, failure modes, audiences, stack and constraints, then writes INTENT.md, CLAUDE.md (with AGENTS.md symlink), README.md, CONCEPTS.md, ADRs, devenv, git hooks, CI and every package in the kind-first Lyngon layout. User-invoked only.
 disable-model-invocation: true
 argument-hint: "[fresh|adopt]"
 ---
@@ -13,7 +13,8 @@ One session that takes a repository from "empty" or "grown organically" to the L
 The interview is the core.
 The files are its output, written only after the owner confirms a shared understanding.
 
-The skill always assumes a polyglot monorepo managed with devenv, even when only one artifact exists today.
+The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and devenv, or all three including the layout defined in [STRUCTURE.md](STRUCTURE.md).
+The file set below is written scope by scope; nothing from a scope the owner did not adopt is written.
 
 ## When to use
 
@@ -39,7 +40,7 @@ Before asking anything, look up:
 - Existing `README.md`, `CLAUDE.md`, `AGENTS.md` (file or symlink, which direction), `CONCEPTS.md`, `CONTEXT.md`, `docs/adr/`, `docs/TODO.md`.
 - Existing `devenv.nix`, `devenv.yaml`, `.envrc`, `flake.nix`, `.gitignore`, `.pre-commit-config.yaml`, `.claude/settings.json`, `.mcp.json`, CI workflows.
 - Stack markers: `pyproject.toml`, `uv.lock`, `package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `go.mod`, `*.tf`, `*.cabal`, `stack.yaml`, `*.nix`, shell scripts.
-- Existing package layout (`packages/`, `apps/`, `libs/`, `services/`, per-language roots).
+- Existing package layout (`apps/`, `libs/`, a flat `packages/`, `services/`, per-language roots) and root workspace files (`pyproject.toml`, `pnpm-workspace.yaml`, `Cargo.toml`, `go.work`).
 - Existing tests and how they run.
 
 Summarize the inventory in at most ten lines, then start the interview.
@@ -78,14 +79,24 @@ If `AGENTS.md` exists as the source and `CLAUDE.md` as the symlink, ask before r
 Use the templates and rules in [references/repo-files.md](references/repo-files.md) and [references/devenv.md](references/devenv.md).
 The full set:
 
+Documents scope:
+
 - `INTENT.md` from the round 1 answers: product, for whom, done, failure, non-goals, horizon.
 - `CLAUDE.md` as the source file, `AGENTS.md` as a symlink to it.
 - `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention that needs more than a line.
 - `.gitignore` with the baseline patterns, `tmp/`, `sandbox/`, and the stack patterns.
-- `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
-- `.claude/settings.json` registering the `lyngon` marketplace and enabling `all@lyngon`, or the subset the user chose.
+- `.claude/settings.json` registering the `lyngon` marketplace and enabling `all@lyngon`, `core@lyngon`, or the subset the user chose.
 - `.github/workflows/ci.yml` (or the equivalent for the chosen host).
-- `packages/<name>/` with its own `devenv.nix` for every artifact named in the interview, imported from the root `devenv.yaml`.
+
+Devenv scope:
+
+- `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
+
+Structure scope:
+
+- The sentence "This repository follows the Lyngon structure" in the root `CLAUDE.md`, and `lyngon.structure.enable = true` in `devenv.nix`; the session hook and `add-package` look for the sentence.
+- The root workspace file for every language in use, with explicit members (see `add-package`'s `workspaces.md` reference), and `languages.*` in the root `devenv.nix`.
+- Every package named in the interview, created through the `add-package` skill of this plugin, which puts it in the directory its kind decides, writes its files and registers it in its workspace, the root `devenv.yaml` and the root `CLAUDE.md`.
 - `secretspec.toml` and the `secretspec` section in `devenv.yaml` when the repository needs secrets.
 - Services (`services.*` in devenv) only when the user confirmed each one by name.
 

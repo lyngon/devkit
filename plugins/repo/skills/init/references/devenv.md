@@ -1,7 +1,7 @@
 # devenv
 
 Assumes devenv 2.3 or later.
-Every repository is a polyglot monorepo: the root `devenv.nix` holds cross-cutting tools and hooks, each package holds its own `devenv.nix`, and the root `devenv.yaml` imports the packages.
+The root `devenv.nix` holds the languages, cross-cutting tools and hooks; each package holds its own `devenv.nix` with its tasks, hooks and processes; the root `devenv.yaml` imports the packages.
 
 ## Root files
 
@@ -25,7 +25,8 @@ inputs:
 
 imports:
   - lyngon/devenv
-  - ./packages/{name}
+  - ./apps/{name}
+  - ./libs/{name}
 ```
 
 The `lyngon` input is the shared baseline module from the Lyngon devkit; `devenv update lyngon` bumps it.
@@ -48,6 +49,15 @@ Add the `secretspec` section when the repository needs secrets (see below).
   # languages come from the lyngon input. Override a baseline hook only with
   # a comment saying why, e.g. `git-hooks.hooks.typos.enable = false;`.
   lyngon.enable = true;
+  # The repository follows the Lyngon structure; enables the validate-structure hook.
+  lyngon.structure.enable = true; # {structure scope only}
+
+  # Languages are enabled once, here, for the workspace at the root.
+  languages.python = {
+    enable = true;
+    uv.enable = true;
+    uv.sync.enable = true;
+  };
 
   packages = [ pkgs.jq ];
 
@@ -58,11 +68,11 @@ Add the `secretspec` section when the repository needs secrets (see below).
 }
 ```
 
-The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, commitizen, actionlint, yamllint (relaxed).
+The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, commitizen, actionlint, yamllint (relaxed), and validate-structure (the dependency rules, member lists and package file set from `STRUCTURE.md`).
 
 Do not enable `claude.code.enable`.
 It would take over `.claude/settings.json` with a fixed key set and drop the marketplace registration.
-Do not enable Claude Code hooks; the git hooks are the feedback loop.
+Do not enable Claude Code hooks through devenv; the git hooks are the feedback loop, and the one Claude Code hook a Lyngon repository has comes from the `repo` plugin.
 
 ### .envrc
 
@@ -79,41 +89,38 @@ Users without direnv get activation from `devenv hook <shell>` in their own shel
 
 ## Package files
 
-`packages/{name}/devenv.nix` holds the package's languages, package-scoped hooks and package-scoped tasks.
+A package's `devenv.nix` (`apps/{name}/devenv.nix`, `libs/{name}/devenv.nix`) holds its tasks, package-scoped hooks and processes.
+It never enables a language; the workspace at the root owns the language, the lockfile and the environment.
 Hooks are repository-wide in devenv, so scope them with `files`:
 
 ```nix
-{ pkgs, ... }:
+{ ... }:
 {
-  languages.python = {
-    enable = true;
-    uv.enable = true;
-    uv.sync.enable = true;
-    directory = "packages/{name}";
-  };
-
   git-hooks.hooks = {
     ruff-format = {
       enable = true;
-      files = "^packages/{name}/";
+      files = "^libs/{name}/";
     };
     ruff = {
       enable = true;
-      files = "^packages/{name}/";
+      files = "^libs/{name}/";
     };
   };
 
   tasks."{name}:test" = {
     description = "Run {name} tests";
-    exec = "cd packages/{name} && uv run pytest";
+    exec = "cd libs/{name} && uv run pytest";
   };
 }
 ```
+
+The `add-package` skill writes this file; its `workspaces.md` reference has the root workspace file per language.
 
 Wire package tests into the root `enterTest` by task name, or list the commands in `CLAUDE.md` when they are slow.
 
 ## Stacks
 
+`languages.*` goes in the root `devenv.nix`, once per language.
 Formatters are always enabled.
 Linters are enabled when they need no project configuration.
 Linters that need configuration (eslint, clippy) are written as commented-out lines with a one-line reason, for the owner to enable.

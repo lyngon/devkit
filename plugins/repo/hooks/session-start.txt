@@ -1,0 +1,5 @@
+This is a Lyngon repository. The devkit plugins provide skills; invoke them instead of working from memory:
+- /discover:approach before building anything that has more than one reasonable design.
+- /writing:unslop before handing over prose.
+Conventions load on their own by file path from the conventions plugin.
+Terms are in CONCEPTS.md, decisions in docs/adr/, working rules in CLAUDE.md.

@@ -3,6 +3,14 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.2.0 - 2026-09-20
+
+- Added the `add-package` skill: creates an app, library, adapter, contract, tool, infra module or environment in the directory its kind decides, with `INTENT.md`, `README.md`, `CLAUDE.md`, `devenv.nix` and the layer lint for a core library, and registers it in its workspace and the root `devenv.yaml`. Agents may invoke it on their own.
+- Added a `SessionStart` hook that tells the agent which devkit skills to invoke and when; it mentions `add-package` only when the root `CLAUDE.md` says the repository follows the Lyngon structure.
+- `init` asks which prerequisites the repository adopts (documents, devenv, structure) and writes only those file sets; a structured repository gets the `CLAUDE.md` sentence and `lyngon.structure.enable = true`. `add-package` refuses in a repository without the sentence.
+- `init` creates packages through `add-package` and writes the kind-first layout from `shared/STRUCTURE.md` (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`) instead of a flat `packages/`.
+- Languages and workspaces are enabled once at the repository root; a package's `devenv.nix` holds only its tasks, hooks and processes.
+
 ## 0.1.2 - 2026-09-16
 
 - The interview recommends the `all` bundle, the settings template enables `all@lyngon`, and the README template tells colleagues to install it once; Claude Code 2.1.195 and later no longer installs plugins from a committed settings file.

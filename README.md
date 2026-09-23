@@ -55,7 +55,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | Plugin | Skills | Description |
 | --- | --- | --- |
 | `all` | bundle of `repo`, `discover`, `writing` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
-| `repo` | `/repo:init` | Set up or adopt a repository to Lyngon conventions: interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv and git hooks. |
+| `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:domain-model`, `/discover:interview` | Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise. |
 | `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
 | `writing` | `/writing:unslop` | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |

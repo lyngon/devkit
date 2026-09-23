@@ -1,0 +1,1 @@
+This repository follows the Lyngon structure: invoke /repo:add-package before creating any package (app, library, adapter, contract, tool, infra module or environment). Never create one by hand.
