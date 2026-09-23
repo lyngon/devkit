@@ -69,6 +69,12 @@ Derive the kind, do not ask for it:
 
 Then propose the concern: an existing plugin under `plugins/` whose concern the skill serves, or a new one. Give a recommendation, list the alternatives, and wait.
 
+Then settle the prerequisites (`docs/conventions/prerequisites.md`): which of `documents`, `devenv` and `structure` the skill's text needs.
+Derive the recommendation from the text, the way the validator does: name every line that carries a term of an undeclared prerequisite, and say for each whether it belongs under a conditional heading or raises the plugin's declaration.
+When the skill would raise an existing plugin's declaration, say so explicitly; a repository that installed the plugin for less would then get more than it asked for, and a conditional section is usually the better answer.
+Wait for the decision.
+Bundle membership is never a question: the validator puts every plugin declaring at most `documents` in `core` and every non-devkit plugin in `all`.
+
 ### A.6 Install
 
 Follow [references/install.md](references/install.md) for the exact files.
@@ -85,7 +91,7 @@ Keep every plausible hit with upstream, path, license and a one-line summary.
 ### B.2 Design it
 
 Invoke `discover:approach` with the user's description and the prior-art list as context.
-The interview must settle: the skill's name (a noun that reads after the concern, as in `/discover:approach`), the concern it belongs to, what it does and does not do, user-invoked or model-invoked, inputs and outputs, and the one prompt that must trigger it and one that must not.
+The interview must settle: the skill's name (a noun that reads after the concern, as in `/discover:approach`), the concern it belongs to, its prerequisites (`documents`, `devenv`, `structure`, or none, per `docs/conventions/prerequisites.md`) and whether they raise the plugin's declaration, what it does and does not do, user-invoked or model-invoked, inputs and outputs, and the one prompt that must trigger it and one that must not.
 Whenever a prior-art hit covers a settled requirement, say so in the interview.
 
 ### B.3 Decide

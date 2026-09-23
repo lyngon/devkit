@@ -153,6 +153,24 @@ repo=$(new_repo)
 plugin "$repo" plain "devenv, documents"
 expect_error "prerequisites out of order" "$repo" "plugins/plain/README.md: prerequisites must be listed once each in the order"
 
+repo=$(new_repo)
+plugin "$repo" docs documents
+plugin "$repo" env devenv
+bundle "$repo" core documents docs
+expect_ok "core listing exactly the documents-only plugins" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" docs documents
+plugin "$repo" plain git
+bundle "$repo" core documents docs
+expect_error "core missing a documents-only plugin" "$repo" "plugins/core/.claude-plugin/plugin.json: core must list exactly the plugins declaring at most documents: docs, plain"
+
+repo=$(new_repo)
+plugin "$repo" docs documents
+plugin "$repo" env devenv
+bundle "$repo" core "documents, devenv" docs env
+expect_error "core holding a devenv plugin" "$repo" "core must list exactly the plugins declaring at most documents: docs"
+
 if ((failures > 0)); then
   echo "test-validate-prerequisites: $failures failure(s)" >&2
   exit 1

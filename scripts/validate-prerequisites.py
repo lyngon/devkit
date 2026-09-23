@@ -3,7 +3,8 @@
 # README declares its prerequisites on one `Prerequisites:` line, no file an
 # agent can read names a prerequisite the plugin has not declared outside a
 # conditional section, a skill whose paths are all devenv files is conditional
-# on devenv as a whole, and a bundle declares the union of its members.
+# on devenv as a whole, a bundle declares the union of its members, and core
+# lists exactly the plugins that declare at most documents.
 # Runs from anywhere inside the repository. Pinned plugins are skipped.
 import json
 import os
@@ -200,14 +201,33 @@ def check_bundle(root: Path, name: str, plugin: Path, manifests: dict[str, dict]
              + declared_line(expected_names))
 
 
+def check_core(root: Path, plugins: dict[str, Path], categories: dict[str, str],
+               manifests: dict[str, dict], declared: dict[str, list[str] | None]) -> None:
+    """Every plugin declaring at most documents is in core, and nothing else is."""
+    if "core" not in plugins or declared.get("core") is None:
+        return
+    expected = sorted(
+        name for name, names in declared.items()
+        if names is not None and name != "core"
+        and categories.get(name) not in ("devkit", "bundle")
+        and set(names) <= {"documents"}
+    )
+    actual = sorted(dependency_names(manifests["core"]))
+    if expected != actual:
+        fail(rel(root, plugins["core"] / ".claude-plugin" / "plugin.json"),
+             "core must list exactly the plugins declaring at most documents: " + ", ".join(expected))
+
+
 def main() -> int:
     root = repo_root()
     marketplace = read_json(root / ".claude-plugin" / "marketplace.json")
     plugins = {}
+    categories = {}
     for entry in marketplace.get("plugins", []):
         source = entry.get("source") if isinstance(entry, dict) else None
         if isinstance(source, str) and source.startswith("./plugins/"):
             plugins[entry.get("name", "")] = root / source[2:]
+            categories[entry.get("name", "")] = entry.get("category", "")
     manifests = {n: read_json(p / ".claude-plugin" / "plugin.json") for n, p in plugins.items()}
     declared = {n: read_declaration(root, p) for n, p in plugins.items()}
     for name, plugin in plugins.items():
@@ -217,6 +237,7 @@ def main() -> int:
         for path in text_files(plugin):
             check_file(path, rel(root, path), names)
         check_bundle(root, name, plugin, manifests, declared)
+    check_core(root, plugins, categories, manifests, declared)
     for line in errors:
         print(line, file=sys.stderr)
     if errors:

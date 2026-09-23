@@ -1,6 +1,6 @@
 # Creating a new in-house skill
 
-Input: the design settled by `discover:approach` (name, concern, does and does not, invocation mode, inputs and outputs, a must-trigger prompt and a must-not-trigger prompt).
+Input: the design settled by `discover:approach` (name, concern, prerequisites, does and does not, invocation mode, inputs and outputs, a must-trigger prompt and a must-not-trigger prompt).
 
 ## Engine
 
@@ -22,6 +22,7 @@ plugins/<concern>/skills/<name>/
 `disable-model-invocation: true` for skills that write many files or ask many questions; model-invocable only when the trigger is unambiguous.
 Agent-neutral wording unless the feature is Claude-only.
 No dashes, one sentence per line.
+Every line about a prerequisite the plugin does not declare goes under a conditional heading (`With the Lyngon documents`, `With devenv`, `With the Lyngon structure`); `validate-prerequisites` checks it.
 
 ## Evals
 
@@ -37,8 +38,8 @@ Evals are not wired into CI yet (token cost); note that in the changelog entry i
 
 ## Bookkeeping
 
-- Bump the plugin's minor version, add a changelog entry, update its README.
-- New concern plugin: same files as in `install.md`.
+- Bump the plugin's minor version, add a changelog entry, update its README, including its `Prerequisites:` line when the skill raised it.
+- New concern plugin: same files as in `install.md`, including the `Prerequisites:` line and the bundle memberships.
 - If the skill calls skills from another plugin, add that plugin to `dependencies`.
 - Run `devenv test`.
 - Do not commit; offer `feat(<concern>): add <name> skill`.

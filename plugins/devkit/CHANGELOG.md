@@ -3,6 +3,10 @@
 All notable changes to the `devkit` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.1.2 - 2026-09-23
+
+- `add-skill` settles a skill's prerequisites at placement time, warns when they would raise the plugin's declaration, and writes the `Prerequisites:` line and the bundle memberships for a new plugin.
+
 ## 0.1.1 - 2026-09-20
 
 - The install reference points vendored skills at the layout in `shared/STRUCTURE.md` instead of `packages/<name>/`.

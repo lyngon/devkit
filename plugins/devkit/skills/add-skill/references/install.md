@@ -8,12 +8,12 @@ Target: `plugins/<concern>/skills/<name>/`.
 
 1. Copy the upstream skill directory, minus files for other agents (`agents/openai.yaml` and similar) and minus anything the review blocked.
 2. Copy the upstream license file to `LICENSE` in the skill directory (repository-level license if the skill has none of its own).
-3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`plugin:skill`).
+3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`plugin:skill`). Put every line about a prerequisite the plugin does not declare under a conditional heading (`With the Lyngon documents`, `With devenv`, `With the Lyngon structure`).
 4. Write `UPSTREAM.md` from `catalog/UPSTREAM-TEMPLATE.md`: upstream URL, path, name, version, 40-character commit, license, reviewer and date, why it is here, every local patch, the review findings.
 5. Frontmatter `name` must equal the directory name; `description` must state what and when.
 
-If the concern plugin is new: create `plugins/<concern>/.claude-plugin/plugin.json` (name, version `0.1.0`, description, author, license `Apache-2.0`, `dependencies` if it calls other plugins' skills), `CHANGELOG.md`, `README.md`, and add the marketplace entry without a `version` field.
-If it exists: bump its minor version in `plugin.json`, add a changelog entry, update its README skill list.
+If the concern plugin is new: create `plugins/<concern>/.claude-plugin/plugin.json` (name, version `0.1.0`, description, author, license `Apache-2.0`, `dependencies` if it calls other plugins' skills), `CHANGELOG.md`, `README.md` with its `Prerequisites:` line, and add the marketplace entry without a `version` field. Add it to the `dependencies` of `plugins/all/`, and of `plugins/core/` when it declares at most `documents`; the validator refuses the marketplace otherwise.
+If it exists: bump its minor version in `plugin.json`, add a changelog entry, update its README skill list, and update its `Prerequisites:` line when the settled prerequisites raised it (then also move it out of `core`).
 
 ## Pinned plugin
 
