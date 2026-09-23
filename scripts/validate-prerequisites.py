@@ -2,9 +2,9 @@
 # Check every local plugin against docs/conventions/prerequisites.md: the
 # README declares its prerequisites on one `Prerequisites:` line, no file an
 # agent can read names a prerequisite the plugin has not declared outside a
-# conditional section, a skill whose paths are all devenv files is conditional
-# on devenv as a whole, a bundle declares the union of its members, and core
-# lists exactly the plugins that declare at most documents.
+# conditional section (generic devenv facts count as a condition, not a
+# prerequisite), a bundle declares the union of its members, and core lists
+# exactly the plugins that declare at most documents.
 # Runs from anywhere inside the repository. Pinned plugins are skipped.
 import json
 import os
@@ -13,7 +13,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ORDER = ["documents", "devenv", "structure"]
+ORDER = ["documents", "baseline", "structure"]
+# "devenv" is a condition, not a prerequisite: its terms are allowed under a
+# "With devenv" heading, and wherever baseline terms are allowed.
 TERMS = {
     "documents": [
         "CONCEPTS.md", "docs/adr", "INTENT.md", "CLAUDE.md", "AGENTS.md",
@@ -21,6 +23,9 @@ TERMS = {
     ],
     "devenv": [
         "devenv", "secretspec", "git-hooks", "enterTest", ".pre-commit-config",
+    ],
+    "baseline": [
+        "lyngon.enable", "lyngon.structure", "lyngon.mcp", "lyngon/devenv",
         "prose-lint", "markdownlint", "nixfmt", "shellcheck", "ruff", "prettier",
         "commitizen", "typos", "ripsecrets", "actionlint", "yamllint", "deadnix",
         "statix", "golangci-lint",
@@ -33,6 +38,7 @@ TERMS = {
 HEADINGS = {
     "With the Lyngon documents": "documents",
     "With devenv": "devenv",
+    "With the Lyngon baseline": "baseline",
     "With the Lyngon structure": "structure",
 }
 EXTENSIONS = {".md", ".txt", ".sh"}
@@ -122,38 +128,21 @@ def text_files(plugin: Path) -> list[Path]:
     return files
 
 
-def frontmatter_paths(lines: list[str]) -> list[str] | None:
-    """The `paths:` entries of a SKILL.md frontmatter, given as a block list
-    or as one comma-separated string. None when there is no frontmatter or
-    no paths key."""
-    if not lines or lines[0].strip() != "---":
-        return None
-    paths: list[str] | None = None
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        if key := re.match(r"^paths:\s*(.*)$", line):
-            if value := key.group(1).strip().strip("'\"[]"):
-                return [p.strip().strip("'\"") for p in value.split(",") if p.strip()]
-            paths = []
-        elif paths is not None:
-            if item := re.match(r"^\s+-\s*(.+)$", line):
-                paths.append(item.group(1).strip().strip("'\""))
-            else:
-                break
-    return paths
 
 
 def check_file(path: Path, display: str, declared: list[str]) -> None:
     lines = path.read_text(errors="replace").splitlines()
     always = set(declared)
-    if path.name == "SKILL.md":
-        paths = frontmatter_paths(lines)
-        if paths and all(p.endswith(".nix") or p == "devenv.yaml" for p in paths):
-            always.add("devenv")
     open_sections: list[tuple[int, str]] = []
     fenced = False
+    # SKILL.md frontmatter is metadata (name, description, paths), not text
+    # that tells an agent what to do.
+    frontmatter_end = 0
+    if path.name == "SKILL.md" and lines and lines[0] == "---":
+        frontmatter_end = next((i for i, l in enumerate(lines[1:], 2) if l == "---"), 0)
     for number, line in enumerate(lines, 1):
+        if number <= frontmatter_end:
+            continue
         if line.startswith("```"):
             fenced = not fenced
         elif not fenced and (heading := re.match(r"^(#+) (.*)$", line)):
@@ -162,6 +151,12 @@ def check_file(path: Path, display: str, declared: list[str]) -> None:
             if name := HEADINGS.get(heading.group(2).strip()):
                 open_sections.append((level, name))
         allowed = always | {p for _, p in open_sections}
+        # The structure needs the baseline (lyngon.structure.enable is a
+        # baseline option), and the baseline needs devenv.
+        if "structure" in allowed:
+            allowed.add("baseline")
+        if "baseline" in allowed:
+            allowed.add("devenv")
         for prerequisite, terms in TERMS.items():
             if prerequisite in allowed:
                 continue

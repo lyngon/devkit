@@ -40,7 +40,7 @@ paths:
 - `.pyi` stubs only for third-party packages that ship no types, under `typings/` at the package root.
 - Notebooks are exploration. They are never imported, and their outputs are stripped before commit.
 
-## With devenv
+## With the Lyngon baseline
 
 Checked by the `ruff-format` and `ruff` hooks.
 

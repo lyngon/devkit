@@ -3,7 +3,7 @@
 Skills for maintaining the Lyngon devkit itself.
 They only run inside the devkit repository.
 
-Prerequisites: documents, devenv, structure
+Prerequisites: documents, baseline, structure
 
 ## Skills
 

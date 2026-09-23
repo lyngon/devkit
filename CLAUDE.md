@@ -39,7 +39,7 @@ Never disable a hook to make a check pass.
 - Third-party skills enter through `/devkit:add-skill`, which applies `shared/SKILL-REVIEW.md` and refuses upstreams without a license (ADR 0010).
 - Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`), not merged. Compare against upstream at bump time and carry changes over by hand.
 - Plugins share documents only through symlinks into `shared/`, and behaviour only through `dependencies` in `plugin.json`. Never copy a file from one plugin into another.
-- Every plugin README declares its prerequisites (`documents`, `devenv`, `structure`), and its text may name an undeclared one only under a conditional heading; `validate-prerequisites` checks it. Rules in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
+- Every plugin README declares its prerequisites (`documents`, `baseline`, `structure`), and its text may name an undeclared one only under a conditional heading; `validate-prerequisites` checks it. Rules in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
 - `plugins/all/` is a bundle with no skills: its `dependencies` must list every local plugin outside the marketplace categories `devkit` (plugins that maintain this repository, ADR 0011) and `bundle`. `plugins/core/` bundles the plugins whose prerequisites stop at `documents`. The validator checks both.
 - A SKILL.md has frontmatter on line 1, a `description`, and a `name` equal to its directory.
   Skill bodies stay agent-neutral: no Claude-specific wording unless the feature is Claude-only.

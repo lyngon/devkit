@@ -58,6 +58,6 @@ What does not qualify during repository setup: the license and the git host.
 The package layout does not qualify either; it is organization-wide, defined in `STRUCTURE.md`.
 A context's decisions live in its core library, `libs/<ctx>/docs/adr/`.
 
-### With devenv
+### With the Lyngon baseline
 
-The choice of devenv does not qualify; it is organization-wide and already decided.
+The choice of devenv and the baseline does not qualify; it is organization-wide and already decided.

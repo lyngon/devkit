@@ -76,7 +76,7 @@ The layout, vocabulary and dependency rules a Lyngon repository follows when it 
 _Avoid_: monorepo, package layout
 
 **Prerequisite**:
-Something a repository must have for a plugin to apply: the documents, devenv, or the structure. Declared per plugin; independent of each other.
+Something a repository must have for a plugin to apply: the documents, the baseline, or the structure. Declared per plugin; independent of each other. Using devenv at all is a condition a plugin may write for, not a prerequisite.
 _Avoid_: assumption, tier, requirement
 
 ## Relationships

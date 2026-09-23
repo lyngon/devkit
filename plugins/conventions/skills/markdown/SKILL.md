@@ -21,6 +21,6 @@ paths:
 - Say who and what, not "it is important to note". Delete filler on sight.
 - Before handing prose over, run `/writing:unslop` on it.
 
-## With devenv
+## With the Lyngon baseline
 
 Checked by the `markdownlint`, `prose-lint` and `typos` hooks.

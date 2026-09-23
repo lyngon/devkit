@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.2.1 - 2026-09-23
+
+- The second prerequisite is called `baseline` (devenv with `lyngon/devenv` imported); the scope question and the file sets use that name.
+
 ## 0.2.0 - 2026-09-20
 
 - Added the `add-package` skill: creates an app, library, adapter, contract, tool, infra module or environment in the directory its kind decides, with `INTENT.md`, `README.md`, `CLAUDE.md`, `devenv.nix` and the layer lint for a core library, and registers it in its workspace and the root `devenv.yaml`. Agents may invoke it on their own.

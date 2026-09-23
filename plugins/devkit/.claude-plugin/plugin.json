@@ -1,6 +1,6 @@
 {
   "name": "devkit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern.",
   "author": {
     "name": "Lyngon",

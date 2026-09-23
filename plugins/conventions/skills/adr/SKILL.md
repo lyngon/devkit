@@ -17,10 +17,10 @@ Format and rules are in [ADR-FORMAT.md](ADR-FORMAT.md); this is the short form.
 - An accepted ADR is never rewritten. A change of mind is a new ADR, and the old one gets a `Status: superseded by NNNN` line.
 - Say what was rejected and why when the rejection is not obvious; the explicit no is as valuable as the yes.
 
-## With devenv
+## With the Lyngon baseline
 
 Checked by the `markdownlint` and `prose-lint` hooks.
-The choice of devenv is organization-wide and gets no ADR in a repository.
+The choice of devenv and the baseline is organization-wide and gets no ADR in a repository.
 
 ## With the Lyngon structure
 

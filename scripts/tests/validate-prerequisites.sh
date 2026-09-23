@@ -117,14 +117,39 @@ printf '\n### With devenv\n\nRun devenv test.\n\n## Next\n\nAlso devenv.\n' >>"$
 expect_error "higher-level heading closes the section" "$repo" "SKILL.md:14: names 'devenv' but the plugin declares prerequisites: documents"
 
 repo=$(new_repo)
-plugin "$repo" conv git
-printf -- '---\nname: main\ndescription: Nix.\npaths:\n  - "**/*.nix"\n  - devenv.yaml\n---\n\nSet lyngon.enable in devenv.nix.\n' >"$(skill "$repo" conv)"
-expect_ok "skill whose paths are all devenv files" "$repo"
+plugin "$repo" plain git
+printf -- '\n## With devenv\n\nTools come from devenv.nix.\n' >>"$(skill "$repo" plain)"
+expect_ok "devenv term under a With devenv heading" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+printf -- '\n## With devenv\n\nSet lyngon.enable in devenv.nix.\n' >>"$(skill "$repo" plain)"
+expect_error "baseline term under a With devenv heading" "$repo" "SKILL.md:10: names 'lyngon.enable'"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+printf -- '\n## With the Lyngon baseline\n\nSet lyngon.enable in devenv.nix; the ruff hook runs.\n' >>"$(skill "$repo" plain)"
+expect_ok "baseline and devenv terms under a baseline heading" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" base baseline
+printf -- '\nTools come from devenv.nix and the ruff hook runs.\n' >>"$(skill "$repo" base)"
+expect_ok "devenv term with baseline declared" "$repo"
 
 repo=$(new_repo)
 plugin "$repo" conv git
-printf -- '---\nname: main\ndescription: Nix.\npaths: "**/*.nix, **/*.py"\n---\n\nSet lyngon.enable in devenv.nix.\n' >"$(skill "$repo" conv)"
-expect_error "skill with a non-devenv path" "$repo" "SKILL.md:7: names 'devenv'"
+printf -- '---\nname: main\ndescription: Nix.\npaths:\n  - "**/*.nix"\n  - devenv.yaml\n---\n\nSet lyngon.enable in devenv.nix.\n' >"$(skill "$repo" conv)"
+expect_error "paths never make a skill conditional" "$repo" "SKILL.md:9: names 'devenv'"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+printf -- '---\nname: main\ndescription: Nix and devenv conventions.\npaths:\n  - devenv.yaml\n---\n\nNothing here.\n' >"$(skill "$repo" plain)"
+expect_ok "frontmatter is not scanned" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+printf -- '\n## With the Lyngon structure\n\nSet lyngon.structure.enable in devenv.nix.\n' >>"$(skill "$repo" plain)"
+expect_ok "structure section allows baseline and devenv terms" "$repo"
 
 repo=$(new_repo)
 plugin "$repo" plain git
@@ -134,15 +159,15 @@ expect_error "symlinked shared document" "$repo" "plugins/plain/skills/main/STRU
 
 repo=$(new_repo)
 plugin "$repo" docs documents
-plugin "$repo" env devenv
-bundle "$repo" all "documents, devenv" docs env
+plugin "$repo" env baseline
+bundle "$repo" all "documents, baseline" docs env
 expect_ok "bundle declaring the union" "$repo"
 
 repo=$(new_repo)
 plugin "$repo" docs documents
-plugin "$repo" env devenv
+plugin "$repo" env baseline
 bundle "$repo" all documents docs env
-expect_error "bundle not declaring the union" "$repo" "plugins/all/README.md: bundle must declare the union of its dependencies: Prerequisites: documents, devenv"
+expect_error "bundle not declaring the union" "$repo" "plugins/all/README.md: bundle must declare the union of its dependencies: Prerequisites: documents, baseline"
 
 repo=$(new_repo)
 plugin "$repo" plain git
@@ -150,12 +175,12 @@ sed -i '/^Prerequisites:/d' "$repo/plugins/plain/README.md"
 expect_error "missing Prerequisites line" "$repo" "plugins/plain/README.md: needs exactly one 'Prerequisites:' line, found 0"
 
 repo=$(new_repo)
-plugin "$repo" plain "devenv, documents"
+plugin "$repo" plain "baseline, documents"
 expect_error "prerequisites out of order" "$repo" "plugins/plain/README.md: prerequisites must be listed once each in the order"
 
 repo=$(new_repo)
 plugin "$repo" docs documents
-plugin "$repo" env devenv
+plugin "$repo" env baseline
 bundle "$repo" core documents docs
 expect_ok "core listing exactly the documents-only plugins" "$repo"
 
@@ -167,8 +192,8 @@ expect_error "core missing a documents-only plugin" "$repo" "plugins/core/.claud
 
 repo=$(new_repo)
 plugin "$repo" docs documents
-plugin "$repo" env devenv
-bundle "$repo" core "documents, devenv" docs env
+plugin "$repo" env baseline
+bundle "$repo" core "documents, baseline" docs env
 expect_error "core holding a devenv plugin" "$repo" "core must list exactly the plugins declaring at most documents: docs"
 
 if ((failures > 0)); then

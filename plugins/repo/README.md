@@ -2,7 +2,7 @@
 
 Repository setup and package creation for Lyngon.
 
-Prerequisites: documents, devenv, structure
+Prerequisites: documents, baseline, structure
 
 ## Skills
 

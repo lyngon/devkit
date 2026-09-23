@@ -2,7 +2,7 @@
 
 Every plugin a Lyngon repository uses, installed with one command.
 
-Prerequisites: documents, devenv, structure
+Prerequisites: documents, baseline, structure
 
 ```sh
 claude plugin marketplace add lyngon/devkit

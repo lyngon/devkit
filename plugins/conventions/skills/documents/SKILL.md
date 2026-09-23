@@ -33,7 +33,7 @@ Anything that fits two goes in the one whose audience needs it first, and the ot
 - Decisions go to `docs/adr/`, deferred work to `docs/TODO.md`, and a repository-specific convention longer than a line to `docs/conventions/<topic>.md` with a one-line pointer in `CLAUDE.md`.
 - The `README.md` layout tree shows only files that exist.
 
-## With devenv
+## With the Lyngon baseline
 
 Checked by the `markdownlint` and `prose-lint` hooks.
 

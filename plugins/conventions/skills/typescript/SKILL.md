@@ -40,7 +40,7 @@ paths:
 - Test names say the behaviour: `it("rejects a second shipment")`.
 - Tests import the package through its `exports` map, the way a consumer does.
 
-## With devenv
+## With the Lyngon baseline
 
 Checked by the `prettier` hook, and `eslint` once the package enables it.
 

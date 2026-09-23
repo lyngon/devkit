@@ -13,7 +13,7 @@ One session that takes a repository from "empty" or "grown organically" to the L
 The interview is the core.
 The files are its output, written only after the owner confirms a shared understanding.
 
-The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and devenv, or all three including the layout defined in [STRUCTURE.md](STRUCTURE.md).
+The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and the baseline, or all three including the layout defined in [STRUCTURE.md](STRUCTURE.md).
 The file set below is written scope by scope; nothing from a scope the owner did not adopt is written.
 
 ## When to use
@@ -88,7 +88,7 @@ Documents scope:
 - `.claude/settings.json` registering the `lyngon` marketplace and enabling `all@lyngon`, `core@lyngon`, or the subset the user chose.
 - `.github/workflows/ci.yml` (or the equivalent for the chosen host).
 
-Devenv scope:
+Baseline scope:
 
 - `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
 
