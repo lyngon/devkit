@@ -48,7 +48,7 @@
     {
       "name": "discover",
       "source": "./plugins/discover",
-      "description": "Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise.",
+      "description": "Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and ADRs as they crystallise and gates implementation on approval.",
       "category": "engineering",
       "keywords": [
         "discovery",
