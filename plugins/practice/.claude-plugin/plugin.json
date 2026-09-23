@@ -1,0 +1,13 @@
+{
+  "name": "practice",
+  "version": "0.1.0",
+  "description": "Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": ["tdd", "testing", "debugging", "verification", "discipline"]
+}

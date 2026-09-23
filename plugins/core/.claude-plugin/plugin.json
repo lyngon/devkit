@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The plugins that work in any repository with the Lyngon documents: discover, writing and conventions. A bundle: it has no skills of its own.",
   "author": {
     "name": "Lyngon",
@@ -15,6 +15,7 @@
   ],
   "dependencies": [
     "discover",
+    "practice",
     "writing",
     "conventions"
   ]

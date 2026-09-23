@@ -61,6 +61,20 @@
       "license": "Apache-2.0"
     },
     {
+      "name": "practice",
+      "source": "./plugins/practice",
+      "description": "Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own.",
+      "category": "engineering",
+      "keywords": [
+        "tdd",
+        "testing",
+        "debugging",
+        "verification",
+        "discipline"
+      ],
+      "license": "Apache-2.0"
+    },
+    {
       "name": "devkit",
       "source": "./plugins/devkit",
       "description": "Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern.",
