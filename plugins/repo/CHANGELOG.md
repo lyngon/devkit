@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.2 - 2026-09-23
+
+- `init` no longer writes a private marketplace credentials note into the README; the marketplace installs without credentials.
+
 ## 0.5.1 - 2026-09-23
 
 - The `SessionStart` hook names `brainstorm`, the `build` skills, the `practice` skills and `review:receive`, and says that process skills come before implementation. It points at `WORKFLOW.md` for the flow between them.

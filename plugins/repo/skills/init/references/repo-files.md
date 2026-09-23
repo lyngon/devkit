@@ -211,8 +211,6 @@ The key under `extraKnownMarketplaces` must equal the marketplace manifest name 
 }
 ```
 
-Private marketplace note for the README when the user is not the only contributor: colleagues need GitHub credentials that git can use (`gh auth login`, then `gh auth setup-git`) for the marketplace to install.
-
 ## .vscode/extensions.json
 
 ```json
