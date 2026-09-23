@@ -7,6 +7,7 @@ Prerequisites: documents
 Each skill carries `paths` in its frontmatter and `user-invocable: false`: it loads on its own when the agent works on a matching file and is never invoked by name.
 The bodies are short on purpose, because they ride along with every matching edit.
 Every rule a linter can check lives in the linter, not here; each skill ends with the hooks that check its deterministic half.
+The `adr` and `documents` skills carry format documents adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); the license is `LICENSE-mattpocock` in this plugin.
 
 ## Skills
 

@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.4.1 - 2026-09-23
+
+- Ships `LICENSE-mattpocock`, the MIT license of the `ADR-FORMAT.md` and `CONCEPTS-FORMAT.md` documents adapted from mattpocock/skills, and both documents point to it.
+
 ## 0.4.0 - 2026-09-23
 
 - The `python` skill names the type checker under `With the Lyngon baseline`: basedpyright in `all` mode through the `{name}-basedpyright` hook, and `# pyright: ignore[rule]  # reason` for a single finding.

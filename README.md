@@ -224,3 +224,4 @@ See [catalog/README.md](catalog/README.md) for both.
 
 Apache-2.0 for everything Lyngon wrote.
 Vendored skills keep their upstream license, next to their files.
+The format documents in `shared/` adapted from mattpocock/skills keep its MIT license in `shared/LICENSE-mattpocock`.

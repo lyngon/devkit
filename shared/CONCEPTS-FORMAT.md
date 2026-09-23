@@ -6,6 +6,7 @@ Single source in `shared/` of the Lyngon devkit marketplace; plugins symlink it.
 A repository may override it with `docs/conventions/concepts.md`.
 
 Format adapted from Matt Pocock's `domain-modeling` skill (<https://github.com/mattpocock/skills>, MIT), which calls the file `CONTEXT.md`.
+The MIT license text is `shared/LICENSE-mattpocock`; the provenance record is `plugins/discover/skills/domain-model/UPSTREAM.md`.
 
 ## Structure
 
