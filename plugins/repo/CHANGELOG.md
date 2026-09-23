@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.1 - 2026-09-23
+
+- The `SessionStart` hook names `brainstorm`, the `build` skills, the `practice` skills and `review:receive`, and says that process skills come before implementation. It points at `WORKFLOW.md` for the flow between them.
+
 ## 0.5.0 - 2026-09-23
 
 - `init` configures basedpyright in `all` mode in the root `pyproject.toml` and adds it from nixpkgs to the root `devenv.nix`; the PyPI wheel's bundled Node runs on NixOS only with nix-ld. Each Python package gets a `{name}-basedpyright` hook. In adopt mode, remaining errors go into a committed baseline instead of disabled rules.

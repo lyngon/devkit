@@ -1,5 +1,9 @@
 This is a Lyngon repository. The devkit plugins provide skills; invoke them instead of working from memory:
-- /discover:approach before building anything that has more than one reasonable design.
+- /discover:brainstorm to toss ideas around without writing anything.
+- /discover:approach before building anything that has more than one reasonable design; it classifies the work and gates implementation on approval.
+- /build:plan once a design is approved, then /build:delegate (or /build:execute) to build it and /build:finish to integrate the branch.
+- practice:tdd, practice:debug, practice:verify and review:receive whenever their description matches; process skills come before implementation.
 - /writing:unslop before handing over prose.
+The flow between these skills, and where the user decides, is WORKFLOW.md next to the approach and plan skills.
 Conventions load on their own by file path from the conventions plugin.
 Terms are in CONCEPTS.md, decisions in docs/adr/, working rules in CLAUDE.md.
