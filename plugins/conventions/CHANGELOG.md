@@ -3,6 +3,13 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.2.0 - 2026-09-23
+
+- The `python` skill has an `Imports` section: import modules, never names; `from a.b import c` only when `c` is a module; absolute imports only; the fixed aliases `typing as t`, `collections.abc as ct` and `datetime as dt`, plus the conventional third-party aliases (`numpy as np`).
+- Docstrings state a contract or a reason, never the name restated as a sentence.
+- `With the Lyngon baseline` names the root `ruff.toml` as the only ruff configuration and says how to silence a single finding.
+- The `python-domain-value` eval checks module imports (`imports-modules`) and expects `@dataclasses.dataclass(frozen=True, slots=True)`.
+
 ## 0.1.1 - 2026-09-23
 
 - The `nix` skill no longer assumes devenv or the Lyngon baseline on every Nix file: universal Nix rules first, then `With devenv`, `With the Lyngon baseline` and `With the Lyngon structure` sections. Every "checked by" line moved under `With the Lyngon baseline`, since the hooks come from it.

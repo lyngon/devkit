@@ -22,12 +22,21 @@ paths:
 ## Code
 
 - Type hints on every function signature and every module-level name. The code must pass a strict type checker; `Any` does not cross a package boundary.
-- Domain values are `@dataclass(frozen=True, slots=True)` or plain classes. pydantic and other validation libraries appear only in adapters and entrypoints, where data enters.
+- Domain values are `@dataclasses.dataclass(frozen=True, slots=True)` or plain classes. pydantic and other validation libraries appear only in adapters and entrypoints, where data enters.
 - Exceptions are typed per domain and raised at the boundary where the rule is broken. Never a bare `except`, never `except Exception: pass`.
 - Logging through `logging.getLogger(__name__)` at module level. No `print` in a library.
 - `async` only in adapters and entrypoints. Domain and application code is synchronous.
-- Absolute imports within a package. No `from x import *`.
 - Pathlib over `os.path`; `subprocess.run` with an argument list over shell strings.
+- A public module, class or function has a docstring that states its contract or its reason: what it guarantees, what it raises, why it exists. Never the name restated as a sentence.
+
+## Imports
+
+- Import modules, never names: `import pathlib`, then `pathlib.Path` at every use, so every name shows where it comes from.
+- `from a.b import c` only when `c` is a module, for a long package path. No `from x import *`.
+- Absolute imports only, also within a package.
+- Fixed aliases, and no others: `import typing as t`, `import collections.abc as ct`, `import datetime as dt`, and the conventional third-party aliases (`numpy as np`, `pandas as pd`, `polars as pl`).
+- Abstract collection types come from `ct`, not `t`: `ct.Iterable`, `ct.Callable`, `ct.Mapping`.
+- A package's `__init__.py` may re-export its public names (`from orders._order import Order`); that is the one place names are imported.
 
 ## Tests
 
@@ -42,7 +51,9 @@ paths:
 
 ## With the Lyngon baseline
 
-Checked by the `ruff-format` and `ruff` hooks.
+- Checked by the `ruff-format` and `ruff` hooks against the root `ruff.toml`: every stable ruff rule, minus a short ignore list with a reason on each entry. It also enforces the import rules above, except that a `from` import names a module.
+- The root `ruff.toml` is the only ruff configuration. A `[tool.ruff]` table in a package's `pyproject.toml` silently replaces it.
+- Silence a single finding with `# noqa: CODE  # reason`. Extend the ignore list only with a reason on the entry.
 
 ## With the Lyngon structure
 
