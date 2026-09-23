@@ -29,7 +29,7 @@ TERMS = {
         "prose-lint", "markdownlint", "nixfmt", "shellcheck", "ruff", "prettier",
         "commitizen", "typos", "ripsecrets", "actionlint", "yamllint", "deadnix",
         "statix", "golangci-lint", "ruff.toml", "tsconfig.base.json",
-        "eslint.config.js",
+        "eslint.config.js", "basedpyright",
     ],
     "structure": [
         "apps/", "libs/", "contracts/", "tools/", "infra/", "STRUCTURE.md",
