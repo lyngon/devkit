@@ -29,6 +29,7 @@ Never disable a hook to make a check pass.
 - `docs/adr/NNNN-slug.md`: decisions about this repository.
 - `docs/conventions/<topic>.md`: conventions specific to this repository that need more than a line.
 - `docs/TODO.md`: deferred work, only items the owner explicitly deferred.
+- `docs/plans/<date>-<slug>.md`: the design and task plan of work in progress, committed on its branch and removed by `/build:finish` when the work lands (ADR 0016).
 - `tmp/`: agent scratch output, gitignored, may be deleted at any time.
 - `sandbox/`: human experiments, gitignored, may live for weeks. Do not write there unless asked.
 

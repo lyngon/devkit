@@ -16,6 +16,7 @@
   "dependencies": [
     "repo",
     "discover",
+    "build",
     "practice",
     "review",
     "writing",

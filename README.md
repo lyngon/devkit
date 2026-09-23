@@ -3,20 +3,26 @@
 The shared foundation for software development at Lyngon: the reusable pieces a repository needs to work the Lyngon way.
 
 The Lyngon way is opinionated, and this repository exists to make those opinions cheap to follow and hard to drift from.
-Every tool comes from devenv and Nix, never from a global install.
-A repository that adopts the structure is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand.
-The same git hooks run everywhere and are never disabled to make a commit pass.
-INTENT.md, CLAUDE.md, CONCEPTS.md and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
-Every third-party skill was read by a named person at a recorded commit before it got in.
-A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
-The pieces:
+## The Lyngon way
+
+- Dependencies come from [`devenv`](https://devenv.sh/) and [Nix](https://nixos.org/), never from a global install.
+- A repository that adopts the structure is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand. See [STRUCTURE.md](shared/STRUCTURE.md)
+- A workflow, primarily inspired by [Superpowers](https://github.com/obra/superpowers) and [Matt Pocock's skills](https://github.com/mattpocock/skills).
+- The same set of git hooks run everywhere and are never disabled to make a commit pass.
+- `INTENT.md`, `CLAUDE.md`, `CONCEPTS.md` and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
+- Planned work is reviewed at two gates, the plan and the finished branch. Not commit by commit.
+- A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
+
+## The pieces
 
 - A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
-- The shared devenv module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file and languages.
-- The convention documents behind both, in `shared/`.
+- A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file and languages.
+- A set of shared convention documents behind both, in `shared/`.
 
 Other kinds of reusable pieces may join; the test is that they are used by more than one repository.
+
+Every third-party skill was read by a named person at a recorded commit before it got in.
 
 ## Intent
 
@@ -47,6 +53,12 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 └── CONCEPTS.md             the terms used in this repository
 ```
 
+## Flows
+
+Which skills to invoke, in which order, for each kind of work, and where the human decides, is in [shared/WORKFLOW.md](shared/WORKFLOW.md).
+In short: `/discover:brainstorm` writes nothing, `/discover:approach` settles a design and gates on approval, `/build:plan` turns it into tasks, `/build:delegate` or `/build:execute` builds them without asking, and `/build:finish` hands the branch back for the second and last review.
+The `practice` skills (`tdd`, `debug`, `verify`) and `review:receive` apply on their own in every flow.
+
 ## Plugins
 
 Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do not edit between the markers.
@@ -54,10 +66,11 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 <!-- plugins:start -->
 | Plugin | Skills | Prerequisites | Description |
 | --- | --- | --- | --- |
-| `all` | bundle of `repo`, `discover`, `practice`, `review`, `writing`, `conventions` | documents, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
-| `core` | bundle of `discover`, `practice`, `review`, `writing`, `conventions` | documents | The plugins that work in any repository with the Lyngon documents: discover, writing and conventions. A bundle: it has no skills of its own. |
+| `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `core` | bundle of `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review, writing and conventions. A bundle: it has no skills of its own. |
 | `repo` | `/repo:add-package`, `/repo:init` | documents, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: relentless interviews that sharpen a plan and write CONCEPTS.md terms and ADRs as they crystallise. |
+| `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an integrated branch: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | git | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
 | `review` | `/review:receive`, `/review:request` | git | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
 | `devkit` | `/devkit:add-skill` | documents, baseline, structure | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |

@@ -1,0 +1,14 @@
+{
+  "name": "build",
+  "version": "0.1.0",
+  "description": "From an approved design to an integrated branch: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": ["plan", "execute", "subagents", "ledger", "review", "branch"],
+  "dependencies": ["practice", "review"]
+}

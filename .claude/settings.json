@@ -13,6 +13,9 @@
     "discover@lyngon": true,
     "devkit@lyngon": true,
     "skill-creator@lyngon": true,
-    "writing@lyngon": true
+    "writing@lyngon": true,
+    "build@lyngon": true,
+    "practice@lyngon": true,
+    "review@lyngon": true
   }
 }
