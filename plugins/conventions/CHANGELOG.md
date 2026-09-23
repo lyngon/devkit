@@ -3,6 +3,11 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.3.0 - 2026-09-23
+
+- The `typescript` skill names the compiler flags beyond `strict: true`, and adds rules for Node builtins (`node:` prefix, namespace import), erasable syntax only (no `enum`, `namespace` or parameter properties), indexed access, boolean conditions and exhaustive `switch`. Tool configuration files are the one allowed default export.
+- `With the Lyngon baseline` names the `{name}-tsc` and `{name}-eslint` hooks, the root `tsconfig.base.json` and `eslint.config.js`, and how to silence a single finding.
+
 ## 0.2.0 - 2026-09-23
 
 - The `python` skill has an `Imports` section: import modules, never names; `from a.b import c` only when `c` is a module; absolute imports only; the fixed aliases `typing as t`, `collections.abc as ct` and `datetime as dt`, plus the conventional third-party aliases (`numpy as np`).

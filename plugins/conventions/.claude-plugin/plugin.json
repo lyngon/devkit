@@ -1,6 +1,6 @@
 {
   "name": "conventions",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents.",
   "author": {
     "name": "Lyngon",
