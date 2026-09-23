@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.0 - 2026-09-23
+
+- `init` configures basedpyright in `all` mode in the root `pyproject.toml` and adds it from nixpkgs to the root `devenv.nix`; the PyPI wheel's bundled Node runs on NixOS only with nix-ld. Each Python package gets a `{name}-basedpyright` hook. In adopt mode, remaining errors go into a committed baseline instead of disabled rules.
+
 ## 0.4.0 - 2026-09-23
 
 - `init` writes a root `tsconfig.base.json` and `eslint.config.js` when TypeScript is in the stack: strict compiler flags beyond `strict: true`, typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, and rules for exhaustive `switch`, boolean conditions, named exports and Node builtin imports. `typescript` is pinned to `~6.0.3` until typescript-eslint supports TypeScript 7.

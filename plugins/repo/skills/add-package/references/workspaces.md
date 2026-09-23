@@ -26,12 +26,16 @@ orders-postgres = { workspace = true }
 
 [dependency-groups]
 dev = ["pytest", "import-linter"]
+
+[tool.basedpyright]
+typeCheckingMode = "all"
 ```
 
 Root `devenv.nix`: `languages.python = { enable = true; uv.enable = true; uv.sync.enable = true; };`.
 
 Lint rules live in the root `ruff.toml` (the `init` skill's `devenv.md` reference).
 A package's `pyproject.toml` never gets a `[tool.ruff]` table; it would replace the root configuration for that package.
+Type-checking rules live in `[tool.basedpyright]` in the root `pyproject.toml`, and the package's `devenv.nix` gets the `{name}-basedpyright` hook (same reference).
 
 ## TypeScript: pnpm
 

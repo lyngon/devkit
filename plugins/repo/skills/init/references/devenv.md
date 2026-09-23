@@ -129,7 +129,7 @@ Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 
 | Stack | `languages.*` | Formatter hooks | Linter hooks | Commented out | `.gitignore` |
 | --- | --- | --- | --- | --- | --- |
-| Python (uv) | `python = { enable = true; uv.enable = true; uv.sync.enable = true; }` | `ruff-format` | `ruff` | | `__pycache__/`, `*.py[cod]`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `dist/`, `*.egg-info/` |
+| Python (uv) | `python = { enable = true; uv.enable = true; uv.sync.enable = true; }` | `ruff-format` | `ruff`, `{name}-basedpyright` (custom, below) | | `__pycache__/`, `*.py[cod]`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `dist/`, `*.egg-info/` |
 | TypeScript (pnpm) | `javascript = { enable = true; pnpm.enable = true; pnpm.install.enable = true; }; typescript.enable = true;` | `prettier` | `{name}-tsc`, `{name}-eslint` (custom, below) | | `node_modules/`, `dist/`, `.pnpm-store/`, `*.tsbuildinfo`, `coverage/` |
 | Rust | `rust.enable = true;` (channel `nixpkgs`; use `channel = "stable"` with the `rust-overlay` input only when a newer toolchain is required) | `rustfmt` | | `clippy` (compiles the crate on every commit) | `target/` |
 | Go | `go.enable = true;` | `gofmt` | `golangci-lint` | | `/bin/`, `*.test`, `coverage.out` |
@@ -189,6 +189,37 @@ It is the only ruff configuration in the repository.
 Ruff uses the nearest configuration and does not merge, so a `[tool.ruff]` table in a package's `pyproject.toml` would silently replace this file for that package.
 In adopt mode, move an existing ruff configuration here and show the diff; carry over an ignore only with its reason.
 Existing code that fails the new rules is fixed, or the owner accepts a temporary ignore with a reason; never lower the selection to make code pass.
+
+### Python: basedpyright
+
+The type checker, in its strictest mode, configured in the root `pyproject.toml`:
+
+```toml
+[tool.basedpyright]
+typeCheckingMode = "all"
+```
+
+Every rule is an error; disable one only with a comment giving the reason.
+No `venvPath` or `venv`: devenv activates the uv environment, and basedpyright resolves installed packages through the active interpreter.
+A package's `pyproject.toml` has no `[tool.basedpyright]` table.
+
+It comes from nixpkgs, in the root `devenv.nix`: `packages = [ pkgs.basedpyright ];`.
+Not from PyPI: the wheel bundles a prebuilt Node binary that runs on NixOS only with nix-ld.
+
+The package's `devenv.nix` runs it on the package:
+
+```nix
+git-hooks.hooks."{name}-basedpyright" = {
+  enable = true;
+  name = "{name} basedpyright";
+  entry = "basedpyright libs/{name}";
+  files = "^libs/{name}/.*\\.pyi?$";
+  pass_filenames = false;
+};
+```
+
+In adopt mode, fix what is cheap, then record the rest with `basedpyright --writebaseline` and commit `.basedpyright/baseline.json`.
+Only errors outside the baseline fail the hook, and basedpyright drops entries from it as they are fixed; nothing is ever added to it by hand.
 
 ### TypeScript: tsconfig.base.json and eslint.config.js
 
