@@ -44,6 +44,11 @@ packages:
 ```
 
 Internal dependencies use the `workspace:*` protocol in `package.json`.
+
+The root `package.json` holds the compiler and lint dependencies, and the root `tsconfig.base.json` and `eslint.config.js` hold the rules (the `init` skill's `devenv.md` reference).
+A package's `tsconfig.json` extends `tsconfig.base.json` and never loosens a flag; a package never has its own ESLint configuration.
+Its `devenv.nix` gets the `{name}-tsc` and `{name}-eslint` hooks from the same reference.
+
 Root `devenv.nix`: `languages.javascript = { enable = true; pnpm.enable = true; pnpm.install.enable = true; }; languages.typescript.enable = true;`.
 
 ## Rust: Cargo

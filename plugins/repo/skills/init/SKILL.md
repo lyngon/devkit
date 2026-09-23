@@ -92,6 +92,7 @@ Baseline scope:
 
 - `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
 - `ruff.toml` when Python is in the stack.
+- `tsconfig.base.json`, `eslint.config.js`, and their dev dependencies in the root `package.json`, when TypeScript is in the stack.
 
 Structure scope:
 

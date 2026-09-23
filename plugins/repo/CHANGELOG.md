@@ -3,6 +3,11 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.4.0 - 2026-09-23
+
+- `init` writes a root `tsconfig.base.json` and `eslint.config.js` when TypeScript is in the stack: strict compiler flags beyond `strict: true`, typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, and rules for exhaustive `switch`, boolean conditions, named exports and Node builtin imports. `typescript` is pinned to `~6.0.3` until typescript-eslint supports TypeScript 7.
+- A TypeScript package gets `{name}-tsc` and `{name}-eslint` hooks running the workspace's own tools, and a `tsconfig.json` that extends the base; the commented-out `eslint` line is gone.
+
 ## 0.3.0 - 2026-09-23
 
 - `init` writes a root `ruff.toml` when Python is in the stack: every stable rule, a short ignore list with a reason on each entry, the `t`, `ct` and `dt` import aliases, `typing`, `collections.abc` and `datetime` banned from `from` imports, and no relative imports. In adopt mode an existing ruff configuration moves into it.

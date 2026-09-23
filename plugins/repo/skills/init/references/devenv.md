@@ -123,13 +123,14 @@ Wire package tests into the root `enterTest` by task name, or list the commands 
 `languages.*` goes in the root `devenv.nix`, once per language.
 Formatters are always enabled.
 Linters are enabled when they need no project configuration.
-Linters that need configuration (eslint, clippy) are written as commented-out lines with a one-line reason, for the owner to enable.
+Linters whose configuration `init` writes (ruff, eslint) are enabled with it.
+Linters that need configuration `init` does not write (clippy) are written as commented-out lines with a one-line reason, for the owner to enable.
 Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 
 | Stack | `languages.*` | Formatter hooks | Linter hooks | Commented out | `.gitignore` |
 | --- | --- | --- | --- | --- | --- |
 | Python (uv) | `python = { enable = true; uv.enable = true; uv.sync.enable = true; }` | `ruff-format` | `ruff` | | `__pycache__/`, `*.py[cod]`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `dist/`, `*.egg-info/` |
-| TypeScript (pnpm) | `javascript = { enable = true; pnpm.enable = true; pnpm.install.enable = true; }; typescript.enable = true;` | `prettier` | | `eslint` (needs `eslint.config.js`) | `node_modules/`, `dist/`, `.pnpm-store/`, `*.tsbuildinfo`, `coverage/` |
+| TypeScript (pnpm) | `javascript = { enable = true; pnpm.enable = true; pnpm.install.enable = true; }; typescript.enable = true;` | `prettier` | `{name}-tsc`, `{name}-eslint` (custom, below) | | `node_modules/`, `dist/`, `.pnpm-store/`, `*.tsbuildinfo`, `coverage/` |
 | Rust | `rust.enable = true;` (channel `nixpkgs`; use `channel = "stable"` with the `rust-overlay` input only when a newer toolchain is required) | `rustfmt` | | `clippy` (compiles the crate on every commit) | `target/` |
 | Go | `go.enable = true;` | `gofmt` | `golangci-lint` | | `/bin/`, `*.test`, `coverage.out` |
 | Nix | `nix.enable = true;` | `nixfmt` (baseline) | `deadnix`, `statix` | | |
@@ -188,6 +189,177 @@ It is the only ruff configuration in the repository.
 Ruff uses the nearest configuration and does not merge, so a `[tool.ruff]` table in a package's `pyproject.toml` would silently replace this file for that package.
 In adopt mode, move an existing ruff configuration here and show the diff; carry over an ignore only with its reason.
 Existing code that fails the new rules is fixed, or the owner accepts a temporary ignore with a reason; never lower the selection to make code pass.
+
+### TypeScript: tsconfig.base.json and eslint.config.js
+
+Written at the repository root when TypeScript is in the stack.
+The compiler and the linter are separate checks: `tsc` enforces the flags, typescript-eslint adds the rules that need type information and that `tsc` does not check (floating promises, `any` leaking through untyped values, exhaustive `switch`).
+
+The lint and compiler dependencies go in the root `package.json`, which is private and holds no code:
+
+```json
+{
+  "name": "{repository}",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-import-x": "^4.17.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1"
+  }
+}
+```
+
+Add them with `pnpm add -w -D`, then set `typescript` to `~6.0.3` by hand if pnpm chose a newer major.
+typescript-eslint 8 supports TypeScript below 6.1; TypeScript 7 (the native compiler) has no JavaScript API for it yet.
+Lift the pin when typescript-eslint's `typescript` peer range includes 7.
+
+`unrs-resolver`, a dependency of `eslint-plugin-import-x`, has an install script that only builds a fallback for platforms without a prebuilt binary.
+pnpm 11 refuses unreviewed install scripts, so deny it in `pnpm-workspace.yaml`:
+
+```yaml
+allowBuilds:
+  unrs-resolver: false
+```
+
+`tsconfig.base.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+`lib` holds only the language; a package adds `"dom"` or `"types": ["node"]` (with `@types/node` as its dev dependency) for its runtime.
+
+`eslint.config.js`:
+
+```js
+import js from "@eslint/js";
+import { importX } from "eslint-plugin-import-x";
+import { defineConfig } from "eslint/config";
+import * as module from "node:module";
+import tseslint from "typescript-eslint";
+
+export default defineConfig(
+  { ignores: ["**/dist/", "**/generated/"] },
+  js.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: { "import-x": importX },
+    rules: {
+      // Not in the presets.
+      "@typescript-eslint/strict-boolean-expressions": [
+        "error",
+        { allowNumber: false, allowString: false },
+      ],
+      "@typescript-eslint/switch-exhaustiveness-check": [
+        "error",
+        {
+          considerDefaultExhaustiveForUnions: true,
+          requireDefaultForNonUnion: true,
+        },
+      ],
+      // Named exports only.
+      "import-x/no-default-export": "error",
+      // Node builtins: the node: prefix, imported as a namespace.
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: module.builtinModules
+            .filter((name) => !name.startsWith("node:"))
+            .map((name) => ({ name, message: `Import "node:${name}".` })),
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "ImportDeclaration[source.value=/^node:/] > :matches(ImportSpecifier, ImportDefaultSpecifier)",
+          message:
+            'Import a Node builtin as a namespace: import * as fs from "node:fs".',
+        },
+      ],
+    },
+  },
+  {
+    // Configuration files are plain JavaScript outside every tsconfig.
+    files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    // Tools read their configuration through the default export.
+    files: ["**/*.config.{js,mjs,cjs,ts,mts,cts}"],
+    rules: { "import-x/no-default-export": "off" },
+  },
+);
+```
+
+It is plain JavaScript because ESLint reads it directly, and it is the only ESLint configuration in the repository.
+
+A package's `tsconfig.json` extends the base and sets only what its runtime needs:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "types": ["node"] },
+  "include": ["src", "tests"]
+}
+```
+
+The package's `devenv.nix` runs both checks.
+They are custom hooks because the `eslint` hook in git-hooks.nix runs the nixpkgs ESLint, which cannot load the workspace's typescript-eslint:
+
+```nix
+git-hooks.hooks = {
+  "{name}-tsc" = {
+    enable = true;
+    name = "{name} tsc";
+    entry = "pnpm exec tsc -p libs/{name}";
+    files = "^libs/{name}/.*\\.(ts|tsx|mts|cts)$";
+    pass_filenames = false;
+  };
+  "{name}-eslint" = {
+    enable = true;
+    name = "{name} eslint";
+    entry = "pnpm exec eslint --max-warnings 0 --no-warn-ignored";
+    files = "^libs/{name}/.*\\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$";
+  };
+};
+```
+
+In adopt mode, move an existing ESLint configuration and compiler flags into these files and show the diff.
+Existing code that fails is fixed, or the owner accepts a scoped `rules` override with a reason; never drop a preset to make code pass.
 
 ## Secrets
 
