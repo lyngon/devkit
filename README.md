@@ -142,7 +142,7 @@ claude plugin install all@lyngon
 ```
 
 `all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
-A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `writing` and `conventions` and needs only the Lyngon documents:
+A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `build`, `practice`, `review`, `writing` and `conventions` and needs only the Lyngon documents:
 
 ```sh
 claude plugin install core@lyngon
