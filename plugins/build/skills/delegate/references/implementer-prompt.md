@@ -16,6 +16,9 @@ Dispatch a subagent with:
     It contains the full task text from the plan, followed by the plan's
     Global Constraints, which bind this task as much as its own text.
 
+    If your report file ([REPORT_FILE]) already exists, a prior attempt at
+    this task wrote it: read it next, before you change anything.
+
     ## Context
 
     [Scene-setting: where this fits, dependencies, architectural context]
@@ -134,7 +137,9 @@ Dispatch a subagent with:
 
     ## Report Format
 
-    Write your full report to [REPORT_FILE]:
+    Write your full report to [REPORT_FILE]; if the file already exists,
+    append your report under a heading with today's date instead of
+    overwriting it. The report holds:
     - What you implemented (or what you attempted, if blocked)
     - What you tested and test results
     - **TDD Evidence** (if TDD was required for this task):
@@ -164,5 +169,5 @@ Dispatch a subagent with:
 
 - `[MODEL]`: required, the implementer model per the Model selection section of SKILL.md.
 - `[BRIEF_FILE]`: required, the task brief file that `scripts/task-brief PLAN N` printed.
-- `[REPORT_FILE]`: required, named after the brief (`task-N-brief.md` becomes `task-N-report.md`) in the same workspace.
+- `[REPORT_FILE]`: required, named after the brief (`task-N-brief.md` becomes `task-N-report.md`) in the same workspace; one per task, and a prior attempt's file is kept and appended to.
 - `[directory]`: the worktree the implementer works in.

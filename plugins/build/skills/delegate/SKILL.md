@@ -244,13 +244,18 @@ A bounded stretch keeps nearly all of a long wait's efficiency while guaranteein
 
 Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fix-round diffs need it.
 
-- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to a uniquely named file and prints the path.
+- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to `task-N-brief.md` in the workspace and prints the path.
+  There is one brief per task, and every call writes the same plan text, so regenerating it after compaction or in a new session is harmless.
   Compose the dispatch so the brief stays the single source of requirements.
   Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
   Exact values (numbers, magic strings, signatures, test cases) appear only in the brief.
   Never make a subagent read the whole plan file.
 - **Report file.** Name the implementer's report file after the brief (brief `task-N-brief.md`, report `task-N-report.md`, same workspace) and put it in the dispatch prompt.
   The implementer writes the full report there and returns only status, commits, a one-line test summary, and concerns.
+  There is one report per task.
+  A report file that already exists is a prior attempt's memory (a dispatch before compaction, or an earlier session): never delete or rename it.
+  Hand its path to the new implementer with the framing fix rounds 4 and 5 use: "A prior implementer attempted this task; you own it now. Read the report file for what was tried."
+  The implementer appends its own report under a dated heading.
 - A dispatch prompt describes one task, not the session's history.
   Do not paste accumulated prior-task summaries ("state after Tasks 1 to 3") into later dispatches; a real session's dispatch hit 42k characters of which 99% was pasted history.
   A fresh subagent needs its task, the interfaces it touches, and the global constraints, which the brief carries.

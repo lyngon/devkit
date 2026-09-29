@@ -8,6 +8,7 @@ Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
 - Task briefs carry the plan's Global Constraints section after the task text. The task reviewer reads them in the brief; the controller adds at most one sentence of emphasis instead of pasting them.
 - `task-brief` and `review-package` print only the file path on stdout and their summary on stderr, so `B=$(task-brief ...)` captures the path.
+- One brief and one report per task. A report file left by an earlier attempt is handed to the new implementer, who reads it first and appends under a dated heading.
 
 ## 0.1.0 - 2026-09-23
 

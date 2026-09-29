@@ -26,6 +26,7 @@ Dispatch a subagent with:
     ## What the Implementer Claims They Built
 
     Read the implementer's report: [REPORT_FILE]
+    If it holds several dated attempts, the last one reports on this diff.
 
     ## Diff Under Review
 
