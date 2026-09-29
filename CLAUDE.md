@@ -39,7 +39,7 @@ Never disable a hook to make a check pass.
 - `docs/seed-prompts/<slug>.md`: a self-contained prompt that starts a fresh session on one queued item of `docs/TODO.md`; removed with the entry when the work lands.
   It says how to start (the skill to invoke, or "a bounded change: no design file and no plan file"), names the branch, and ends with "Remove this file and its `docs/TODO.md` entry in the last commit".
   Commits, the full check and the pull request follow the conventions and are not repeated in it.
-- `docs/plans/<date>-<slug>.md`: the design and task plan of work in progress, committed on its branch and removed by `/build:finish` when the work lands (ADR 0016).
+- `docs/plans/<date>-<slug>.md`: the design and task plan of work in progress, committed on its branch and removed by `/build:finish` before it pushes the branch (ADR 0016).
 - `tmp/`: agent scratch output, gitignored, may be deleted at any time.
 - `sandbox/`: human experiments, gitignored, may live for weeks. Do not write there unless asked.
 
