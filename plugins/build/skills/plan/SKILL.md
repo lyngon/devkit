@@ -206,7 +206,7 @@ If you are still on the main branch, create the branch first (`git switch -c <br
 Then link the file for the user to read.
 
 This is the first of the user's two review gates; the second is the pull request that `build:finish` opens.
-Between the two they are not asked anything: the executor rules on conflicts, records its rulings in a ledger, and presents them in the pull request description.
+Between the two the executor asks them nothing: it rules on conflicts, records its rulings in a ledger, and presents them in the pull request description.
 
 If the user has already explicitly supplied an execution method, ask them to review the plan and confirm it captures what they want; wait for that review before implementation, then use the supplied method.
 Otherwise, ask them to review the plan and choose an execution method before implementation.

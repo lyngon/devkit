@@ -4,6 +4,10 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.4.0 - 2026-09-29
+
+- `WORKFLOW.md` names `conventions:engineering` only under a "With the Lyngon workflow" heading, and says the push is left to `/build:finish`.
+
 ## 0.3.0 - 2026-09-29
 
 - `approach` runs `review:request` before the pull request and `build:finish` to push the branch and open it. `WORKFLOW.md`, symlinked here, puts commit, push and pull request into every flow and ends the bounded flow with a gate on the pull request.

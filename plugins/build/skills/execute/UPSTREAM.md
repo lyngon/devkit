@@ -36,7 +36,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - The brief carries the plan's Global Constraints, and "Take the task" says so.
 - Final review: the reviewer also gets the ledger's `State:` lines (facts that superseded the plan, the spec or an inventory), which the executor ledgers as `State: <fact>` when it learns them.
 - Finish: the workspace is handed to `build:finish` instead of deleted (upstream deleted it here), so the ledger's deferred minors reach `build:finish`; the graph node, the Finish section and the example say so, and a rationalization row was added. "The only place" the rulings reach the user became "where".
-- The second gate is the pull request that `build:finish` opens, and the final message's two lists go into its description. The stop list's side effects are the ones the user's standing instructions leave to them (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish); pushing the feature branch and opening its pull request are not among them.
+- The second gate is the pull request that `build:finish` opens, and the final message's two lists go into its description. The stop list's side effects are the ones the user's standing instructions leave to them (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish); pushing the feature branch and opening its pull request are left to `build:finish`, which asks before the push unless the user's standing instructions cover it.
 
 ## Review notes
 

@@ -51,12 +51,11 @@ Anything built is throwaway; keeping it is a new request, classified again.
 The user decides at the gates: the classification (they can override it), the design, the plan and the executor, and whether the pull request merges.
 Between the gates the executor decides: conflicts inside the plan, ambiguities, findings it parks, all recorded as rulings in the ledger and surfaced in the pull request.
 Four things always stop an executor for the user: an irreversible or destructive operation, a security-sensitive action, a side effect outside the worktree (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish), and a plan so broken that every path forward is a guess.
-Pushing the feature branch and opening its pull request are not among them.
+Pushing the feature branch and opening its pull request are not among them: they are left to `/build:finish`.
 A fifth is Lyngon's: a check or hook is never disabled, skipped or weakened to get past it.
 
 Between the gates, the executor is also the reviewer's client: a task reviewer after every task in `/build:delegate`, a whole-branch reviewer at the end in both executors.
 No flow has a per-commit or per-file human review: the agent commits on a feature branch without asking, and the user reviews the pull request.
-The standing instructions for commits, pushes and pull requests are in `conventions:engineering`.
 
 ## What gets written where
 
@@ -65,6 +64,10 @@ The standing instructions for commits, pushes and pull requests are in `conventi
 - The design and the plan in `docs/plans/YYYY-MM-DD-<slug>.md`, committed on the branch and removed by `/build:finish`.
 - The execution ledger, briefs and review packages in `tmp/build/<slug>/`, scratch that never enters git.
 - Deferred work in `docs/TODO.md`, only when the user says so.
+
+## With the Lyngon workflow
+
+The standing instructions for commits, pushes and pull requests are in `conventions:engineering`: `/build:finish` pushes the branch and opens the pull request without asking.
 
 ## With the Lyngon structure
 

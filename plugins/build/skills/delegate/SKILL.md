@@ -34,7 +34,7 @@ The spec is the binding authority, the plan is its argument, and your judgment s
 Record every decision in the ledger as `Ruling: <what you decided>; <why>; <what it costs if wrong>`, and keep going.
 A wrong ruling costs rework the user can see and undo; a session parked on a question costs their whole day and buys nothing.
 
-**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are not among them); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
+**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
 For those, stop and ask.
 Never disable, skip or weaken a check or hook to make something pass, and never let an implementer do so.
 

@@ -2,11 +2,12 @@
 name: finish
 description: >-
   Finish a development branch: run the repository's full check, remove the plan file
-  in a final commit, push the branch and open a pull request without asking (merging
-  locally or keeping the branch only on request), and keep the worktree until the
-  work lands. Use when a plan's tasks are complete and the whole-branch review is
-  clean, or when any feature branch is done: "the plan is done, wrap up the branch",
-  "finish this branch", "open the pull request". Not for committing a single change.
+  in a final commit, push the branch and open a pull request (without asking where the
+  user's standing instructions cover it; merging locally or keeping the branch only on
+  request), and keep the worktree until the work lands. Use when a plan's tasks are
+  complete and the whole-branch review is clean, or when any feature branch is done:
+  "the plan is done, wrap up the branch", "finish this branch", "open the pull
+  request". Not for committing a single change.
 ---
 
 # Finish
@@ -97,7 +98,15 @@ A local merge (Step 6, on request) is different: first ask "This branch split fr
 
 ## Step 5: Push and open the pull request
 
-Pushing the feature branch and opening its pull request are the user's standing instructions: do both without asking.
+Push the feature branch and open its pull request.
+Ask once, right before the push, unless the user's standing instructions cover pushing and opening a pull request; then do both without asking.
+The answer covers the branch's later pushes too: the `docs(todo)` commit below and fixes asked for on the pull request.
+
+```text
+Full check green. Push <feature-branch> and open a pull request against <base-branch>?
+(Or merge locally, or keep the branch as it is: Step 6.)
+```
+
 When Step 2 added commits after Step 1's full check (an ADR, the plan removal), run the full check again first: the push carries them.
 The user reviews the pull request and decides the merge.
 Merge locally or keep the branch instead only when the user asked for that (Step 6).
@@ -159,6 +168,10 @@ git branch -d <feature-branch>         # after the worktree: git refuses to dele
 
 A forge that squashed or rebased the pull request leaves the local branch unmerged in git's eyes, so `git branch -d` refuses it.
 Check that the pull request shows as merged, then delete it with `-D`.
+
+### With the Lyngon workflow
+
+The user's standing instructions in `conventions:engineering` cover pushing the feature branch and opening its pull request: do both without asking.
 
 ## Step 6: Other outcomes, on request
 
@@ -287,12 +300,12 @@ If your platform provides a workspace-exit tool, use it.
 | "The check passed earlier this session" | Run the full check on the tree you are about to integrate. A green run only proves the tree it ran on. |
 | "The plan file is harmless, leave it" | The plan was transient. Its decisions belong in the ADRs and its work in the history; the branch is not finished while it carries one. |
 | "They obviously want it merged" | Merging is the user's decision. Open the pull request; merge locally only when they ask. |
-| "Let me ask before pushing" | Pushing the feature branch and opening its pull request are the user's standing instructions. Asking puts them back in series with the work. |
+| "Let me ask before pushing" | Where the user's standing instructions cover the push, asking puts it back in series with the work. Without them, ask once, right before the push. |
 | "The pull request is up, I'll amend the commit to fix a typo" | Pushed history is not rewritten without asking. Fix it in a new commit and push after the full check. |
 | "They seem done with this feature, I'll offer to discard it" | Discard happens only when the user asks for it in so many words. |
 | "'Yeah, get rid of it' counts as confirmation" | Only the typed word `discard` authorizes deletion. |
 | "The deferred minors are in the executor's message, that's enough" | The message scrolls away and the ledger goes with the workspace. Put them in the pull request description and ask which go to the TODO list. |
-| "I'll ask about the TODO list before opening the pull request" | The user may be away; a question before the push parks the whole branch. Open the pull request first, then ask. |
+| "I'll ask about the TODO list before opening the pull request" | The user may be away; the TODO question must never hold up the push. Open the pull request first, then ask. |
 | "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |
 | "The PR is up, the local base branch will catch up on its own" | It will not. The next session starts on a stale base and misses what landed. End the report with the landing steps. |
 | "This other worktree looks stale, I'll clean it too" | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host. |
