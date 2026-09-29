@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.7.0 - 2026-09-29
+
+- The `SessionStart` hook prints only the structure line, and only in a repository that follows the Lyngon structure. The generic lines moved to the `conventions` plugin's hook, which reaches every repository that installs `core`; the line saying that conventions load on their own was wrong and is gone.
+
 ## 0.6.3 - 2026-09-29
 
 - The `devenv.yaml` template requires devenv 2.4.0. From 2.4.0 on, `devenv shell` and every direnv re-evaluation no longer run the hook suite first, which on 2.3.1 cost agents up to 45 s per wrapped command. The saving needs the `devenv` input in `devenv.lock` at 2.4 as well, which `require_version` does not check; `devenv.md` says to run `devenv update devenv` in adopt mode.

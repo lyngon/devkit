@@ -1,6 +1,6 @@
 ---
 name: typescript
-description: Lyngon TypeScript and JavaScript conventions. Background knowledge, loaded automatically while working on TypeScript and JavaScript files.
+description: Lyngon TypeScript and JavaScript conventions. Invoke before writing or editing a TypeScript or JavaScript file.
 user-invocable: false
 paths:
   - "**/*.ts"

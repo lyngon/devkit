@@ -1,6 +1,6 @@
 ---
 name: shell
-description: Lyngon shell conventions. Background knowledge, loaded automatically while working on shell scripts and files under a scripts/ directory.
+description: Lyngon shell conventions. Invoke before writing or editing a shell script or a file under a scripts/ directory.
 user-invocable: false
 paths:
   - "**/*.sh"

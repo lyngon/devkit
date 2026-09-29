@@ -1,6 +1,6 @@
 ---
 name: adr
-description: Lyngon conventions for architecture decision records under docs/adr/. Background knowledge, loaded automatically while working on an ADR.
+description: Lyngon conventions for architecture decision records under docs/adr/. Invoke before writing or editing an ADR.
 user-invocable: false
 paths:
   - "**/docs/adr/*.md"

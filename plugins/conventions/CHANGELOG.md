@@ -3,6 +3,11 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.6.0 - 2026-09-29
+
+- Every skill's description ends with when to invoke it ("Invoke before ..."), instead of saying the skill loads automatically. A skill's body reaches the agent only when the agent invokes it, and `paths` does not load it, so no convention reached an agent before. `validate-marketplace` requires the wording.
+- A `SessionStart` hook says which devkit skills to invoke and when, and that no skill loads on its own, the conventions included. It takes over the generic lines of the `repo` plugin's hook, so every repository that installs `core` gets them.
+
 ## 0.5.1 - 2026-09-29
 
 - `nix` says that stock hooks such as `ruff` and `terraform-format` are enabled once in the root `devenv.nix`, and that a package's `devenv.nix` adds only its own `{name}-` hooks, since a hook's `files` holds one pattern and a stock hook scoped in two packages fails evaluation.

@@ -14,8 +14,8 @@ Prerequisites: documents, baseline, structure
 
 ## Hooks
 
-- `SessionStart`: prints a few lines telling the agent which devkit skills to invoke and when.
-  The text is `hooks/session-start.txt`, plus `hooks/session-start-structure.txt` when the root `CLAUDE.md` says the repository follows the Lyngon structure.
+- `SessionStart`: in a repository whose root `CLAUDE.md` says it follows the Lyngon structure, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`; elsewhere it prints nothing.
+  The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
 
 ## Install
 

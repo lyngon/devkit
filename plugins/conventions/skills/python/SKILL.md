@@ -1,6 +1,6 @@
 ---
 name: python
-description: Lyngon Python conventions. Background knowledge, loaded automatically while working on Python files, stubs and notebooks.
+description: Lyngon Python conventions. Invoke before writing or editing a Python file, stub or notebook.
 user-invocable: false
 paths:
   - "**/*.py"

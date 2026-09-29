@@ -49,7 +49,7 @@ The markers to look for: `devenv.nix` exists (devenv); it sets `lyngon.enable = 
 
 A skill's `paths` never make it conditional: `*.nix` files exist in repositories that never touch devenv.
 
-Skills that load without being asked, through `paths`, and hooks that run at session start are where unconditional text does the most damage.
+Skills whose description asks to be invoked for every matching file, and hooks that run at session start, are where unconditional text does the most damage.
 They may not say anything above the plugin's declared prerequisites outside a conditional section, and the session hook must check the marker before it mentions the structure.
 
 ## The terms

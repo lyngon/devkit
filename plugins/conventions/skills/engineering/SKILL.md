@@ -1,6 +1,6 @@
 ---
 name: engineering
-description: Lyngon engineering conventions that apply to every file in every repository. Background knowledge, loaded automatically while working on any file.
+description: Lyngon engineering conventions for every change in every repository, covering how to decide, change, test, commit, push and open pull requests. Invoke before any engineering work, before the first edit of a session.
 user-invocable: false
 paths:
   - "**/*"
@@ -9,7 +9,7 @@ paths:
 # Engineering conventions
 
 Rules for every change in a Lyngon repository.
-Language-specific rules load with the file's language; document rules load with the document.
+Language and document rules are separate skills: invoke the one for a file's kind before editing it.
 
 ## Deciding
 
