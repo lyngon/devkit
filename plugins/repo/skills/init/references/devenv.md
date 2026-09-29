@@ -1,6 +1,6 @@
 # devenv
 
-Assumes devenv 2.3 or later.
+Assumes devenv 2.4 or later.
 The root `devenv.nix` holds the languages, cross-cutting tools and hooks; each package holds its own `devenv.nix` with its tasks, hooks and processes; the root `devenv.yaml` imports the packages.
 
 ## Root files
@@ -9,7 +9,7 @@ The root `devenv.nix` holds the languages, cross-cutting tools and hooks; each p
 
 ```yaml
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
-require_version: ">=2.3.0"
+require_version: ">=2.4.0"
 
 inputs:
   nixpkgs:
@@ -31,6 +31,14 @@ imports:
 
 The `lyngon` input is the shared baseline module from the Lyngon devkit; `devenv update lyngon` bumps it.
 The `git-hooks` input must be declared here because a remote import cannot add inputs.
+
+`require_version` checks only the devenv CLI.
+From 2.4 on, `devenv shell` and direnv no longer run the hook suite before every command, but only once `devenv.lock` pins the 2.4 modules; with an older lock, devenv warns that the CLI is newer than its input and still runs the hooks.
+In adopt mode, update that input alone:
+
+```sh
+devenv update devenv
+```
 
 Add `nixpkgs.allow_unfree: true` only when a package needs an unfree tool, and say which in a comment.
 Add the `secretspec` section when the repository needs secrets (see below).

@@ -20,7 +20,7 @@ Verified on 2026-09-27 with devenv 2.3.1, direnv 2.37.1 and Claude Code 2.1.278.
   A missing tool fails loudly; a missing identity variable fails silently or picks the wrong identity.
 - Because the inherited `DIRENV_*` state claims the environment is loaded, `direnv export bash` prints nothing (3 ms).
   Clearing the `DIRENV_*` variables first makes it re-export everything.
-- A full re-evaluation, `_DEVENV_CALLER=direnv devenv direnv-export`, which is what direnv runs, took 3.9 s here and 45 s in lyngon.com on devenv 2.3.1, because it also ran the hook suite; devenv 2.4.0 stops that (see `docs/seed-prompts/repo-init-templates.md`).
+- A full re-evaluation, `_DEVENV_CALLER=direnv devenv direnv-export`, which is what direnv runs, took 3.9 s here and 45 s in lyngon.com on devenv 2.3.1, because it also ran the hook suite; devenv 2.4.0 stops that and the devkit now requires it, so measure again before designing around the cost.
 - `direnv exec . <cmd>` is not a fast path: it re-evaluated on every call, 4.7 s here, measured three times, also with the state cleared.
 - The Claude Code hooks guide, section "Reload environment when directory or files change": a `SessionStart`, `CwdChanged` or `FileChanged` hook may write shell to `$CLAUDE_ENV_FILE`; Claude Code runs that file as a preamble before each Bash command, and a rewrite is seen by the next command; the guide's own example writes `direnv export bash` output.
   `FileChanged` matches literal file names.
@@ -54,4 +54,3 @@ Skip silently when there is no upstream or git fails, and keep the script's JSON
 ## Out of scope
 
 - A session hold in the build ledger: deferred in `docs/TODO.md`.
-- The devenv 2.4.0 version bump: `docs/seed-prompts/repo-init-templates.md`.
