@@ -68,7 +68,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | --- | --- | --- | --- |
 | `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents, workflow, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `core` | bundle of `discover`, `build`, `practice`, `review`, `writing` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review and writing. A bundle: it has no skills of its own. |
-| `repo` | `/repo:add-package`, `/repo:init` | documents, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
+| `repo` | `/repo:add-package`, `/repo:init` | documents, workflow, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and ADRs as they crystallise and gates implementation on approval. |
 | `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | git | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
@@ -124,7 +124,7 @@ my-service/
 
 And the way of working in it, in the order things happen:
 
-- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those.
+- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those, and always adopts the Lyngon workflow.
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
 - An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
@@ -179,7 +179,7 @@ The steps are the same for an empty repository and for one that has grown organi
 
 1. Install the plugins as above, at least `repo`.
 2. Open Claude Code in the repository and run `/repo:init`.
-   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` and each of its members by name, or the subset you chose.
+   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` or `core@lyngon` and each of its members by name, or the subset you chose, with `conventions@lyngon` in every case.
 3. `/repo:init` commits its work: one root commit on `main` in a fresh repository, a branch with a pull request in an adopted one.
 
 In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.

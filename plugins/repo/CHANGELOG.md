@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.9.0 - 2026-09-29
+
+- The plugin declares the `workflow` prerequisite, and `init` adopts the Lyngon workflow in every scope: the settings it writes enable `conventions` next to `core` or a subset, the interview says so, and the README template installs `core` with `conventions` when the settings do (ADR 0017).
+
 ## 0.8.2 - 2026-09-29
 
 - `init` step 7 says before both modes that `add-package` leaves its commit to `init`; the sentence sat after the adopt-mode list, though fresh mode relies on it too.

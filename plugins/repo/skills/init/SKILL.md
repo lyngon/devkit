@@ -13,8 +13,9 @@ One session that takes a repository from "empty" or "grown organically" to the L
 The interview is the core.
 The files are its output, written only after the owner confirms a shared understanding.
 
-The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and the baseline, or all three including the layout defined in [STRUCTURE.md](STRUCTURE.md).
+The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and the baseline, or the documents, the baseline and the layout defined in [STRUCTURE.md](STRUCTURE.md).
 The file set below is written scope by scope; nothing from a scope the owner did not adopt is written.
+Every scope adopts the Lyngon workflow: the settings enable `conventions`, whose standing instructions commit, push and open pull requests without asking.
 
 ## When to use
 
@@ -87,7 +88,7 @@ Documents scope:
 - `CLAUDE.md` as the source file, `AGENTS.md` as a symlink to it.
 - `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention that needs more than a line.
 - `.gitignore` with the baseline patterns, `/tmp/`, `/sandbox/`, and the stack patterns.
-- `.claude/settings.json` registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, `core@lyngon` and its members, or the subset the user chose with its dependencies. The README still installs with the one bundle command.
+- `.claude/settings.json` registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, or `core@lyngon` and its members, or the subset the user chose with its dependencies, the last two together with `conventions@lyngon`. The README installs the bundle, or the chosen plugins, with `conventions`.
 - `.github/workflows/ci.yml` (or the equivalent for the chosen host).
 
 Baseline scope:
