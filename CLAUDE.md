@@ -43,7 +43,7 @@ Never disable a hook to make a check pass.
 
 ## Conventions
 
-- Plugin `version` lives in `plugin.json` only. Bump it and add a `CHANGELOG.md` entry with every user-visible change.
+- Plugin `version` lives in `plugin.json` only. Every commit with a user-visible change to a plugin bumps that plugin's version by the commit's own semver level and adds its own `CHANGELOG.md` entry, in the same commit.
 - Marketplace entries for pinned plugins need a 40-character `sha` and a catalog record. Vendored skills need `UPSTREAM.md` with a 40-character upstream commit.
 - Third-party skills enter through `/devkit:add-skill`, which applies `shared/SKILL-REVIEW.md` and refuses upstreams without a license (ADR 0010).
 - Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`), not merged. Compare against upstream at bump time and carry changes over by hand.
