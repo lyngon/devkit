@@ -17,6 +17,7 @@ The `adr` and `documents` skills carry format documents adapted from [mattpocock
 | `python` | `*.py`, `*.pyi`, `*.ipynb` |
 | `typescript` | `*.ts`, `*.tsx`, `*.mts`, `*.cts`, `*.js`, `*.jsx`, `*.mjs`, `*.cjs` |
 | `nix` | `*.nix`, `devenv.yaml` |
+| `shell` | `*.sh`, `*.bash`, files under a `scripts/` directory |
 | `markdown` | `*.md` |
 | `documents` | `CLAUDE.md`, `AGENTS.md`, `CONCEPTS.md`, `INTENT.md`, `README.md` |
 | `adr` | `docs/adr/*.md` |
