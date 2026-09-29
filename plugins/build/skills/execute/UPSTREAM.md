@@ -32,6 +32,10 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Example workflow: paths rewritten to `docs/plans/2026-09-23-recovery.md`, workspace to `../delegate/scripts/workspace`, the opening announcement dropped, "typo" became "misspells", `npm test` kept as an example with a sentence saying so, the closing line invokes `build:finish`.
 - "Announce at start" line dropped. "your human partner" and "your partner" replaced by "the user" throughout. Rationalization table: "Only the four stops" and "your partner decides" reworded.
 - Reflowed to one sentence per line; every em dash removed; headings in sentence case; bold labels end in a full stop instead of a colon; the sub-skill callouts say "call the Skill tool for".
+- `task-start` takes the bare path that `task-brief` now prints; upstream parsed the `wrote <path>: N lines` line with sed.
+- The brief carries the plan's Global Constraints, and "Take the task" says so.
+- Final review: the reviewer also gets the ledger's `State:` lines (facts that superseded the plan, the spec or an inventory), which the executor ledgers as `State: <fact>` when it learns them.
+- Finish: the workspace is handed to `build:finish` instead of deleted (upstream deleted it here), so the ledger's deferred minors reach `build:finish`; the graph node, the Finish section and the example say so, and a rationalization row was added. "The only place" the rulings reach the user became "where".
 
 ## Review notes
 

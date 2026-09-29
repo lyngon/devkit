@@ -35,7 +35,17 @@ The full check is `devenv test`: it runs every git hook on every file plus the r
 
 ## Step 2: Remove the plan
 
-When the branch carries a plan file, `docs/plans/YYYY-MM-DD-<slug>.md`, remove it in a final commit:
+When the branch carries a plan file, `docs/plans/YYYY-MM-DD-<slug>.md`, first resolve the plan's workspace while the file still exists.
+The script lives in `build:delegate`, at `../delegate/scripts/workspace` from this skill's directory:
+
+```bash
+PLAN_WORKSPACE=$(bash <this skill's directory>/../delegate/scripts/workspace docs/plans/YYYY-MM-DD-<slug>.md)
+```
+
+`build:delegate` and `build:execute` hand this directory over instead of deleting it: its `progress.md` is their ledger, and Step 7 removes the directory once the work lands.
+Without a `progress.md`, no executor produced the branch and there is no ledger.
+
+Then remove the plan in a final commit:
 
 ```bash
 git rm docs/plans/YYYY-MM-DD-<slug>.md
@@ -48,6 +58,25 @@ The plan was transient: the work is in the git history, and what mattered beyond
 
 Before deleting, read the plan's `## Design` section for a decision that meets the ADR bar (hard to reverse, surprising without context, the result of a real trade-off) and is not yet in `docs/adr/`.
 Record it first: call the Skill tool for `discover:domain-model`, commit the ADR, then remove the plan.
+
+Before deleting, also offer the findings nobody acted on to `docs/TODO.md`, since the ledger goes with the workspace.
+Collect the executor's "Deferred minors" and the ledger's `minor (deferred)` and parked lines, each finding once:
+
+```bash
+grep -E 'minor \(deferred\)|: parked;' "$PLAN_WORKSPACE/progress.md"
+```
+
+```text
+Deferred findings from the execution:
+
+1. <finding>
+2. <finding>
+
+Which of these go to docs/TODO.md? (numbers, "all" or "none")
+```
+
+Add the chosen ones to `docs/TODO.md`, one line each with today's date (`- YYYY-MM-DD: <item>`), and stage the file so it lands in the plan-removal commit.
+A branch no executor produced has no ledger: say so and move on.
 
 ## Step 3: Detect the environment
 
@@ -122,7 +151,7 @@ git merge <feature-branch>
 
 If the check fails on the merged result: stop, leave the worktree and branch in place, and investigate; nothing has been pushed, so the merge is local and recoverable.
 
-Once the merged result is green: clean up the worktree (Step 7), then delete the branch:
+Once the merged result is green: clean up the plan workspace and the worktree (Step 7), then delete the branch:
 
 ```bash
 git branch -d <feature-branch>
@@ -143,7 +172,22 @@ The description opens with the "Rulings I made" and "Deferred minors" lists from
 When the branch was not produced by an executor, open with a short summary of the branch instead.
 Report the URL to the user.
 
-Keep the worktree: the user iterates on pull request feedback there.
+Keep the worktree and the plan workspace: the work has not landed, and the user iterates on pull request feedback in the worktree.
+
+The merge then happens on the forge, and the local base branch does not follow it.
+End your report with the landing steps for after the merge, with the paths and names filled in and the lines that do not apply left out, so the user or the next session can run them:
+
+```bash
+cd <main repository root>
+git switch <base-branch>
+git pull --ff-only
+rm -rf <plan workspace>                # when Step 2 resolved one
+git worktree remove <worktree path>    # only under .worktrees/ or worktrees/, as in Step 7
+git branch -d <feature-branch>         # after the worktree: git refuses to delete a checked-out branch
+```
+
+A forge that squashed or rebased the pull request leaves the local branch unmerged in git's eyes, so `git branch -d` refuses it.
+Check that the pull request shows as merged, then delete it with `-D`.
 
 ### Option 3: Keep as it is
 
@@ -171,17 +215,25 @@ MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-tople
 cd "$MAIN_ROOT"
 ```
 
-Then clean up the worktree (Step 7) and force-delete the branch:
+Then clean up the plan workspace and the worktree (Step 7), and force-delete the branch:
 
 ```bash
 git branch -D <feature-branch>
 ```
 
-## Step 7: Clean up the workspace
+## Step 7: Clean up the plan workspace and the worktree
 
 Runs for Option 1 and confirmed discards.
-Options 2 and 3 always preserve the worktree.
-Both callers have already changed directory to the main repository root (worktree removal must run from outside the worktree) and use the `GIT_DIR`, `GIT_COMMON` and `WORKTREE_PATH` values captured in Step 3, from before that directory change.
+Options 2 and 3 always preserve the worktree and the plan workspace, since the work has not landed.
+Both callers have already changed directory to the main repository root (worktree removal must run from outside the worktree) and use the `PLAN_WORKSPACE` value resolved in Step 2 and the `GIT_DIR`, `GIT_COMMON` and `WORKTREE_PATH` values captured in Step 3, from before that directory change.
+
+**If Step 2 resolved a plan workspace:** remove it; the work has landed or been discarded, and Step 2 offered its deferred findings to the user:
+
+```bash
+rm -rf "$PLAN_WORKSPACE"
+```
+
+Sibling directories under `tmp/build/` belong to other plans; leave them alone.
 
 **If `GIT_DIR == GIT_COMMON`:** a normal repository, no worktree to clean up.
 Done.
@@ -220,10 +272,11 @@ If your platform provides a workspace-exit tool, use it.
 
 ## Quick reference
 
-| Option | Merge | Push | Keep worktree | Clean up branch |
+| Option | Merge | Push | Keep worktree and plan workspace | Clean up branch |
 | --- | --- | --- | --- | --- |
 | 1. Merge locally | yes | - | - | yes |
 | 2. Create a pull request | - | yes | yes | - |
+| 2, after the forge merged it (landing steps) | fast-forward the base (`git pull --ff-only`) | - | - | yes |
 | 3. Keep as it is | - | - | yes | - |
 | Discard (explicit request only) | - | - | - | yes (force) |
 
@@ -236,7 +289,9 @@ If your platform provides a workspace-exit tool, use it.
 | "They obviously want it merged" | Integration is the user's decision. Present the menu and wait. |
 | "They seem done with this feature, I'll offer to discard it" | The menu is complete as written. Discard happens only when the user asks for it in so many words. |
 | "'Yeah, get rid of it' counts as confirmation" | Only the typed word `discard` authorizes deletion. |
+| "The deferred minors are in the executor's message, that's enough" | The message scrolls away and the ledger goes with the workspace. Offer them for the TODO list before the plan is removed. |
 | "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |
+| "The PR is up, the local base branch will catch up on its own" | It will not. The next session starts on a stale base and misses what landed. End the report with the landing steps. |
 | "This other worktree looks stale, I'll clean it too" | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host. |
 | "Removal refused, `--force` is just finishing the cleanup" | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show the user and ask. |
 | "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |

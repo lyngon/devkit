@@ -29,6 +29,10 @@ The discard path with a typed confirmation and the ownership rule for worktree c
 - "Announce at start" line dropped; the core principle gained "remove the plan".
 - Placeholders in prose use square brackets (`[your best guess]`, `[name]`, `[path]`) where upstream used angle brackets outside code, because markdownlint reads those as inline HTML; placeholders inside fenced blocks keep angle brackets.
 - Reflowed to one sentence per line; every em dash removed; headings in sentence case; tables given leading and trailing pipes.
+- Step 2 resolves the plan workspace (`tmp/build/<slug>/`, through `build:delegate`'s `workspace` script) before removing the plan, since the executors now hand it over instead of deleting it. Under `### With the Lyngon documents`: list the executor's deferred minors and the ledger's `minor (deferred)` and parked lines, ask the user which go to `docs/TODO.md`, write those with today's date and commit them with the plan removal; a branch without a ledger says so and moves on.
+- Step 7 renamed "Clean up the plan workspace and the worktree": it removes the plan workspace first, on the merge and discard paths only; options 2 and 3 keep it because the work has not landed. The cross-references in options 1 and discard name both, and the quick reference's "Keep worktree" column became "Keep worktree and plan workspace".
+- Rationalization table: a row added for deferred minors left in the executor's message.
+- Option 2 ends the report with the landing steps for after the forge merges the pull request (switch to the base, `git pull --ff-only`, remove the plan workspace and the worktree, delete the branch, in an order git accepts), and a note on `-D` after a squash or rebase merge. The quick reference gained a row for them, and the rationalization table a row for the local base branch catching up on its own.
 
 ## Review notes
 

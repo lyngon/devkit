@@ -53,9 +53,10 @@ Placeholders:
 - `{PLAN_OR_REQUIREMENTS}`: what it should do; a plan file path, its Design section, or requirements text.
 - `{BASE_SHA}`: the starting commit.
 - `{HEAD_SHA}`: the ending commit.
-- `{REVIEW_PACKAGE}` (optional): the path of a review package file when one exists, such as the file that `build:delegate`'s `review-package` script prints. The reviewer then reads one file instead of re-deriving the diff.
+- `{REVIEW_PACKAGE}` (optional): the path of a review package file when one exists, such as the file that `build:delegate`'s `review-package` script prints. The reviewer then reads the commit messages and the diff in one file instead of re-deriving them.
 - `{REVIEW_FOCUS}` (optional): the plan's Review Focus section, verbatim.
 - `{RULINGS}` (optional): the `Ruling:` lines from the execution ledger.
+- `{STATE_CHANGES}` (optional): the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat. Without them the reviewer judges the branch against a world that no longer exists.
 
 Leave out a template section whose placeholder has nothing to fill it.
 

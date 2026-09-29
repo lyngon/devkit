@@ -75,7 +75,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | `review` | `/review:receive`, `/review:request` | git | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
 | `devkit` | `/devkit:add-skill` | documents, baseline, structure | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
 | `writing` | `/writing:unslop` | git | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
-| `conventions` | `adr` (by path), `documents` (by path), `engineering` (by path), `markdown` (by path), `nix` (by path), `python` (by path), `typescript` (by path) | documents | Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
+| `conventions` | `adr` (by path), `documents` (by path), `engineering` (by path), `markdown` (by path), `nix` (by path), `python` (by path), `shell` (by path), `typescript` (by path) | documents | Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | git | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 

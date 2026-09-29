@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.0 - 2026-09-29
+
+- Added `shell`, loaded for `*.sh`, `*.bash` and files under a `scripts/` directory: bash with `set -euo pipefail`, output captured and then matched instead of piped into `grep -q` under `pipefail`, and commands a person runs by hand in POSIX sh or through `bash -c`. `With devenv` makes every script a hook or task runs a `writeShellApplication`; `With the Lyngon baseline` names the `shellcheck` hook and how to silence a single finding.
+
 ## 0.4.1 - 2026-09-23
 
 - Ships `LICENSE-mattpocock`, the MIT license of the `ADR-FORMAT.md` and `CONCEPTS-FORMAT.md` documents adapted from mattpocock/skills, and both documents point to it.

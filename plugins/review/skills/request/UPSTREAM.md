@@ -32,6 +32,8 @@ The template gives the reviewer exactly that context and nothing of the requeste
 - Rewrote the example with a neutral plan path (`docs/plans/2026-09-23-deployment.md`) and a recorded base commit instead of grepping `git log` for a task name.
 - Sentence-cased the headings; removed the em dashes; reflowed prose to one sentence per line; gave every fenced block a language and wrapped the template in a four-backtick fence so its inner `bash` fence renders.
 - Lower-cased the severity labels in the output format headings ("Critical (must fix)") and removed "Senior Code Reviewer" capitalization; no change of meaning.
+- Added the optional `{STATE_CHANGES}` placeholder and its "State changes since the inputs were written" section after the rulings: the facts that superseded the plan, the spec or an inventory, so the reviewer judges against the world as it is. Listed in both placeholder lists and in the rule for leaving out empty sections.
+- The review package section says the package carries every commit's full message, and the git range block adds `git log`, so the commit messages can be checked with or without a package.
 - Dropped nothing else; the read-only rule, the no-subagents rule, the spec-as-vision section, the check lists, the calibration, the critical rules, the rationalization table, the red flags and the example output are kept.
 
 ## Review notes

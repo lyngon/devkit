@@ -96,7 +96,7 @@ digraph process {
     "More tasks remain?" [shape=diamond];
     "Dispatch final reviewer via review:request" [shape=box];
     "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" [shape=box];
-    "Final review clean: delete this plan's workspace" [shape=box];
+    "Final review clean: list rulings and deferred minors, keep the workspace" [shape=box];
     "Invoke build:finish" [shape=box style=filled fillcolor=lightgreen];
 
     "Setup: worktree, ledger check, read plan, pre-flight review" -> "Dispatch implementer subagent (references/implementer-prompt.md)";
@@ -125,8 +125,8 @@ digraph process {
     "More tasks remain?" -> "Dispatch implementer subagent (references/implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Dispatch final reviewer via review:request" [label="no"];
     "Dispatch final reviewer via review:request" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
-    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: delete this plan's workspace";
-    "Final review clean: delete this plan's workspace" -> "Invoke build:finish";
+    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: list rulings and deferred minors, keep the workspace";
+    "Final review clean: list rulings and deferred minors, keep the workspace" -> "Invoke build:finish";
 }
 ```
 
@@ -244,16 +244,21 @@ A bounded stretch keeps nearly all of a long wait's efficiency while guaranteein
 
 Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fix-round diffs need it.
 
-- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text to a uniquely named file and prints the path.
+- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to `task-N-brief.md` in the workspace and prints the path.
+  There is one brief per task, and every call writes the same plan text, so regenerating it after compaction or in a new session is harmless.
   Compose the dispatch so the brief stays the single source of requirements.
   Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
   Exact values (numbers, magic strings, signatures, test cases) appear only in the brief.
   Never make a subagent read the whole plan file.
 - **Report file.** Name the implementer's report file after the brief (brief `task-N-brief.md`, report `task-N-report.md`, same workspace) and put it in the dispatch prompt.
   The implementer writes the full report there and returns only status, commits, a one-line test summary, and concerns.
+  There is one report per task.
+  A report file that already exists is a prior attempt's memory (a dispatch before compaction, or an earlier session): never delete or rename it.
+  Hand its path to the new implementer with the framing fix rounds 4 and 5 use: "A prior implementer attempted this task; you own it now. Read the report file for what was tried."
+  The implementer appends its own report under a dated heading.
 - A dispatch prompt describes one task, not the session's history.
   Do not paste accumulated prior-task summaries ("state after Tasks 1 to 3") into later dispatches; a real session's dispatch hit 42k characters of which 99% was pasted history.
-  A fresh subagent needs its task, the interfaces it touches, and the global constraints.
+  A fresh subagent needs its task, the interfaces it touches, and the global constraints, which the brief carries.
   Nothing else.
 - The dispatch carries the no-subagents contract (it is in the implementer template): the implementer never dispatches subagents, not helpers, and never a reviewer.
   Review arrives from you, after the report.
@@ -269,7 +274,7 @@ Template: [implementer-prompt.md](references/implementer-prompt.md)
 Implementer subagents report one of four statuses.
 Handle each appropriately.
 
-**DONE:** generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory; it prints the unique file path it wrote; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
+**DONE:** generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory; it prints the path of the file it wrote, one per range; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
 
 **DONE_WITH_CONCERNS:** the implementer completed the work but flagged doubts.
 Read the concerns before proceeding.
@@ -299,14 +304,17 @@ The broad review happens once, at the final whole-branch review.
 Never skip the task review, and never accept a report missing either verdict: spec compliance AND task quality are both required.
 Implementer self-review never replaces the task review; both are needed.
 
-- Hand the reviewer its diff as a file: run this skill's `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path it prints (or, without bash: `git log --oneline`, `git diff --stat` and `git diff -U10` for the range, redirected to one uniquely named file).
-  The output never enters your own context, and the reviewer sees the commit list, stat summary and full diff with context in one read.
+- Hand the reviewer its diff as a file: run this skill's `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path it prints (or, without bash: `git log`, `git diff --stat` and `git diff -U10` for the range, redirected to one uniquely named file).
+  The output never enters your own context, and the reviewer sees every commit with its full message, the stat summary and the full diff with context in one read.
   Use the BASE you recorded before dispatching the implementer, never `HEAD~1`, which silently truncates multi-commit tasks.
   Never dispatch a task reviewer without a diff file.
-- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package) plus the global constraints that bind the task.
-- The global-constraints block you hand the reviewer is its attention lens.
-  Copy the binding requirements verbatim from the plan's Global Constraints section or the spec: exact values, exact formats, and the stated relationships between components ("same layout as X", "matches Y").
-  The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the constraints block is for what THIS project's spec demands.
+- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package), at most one sentence of emphasis, and the state changes since the inputs were written, when there are any.
+- The brief carries the plan's Global Constraints section, so the reviewer reads the binding requirements where the implementer read them; never paste them into the dispatch.
+  Your one sentence of emphasis is the attention lens: the constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break.
+  The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the emphasis is for what THIS project's spec demands.
+- State changes are the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.
+  Ledger each one as `State: <fact>` when you learn it, and hand the ledger's `State:` lines to every reviewer from then on, task, re-review and final alike.
+  A reviewer that sees only the plan reports findings against a world that no longer exists.
 - Do not add open-ended directives like "check all uses" or "run race tests if useful" without a concrete, task-specific reason.
 - Do not ask a reviewer to re-run tests the implementer already ran on the same code; the implementer's report carries the test evidence.
 - Do not pre-judge findings for the reviewer: never instruct a reviewer to ignore or not flag a specific issue.
@@ -348,7 +356,7 @@ Before re-dispatching the reviewer, confirm the fix report contains the covering
 Name the covering test files in the fix message; a one-line fix does not need the whole suite.
 
 **The re-review is scoped.**
-Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`, where FIX_BASE is the head the previous review saw, and dispatch [re-review-prompt.md](references/re-review-prompt.md) with the findings list, the brief, the report file, and the printed diff path.
+Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`, where FIX_BASE is the head the previous review saw, and dispatch [re-review-prompt.md](references/re-review-prompt.md) with the findings list, the brief, the report file, the printed diff path, and the ledger's `State:` lines, if any.
 The re-reviewer verdicts each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix diff only.
 New Critical or Important breakage in the fix diff joins the open findings list.
 Out-of-scope observations go to the ledger as deferred minors; they never extend the loop.
@@ -388,7 +396,7 @@ Never move to the next task while the review has open Critical or Important issu
 The final whole-branch review gets a package too: run `scripts/review-package PLAN_FILE MERGE_BASE HEAD` (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`), so the final reviewer reads one file instead of re-deriving the branch diff with git commands.
 
 Call the Skill tool for `review:request`; it carries the reviewer template.
-Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); and the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before merge and weigh the calls you made.
+Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before merge and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
@@ -399,12 +407,13 @@ There is no second fix wave; residual load-bearing findings reach the user in th
 
 ## Finish
 
-Before you delete anything, collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
+Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
 Both lists are exhaustive: if the ledger holds a ruling, the list holds it.
-Your final message is the only place the decisions you took on the user's behalf, and the findings nobody acted on, reach them: the user reads the finished branch starting from these two lists, and reworks whatever you got wrong.
+Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: the user reads the finished branch starting from these two lists, and reworks whatever you got wrong.
 A ruling that dies with the workspace was a decision made in secret.
 
-When the final whole-branch review is clean and its fixes are committed, delete this plan's workspace (`rm -rf <workspace>`); the git history is the record now.
+When the final whole-branch review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
+It reads the ledger's deferred minors and parked findings before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.
@@ -424,6 +433,7 @@ Call the Skill tool for `build:finish`.
 | "The implementer spawned its own reviewer, free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 | "The hook fails on something unrelated, tell the implementer to skip it" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
 | "Let me check in before the next task" | The user reviews the plan and the finished branch, nothing in between. Only the five stops stop you. |
+| "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors and parked findings before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 
 ## Example workflow
 
@@ -493,7 +503,7 @@ Rulings I made:
 Deferred minors:
 - (none)
 
-[Delete this plan's workspace; the record now lives in git]
+[Leave this plan's workspace for build:finish]
 
 Invoking build:finish.
 ```

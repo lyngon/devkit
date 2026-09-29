@@ -72,7 +72,7 @@ digraph process {
     "More tasks remain?" [shape=diamond];
     "Final whole-branch review via review:request (fresh reviewer if you have one)" [shape=box];
     "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" [shape=box];
-    "Final review clean: delete this plan's workspace" [shape=box];
+    "Final review clean: list rulings and deferred minors, keep the workspace" [shape=box];
     "Invoke build:finish" [shape=box style=filled fillcolor=lightgreen];
 
     "Setup: worktree, workspace + ledger, read plan + design, pre-flight scan" -> "task-start: brief + BASE; read the brief";
@@ -88,8 +88,8 @@ digraph process {
     "More tasks remain?" -> "task-start: brief + BASE; read the brief" [label="yes"];
     "More tasks remain?" -> "Final whole-branch review via review:request (fresh reviewer if you have one)" [label="no"];
     "Final whole-branch review via review:request (fresh reviewer if you have one)" -> "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger";
-    "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: delete this plan's workspace";
-    "Final review clean: delete this plan's workspace" -> "Invoke build:finish";
+    "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: list rulings and deferred minors, keep the workspace";
+    "Final review clean: list rulings and deferred minors, keep the workspace" -> "Invoke build:finish";
 }
 ```
 
@@ -156,7 +156,7 @@ Redirect long test output to a file in the workspace and read its tail; read a b
 ### 1. Take the task
 
 - Run this skill's `scripts/task-start PLAN_FILE N`.
-  It prints the brief path and BASE (the commit the task's range is cut from) in one call.
+  It prints the brief path and BASE (the commit the task's range is cut from) in one call; the brief holds the task's text followed by the plan's Global Constraints.
   Read the brief for every task, including ones you remember from setup: what you remember is a summary, the brief has the exact values, signatures and test cases.
 - Mark the task's todo in progress.
 
@@ -211,7 +211,8 @@ When it records, mark the todo complete and take the next task.
 Run `../delegate/scripts/review-package PLAN_FILE MERGE_BASE HEAD` from this skill's directory (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`) and review from the file it prints.
 
 **With a subagent tool.** Call the Skill tool for `review:request`; it holds the reviewer template.
-Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); and the ledger's `Ruling:` lines, so it can weigh the calls you made.
+Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's `Ruling:` lines, so it can weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
+A `State:` line is a fact that superseded the plan, the spec or an inventory after they were written (a manual action, a resource removed, a decision the user took in chat); ledger each one as `State: <fact>` when you learn it.
 Specify the model explicitly; an omitted model inherits the session's, which may not be the most capable.
 This is the one fresh context the whole run buys.
 Do not skip it, and do not replace it with your own read of the diff.
@@ -241,11 +242,12 @@ There is no second fix pass.
 
 ## Finish
 
-Before you delete anything, collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
+Collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
 Both lists are exhaustive.
-Your final message is the only place the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: the user reads the finished branch starting from these two lists.
+Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: the user reads the finished branch starting from these two lists.
 
-When the final review is clean and its fixes are committed, delete this plan's workspace directory; the git history is the record now.
+When the final review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
+It reads the ledger's deferred minors before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.
@@ -267,6 +269,7 @@ Call the Skill tool for `build:finish`.
 | "The reviewer said Minor, so it's Minor" | The label graded the spec's silence. Grade what the person gets. Re-grade, then gate. |
 | "The fix is obvious, no need for a failing test first" | The failing test is the only proof the finding was real and is now gone. Without it you have a diff and a hope. |
 | "I'll fix the minors too while I'm in there" | Every minor you fix is a test, a fix, and a suite run the user did not ask for. Ledger them; the user decides. |
+| "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 
 ## Example workflow
 
@@ -314,7 +317,7 @@ Deferred minors:
 - README lacks a usage example
 - recovery.js could split verify/repair into two files
 
-[Delete this plan's workspace; the record now lives in git]
+[Leave this plan's workspace for build:finish]
 
 Invoking build:finish.
 ```

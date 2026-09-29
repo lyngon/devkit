@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Extract one task's full text from an implementation plan into a file the
-# implementer reads in one call, so the task text never has to be pasted
-# through the controller's context.
+# Extract one task's full text from an implementation plan, followed by the
+# plan's Global Constraints section, into a file the implementer reads in one
+# call, so neither has to be pasted through the controller's context. Every
+# task's requirements implicitly include the Global Constraints; a plan
+# without that section yields a brief without it.
 #
 # Usage: task-brief PLAN_FILE TASK_NUMBER [OUTFILE]
 # Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-brief.md
-# (per plan and per worktree; concurrent runs of the SAME plan in the same
-# working tree share it).
+# (one per task, per plan and per worktree; every call writes the same plan
+# text, so regenerating it is harmless).
+# Prints the brief's path on stdout and a summary on stderr.
 set -euo pipefail
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
@@ -27,12 +30,31 @@ else
   out="$dir/task-${n}-brief.md"
 fi
 
+# One fence-aware pass collects both sections. The task runs to the next task
+# heading; the Global Constraints run to the next heading of the same or a
+# higher level. Trailing blank lines are trimmed so exactly one separates them.
 awk -v n="$n" '
   /^```/ { infence = !infence }
+  !infence && /^#+[ \t]/ {
+    level = match($0, /[^#]/) - 1
+    if (ingc && level <= gclevel) ingc = 0
+    if ($0 ~ /^#+[ \t]+Global Constraints[ \t]*$/) { ingc = 1; gclevel = level }
+  }
   !infence && /^#+[ \t]+Task[ \t]+[0-9]+/ {
     intask = ($0 ~ ("^#+[ \t]+Task[ \t]+" n "([^0-9]|$)"))
   }
-  intask { print }
+  intask { task[++nt] = $0 }
+  ingc { gc[++ng] = $0 }
+  END {
+    if (nt == 0) exit
+    while (nt > 0 && task[nt] ~ /^[ \t]*$/) nt--
+    for (i = 1; i <= nt; i++) print task[i]
+    while (ng > 0 && gc[ng] ~ /^[ \t]*$/) ng--
+    if (ng > 0) {
+      print ""
+      for (i = 1; i <= ng; i++) print gc[i]
+    }
+  }
 ' "$plan" > "$out"
 
 if [ ! -s "$out" ]; then
@@ -40,4 +62,5 @@ if [ ! -s "$out" ]; then
   exit 3
 fi
 
-echo "wrote ${out}: $(wc -l < "$out" | tr -d ' ') lines"
+printf '%s\n' "$out"
+echo "task-brief: task ${n}, $(wc -l < "$out" | tr -d ' ') lines" >&2
