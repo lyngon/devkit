@@ -23,6 +23,14 @@ Dispatch a subagent with:
     Its Global Constraints section, when present, binds this task as much
     as the task text does. [CONSTRAINT_EMPHASIS]
 
+    ## State Changes Since the Inputs Were Written
+
+    [STATE_CHANGES]
+
+    These facts superseded the plan, the spec or an inventory they cite
+    after those were written. Where an input and this list disagree, the
+    list is current: judge the work against it.
+
     ## What the Implementer Claims They Built
 
     Read the implementer's report: [REPORT_FILE]
@@ -193,11 +201,12 @@ Dispatch a subagent with:
 - `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md.
 - `[BRIEF_FILE]`: required, the task brief file (`scripts/task-brief PLAN N` prints the path; the same file the implementer worked from).
 - `[CONSTRAINT_EMPHASIS]` (optional): one sentence naming the global constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break. Never a paste of the constraints; the brief carries them.
+- `[STATE_CHANGES]` (optional): the ledger's `State:` lines, the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.
 - `[REPORT_FILE]`: required, the file the implementer wrote its detailed report to.
 - `[BASE_SHA]`: the commit before this task.
 - `[HEAD_SHA]`: the current commit.
 - `[DIFF_FILE]`: required, the path the controller wrote the review package to (`scripts/review-package PLAN_FILE BASE HEAD` prints the unique path it wrote; the package never enters the controller's context).
 
-Leave out the emphasis sentence when nothing stands out.
+Leave out the emphasis sentence when nothing stands out, and the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 
 **The reviewer returns:** the spec compliance verdict (✅, ❌ or ⚠️), strengths, issues (Critical, Important, Minor) and the task quality verdict.

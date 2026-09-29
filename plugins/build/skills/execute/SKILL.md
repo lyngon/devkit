@@ -211,7 +211,8 @@ When it records, mark the todo complete and take the next task.
 Run `../delegate/scripts/review-package PLAN_FILE MERGE_BASE HEAD` from this skill's directory (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`) and review from the file it prints.
 
 **With a subagent tool.** Call the Skill tool for `review:request`; it holds the reviewer template.
-Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); and the ledger's `Ruling:` lines, so it can weigh the calls you made.
+Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's `Ruling:` lines, so it can weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
+A `State:` line is a fact that superseded the plan, the spec or an inventory after they were written (a manual action, a resource removed, a decision the user took in chat); ledger each one as `State: <fact>` when you learn it.
 Specify the model explicitly; an omitted model inherits the session's, which may not be the most capable.
 This is the one fresh context the whole run buys.
 Do not skip it, and do not replace it with your own read of the diff.

@@ -36,6 +36,14 @@ Dispatch a subagent with:
 
     Weigh these calls; disagree where warranted, with your reasoning.
 
+    ## State changes since the inputs were written
+
+    {STATE_CHANGES}
+
+    These facts superseded the plan, the spec or an inventory they cite
+    after those were written. Where an input and this list disagree, the
+    list is current: judge the work against it.
+
     ## Git range to review
 
     **Base:** {BASE_SHA}
@@ -193,8 +201,9 @@ Dispatch a subagent with:
 - `{REVIEW_PACKAGE}` (optional): the path of a review package file, when one exists.
 - `{REVIEW_FOCUS}` (optional): the plan's Review Focus section, verbatim.
 - `{RULINGS}` (optional): the `Ruling:` lines from the execution ledger.
+- `{STATE_CHANGES}` (optional): the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat. The `State:` lines of the execution ledger, when there is one.
 
-Leave out the "Review package", "Review focus" and "Rulings made during execution" sections when there is nothing to fill them with.
+Leave out the "Review package", "Review focus", "Rulings made during execution" and "State changes since the inputs were written" sections when there is nothing to fill them with.
 
 **The reviewer returns:** Strengths, Issues (Critical, Important, Minor), Declined to judge, Recommendations, Assessment.
 

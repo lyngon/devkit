@@ -6,6 +6,7 @@ Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
 ## 0.2.0 - 2026-09-29
 
+- The reviewer template takes an optional "State changes since the inputs were written" section (`{STATE_CHANGES}`): the facts that superseded the plan, the spec or an inventory, such as a resource the owner removed by hand, so the reviewer does not report against a world that no longer exists.
 - The template says the review package carries every commit's full message, and its git commands include `git log`, so the reviewer can check the commit rules.
 
 ## 0.1.0 - 2026-09-23

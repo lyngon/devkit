@@ -20,6 +20,14 @@ Dispatch a subagent with:
 
     Read the task brief: [BRIEF_FILE]
 
+    ## State Changes Since the Inputs Were Written
+
+    [STATE_CHANGES]
+
+    These facts superseded the plan, the spec or an inventory they cite
+    after those were written. Where an input and this list disagree, the
+    list is current: judge the fix against it.
+
     ## The Findings Under Verification
 
     [FINDINGS]
@@ -104,10 +112,13 @@ Dispatch a subagent with:
 
 - `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md; scoped re-reviews of small fix diffs take a cheap-to-mid tier.
 - `[BRIEF_FILE]`: the task brief file (the same file the implementer worked from).
+- `[STATE_CHANGES]` (optional): the ledger's `State:` lines, the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.
 - `[FINDINGS]`: the Critical and Important findings and spec gaps from the previous review, copied verbatim, one per bullet.
 - `[REPORT_FILE]`: the implementer's report file (fix reports appended).
 - `[FIX_BASE_SHA]`: the head the previous review saw.
 - `[HEAD_SHA]`: the current commit.
 - `[DIFF_FILE]`: the path `scripts/review-package PLAN_FILE FIX_BASE HEAD` printed.
+
+Leave out the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 
 **The re-reviewer returns:** per-finding verdicts (ADDRESSED or NOT ADDRESSED), new breakage in the fix diff, out-of-scope observations, and a round verdict.

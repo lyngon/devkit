@@ -10,6 +10,7 @@ Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 - `task-brief` and `review-package` print only the file path on stdout and their summary on stderr, so `B=$(task-brief ...)` captures the path.
 - One brief and one report per task. A report file left by an earlier attempt is handed to the new implementer, who reads it first and appends under a dated heading.
 - Review packages list every commit with its full message, so reviewers can check the commit rules.
+- Every reviewer gets the state changes since the plan was written, ledgered as `State:` lines, in an optional section.
 
 ## 0.1.0 - 2026-09-23
 

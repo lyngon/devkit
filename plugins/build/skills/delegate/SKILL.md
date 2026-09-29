@@ -308,10 +308,13 @@ Implementer self-review never replaces the task review; both are needed.
   The output never enters your own context, and the reviewer sees every commit with its full message, the stat summary and the full diff with context in one read.
   Use the BASE you recorded before dispatching the implementer, never `HEAD~1`, which silently truncates multi-commit tasks.
   Never dispatch a task reviewer without a diff file.
-- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package) and at most one sentence of emphasis.
+- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package), at most one sentence of emphasis, and the state changes since the inputs were written, when there are any.
 - The brief carries the plan's Global Constraints section, so the reviewer reads the binding requirements where the implementer read them; never paste them into the dispatch.
   Your one sentence of emphasis is the attention lens: the constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break.
   The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the emphasis is for what THIS project's spec demands.
+- State changes are the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.
+  Ledger each one as `State: <fact>` when you learn it, and hand the ledger's `State:` lines to every reviewer from then on, task, re-review and final alike.
+  A reviewer that sees only the plan reports findings against a world that no longer exists.
 - Do not add open-ended directives like "check all uses" or "run race tests if useful" without a concrete, task-specific reason.
 - Do not ask a reviewer to re-run tests the implementer already ran on the same code; the implementer's report carries the test evidence.
 - Do not pre-judge findings for the reviewer: never instruct a reviewer to ignore or not flag a specific issue.
@@ -353,7 +356,7 @@ Before re-dispatching the reviewer, confirm the fix report contains the covering
 Name the covering test files in the fix message; a one-line fix does not need the whole suite.
 
 **The re-review is scoped.**
-Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`, where FIX_BASE is the head the previous review saw, and dispatch [re-review-prompt.md](references/re-review-prompt.md) with the findings list, the brief, the report file, and the printed diff path.
+Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`, where FIX_BASE is the head the previous review saw, and dispatch [re-review-prompt.md](references/re-review-prompt.md) with the findings list, the brief, the report file, the printed diff path, and the ledger's `State:` lines, if any.
 The re-reviewer verdicts each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix diff only.
 New Critical or Important breakage in the fix diff joins the open findings list.
 Out-of-scope observations go to the ledger as deferred minors; they never extend the loop.
@@ -393,7 +396,7 @@ Never move to the next task while the review has open Critical or Important issu
 The final whole-branch review gets a package too: run `scripts/review-package PLAN_FILE MERGE_BASE HEAD` (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`), so the final reviewer reads one file instead of re-deriving the branch diff with git commands.
 
 Call the Skill tool for `review:request`; it carries the reviewer template.
-Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); and the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before merge and weigh the calls you made.
+Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before merge and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
