@@ -234,9 +234,9 @@ Always present, before the stack-specific patterns from `devenv.md`:
 
 ```gitignore
 # Agent scratch output. May be deleted at any time.
-tmp/
+/tmp/
 # Human experiments. May live for weeks, never committed.
-sandbox/
+/sandbox/
 
 # devenv (generated or per-user)
 .devenv*

@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.4 - 2026-09-29
+
+- The `.gitignore` baseline anchors `/tmp/` and `/sandbox/` to the repository root; unanchored, `sandbox/` also ignored `infra/environments/sandbox/`.
+
 ## 0.5.3 - 2026-09-29
 
 - `init` enables every plugin by name in `.claude/settings.json`: `all@lyngon` and each of its members, or the chosen bundle or subset with its dependencies. With the bundle alone, Claude Code 2.1.278 did not load `build`, because it does not count a member installed with the bundle as enabled when it checks another member's dependencies. The README still installs with the one bundle command.
