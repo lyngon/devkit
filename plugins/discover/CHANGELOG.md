@@ -4,6 +4,10 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.2.1 - 2026-09-29
+
+- `approach` may open the interview with the choice between approaches when that choice decides everything downstream; step 5 then confirms the choice with the trade-offs stated instead of proposing it for the first time.
+
 ## 0.2.0 - 2026-09-23
 
 - Added `brainstorm`, an in-house skill for tossing ideas around without writing anything: no rounds, no gate, no `CONCEPTS.md` entries, no ADRs, no plan file.

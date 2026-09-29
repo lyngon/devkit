@@ -33,6 +33,7 @@ Since 2026-09-23 it also carries the classification and approval gate from super
 - "Your human partner" became "the user"; `<HARD-GATE>` became the heading "The gate"; em dashes were removed; prose was reflowed to one sentence per line.
 - Added a closing pointer to `discover:brainstorm`.
 - Added a pointer to `WORKFLOW.md`, the shared document that lays out the flow between skills; the file is a symlink into the devkit's `shared/`.
+- Step 4 of the architectural path lets the first interview round open with the choice between approaches when that choice is the root of the design tree; step 5 then confirms the choice with the trade-offs stated. Superpowers always proposes approaches after the questions.
 
 ## Review notes
 

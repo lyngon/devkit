@@ -54,6 +54,7 @@ Resume at the earliest incomplete stage; never turn one approval into permission
    If it does, decompose first: name the pieces, how they relate and in which order to build them, then take the first piece through the rest of this path.
    Each piece gets its own design, plan and implementation cycle.
 4. Run the interview rounds until the frontier is empty.
+   When the choice between approaches decides everything downstream (it is the root of the design tree), the first round opens with it, proposed as in step 5, and step 5 then confirms the choice with the trade-offs stated.
    Terms and decisions go into `CONCEPTS.md` and `docs/adr/` as they settle, through `discover:domain-model`.
 5. Propose two or three approaches with trade-offs, lead with your recommendation and say why, and settle on one with the user.
    Remove every feature the goal does not need from every approach.
