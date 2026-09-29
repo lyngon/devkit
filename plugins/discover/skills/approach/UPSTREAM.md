@@ -34,6 +34,7 @@ Since 2026-09-23 it also carries the classification and approval gate from super
 - Added a closing pointer to `discover:brainstorm`.
 - Added a pointer to `WORKFLOW.md`, the shared document that lays out the flow between skills; the file is a symlink into the devkit's `shared/`.
 - Step 4 of the architectural path lets the first interview round open with the choice between approaches when that choice is the root of the design tree; step 5 then confirms the choice with the trade-offs stated. Superpowers always proposes approaches after the questions.
+- The bounded path runs `review:request` before the pull request and `build:finish` to push the branch and open it, where it said "before merging" and "to integrate the branch".
 
 ## Review notes
 

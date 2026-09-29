@@ -25,7 +25,7 @@ Execute it exactly, prove each step with a test you watched fail and then pass, 
 **Narration.** Between tool calls, narrate at most one short line; the ledger and the tool results carry the record.
 
 **Continuous execution.** Do not pause to check in with the user between tasks.
-They review at two gates only: the plan before execution, and the finished branch afterwards.
+They review at two gates only: the plan before execution, and the pull request afterwards.
 They chose inline execution to spend less, not to answer "should I continue?" after every task.
 Execute all tasks from the plan without stopping.
 
@@ -34,7 +34,7 @@ The spec is the binding authority, the plan is its argument, and your judgment s
 Record every decision in the ledger as `Ruling: <what you decided>; <why>; <what it costs if wrong>`, and keep going.
 Deviating from the plan without a ledgered ruling is a decision made in secret.
 
-**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to a shared branch, a publish); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
+**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
 For those, stop and ask.
 Never disable, skip or weaken a check or hook to make something pass.
 
@@ -218,7 +218,7 @@ This is the one fresh context the whole run buys.
 Do not skip it, and do not replace it with your own read of the diff.
 
 **Without a subagent tool.** Invoke `review:request` anyway and apply its reviewer brief yourself against the package, as a separate pass after the last task's ledger line.
-Write `Final review: self-review (no subagent tool)` to the ledger, and say so in your final message: a self-review by the author is weaker than a fresh reviewer, and the user decides whether that is enough before merge.
+Write `Final review: self-review (no subagent tool)` to the ledger, and say so in your final message: a self-review by the author is weaker than a fresh reviewer, and the user decides whether that is enough when they review the pull request.
 
 Sort the findings before you act on any of them.
 The reviewer's severity labels are advice; the gate is yours.
@@ -244,7 +244,7 @@ There is no second fix pass.
 
 Collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
 Both lists are exhaustive.
-Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: the user reads the finished branch starting from these two lists.
+Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: `build:finish` puts these two lists in the pull request description, and the user reads the pull request starting from them.
 
 When the final review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
 It reads the ledger's deferred minors before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.

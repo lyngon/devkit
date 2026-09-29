@@ -42,4 +42,4 @@ Evals are not wired into CI yet (token cost); note that in the changelog entry i
 - New concern plugin: same files as in `install.md`, including the `Prerequisites:` line and the bundle memberships.
 - If the skill calls skills from another plugin, add that plugin to `dependencies`.
 - Run `devenv test`.
-- Do not commit; offer `feat(<concern>): add <name> skill`.
+- Commit as one commit on the feature branch, `feat(<concern>): add <name> skill`; do not push, since the push comes when the whole piece of work is done.

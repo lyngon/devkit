@@ -2,11 +2,11 @@
 
 Every plugin a Lyngon repository uses, installed with one command.
 
-Prerequisites: documents, baseline, structure
+Prerequisites: documents, workflow, baseline, structure
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 This plugin has no skills of its own.

@@ -11,7 +11,7 @@
 ## Why it is here
 
 Both executors end here.
-It turns a finished branch into the user's second review gate: full check green, plan file removed, then the user chooses merge, pull request or keep.
+It turns a finished branch into the user's second review gate: full check green, plan file removed, then the branch pushed and its pull request opened for the user's review.
 The discard path with a typed confirmation and the ownership rule for worktree cleanup are the safety the executors rely on.
 
 ## Local patches
@@ -33,6 +33,9 @@ The discard path with a typed confirmation and the ownership rule for worktree c
 - Step 7 renamed "Clean up the plan workspace and the worktree": it removes the plan workspace first, on the merge and discard paths only; options 2 and 3 keep it because the work has not landed. The cross-references in options 1 and discard name both, and the quick reference's "Keep worktree" column became "Keep worktree and plan workspace".
 - Rationalization table: a row added for deferred minors left in the executor's message.
 - Option 2 ends the report with the landing steps for after the forge merges the pull request (switch to the base, `git pull --ff-only`, remove the plan workspace and the worktree, delete the branch, in an order git accepts), and a note on `-D` after a squash or rebase merge. The quick reference gained a row for them, and the rationalization table a row for the local base branch catching up on its own.
+- The integration menu is gone. Step 5 pushes the branch and opens the pull request without asking, as the user's standing instructions say; merging locally, keeping the branch and discarding moved to Step 6, "Other outcomes, on request". Without a remote it reports and keeps the branch, without a forge CLI it hands over the creation link, and an existing pull request gets its description updated. The description lists what changed and why, decisions for the user, the executor's rulings and deferred minors with a link to the plan at the parent of the plan-removal commit, unfixed review findings, and the verification. Step 3's table says how the branch is pushed instead of which menu to show; Step 4 takes the base without asking for a pull request and asks only before a local merge. The description, the overview, Step 1's last line, Step 7's opening, the quick reference and the rationalization table follow, with rows for asking before the push and for amending a pushed commit.
+- Step 2 collects the deferred findings instead of asking about them; they go into the pull request description, and Step 5's report asks which go to `docs/TODO.md` after the pull request is open, committing the chosen ones as a new commit; Step 6's outcomes ask the same before Step 7 removes the workspace. Step 5 runs the full check again when Step 2 added commits. The rationalization table gained a row against asking before the push, and the base-branch row applies to a local merge.
+- Step 5 asks once, right before the push, unless the user's standing instructions cover pushing and opening a pull request; a `### With the Lyngon workflow` section at its end says that `conventions:engineering`'s do. The ask has a template, and its answer covers the branch's later pushes. The description and the rationalization rows about asking before the push and about the TODO question follow.
 
 ## Review notes
 
@@ -44,3 +47,4 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-23.
 - License: MIT at the repository root.
 - Verdict: clear with patches, all applied.
 - Noticed while rewriting: removing the plan (Step 2) happens after the full check (Step 1) and adds a commit; the check is not re-run, since deleting a Markdown file cannot change the tests, but a hook that lints Markdown links would still run on that commit through the normal commit hooks.
+- 2026-09-29: pushing and opening a pull request no longer wait for a menu choice (ADR 0016 and the standing instructions in `conventions:engineering`); merging, force-pushing and discarding still wait for the user.

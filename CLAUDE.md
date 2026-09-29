@@ -37,18 +37,20 @@ Never disable a hook to make a check pass.
 - `docs/conventions/<topic>.md`: conventions specific to this repository that need more than a line.
 - `docs/TODO.md`: deferred work, only items the owner explicitly deferred.
 - `docs/seed-prompts/<slug>.md`: a self-contained prompt that starts a fresh session on one queued item of `docs/TODO.md`; removed with the entry when the work lands.
-- `docs/plans/<date>-<slug>.md`: the design and task plan of work in progress, committed on its branch and removed by `/build:finish` when the work lands (ADR 0016).
+  It says how to start (the skill to invoke, or "a bounded change: no design file and no plan file"), names the branch, and ends with "Remove this file and its `docs/TODO.md` entry in the last commit".
+  Commits, the full check and the pull request follow the conventions and are not repeated in it.
+- `docs/plans/<date>-<slug>.md`: the design and task plan of work in progress, committed on its branch and removed by `/build:finish` before it pushes the branch (ADR 0016).
 - `tmp/`: agent scratch output, gitignored, may be deleted at any time.
 - `sandbox/`: human experiments, gitignored, may live for weeks. Do not write there unless asked.
 
 ## Conventions
 
-- Plugin `version` lives in `plugin.json` only. Bump it and add a `CHANGELOG.md` entry with every user-visible change.
+- Plugin `version` lives in `plugin.json` only. Every commit with a user-visible change to a plugin bumps that plugin's version by the commit's own semver level and adds its own `CHANGELOG.md` entry, in the same commit.
 - Marketplace entries for pinned plugins need a 40-character `sha` and a catalog record. Vendored skills need `UPSTREAM.md` with a 40-character upstream commit.
 - Third-party skills enter through `/devkit:add-skill`, which applies `shared/SKILL-REVIEW.md` and refuses upstreams without a license (ADR 0010).
 - Vendored skills are rewritten to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`), not merged. Compare against upstream at bump time and carry changes over by hand.
 - Plugins share documents only through symlinks into `shared/`, and behaviour only through `dependencies` in `plugin.json`. Never copy a file from one plugin into another.
-- Every plugin README declares its prerequisites (`documents`, `baseline`, `structure`), and its text may name an undeclared one only under a conditional heading; `validate-prerequisites` checks it. Rules in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
+- Every plugin README declares its prerequisites (`documents`, `workflow`, `baseline`, `structure`), and its text may name an undeclared one only under a conditional heading; `validate-prerequisites` checks it. Rules in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
 - `plugins/all/` is a bundle with no skills: its `dependencies` must list every local plugin outside the marketplace categories `devkit` (plugins that maintain this repository, ADR 0011) and `bundle`. `plugins/core/` bundles the plugins whose prerequisites stop at `documents`. The validator checks both.
 - A SKILL.md has frontmatter on line 1, a `description`, and a `name` equal to its directory.
   Skill bodies stay agent-neutral: no Claude-specific wording unless the feature is Claude-only.

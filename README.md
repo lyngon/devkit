@@ -11,7 +11,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 - A workflow, primarily inspired by [Superpowers](https://github.com/obra/superpowers) and [Matt Pocock's skills](https://github.com/mattpocock/skills).
 - The same set of git hooks run everywhere and are never disabled to make a commit pass.
 - `INTENT.md`, `CLAUDE.md`, `CONCEPTS.md` and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
-- Planned work is reviewed at two gates, the plan and the finished branch. Not commit by commit.
+- Work is reviewed on its pull request, which the agent opens without asking; planned work is also reviewed at the plan. Not commit by commit.
 - A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
 ## The pieces
@@ -56,7 +56,7 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 ## Flows
 
 Which skills to invoke, in which order, for each kind of work, and where the human decides, is in [shared/WORKFLOW.md](shared/WORKFLOW.md).
-In short: `/discover:brainstorm` writes nothing, `/discover:approach` settles a design and gates on approval, `/build:plan` turns it into tasks, `/build:delegate` or `/build:execute` builds them without asking, and `/build:finish` hands the branch back for the second and last review.
+In short: `/discover:brainstorm` writes nothing, `/discover:approach` settles a design and gates on approval, `/build:plan` turns it into tasks, `/build:delegate` or `/build:execute` builds them without asking, and `/build:finish` pushes the branch and opens its pull request for the second and last review.
 The `practice` skills (`tdd`, `debug`, `verify`) and `review:receive` apply on their own in every flow.
 
 ## Plugins
@@ -66,16 +66,16 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 <!-- plugins:start -->
 | Plugin | Skills | Prerequisites | Description |
 | --- | --- | --- | --- |
-| `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
-| `core` | bundle of `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review, writing and conventions. A bundle: it has no skills of its own. |
-| `repo` | `/repo:add-package`, `/repo:init` | documents, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
+| `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents, workflow, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `core` | bundle of `discover`, `build`, `practice`, `review`, `writing` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review and writing. A bundle: it has no skills of its own. |
+| `repo` | `/repo:add-package`, `/repo:init` | documents, workflow, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and ADRs as they crystallise and gates implementation on approval. |
-| `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an integrated branch: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
+| `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | git | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
 | `review` | `/review:receive`, `/review:request` | git | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
 | `devkit` | `/devkit:add-skill` | documents, baseline, structure | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
 | `writing` | `/writing:unslop` | git | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
-| `conventions` | `adr` (by path), `documents` (by path), `engineering` (by path), `markdown` (by path), `nix` (by path), `python` (by path), `shell` (by path), `typescript` (by path) | documents | Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
+| `conventions` | `adr` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | documents, workflow | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | git | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
@@ -124,36 +124,53 @@ my-service/
 
 And the way of working in it, in the order things happen:
 
-- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those.
+- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those, and always adopts the Lyngon workflow.
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
 - An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
-- Conventions load on their own by file path from the `conventions` plugin: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents. Nothing is copied into the repository.
+- Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, ADRs and the standard documents. Nothing is copied into the repository.
 - `/writing:unslop` before any prose is handed over.
-- `devenv test` before every commit; it runs every git hook on every file, and no hook is ever disabled to make it pass.
+- `devenv test` before every push; it runs every git hook on every file, and no hook is ever disabled to make it pass.
 
 ## Installing the plugins
 
-For yourself, in Claude Code:
+Install the plugins per repository.
+`conventions` carries the Lyngon workflow, including the standing instruction to commit, push and open pull requests without asking; only a repository whose owner adopted the workflow gets it, directly or through `all`.
+In the repository, in Claude Code:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 `all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
-A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `build`, `practice`, `review`, `writing` and `conventions` and needs only the Lyngon documents:
+A repository that keeps its own toolchain and layout installs `core` and `conventions` instead; `core` brings `discover`, `build`, `practice`, `review` and `writing`, and the two need the Lyngon documents and the workflow:
 
 ```sh
-claude plugin install core@lyngon
+claude plugin install core@lyngon --scope project
+claude plugin install conventions@lyngon --scope project
+```
+
+`core` alone assumes only the Lyngon documents, so it may also be enabled at user scope, for every repository.
+Without `conventions`, `/build:finish` asks before it pushes, and nothing announces a Lyngon repository.
+Its executors still commit each task on a feature branch, and its skills still write the Lyngon documents where they run, such as a plan in `docs/plans/`, `CONCEPTS.md` and ADRs.
+Install the members by name too: Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies, and `build` needs `practice` and `review`.
+
+```sh
+claude plugin install core@lyngon --scope user
+claude plugin install discover@lyngon --scope user
+claude plugin install build@lyngon --scope user
+claude plugin install practice@lyngon --scope user
+claude plugin install review@lyngon --scope user
+claude plugin install writing@lyngon --scope user
 ```
 
 The Prerequisites column says what each plugin needs from a repository; the rules are in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
 For a subset, install the members by name instead; `repo` brings `discover` with it as a dependency:
 
 ```sh
-claude plugin install repo@lyngon
-claude plugin install writing@lyngon
+claude plugin install repo@lyngon --scope project
+claude plugin install writing@lyngon --scope project
 ```
 
 ## Adopting a repository
@@ -162,8 +179,8 @@ The steps are the same for an empty repository and for one that has grown organi
 
 1. Install the plugins as above, at least `repo`.
 2. Open Claude Code in the repository and run `/repo:init`.
-   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` and each of its members by name, or the subset you chose.
-3. Commit.
+   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` or `core@lyngon` and each of its members by name, or the subset you chose, with `conventions@lyngon` in every case.
+3. `/repo:init` commits its work: one root commit on `main` in a fresh repository, a branch with a pull request in an adopted one.
 
 In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.
 
@@ -173,7 +190,7 @@ The settings name every plugin, since Claude Code does not count a member instal
 One command still installs them all:
 
 ```sh
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 To add a plugin to an adopted repository later, `--scope project` writes it into the committed settings:

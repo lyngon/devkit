@@ -3,6 +3,10 @@
 All notable changes to the `all` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.4.0 - 2026-09-29
+
+- Declares the `workflow` prerequisite, which its member `conventions` now declares.
+
 ## 0.3.0 - 2026-09-23
 
 - Added `build`, `practice` and `review` to the bundle.

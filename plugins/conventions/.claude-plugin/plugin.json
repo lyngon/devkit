@@ -1,7 +1,7 @@
 {
   "name": "conventions",
-  "version": "0.5.1",
-  "description": "Organization-wide conventions, loaded automatically by file path: engineering rules for every file, one skill per language, and the rules for Markdown, ADRs and the standard documents.",
+  "version": "0.8.0",
+  "description": "Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, ADRs and the standard documents.",
   "author": {
     "name": "Lyngon",
     "url": "https://lyngon.com"

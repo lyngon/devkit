@@ -3,6 +3,23 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.8.0 - 2026-09-29
+
+- Declares the new `workflow` prerequisite: enabling the plugin adopts the Lyngon workflow for the repository, standing instructions included. It is therefore no longer a member of `core`; install it next to `core` (ADR 0017).
+
+## 0.7.1 - 2026-09-29
+
+- The `SessionStart` hook prints its text instead of building JSON by hand, so no character in the text can break the output.
+
+## 0.7.0 - 2026-09-29
+
+- `engineering` carries the user's standing instructions, replacing its "Handing over" section: commit on a feature branch without asking, one concern per commit; push and open a pull request once the full check passes; ask before a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release or a publish. The text says it counts as being asked, which overrides an agent's default of committing only on request. Work that does not belong to the current branch's open or merged pull request starts on a new branch.
+
+## 0.6.0 - 2026-09-29
+
+- Every skill's description ends with when to invoke it ("Invoke before ..."), instead of saying the skill loads automatically. A skill's body reaches the agent only when the agent invokes it, and `paths` does not load it, so no convention reached an agent before. `validate-marketplace` requires the wording.
+- A `SessionStart` hook says which devkit skills to invoke and when, and that no skill loads on its own, the conventions included. It takes over the generic lines of the `repo` plugin's hook, so every repository that installs `core` gets them.
+
 ## 0.5.1 - 2026-09-29
 
 - `nix` says that stock hooks such as `ruff` and `terraform-format` are enabled once in the root `devenv.nix`, and that a package's `devenv.nix` adds only its own `{name}-` hooks, since a hook's `files` holds one pattern and a stock hook scoped in two packages fails evaluation.

@@ -109,8 +109,10 @@ The baseline `validate-structure` hook checks the dependency rules, the member l
 Fix what fails without disabling a hook.
 Report the result faithfully.
 
-### 7. Hand-off
+### 7. Commit
 
-Do not commit and do not stage.
-List the files written and the registrations made, and offer the commit message `feat(<name>): add <kind> <name>`.
+Commit the package as one commit, `feat(<name>): add <kind> <name>`, on the current feature branch; on the default branch, create one first (`git switch -c feat/<name>`).
+Do not push: a package is usually one step of larger work, and the push comes when that work is done.
+When `repo:init` invoked this skill, skip the commit; init commits the packages itself.
+List the files written and the registrations made.
 When the package is an app that will be deployed, say that `infra/modules/<name>/` is the next package to add once the deployment target is known.

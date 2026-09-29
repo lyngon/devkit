@@ -75,8 +75,12 @@ An immutable build output of a package. A distributable when published under coo
 The layout, vocabulary and dependency rules a Lyngon repository follows when it has adopted them, defined in `shared/STRUCTURE.md`.
 _Avoid_: monorepo, package layout
 
+**Workflow**:
+The way of working an owner adopts for a Lyngon repository: the agent follows the Lyngon conventions, commits each concern on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge.
+_Avoid_: process, flow (a flow is one path through the skills)
+
 **Prerequisite**:
-Something a repository must have for a plugin to apply: the documents, the baseline, or the structure. Declared per plugin; independent of each other. Using devenv at all is a condition a plugin may write for, not a prerequisite.
+Something a repository must have for a plugin to apply: the documents, the workflow, the baseline, or the structure. Declared per plugin; independent of each other. Using devenv at all is a condition a plugin may write for, not a prerequisite.
 _Avoid_: assumption, tier, requirement
 
 ## Relationships

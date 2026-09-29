@@ -23,7 +23,7 @@ This also preserves your own context for coordination work.
 **Narration.** Between tool calls, narrate at most one short line; the ledger and the tool results carry the record.
 
 **Continuous execution.** Do not pause to check in with the user between tasks.
-They review at two gates only: the plan before execution, and the finished branch afterwards.
+They review at two gates only: the plan before execution, and the pull request afterwards.
 Execute all tasks from the plan without stopping.
 The only reasons to stop are the five named below, or all tasks complete.
 "Should I continue?" prompts and progress summaries waste their time; they asked you to execute the plan, so execute it.
@@ -34,7 +34,7 @@ The spec is the binding authority, the plan is its argument, and your judgment s
 Record every decision in the ledger as `Ruling: <what you decided>; <why>; <what it costs if wrong>`, and keep going.
 A wrong ruling costs rework the user can see and undo; a session parked on a question costs their whole day and buys nothing.
 
-**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to a shared branch, a publish); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
+**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
 For those, stop and ask.
 Never disable, skip or weaken a check or hook to make something pass, and never let an implementer do so.
 
@@ -333,7 +333,7 @@ The loop triggers when the review reports spec ❌, any Critical or Important fi
 
 Before the loop starts, two routes leave it immediately:
 
-- Record Minor findings in the progress ledger as you go (`Task <N>: minor (deferred): <one-liner>`), and point the final whole-branch review at that list so it can triage which must be fixed before merge.
+- Record Minor findings in the progress ledger as you go (`Task <N>: minor (deferred): <one-liner>`), and point the final whole-branch review at that list so it can triage which must be fixed before the pull request.
   A roll-up nobody reads is a silent discard.
   Minor findings never enter the loop.
 - A finding labeled plan-mandated, or any finding that conflicts with what the plan's text requires, is yours to rule on: weigh the finding against the plan text, decide with the spec as the binding authority, and ledger the ruling before you act on it.
@@ -396,20 +396,20 @@ Never move to the next task while the review has open Critical or Important issu
 The final whole-branch review gets a package too: run `scripts/review-package PLAN_FILE MERGE_BASE HEAD` (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`), so the final reviewer reads one file instead of re-deriving the branch diff with git commands.
 
 Call the Skill tool for `review:request`; it carries the reviewer template.
-Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before merge and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
+Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave (`scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range, with [re-review-prompt.md](references/re-review-prompt.md)).
 Adjudicate any residual findings as in the task loop's breaker: park with rulings, or rule on the load-bearing ones and ledger what you decided.
 Only the five stops above stop you here.
-There is no second fix wave; residual load-bearing findings reach the user in the rulings list, when `build:finish` presents the options.
+There is no second fix wave; residual load-bearing findings reach the user in the rulings list, in the pull request description that `build:finish` writes.
 
 ## Finish
 
 Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
 Both lists are exhaustive: if the ledger holds a ruling, the list holds it.
-Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: the user reads the finished branch starting from these two lists, and reworks whatever you got wrong.
+Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: `build:finish` puts these two lists in the pull request description, and the user reads the pull request starting from them and asks for changes where you got it wrong.
 A ruling that dies with the workspace was a decision made in secret.
 
 When the final whole-branch review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
@@ -432,7 +432,7 @@ Call the Skill tool for `build:finish`.
 | "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
 | "The implementer spawned its own reviewer, free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 | "The hook fails on something unrelated, tell the implementer to skip it" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
-| "Let me check in before the next task" | The user reviews the plan and the finished branch, nothing in between. Only the five stops stop you. |
+| "Let me check in before the next task" | The user reviews the plan and the pull request, nothing in between. Only the five stops stop you. |
 | "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors and parked findings before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 
 ## Example workflow
@@ -495,7 +495,7 @@ Re-reviewer: Missing progress reporting: ADDRESSED (src/recovery.js:41).
 
 [After all tasks]
 [Run review-package PLAN_FILE MERGE_BASE HEAD; review:request on the most capable model]
-Final reviewer: all requirements met. Deferred minors triaged: none block merge.
+Final reviewer: all requirements met. Deferred minors triaged: none block the pull request.
 
 Rulings I made:
 - (none)

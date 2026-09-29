@@ -1,6 +1,6 @@
 ---
 name: documents
-description: Lyngon conventions for the standard repository documents CLAUDE.md, AGENTS.md, CONCEPTS.md, INTENT.md and README.md, at the root and in packages. Background knowledge, loaded automatically while working on one of them.
+description: Lyngon conventions for the standard repository documents CLAUDE.md, AGENTS.md, CONCEPTS.md, INTENT.md and README.md, at the root and in packages. Invoke before writing or editing one of them.
 user-invocable: false
 paths:
   - "**/CLAUDE.md"

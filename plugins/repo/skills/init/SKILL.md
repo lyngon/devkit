@@ -13,8 +13,9 @@ One session that takes a repository from "empty" or "grown organically" to the L
 The interview is the core.
 The files are its output, written only after the owner confirms a shared understanding.
 
-The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and the baseline, or all three including the layout defined in [STRUCTURE.md](STRUCTURE.md).
+The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and the baseline, or the documents, the baseline and the layout defined in [STRUCTURE.md](STRUCTURE.md).
 The file set below is written scope by scope; nothing from a scope the owner did not adopt is written.
+Every scope adopts the Lyngon workflow: the settings enable `conventions`, whose standing instructions commit, push and open pull requests without asking.
 
 ## When to use
 
@@ -76,6 +77,8 @@ If `AGENTS.md` exists as the source and `CLAUDE.md` as the symlink, ask before r
 
 ### 5. Write
 
+In adopt mode, when the repository is on its default branch, create the branch first: `git switch -c chore/adopt-lyngon-conventions`.
+
 Use the templates and rules in [references/repo-files.md](references/repo-files.md) and [references/devenv.md](references/devenv.md).
 The full set:
 
@@ -85,7 +88,7 @@ Documents scope:
 - `CLAUDE.md` as the source file, `AGENTS.md` as a symlink to it.
 - `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention that needs more than a line.
 - `.gitignore` with the baseline patterns, `/tmp/`, `/sandbox/`, and the stack patterns.
-- `.claude/settings.json` registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, `core@lyngon` and its members, or the subset the user chose with its dependencies. The README still installs with the one bundle command.
+- `.claude/settings.json` registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, or `core@lyngon` and its members, or the subset the user chose with its dependencies, the last two together with `conventions@lyngon`. The README installs the bundle, or the chosen plugins, with `conventions`.
 - `.github/workflows/ci.yml` (or the equivalent for the chosen host).
 
 Baseline scope:
@@ -113,14 +116,34 @@ devenv test
 Also confirm that `.mcp.json` was generated, that `AGENTS.md` resolves, and that `git status` shows exactly the planned files.
 Report the result faithfully, including hooks that could not run.
 
-### 7. Hand-off
+### 7. Commit and hand off
 
-Do not commit and do not stage.
+`add-package` does not commit when this skill invokes it; the commits below include its packages.
+
+In fresh mode the repository has no commits, so there is no base for a pull request: everything lands in one root commit on `main`.
+
+```sh
+git symbolic-ref HEAD refs/heads/main
+git add -A
+git commit -m "chore: initialize repository"
+```
+
+The first command names the unborn branch `main` when git's default named it otherwise.
+Ask before pushing: the commit is on the default branch.
+
+In adopt mode the work is on the branch step 5 created, or on the feature branch init started on.
+Commit by concern, in an order in which each commit passes the hooks, and put two concerns in one commit when neither passes alone:
+
+1. `docs: adopt the Lyngon documents`: `INTENT.md`, `CLAUDE.md` with `AGENTS.md`, `README.md`, `CONCEPTS.md`, the ADRs, `docs/`, `.gitignore` and `.claude/settings.json`.
+2. `build: import the Lyngon baseline`: the devenv files and the linter configurations.
+3. `ci: run the full check in CI`.
+4. `build: adopt the Lyngon structure`: the root workspace files and `secretspec.toml`; then one `feat(<name>): add <kind> <name>` per package.
+
+Then finish the branch with `/build:finish` when the build plugin is installed; otherwise push it and open a pull request.
+
 Print the next steps for the owner:
 
 1. `devenv allow` in the repository.
 2. Either `direnv allow`, or `eval "$(devenv hook zsh)"` (or the equivalent for their shell) in their shell configuration.
 3. Install the VS Code extension `mkhl.direnv` so the Claude Code extension sees the devenv tools.
-4. Add the git remote and push, if the inventory found none.
-
-End by offering to commit with the message `chore: initialize repository` (or `chore: adopt lyngon repository conventions` in adopt mode), and wait.
+4. In fresh mode without a remote: add one and push `main`.

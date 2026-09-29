@@ -26,7 +26,7 @@ Adapt wording to the repository.
 - **5. Repository audience.** Who reads and changes the repository: a single owner, a team, other Lyngon teams, clients, the public? (Drives license, README depth, CoC and security policy.)
 - **6. Artifact audience.** Who consumes what the repository produces: end users, other services, other repositories, agents? (Drives README "usage" sections and delivery questions.)
 - **7. Technologies.** Which languages, frameworks and runtimes are involved, or already present per the inventory? Supported stacks: Python (uv), TypeScript (pnpm), Rust, Go, Nix, Shell, OpenTofu, Haskell. Anything else is handled generically.
-- **8. Scope.** Which of the Lyngon prerequisites does this repository adopt: the documents only (`INTENT.md`, `CLAUDE.md`, `CONCEPTS.md`, ADRs), the documents and the baseline (devenv with `lyngon/devenv` imported), or all three including the structure from `STRUCTURE.md`? Recommend all three for a repository Lyngon owns; documents only for one that must keep its own toolchain and layout. Every later question about packages, devenv, secrets and services is skipped when its scope was not adopted.
+- **8. Scope.** Which of the Lyngon prerequisites does this repository adopt: the documents only (`INTENT.md`, `CLAUDE.md`, `CONCEPTS.md`, ADRs), the documents and the baseline (devenv with `lyngon/devenv` imported), or the documents, the baseline and the structure from `STRUCTURE.md`? Recommend all of them for a repository Lyngon owns; documents only for one that must keep its own toolchain and layout. Every scope also adopts the Lyngon workflow; say so, since it lets the agent push and open pull requests without asking. Every later question about packages, devenv, secrets and services is skipped when its scope was not adopted.
 - **9. Artifacts.** (Scope includes the structure.) Which separate artifacts does the repository produce today (one is fine)? Each becomes a package; its kind (app, library, contract, tool, infra module) decides its directory, per `STRUCTURE.md`.
 
 ### Round 2, typical frontier
@@ -38,7 +38,7 @@ Adapt wording to the repository.
 - **14. Secrets.** (Scope includes the baseline.) Does anything in the repository need secrets (API keys, tokens, credentials)? If yes, `secretspec` is wired; ask which secrets by name and which provider (keyring, dotenv, env, onepassword, lastpass) per profile. Do not ask which mechanism; it is always `secretspec`.
 - **15. Services.** (Scope includes the baseline.) Does local development need a database, cache, queue or similar? Name each one. Wire a devenv `services.*` entry only for services the user confirms by name.
 - **16. Test strategy.** What counts as "tests pass": unit only, integration against services, end-to-end? What should `devenv test` run beyond the hooks?
-- **17. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `all` when the scope is all three prerequisites, `core` (`discover`, `writing`, `conventions`) when it is the documents only; both keep adoption to one install command for colleagues. A subset is named plugin by plugin; `repo` brings `discover` with it.
+- **17. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `all` when the scope includes the structure, otherwise `core` (`discover`, `build`, `practice`, `review`, `writing`) and `conventions`. A subset is named plugin by plugin, always with `conventions`; `repo` brings `discover` with it.
 
 ### Round 3 and later, as unblocked
 

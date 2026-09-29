@@ -35,6 +35,7 @@ The template gives the reviewer exactly that context and nothing of the requeste
 - Added the optional `{STATE_CHANGES}` placeholder and its "State changes since the inputs were written" section after the rulings: the facts that superseded the plan, the spec or an inventory, so the reviewer judges against the world as it is. Listed in both placeholder lists and in the rule for leaving out empty sections.
 - The review package section says the package carries every commit's full message, and the git range block adds `git log`, so the commit messages can be checked with or without a package.
 - Dropped nothing else; the read-only rule, the no-subagents rule, the spec-as-vision section, the check lists, the calibration, the critical rules, the rationalization table, the red flags and the example output are kept.
+- The description and the mandatory list name opening a pull request where they named merging, and step 3 sends Minor findings that nobody fixes to the pull request description.
 
 ## Review notes
 

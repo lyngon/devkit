@@ -15,5 +15,5 @@ Planned: `bump-skill` (compare a vendored skill with upstream and carry changes 
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install devkit@lyngon
+claude plugin install devkit@lyngon --scope project
 ```

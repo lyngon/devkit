@@ -162,11 +162,13 @@ devenv test
 ```
 
 Claude Code registers the `lyngon` plugin marketplace from `.claude/settings.json` when you trust the folder.
-The settings name every plugin; one command installs them all:
+The settings name every plugin; install them with:
 
 ```sh
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
+
+{When the settings enable `core` or a subset instead of `all`, the block installs those plugins by name and `conventions@lyngon`, each with `--scope project`.}
 
 {Per-artifact usage or delivery instructions, from the delivery question.}
 
@@ -198,10 +200,10 @@ One item per line, with the date it was deferred.
 ## .claude/settings.json
 
 Committed, hand-maintained.
-Registers the marketplace, which Claude Code adds for colleagues once they trust the folder, and enables every plugin the repository uses by name: `all@lyngon` and each of its members, unless the user chose `core@lyngon` or a subset, which is enabled the same way with every plugin it depends on.
+Registers the marketplace, which Claude Code adds for colleagues once they trust the folder, and enables every plugin the repository uses by name: `all@lyngon` and each of its members, unless the user chose `core@lyngon` or a subset, which is enabled the same way with every plugin it depends on, and with `conventions@lyngon`, since every repository this skill sets up adopts the Lyngon workflow.
 Claude Code installs a bundle's members as dependencies but does not count them as enabled when it checks a member's own dependencies, so with the bundle alone `build` fails to load for want of `practice` and `review` (seen in Claude Code 2.1.278).
 Plugins are not installed for colleagues automatically (Claude Code 2.1.195 and later); Claude Code shows them the install command, and the README repeats it.
-The install command still names only the bundle, which brings its members with it; only these settings enumerate.
+The README's install commands name the bundle, or the chosen plugins, and `conventions`; they do not enumerate a bundle's members, which only these settings do.
 The key under `extraKnownMarketplaces` must equal the marketplace manifest name (`lyngon`): Claude Code registers under the manifest name and the `@marketplace` suffixes in `enabledPlugins` must match it. Project marketplaces are applied once per Claude Code process start, after the folder is trusted.
 
 ```json

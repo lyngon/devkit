@@ -1,6 +1,6 @@
 ---
 name: nix
-description: Lyngon Nix and devenv conventions. Background knowledge, loaded automatically while working on Nix files and devenv.yaml.
+description: Lyngon Nix and devenv conventions. Invoke before writing or editing a Nix file or devenv.yaml.
 user-invocable: false
 paths:
   - "**/*.nix"

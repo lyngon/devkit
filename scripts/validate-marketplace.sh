@@ -94,10 +94,12 @@ check_local_plugin() {
   done < <(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' "$pj")
   while IFS= read -r skill; do
     check_skill "$skill"
-    # Convention skills load by file path and are never invoked by name.
+    # Convention skills have no slash command, and their body reaches the agent
+    # only when it invokes them, so the description says when to do that.
     if [[ "$entry_name" == conventions ]]; then
       sed -n '2,/^---$/p' "$skill" | grep -qE '^paths:' || fail "$skill: conventions skills need a paths list in the frontmatter"
       sed -n '2,/^---$/p' "$skill" | grep -qE '^user-invocable:[[:space:]]*false' || fail "$skill: conventions skills need user-invocable: false"
+      sed -n '2,/^---$/p' "$skill" | grep -qE '^description:.* Invoke before ' || fail "$skill: conventions skills need a description that ends with when to invoke them (Invoke before ...)"
     fi
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
   if [[ -f "catalog/$entry_name.md" ]]; then

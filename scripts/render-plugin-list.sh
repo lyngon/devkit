@@ -30,9 +30,9 @@ render() {
       skills=""
       for skill in "$dir"/skills/*/; do
         [[ -d "$skill" ]] || continue
-        # Skills with user-invocable: false load by file path and have no slash command.
+        # Skills with user-invocable: false have no slash command; the agent invokes them.
         if sed -n '2,/^---$/p' "$skill/SKILL.md" | grep -qE '^user-invocable:[[:space:]]*false'; then
-          skills+="\`$(basename "$skill")\` (by path), "
+          skills+="\`$(basename "$skill")\` (agent-invoked), "
         else
           skills+="\`/$name:$(basename "$skill")\`, "
         fi

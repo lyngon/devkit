@@ -13,13 +13,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-ORDER = ["documents", "baseline", "structure"]
+ORDER = ["documents", "workflow", "baseline", "structure"]
 # "devenv" is a condition, not a prerequisite: its terms are allowed under a
 # "With devenv" heading, and wherever baseline terms are allowed.
 TERMS = {
     "documents": [
         "CONCEPTS.md", "docs/adr", "INTENT.md", "CLAUDE.md", "AGENTS.md",
         "docs/TODO.md", "docs/conventions",
+    ],
+    "workflow": [
+        "conventions:engineering", "This is a Lyngon repository",
     ],
     "devenv": [
         "devenv", "secretspec", "git-hooks", "enterTest", ".pre-commit-config",
@@ -38,6 +41,7 @@ TERMS = {
 }
 HEADINGS = {
     "With the Lyngon documents": "documents",
+    "With the Lyngon workflow": "workflow",
     "With devenv": "devenv",
     "With the Lyngon baseline": "baseline",
     "With the Lyngon structure": "structure",

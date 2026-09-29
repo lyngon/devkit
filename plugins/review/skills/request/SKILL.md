@@ -3,9 +3,9 @@ name: request
 description: >-
   Dispatch a fresh reviewer subagent with a crafted brief, a commit range and the plan or
   requirements, then act on its findings by severity. Use when a task or feature is complete
-  and there is code to review: before merging ("get this reviewed before I merge"), after each
-  task in build:delegate, at the end of build:execute, or when stuck and wanting a fresh look
-  at the code.
+  and there is code to review: before opening a pull request ("get this reviewed before I
+  open the pull request"), after each task in build:delegate, at the end of build:execute,
+  or when stuck and wanting a fresh look at the code.
 ---
 
 # Request a code review
@@ -22,7 +22,7 @@ Mandatory:
 - After each task in `build:delegate`
 - At the end of `build:execute`
 - After completing a major feature
-- Before merging to the main branch
+- Before opening a pull request, in the bounded and architectural flows
 
 Optional but valuable:
 
@@ -64,7 +64,7 @@ Leave out a template section whose placeholder has nothing to fill it.
 
 - Fix Critical issues immediately.
 - Fix Important issues before proceeding.
-- Note Minor issues for later.
+- Note Minor issues for later; the ones nobody fixes go into the pull request description.
 - Rule on every line under "Declined to judge": fix it, or record why the code stands.
 - Push back if the reviewer is wrong, with reasoning.
   Invoke `review:receive` to evaluate the findings before acting on them.

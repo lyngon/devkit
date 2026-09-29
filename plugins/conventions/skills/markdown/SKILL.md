@@ -1,6 +1,6 @@
 ---
 name: markdown
-description: Lyngon Markdown writing conventions. Background knowledge, loaded automatically while working on Markdown files.
+description: Lyngon Markdown writing conventions. Invoke before writing or editing any Markdown file.
 user-invocable: false
 paths:
   - "**/*.md"
