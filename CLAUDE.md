@@ -15,7 +15,14 @@ devenv test
 ```
 
 `devenv test` runs every git hook on every file, then `validate-marketplace`, `validate-prerequisites` and the fixture tests of the validators.
-devenv detects coding agents and hides task output; run with `DEVENV_NO_AI_AGENT=1` to see it.
+It prints task names and times, and hook output only when a hook fails.
+`DEVENV_NO_AI_AGENT=1` restores devenv's normal output, which shows no more of the hooks.
+Per-hook results come from prek, run inside the devenv shell:
+
+```sh
+prek run --all-files
+```
+
 The validator encodes this repository's rules; read [scripts/validate-marketplace.sh](scripts/validate-marketplace.sh) before changing the layout.
 Never disable a hook to make a check pass.
 

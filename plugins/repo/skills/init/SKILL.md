@@ -84,8 +84,8 @@ Documents scope:
 - `INTENT.md` from the round 1 answers: product, for whom, done, failure, non-goals, horizon.
 - `CLAUDE.md` as the source file, `AGENTS.md` as a symlink to it.
 - `README.md`, `CONCEPTS.md`, `docs/adr/NNNN-slug.md` for each ADR from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention that needs more than a line.
-- `.gitignore` with the baseline patterns, `tmp/`, `sandbox/`, and the stack patterns.
-- `.claude/settings.json` registering the `lyngon` marketplace and enabling `all@lyngon`, `core@lyngon`, or the subset the user chose.
+- `.gitignore` with the baseline patterns, `/tmp/`, `/sandbox/`, and the stack patterns.
+- `.claude/settings.json` registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, `core@lyngon` and its members, or the subset the user chose with its dependencies. The README still installs with the one bundle command.
 - `.github/workflows/ci.yml` (or the equivalent for the chosen host).
 
 Baseline scope:

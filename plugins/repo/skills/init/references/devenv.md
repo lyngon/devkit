@@ -1,6 +1,6 @@
 # devenv
 
-Assumes devenv 2.3 or later.
+Assumes devenv 2.4 or later.
 The root `devenv.nix` holds the languages, cross-cutting tools and hooks; each package holds its own `devenv.nix` with its tasks, hooks and processes; the root `devenv.yaml` imports the packages.
 
 ## Root files
@@ -9,7 +9,7 @@ The root `devenv.nix` holds the languages, cross-cutting tools and hooks; each p
 
 ```yaml
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
-require_version: ">=2.3.0"
+require_version: ">=2.4.0"
 
 inputs:
   nixpkgs:
@@ -31,6 +31,14 @@ imports:
 
 The `lyngon` input is the shared baseline module from the Lyngon devkit; `devenv update lyngon` bumps it.
 The `git-hooks` input must be declared here because a remote import cannot add inputs.
+
+`require_version` checks only the devenv CLI.
+From 2.4 on, `devenv shell` and direnv no longer run the hook suite before every command, but only once `devenv.lock` pins the 2.4 modules; with an older lock, devenv warns that the CLI is newer than its input and still runs the hooks.
+In adopt mode, update that input alone:
+
+```sh
+devenv update devenv
+```
 
 Add `nixpkgs.allow_unfree: true` only when a package needs an unfree tool, and say which in a comment.
 Add the `secretspec` section when the repository needs secrets (see below).
@@ -57,6 +65,12 @@ Add the `secretspec` section when the repository needs secrets (see below).
     enable = true;
     uv.enable = true;
     uv.sync.enable = true;
+  };
+
+  # Stock hooks run on the whole repository; packages add only {name}- hooks.
+  git-hooks.hooks = {
+    ruff-format.enable = true;
+    ruff.enable = true;
   };
 
   packages = [ pkgs.jq ];
@@ -89,38 +103,19 @@ Users without direnv get activation from `devenv hook <shell>` in their own shel
 
 ## Package files
 
-A package's `devenv.nix` (`apps/{name}/devenv.nix`, `libs/{name}/devenv.nix`) holds its tasks, package-scoped hooks and processes.
+A package's `devenv.nix` (`apps/{name}/devenv.nix`, `libs/{name}/devenv.nix`, `infra/environments/{name}/devenv.nix`) holds its tasks, its own hooks and its processes.
 It never enables a language; the workspace at the root owns the language, the lockfile and the environment.
-Hooks are repository-wide in devenv, so scope them with `files`:
+Nor does it enable a stock hook (`ruff`, `terraform-format`); those are enabled once in the root `devenv.nix` and run on the whole repository.
+Hooks are repository-wide in devenv and a hook's `files` holds one pattern, so two packages scoping the same hook fail evaluation with conflicting definition values.
+A package adds only the custom `{name}-` hooks of its stack below, scoped to the package with `files`.
 
-```nix
-{ ... }:
-{
-  git-hooks.hooks = {
-    ruff-format = {
-      enable = true;
-      files = "^libs/{name}/";
-    };
-    ruff = {
-      enable = true;
-      files = "^libs/{name}/";
-    };
-  };
-
-  tasks."{name}:test" = {
-    description = "Run {name} tests";
-    exec = "cd libs/{name} && uv run pytest";
-  };
-}
-```
-
-The `add-package` skill writes this file; its `workspaces.md` reference has the root workspace file per language.
+The `add-package` skill writes this file from its `package-files.md` reference; its `workspaces.md` reference has the root workspace file per language.
 
 Wire package tests into the root `enterTest` by task name, or list the commands in `CLAUDE.md` when they are slow.
 
 ## Stacks
 
-`languages.*` goes in the root `devenv.nix`, once per language.
+`languages.*` and the stock formatter and linter hooks go in the root `devenv.nix`, once per language; the custom `{name}-` hooks go in each package's `devenv.nix`.
 Formatters are always enabled.
 Linters are enabled when they need no project configuration.
 Linters whose configuration `init` writes (ruff, eslint) are enabled with it.
@@ -135,7 +130,7 @@ Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 | Go | `go.enable = true;` | `gofmt` | `golangci-lint` | | `/bin/`, `*.test`, `coverage.out` |
 | Nix | `nix.enable = true;` | `nixfmt` (baseline) | `deadnix`, `statix` | | |
 | Shell | `shell.enable = true;` | `shfmt` | `shellcheck` (baseline) | | |
-| Terraform | `terraform.enable = true;` | `terraform-format` | `tflint` | | `.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `*.tfvars` (may hold secrets; `.terraform.lock.hcl` is committed) |
+| OpenTofu | `opentofu.enable = true;` | `terraform-format` (runs `tofu fmt`) | `{name}-tflint` (custom, below) | | `.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `*.tfvars` (may hold secrets; `.terraform.lock.hcl` is committed) |
 | Haskell | `haskell.enable = true;` (`stack.enable` and `cabal.enable` default to true; disable the one not used) | `ormolu`, `cabal-fmt` | `hlint` | | `dist-newstyle/`, `.stack-work/`, `*.hi`, `*.o` |
 
 A stack outside this table gets `languages.<name>.enable = true` when devenv has it, no hooks beyond the baseline, and a note in `CLAUDE.md` that hooks for it are not configured.
@@ -391,6 +386,50 @@ git-hooks.hooks = {
 
 In adopt mode, move an existing ESLint configuration and compiler flags into these files and show the diff.
 Existing code that fails is fixed, or the owner accepts a scoped `rules` override with a reason; never drop a preset to make code pass.
+
+### OpenTofu: tflint
+
+tflint and the ruleset of the cloud in use come from nixpkgs, in the root `devenv.nix`, so nothing is downloaded at lint time:
+
+```nix
+packages = [ (pkgs.tflint.withPlugins (p: [ p.tflint-ruleset-aws ])) ];
+```
+
+nixpkgs also has `tflint-ruleset-google`.
+The rulesets are enabled in `.tflint.hcl` at the repository root:
+
+```hcl
+plugin "terraform" {
+  enabled = true
+  preset  = "recommended"
+}
+
+plugin "aws" {
+  enabled = true
+}
+```
+
+The `aws` block has no `source` or `version`, because nixpkgs decides the version; a `version` that differs from it fails with "Plugin not found".
+
+Each root and each HCL module runs it on its own directory, from its `devenv.nix`:
+
+```nix
+{ config, ... }:
+{
+  git-hooks.hooks."{name}-tflint" = {
+    enable = true;
+    name = "{name} tflint";
+    entry = "tflint --chdir=infra/environments/{name} --config=${config.devenv.root}/.tflint.hcl";
+    files = "^infra/environments/{name}/.*\\.tf$";
+    pass_filenames = false;
+  };
+}
+```
+
+The stock `tflint` hook in git-hooks.nix passes file names, which tflint has rejected since 0.47; it stays disabled.
+`--config` is absolute because tflint resolves it against the `--chdir` directory.
+Without `--config`, tflint looks for `.tflint.hcl` only in that directory and silently runs without the AWS ruleset; `--recursive` has the same trap, since it reads the `.tflint.hcl` of each directory it visits.
+A root is linted without the modules it calls, so every module gets its own hook.
 
 ## Secrets
 

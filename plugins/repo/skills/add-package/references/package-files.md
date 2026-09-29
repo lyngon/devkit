@@ -90,18 +90,21 @@ ln -sfn CLAUDE.md AGENTS.md
 
 ## devenv.nix
 
+A package's hooks are the custom `{name}-` hooks of its stack in the `init` skill's `devenv.md` reference (`{name}-basedpyright` for Python, `{name}-tsc` and `{name}-eslint` for TypeScript, `{name}-tflint` for OpenTofu), scoped to the package with `files`.
+Stock hooks (`ruff`, `ruff-format`, `terraform-format`) are enabled once in the root `devenv.nix`, never here, because a second package scoping the same stock hook fails evaluation with conflicting `files` values.
+The file never enables a language.
+
+A Python library:
+
 ```nix
 { ... }:
 {
-  git-hooks.hooks = {
-    ruff-format = {
-      enable = true;
-      files = "^libs/{name}/";
-    };
-    ruff = {
-      enable = true;
-      files = "^libs/{name}/";
-    };
+  git-hooks.hooks."{name}-basedpyright" = {
+    enable = true;
+    name = "{name} basedpyright";
+    entry = "basedpyright libs/{name}";
+    files = "^libs/{name}/.*\\.pyi?$";
+    pass_filenames = false;
   };
 
   tasks."{name}:test" = {
@@ -111,7 +114,21 @@ ln -sfn CLAUDE.md AGENTS.md
 }
 ```
 
-Formatter and linter hooks per stack are in the `init` skill's `devenv.md` reference; the package file scopes them with `files` and never enables a language.
+An infrastructure environment has its tflint hook and no tasks; an HCL infra module has the same file with `infra/modules/{name}`:
+
+```nix
+{ config, ... }:
+{
+  git-hooks.hooks."{name}-tflint" = {
+    enable = true;
+    name = "{name} tflint";
+    entry = "tflint --chdir=infra/environments/{name} --config=${config.devenv.root}/.tflint.hcl";
+    files = "^infra/environments/{name}/.*\\.tf$";
+    pass_filenames = false;
+  };
+}
+```
+
 An app that runs locally adds a process:
 
 ```nix

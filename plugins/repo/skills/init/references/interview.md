@@ -25,7 +25,7 @@ Adapt wording to the repository.
 - **4. Lifetime.** Throwaway, months, or years? (Drives how much structure is worth.)
 - **5. Repository audience.** Who reads and changes the repository: a single owner, a team, other Lyngon teams, clients, the public? (Drives license, README depth, CoC and security policy.)
 - **6. Artifact audience.** Who consumes what the repository produces: end users, other services, other repositories, agents? (Drives README "usage" sections and delivery questions.)
-- **7. Technologies.** Which languages, frameworks and runtimes are involved, or already present per the inventory? Supported stacks: Python (uv), TypeScript (pnpm), Rust, Go, Nix, Shell, Terraform, Haskell. Anything else is handled generically.
+- **7. Technologies.** Which languages, frameworks and runtimes are involved, or already present per the inventory? Supported stacks: Python (uv), TypeScript (pnpm), Rust, Go, Nix, Shell, OpenTofu, Haskell. Anything else is handled generically.
 - **8. Scope.** Which of the Lyngon prerequisites does this repository adopt: the documents only (`INTENT.md`, `CLAUDE.md`, `CONCEPTS.md`, ADRs), the documents and the baseline (devenv with `lyngon/devenv` imported), or all three including the structure from `STRUCTURE.md`? Recommend all three for a repository Lyngon owns; documents only for one that must keep its own toolchain and layout. Every later question about packages, devenv, secrets and services is skipped when its scope was not adopted.
 - **9. Artifacts.** (Scope includes the structure.) Which separate artifacts does the repository produce today (one is fine)? Each becomes a package; its kind (app, library, contract, tool, infra module) decides its directory, per `STRUCTURE.md`.
 
@@ -43,7 +43,7 @@ Adapt wording to the repository.
 ### Round 3 and later, as unblocked
 
 - **18. Terms.** For every domain word that came up more than once with more than one meaning: which is the canonical term, and which words are to be avoided?
-- **19. Stack-specific choices** that carry lock-in: ORM or raw SQL, framework, package manager if unusual, Rust channel, Go module path, Terraform backend. Only ask when the answer is not obvious from the inventory.
+- **19. Stack-specific choices** that carry lock-in: ORM or raw SQL, framework, package manager if unusual, Rust channel, Go module path, OpenTofu backend. Only ask when the answer is not obvious from the inventory.
 - **20. Linters with project config.** eslint and clippy need repository-specific configuration and are left commented out in `devenv.nix`. Confirm that, or ask the user to supply the configuration now.
 - **21. Existing files in adopt mode.** For each existing file that the baseline would touch: merge, replace, or leave. Show the diff before asking.
 - **22. ADR confirmations.** For each ADR candidate collected so far: record it, or not.

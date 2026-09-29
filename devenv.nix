@@ -12,6 +12,7 @@ let
     runtimeInputs = [
       pkgs.jq
       pkgs.git
+      pkgs.gawk
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-marketplace.sh" "$@"'';
   };

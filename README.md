@@ -107,7 +107,7 @@ my-service/
 │   ├── adr/                    decisions about the whole repository
 │   ├── conventions/            repository-specific conventions too long for a CLAUDE.md line
 │   └── TODO.md                 work the owner explicitly deferred
-├── .claude/settings.json       registers the lyngon marketplace, enables all@lyngon
+├── .claude/settings.json       registers the lyngon marketplace, enables all@lyngon and each member
 ├── .github/workflows/ci.yml    runs devenv test
 ├── .vscode/extensions.json     recommends the direnv extension
 ├── .envrc                      loads the devenv shell through direnv
@@ -142,7 +142,7 @@ claude plugin install all@lyngon
 ```
 
 `all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
-A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `writing` and `conventions` and needs only the Lyngon documents:
+A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `build`, `practice`, `review`, `writing` and `conventions` and needs only the Lyngon documents:
 
 ```sh
 claude plugin install core@lyngon
@@ -162,13 +162,15 @@ The steps are the same for an empty repository and for one that has grown organi
 
 1. Install the plugins as above, at least `repo`.
 2. Open Claude Code in the repository and run `/repo:init`.
-   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon`, or the subset you chose.
+   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` and each of its members by name, or the subset you chose.
 3. Commit.
 
 In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.
 
 Colleagues who clone the repository get the marketplace registered as soon as they trust the folder.
-Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command, which with the bundle is one:
+Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command.
+The settings name every plugin, since Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies.
+One command still installs them all:
 
 ```sh
 claude plugin install all@lyngon

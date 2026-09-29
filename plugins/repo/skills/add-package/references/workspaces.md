@@ -86,8 +86,8 @@ use (
 
 Root `devenv.nix`: `languages.go.enable = true;`.
 
-## Terraform
+## OpenTofu
 
 No workspace.
 `infra/environments/<env>/` roots reference `infra/modules/<name>/` by relative `source`.
-Root `devenv.nix`: `languages.terraform.enable = true;`.
+Root `devenv.nix`: `languages.opentofu.enable = true;`, the `terraform-format` hook and tflint with its ruleset; the root `.tflint.hcl` and each package's `{name}-tflint` hook are in the `init` skill's `devenv.md` reference.

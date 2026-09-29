@@ -3,6 +3,34 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.6.3 - 2026-09-29
+
+- The `devenv.yaml` template requires devenv 2.4.0. From 2.4.0 on, `devenv shell` and every direnv re-evaluation no longer run the hook suite first, which on 2.3.1 cost agents up to 45 s per wrapped command. The saving needs the `devenv` input in `devenv.lock` at 2.4 as well, which `require_version` does not check; `devenv.md` says to run `devenv update devenv` in adopt mode.
+
+## 0.6.2 - 2026-09-29
+
+- `STRUCTURE.md`, symlinked into `init` and `add-package`, reserves "domain" for the domain layer and the domain model of a Context; for DNS it says "domain name", "zone" or "hostname". Infrastructure repositories use "domain" for DNS names, which collided with the structure's own sense of the word.
+
+## 0.6.1 - 2026-09-29
+
+- The `CLAUDE.md` template says what `devenv test` actually prints: task names and times, and hook output only when a hook fails. It previously promised `DEVENV_NO_AI_AGENT=1` would show per-hook output, which a passing run never does; per-hook results come from `prek run --all-files` in the devenv shell.
+
+## 0.6.0 - 2026-09-29
+
+- The Terraform stack is now OpenTofu: `languages.opentofu`, `terraform-format` (which runs `tofu fmt`), tflint from nixpkgs with the AWS ruleset and a root `.tflint.hcl`, and a `{name}-tflint` hook for every root and HCL module. The stock `tflint` hook in git-hooks.nix passes file names, which tflint has rejected since 0.47 ("Command line arguments support was dropped in v0.47"); reproduced against the pinned nixpkgs. `add-package` shows an infrastructure environment's `devenv.nix`.
+
+## 0.5.5 - 2026-09-29
+
+- Stock hooks (`ruff-format`, `ruff`, `terraform-format`) are enabled once in the root `devenv.nix`, and a package's `devenv.nix` adds only its own `{name}-` hooks. The package template scoped `ruff-format` and `ruff` per package, which fails evaluation as soon as a second Python package exists.
+
+## 0.5.4 - 2026-09-29
+
+- The `.gitignore` baseline anchors `/tmp/` and `/sandbox/` to the repository root; unanchored, `sandbox/` also ignored `infra/environments/sandbox/`.
+
+## 0.5.3 - 2026-09-29
+
+- `init` enables every plugin by name in `.claude/settings.json`: `all@lyngon` and each of its members, or the chosen bundle or subset with its dependencies. With the bundle alone, Claude Code 2.1.278 did not load `build`, because it does not count a member installed with the bundle as enabled when it checks another member's dependencies. The README still installs with the one bundle command.
+
 ## 0.5.2 - 2026-09-23
 
 - `init` no longer writes a private marketplace credentials note into the README; the marketplace installs without credentials.

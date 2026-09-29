@@ -333,6 +333,9 @@ Banned:
 Reserved, universal sense only; prefix the ecosystem name for the native sense ("Go package", "Maven module", "NuGet package", "Cabal component", "MSBuild target"):
 package, module, library, app, component, artifact, target, workspace, service, crate.
 
+"Domain" is reserved for the structure's sense, the domain layer and the domain model of a Context, never a DNS name.
+For DNS, say "domain name", "zone" or "hostname".
+
 Usage:
 
 - Architecture documents, ADRs and diagrams use only section 2 terms.

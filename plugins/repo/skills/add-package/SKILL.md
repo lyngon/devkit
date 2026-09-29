@@ -83,7 +83,7 @@ A library manifest declares constraints (`foo>=3.14`), never pins.
 
 Templates are in [references/package-files.md](references/package-files.md).
 
-- `devenv.nix`: the package's tasks, hooks scoped with `files`, and processes. No `languages.*`; languages are enabled at the root.
+- `devenv.nix`: the package's tasks, its `{name}-` hooks scoped with `files`, and processes. No `languages.*` and no stock hooks; both are enabled at the root.
 - `README.md`: what it is and how to run it.
 - `INTENT.md`: why it exists and for whom. For an app, the product section states the deployable kind and the runtime units it backs.
 - `CLAUDE.md` with only what differs from the root, and `AGENTS.md` as a symlink to it.
