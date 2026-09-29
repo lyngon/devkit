@@ -269,7 +269,7 @@ Template: [implementer-prompt.md](references/implementer-prompt.md)
 Implementer subagents report one of four statuses.
 Handle each appropriately.
 
-**DONE:** generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory; it prints the unique file path it wrote; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
+**DONE:** generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory; it prints the path of the file it wrote, one per range; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
 
 **DONE_WITH_CONCERNS:** the implementer completed the work but flagged doubts.
 Read the concerns before proceeding.

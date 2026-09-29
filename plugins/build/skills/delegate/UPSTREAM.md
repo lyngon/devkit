@@ -35,6 +35,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - The "When to use" graph: nodes renamed to `build:delegate`, `build:execute` and "Manual execution, or discover:approach and build:plan first"; "Partner chose inline" became "User chose inline".
 - "Announce at start" line dropped; "your human partner" replaced by "the user" throughout.
 - Reflowed to one sentence per line; every em dash removed; headings in sentence case; the numbered BLOCKED list ends each item with a full stop; bold labels end in a full stop or colon.
+- `task-brief` and `review-package` print the bare path on stdout and their summary on stderr, where upstream printed `wrote <path>: ...` on stdout while SKILL.md said they print the path.
 
 ## Review notes
 

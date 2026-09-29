@@ -7,6 +7,7 @@
 # Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-brief.md
 # (per plan and per worktree; concurrent runs of the SAME plan in the same
 # working tree share it).
+# Prints the brief's path on stdout and a summary on stderr.
 set -euo pipefail
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
@@ -40,4 +41,5 @@ if [ ! -s "$out" ]; then
   exit 3
 fi
 
-echo "wrote ${out}: $(wc -l < "$out" | tr -d ' ') lines"
+printf '%s\n' "$out"
+echo "task-brief: task ${n}, $(wc -l < "$out" | tr -d ' ') lines" >&2

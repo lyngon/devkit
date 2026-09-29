@@ -6,6 +6,7 @@
 # Usage: review-package PLAN_FILE BASE HEAD [OUTFILE]
 # Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/review-<base7>..<head7>.diff
 # (named per range, so a re-review after fixes gets a distinct fresh file).
+# Prints the package's path on stdout and a summary on stderr.
 set -euo pipefail
 
 if [ $# -lt 3 ] || [ $# -gt 4 ]; then
@@ -49,4 +50,5 @@ fi
 } > "$out"
 
 commits=$(git rev-list --count "${base}..${head}")
-echo "wrote ${out}: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes"
+printf '%s\n' "$out"
+echo "review-package: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes" >&2
