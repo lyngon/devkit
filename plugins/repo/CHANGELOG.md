@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.6.2 - 2026-09-29
+
+- `STRUCTURE.md`, symlinked into `init` and `add-package`, reserves "domain" for the domain layer and the domain model of a Context; for DNS it says "domain name", "zone" or "hostname". Infrastructure repositories use "domain" for DNS names, which collided with the structure's own sense of the word.
+
 ## 0.6.1 - 2026-09-29
 
 - The `CLAUDE.md` template says what `devenv test` actually prints: task names and times, and hook output only when a hook fails. It previously promised `DEVENV_NO_AI_AGENT=1` would show per-hook output, which a passing run never does; per-hook results come from `prek run --all-files` in the devenv shell.
