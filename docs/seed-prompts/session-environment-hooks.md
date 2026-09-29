@@ -6,7 +6,6 @@ Add two things to the `repo` plugin's hooks: the repository's devenv environment
 
 This is a bounded change: no design file and no plan file.
 Work on a branch named `feat/session-environment-hooks`.
-Do not commit until I have reviewed the files; after the review, commit by concern in Conventional Commits form.
 Bump the `repo` plugin version and add a `CHANGELOG.md` entry.
 Run `devenv test` before handing over and report its output faithfully.
 
@@ -54,3 +53,5 @@ Skip silently when there is no upstream or git fails, and keep the script's JSON
 ## Out of scope
 
 - A session hold in the build ledger: deferred in `docs/TODO.md`.
+
+Remove this file and its `docs/TODO.md` entry in the last commit.
