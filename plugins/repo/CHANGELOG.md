@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.8.2 - 2026-09-29
+
+- `init` step 7 says before both modes that `add-package` leaves its commit to `init`; the sentence sat after the adopt-mode list, though fresh mode relies on it too.
+
 ## 0.8.1 - 2026-09-29
 
 - The `SessionStart` hook prints its text instead of building JSON by hand, so no character in the text can break the output.

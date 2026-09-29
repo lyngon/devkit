@@ -117,6 +117,8 @@ Report the result faithfully, including hooks that could not run.
 
 ### 7. Commit and hand off
 
+`add-package` does not commit when this skill invokes it; the commits below include its packages.
+
 In fresh mode the repository has no commits, so there is no base for a pull request: everything lands in one root commit on `main`.
 
 ```sh
@@ -137,8 +139,6 @@ Commit by concern, in an order in which each commit passes the hooks, and put tw
 4. `build: adopt the Lyngon structure`: the root workspace files and `secretspec.toml`; then one `feat(<name>): add <kind> <name>` per package.
 
 Then finish the branch with `/build:finish` when the build plugin is installed; otherwise push it and open a pull request.
-
-`add-package` does not commit when this skill invokes it; the commits above include its packages.
 
 Print the next steps for the owner:
 
