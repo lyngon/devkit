@@ -165,7 +165,7 @@ Claude Code registers the `lyngon` plugin marketplace from `.claude/settings.jso
 The settings name every plugin; one command installs them all:
 
 ```sh
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 {Per-artifact usage or delivery instructions, from the delivery question.}

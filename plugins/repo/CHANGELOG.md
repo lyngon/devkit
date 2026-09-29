@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.8.0 - 2026-09-29
+
+- `init` commits its work: one root commit on `main` in fresh mode, asking before the push, and in adopt mode commits by concern on `chore/adopt-lyngon-conventions`, then a pull request. `add-package` commits its package on the feature branch and never pushes; under `init` it leaves the commit to `init`. The README template installs the plugins with `--scope project`.
+
 ## 0.7.0 - 2026-09-29
 
 - The `SessionStart` hook prints only the structure line, and only in a repository that follows the Lyngon structure. The generic lines moved to the `conventions` plugin's hook, which reaches every repository that installs `core`; the line saying that conventions load on their own was wrong and is gone.

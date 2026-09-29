@@ -163,7 +163,7 @@ The steps are the same for an empty repository and for one that has grown organi
 1. Install the plugins as above, at least `repo`.
 2. Open Claude Code in the repository and run `/repo:init`.
    It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` and each of its members by name, or the subset you chose.
-3. Commit.
+3. `/repo:init` commits its work: one root commit on `main` in a fresh repository, a branch with a pull request in an adopted one.
 
 In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.
 
