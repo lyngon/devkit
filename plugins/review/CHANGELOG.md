@@ -4,6 +4,10 @@ All notable changes to the `review` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.3.1 - 2026-09-29
+
+- The README names the architectural flow next to the bounded one for the review before a pull request, as `request` does.
+
 ## 0.3.0 - 2026-09-29
 
 - `request` is mandatory before a pull request is opened rather than before a merge, and Minor findings that nobody fixes go into the pull request description.
