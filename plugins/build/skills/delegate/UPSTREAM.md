@@ -36,6 +36,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - "Announce at start" line dropped; "your human partner" replaced by "the user" throughout.
 - Reflowed to one sentence per line; every em dash removed; headings in sentence case; the numbered BLOCKED list ends each item with a full stop; bold labels end in a full stop or colon.
 - `task-brief` and `review-package` print the bare path on stdout and their summary on stderr, where upstream printed `wrote <path>: ...` on stdout while SKILL.md said they print the path.
+- `task-brief` appends the plan's `### Global Constraints` section after the task text, found by the same fence-aware awk pass (a plan without one gives a brief without it); the "not found" check still looks at the task text only. The task reviewer template's `[GLOBAL_CONSTRAINTS]` (the controller pasted the constraints) became a pointer to the brief's Global Constraints section plus an optional one-sentence `[CONSTRAINT_EMPHASIS]`; the "attention lens" paragraph in SKILL.md was rewritten to match.
 
 ## Review notes
 

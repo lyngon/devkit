@@ -244,7 +244,7 @@ A bounded stretch keeps nearly all of a long wait's efficiency while guaranteein
 
 Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fix-round diffs need it.
 
-- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text to a uniquely named file and prints the path.
+- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to a uniquely named file and prints the path.
   Compose the dispatch so the brief stays the single source of requirements.
   Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
   Exact values (numbers, magic strings, signatures, test cases) appear only in the brief.
@@ -253,7 +253,7 @@ Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fi
   The implementer writes the full report there and returns only status, commits, a one-line test summary, and concerns.
 - A dispatch prompt describes one task, not the session's history.
   Do not paste accumulated prior-task summaries ("state after Tasks 1 to 3") into later dispatches; a real session's dispatch hit 42k characters of which 99% was pasted history.
-  A fresh subagent needs its task, the interfaces it touches, and the global constraints.
+  A fresh subagent needs its task, the interfaces it touches, and the global constraints, which the brief carries.
   Nothing else.
 - The dispatch carries the no-subagents contract (it is in the implementer template): the implementer never dispatches subagents, not helpers, and never a reviewer.
   Review arrives from you, after the report.
@@ -303,10 +303,10 @@ Implementer self-review never replaces the task review; both are needed.
   The output never enters your own context, and the reviewer sees the commit list, stat summary and full diff with context in one read.
   Use the BASE you recorded before dispatching the implementer, never `HEAD~1`, which silently truncates multi-commit tasks.
   Never dispatch a task reviewer without a diff file.
-- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package) plus the global constraints that bind the task.
-- The global-constraints block you hand the reviewer is its attention lens.
-  Copy the binding requirements verbatim from the plan's Global Constraints section or the spec: exact values, exact formats, and the stated relationships between components ("same layout as X", "matches Y").
-  The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the constraints block is for what THIS project's spec demands.
+- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package) and at most one sentence of emphasis.
+- The brief carries the plan's Global Constraints section, so the reviewer reads the binding requirements where the implementer read them; never paste them into the dispatch.
+  Your one sentence of emphasis is the attention lens: the constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break.
+  The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the emphasis is for what THIS project's spec demands.
 - Do not add open-ended directives like "check all uses" or "run race tests if useful" without a concrete, task-specific reason.
 - Do not ask a reviewer to re-run tests the implementer already ran on the same code; the implementer's report carries the test evidence.
 - Do not pre-judge findings for the reviewer: never instruct a reviewer to ignore or not flag a specific issue.

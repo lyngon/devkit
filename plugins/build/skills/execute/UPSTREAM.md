@@ -33,6 +33,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - "Announce at start" line dropped. "your human partner" and "your partner" replaced by "the user" throughout. Rationalization table: "Only the four stops" and "your partner decides" reworded.
 - Reflowed to one sentence per line; every em dash removed; headings in sentence case; bold labels end in a full stop instead of a colon; the sub-skill callouts say "call the Skill tool for".
 - `task-start` takes the bare path that `task-brief` now prints; upstream parsed the `wrote <path>: N lines` line with sed.
+- The brief carries the plan's Global Constraints, and "Take the task" says so.
 
 ## Review notes
 

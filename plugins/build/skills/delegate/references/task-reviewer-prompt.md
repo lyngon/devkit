@@ -20,8 +20,8 @@ Dispatch a subagent with:
 
     Read the task brief: [BRIEF_FILE]
 
-    Global constraints from the spec or design that bind this task:
-    [GLOBAL_CONSTRAINTS]
+    Its Global Constraints section, when present, binds this task as much
+    as the task text does. [CONSTRAINT_EMPHASIS]
 
     ## What the Implementer Claims They Built
 
@@ -189,10 +189,12 @@ Dispatch a subagent with:
 
 - `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md.
 - `[BRIEF_FILE]`: required, the task brief file (`scripts/task-brief PLAN N` prints the path; the same file the implementer worked from).
-- `[GLOBAL_CONSTRAINTS]`: the binding requirements copied verbatim from the plan's Global Constraints section or the spec: exact values, formats, and stated relationships between components (not process rules; those are already in this template).
+- `[CONSTRAINT_EMPHASIS]` (optional): one sentence naming the global constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break. Never a paste of the constraints; the brief carries them.
 - `[REPORT_FILE]`: required, the file the implementer wrote its detailed report to.
 - `[BASE_SHA]`: the commit before this task.
 - `[HEAD_SHA]`: the current commit.
 - `[DIFF_FILE]`: required, the path the controller wrote the review package to (`scripts/review-package PLAN_FILE BASE HEAD` prints the unique path it wrote; the package never enters the controller's context).
+
+Leave out the emphasis sentence when nothing stands out.
 
 **The reviewer returns:** the spec compliance verdict (✅, ❌ or ⚠️), strengths, issues (Critical, Important, Minor) and the task quality verdict.

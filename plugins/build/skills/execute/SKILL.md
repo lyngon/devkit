@@ -156,7 +156,7 @@ Redirect long test output to a file in the workspace and read its tail; read a b
 ### 1. Take the task
 
 - Run this skill's `scripts/task-start PLAN_FILE N`.
-  It prints the brief path and BASE (the commit the task's range is cut from) in one call.
+  It prints the brief path and BASE (the commit the task's range is cut from) in one call; the brief holds the task's text followed by the plan's Global Constraints.
   Read the brief for every task, including ones you remember from setup: what you remember is a summary, the brief has the exact values, signatures and test cases.
 - Mark the task's todo in progress.
 

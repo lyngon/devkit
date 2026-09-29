@@ -13,7 +13,8 @@ Dispatch a subagent with:
     ## Task Description
 
     Read your task brief first: [BRIEF_FILE]
-    It contains the full task text from the plan.
+    It contains the full task text from the plan, followed by the plan's
+    Global Constraints, which bind this task as much as its own text.
 
     ## Context
 
