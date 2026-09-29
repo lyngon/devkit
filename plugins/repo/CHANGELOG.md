@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.5 - 2026-09-29
+
+- Stock hooks (`ruff-format`, `ruff`, `terraform-format`) are enabled once in the root `devenv.nix`, and a package's `devenv.nix` adds only its own `{name}-` hooks. The package template scoped `ruff-format` and `ruff` per package, which fails evaluation as soon as a second Python package exists.
+
 ## 0.5.4 - 2026-09-29
 
 - The `.gitignore` baseline anchors `/tmp/` and `/sandbox/` to the repository root; unanchored, `sandbox/` also ignored `infra/environments/sandbox/`.

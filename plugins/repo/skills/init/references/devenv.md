@@ -59,6 +59,12 @@ Add the `secretspec` section when the repository needs secrets (see below).
     uv.sync.enable = true;
   };
 
+  # Stock hooks run on the whole repository; packages add only {name}- hooks.
+  git-hooks.hooks = {
+    ruff-format.enable = true;
+    ruff.enable = true;
+  };
+
   packages = [ pkgs.jq ];
 
   # `devenv test` runs every git hook on every file first, then this.
@@ -89,38 +95,19 @@ Users without direnv get activation from `devenv hook <shell>` in their own shel
 
 ## Package files
 
-A package's `devenv.nix` (`apps/{name}/devenv.nix`, `libs/{name}/devenv.nix`) holds its tasks, package-scoped hooks and processes.
+A package's `devenv.nix` (`apps/{name}/devenv.nix`, `libs/{name}/devenv.nix`, `infra/environments/{name}/devenv.nix`) holds its tasks, its own hooks and its processes.
 It never enables a language; the workspace at the root owns the language, the lockfile and the environment.
-Hooks are repository-wide in devenv, so scope them with `files`:
+Nor does it enable a stock hook (`ruff`, `terraform-format`); those are enabled once in the root `devenv.nix` and run on the whole repository.
+Hooks are repository-wide in devenv and a hook's `files` holds one pattern, so two packages scoping the same hook fail evaluation with conflicting definition values.
+A package adds only the custom `{name}-` hooks of its stack below, scoped to the package with `files`.
 
-```nix
-{ ... }:
-{
-  git-hooks.hooks = {
-    ruff-format = {
-      enable = true;
-      files = "^libs/{name}/";
-    };
-    ruff = {
-      enable = true;
-      files = "^libs/{name}/";
-    };
-  };
-
-  tasks."{name}:test" = {
-    description = "Run {name} tests";
-    exec = "cd libs/{name} && uv run pytest";
-  };
-}
-```
-
-The `add-package` skill writes this file; its `workspaces.md` reference has the root workspace file per language.
+The `add-package` skill writes this file from its `package-files.md` reference; its `workspaces.md` reference has the root workspace file per language.
 
 Wire package tests into the root `enterTest` by task name, or list the commands in `CLAUDE.md` when they are slow.
 
 ## Stacks
 
-`languages.*` goes in the root `devenv.nix`, once per language.
+`languages.*` and the stock formatter and linter hooks go in the root `devenv.nix`, once per language; the custom `{name}-` hooks go in each package's `devenv.nix`.
 Formatters are always enabled.
 Linters are enabled when they need no project configuration.
 Linters whose configuration `init` writes (ruff, eslint) are enabled with it.
