@@ -79,7 +79,7 @@ Bundle membership is never a question: the validator puts every plugin declaring
 
 Follow [references/install.md](references/install.md) for the exact files.
 Run `devenv test` and fix what fails without disabling anything.
-Do not commit; end by offering a Conventional Commits message.
+Commit the result as one commit on the feature branch (on the default branch, create one first), with the message from [references/install.md](references/install.md); do not push, since the push comes when the whole piece of work is done.
 
 ## Case B: a new skill
 
@@ -101,4 +101,4 @@ Present the two options with a recommendation:
 - **Install an existing one**: say what it does and does not do relative to the settled design. If agreed, continue at A.3 with that upstream.
 - **Create a new one**: if agreed, follow [references/create.md](references/create.md).
 
-Do not commit; end by offering a Conventional Commits message.
+Commit the result as one commit on the feature branch (on the default branch, create one first), with the message from the reference you followed; do not push, since the push comes when the whole piece of work is done.

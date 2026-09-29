@@ -3,6 +3,10 @@
 All notable changes to the `devkit` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.2.0 - 2026-09-29
+
+- `add-skill` commits its result as one commit on the feature branch and never pushes, instead of offering a commit message.
+
 ## 0.1.4 - 2026-09-23
 
 - The license request template names the marketplace as a public repository and asks for permission to redistribute publicly; permission scoped to internal use is not enough.

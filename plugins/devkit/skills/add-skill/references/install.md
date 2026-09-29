@@ -26,4 +26,4 @@ Target: a marketplace entry plus `catalog/<name>.md`.
 
 - Enable the plugin in this repository's `.claude/settings.json` when the devkit itself should use it.
 - Run `devenv test`.
-- Do not commit. Offer `feat(<concern>): add <name> skill` or `feat(catalog): pin <name>`.
+- Commit as one commit on the feature branch, `feat(<concern>): add <name> skill` or `feat(catalog): pin <name>`; do not push, since the push comes when the whole piece of work is done.
