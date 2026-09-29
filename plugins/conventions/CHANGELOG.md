@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.7.1 - 2026-09-29
+
+- The `SessionStart` hook prints its text instead of building JSON by hand, so no character in the text can break the output.
+
 ## 0.7.0 - 2026-09-29
 
 - `engineering` carries the user's standing instructions, replacing its "Handing over" section: commit on a feature branch without asking, one concern per commit; push and open a pull request once the full check passes; ask before a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release or a publish. The text says it counts as being asked, which overrides an agent's default of committing only on request. Work that does not belong to the current branch's open or merged pull request starts on a new branch.

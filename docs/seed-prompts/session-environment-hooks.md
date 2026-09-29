@@ -48,7 +48,7 @@ Documentation:
 
 In `plugins/repo/hooks/session-start.sh`: when the current branch has an upstream and `git rev-list --count HEAD..@{u}` is above zero, append one line to the context: "The current branch is N commits behind its upstream; fast-forward before starting: `git pull --ff-only`."
 No fetch: the case that bit lyngon.com was already visible after the previous session's fetch.
-Skip silently when there is no upstream or git fails, and keep the script's JSON escaping.
+Skip silently when there is no upstream or git fails, and keep the script's plain-text output.
 
 ## Out of scope
 
