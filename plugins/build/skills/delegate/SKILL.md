@@ -96,7 +96,7 @@ digraph process {
     "More tasks remain?" [shape=diamond];
     "Dispatch final reviewer via review:request" [shape=box];
     "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" [shape=box];
-    "Final review clean: delete this plan's workspace" [shape=box];
+    "Final review clean: list rulings and deferred minors, keep the workspace" [shape=box];
     "Invoke build:finish" [shape=box style=filled fillcolor=lightgreen];
 
     "Setup: worktree, ledger check, read plan, pre-flight review" -> "Dispatch implementer subagent (references/implementer-prompt.md)";
@@ -125,8 +125,8 @@ digraph process {
     "More tasks remain?" -> "Dispatch implementer subagent (references/implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Dispatch final reviewer via review:request" [label="no"];
     "Dispatch final reviewer via review:request" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
-    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: delete this plan's workspace";
-    "Final review clean: delete this plan's workspace" -> "Invoke build:finish";
+    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: list rulings and deferred minors, keep the workspace";
+    "Final review clean: list rulings and deferred minors, keep the workspace" -> "Invoke build:finish";
 }
 ```
 
@@ -407,12 +407,13 @@ There is no second fix wave; residual load-bearing findings reach the user in th
 
 ## Finish
 
-Before you delete anything, collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
+Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
 Both lists are exhaustive: if the ledger holds a ruling, the list holds it.
-Your final message is the only place the decisions you took on the user's behalf, and the findings nobody acted on, reach them: the user reads the finished branch starting from these two lists, and reworks whatever you got wrong.
+Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: the user reads the finished branch starting from these two lists, and reworks whatever you got wrong.
 A ruling that dies with the workspace was a decision made in secret.
 
-When the final whole-branch review is clean and its fixes are committed, delete this plan's workspace (`rm -rf <workspace>`); the git history is the record now.
+When the final whole-branch review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
+It reads the ledger's deferred minors and parked findings before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.
@@ -432,6 +433,7 @@ Call the Skill tool for `build:finish`.
 | "The implementer spawned its own reviewer, free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 | "The hook fails on something unrelated, tell the implementer to skip it" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
 | "Let me check in before the next task" | The user reviews the plan and the finished branch, nothing in between. Only the five stops stop you. |
+| "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors and parked findings before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 
 ## Example workflow
 
@@ -501,7 +503,7 @@ Rulings I made:
 Deferred minors:
 - (none)
 
-[Delete this plan's workspace; the record now lives in git]
+[Leave this plan's workspace for build:finish]
 
 Invoking build:finish.
 ```

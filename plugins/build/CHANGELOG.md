@@ -12,6 +12,7 @@ Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 - Review packages list every commit with its full message, so reviewers can check the commit rules.
 - Every reviewer gets the state changes since the plan was written, ledgered as `State:` lines, in an optional section.
 - The implementer template tests and commits as the brief says, with the previous behaviour as the default, and a brief may declare that a task commits nothing. Hook evidence is the output of an explicit hook run, never commit-time output; with devenv, `prek run --all-files`.
+- `delegate` and `execute` hand the plan workspace to `finish` instead of deleting it. `finish` offers the deferred minors and parked findings for `docs/TODO.md` before it removes the plan, and removes the workspace when the work lands.
 
 ## 0.1.0 - 2026-09-23
 

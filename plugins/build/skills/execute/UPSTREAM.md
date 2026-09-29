@@ -35,6 +35,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - `task-start` takes the bare path that `task-brief` now prints; upstream parsed the `wrote <path>: N lines` line with sed.
 - The brief carries the plan's Global Constraints, and "Take the task" says so.
 - Final review: the reviewer also gets the ledger's `State:` lines (facts that superseded the plan, the spec or an inventory), which the executor ledgers as `State: <fact>` when it learns them.
+- Finish: the workspace is handed to `build:finish` instead of deleted (upstream deleted it here), so the ledger's deferred minors reach `build:finish`; the graph node, the Finish section and the example say so, and a rationalization row was added. "The only place" the rulings reach the user became "where".
 
 ## Review notes
 
