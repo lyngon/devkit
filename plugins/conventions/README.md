@@ -2,7 +2,7 @@
 
 Organization-wide conventions that reach every agent in every Lyngon repository without a copy in any of them.
 
-Prerequisites: documents
+Prerequisites: documents, workflow
 
 Each skill carries `paths` and `user-invocable: false` in its frontmatter, and a description that ends with when to invoke it.
 A skill's body reaches the agent only when the agent invokes it; `paths` does not load it.
@@ -31,9 +31,10 @@ The `adr` and `documents` skills carry format documents adapted from [mattpocock
 ## Install
 
 Part of the `all` bundle.
-On its own:
+A repository that keeps its own toolchain and layout installs it next to `core`, whose skills its session hook points at:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
+claude plugin install core@lyngon --scope project
 claude plugin install conventions@lyngon --scope project
 ```

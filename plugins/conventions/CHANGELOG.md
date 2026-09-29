@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.8.0 - 2026-09-29
+
+- Declares the new `workflow` prerequisite: enabling the plugin adopts the Lyngon workflow for the repository, standing instructions included. It is therefore no longer a member of `core`; install it next to `core` (ADR 0017).
+
 ## 0.7.1 - 2026-09-29
 
 - The `SessionStart` hook prints its text instead of building JSON by hand, so no character in the text can break the output.

@@ -196,6 +196,53 @@ plugin "$repo" env baseline
 bundle "$repo" core "documents, baseline" docs env
 expect_error "core holding a devenv plugin" "$repo" "core must list exactly the plugins declaring at most documents: docs"
 
+repo=$(new_repo)
+plugin "$repo" docs documents
+echo "Invoke conventions:engineering first." >>"$(skill "$repo" docs)"
+expect_error "undeclared workflow term" "$repo" "SKILL.md:7: names 'conventions:engineering' but the plugin declares prerequisites: documents"
+
+repo=$(new_repo)
+plugin "$repo" docs documents
+printf -- '\n## With the Lyngon workflow\n\nInvoke conventions:engineering first.\n' >>"$(skill "$repo" docs)"
+expect_ok "workflow term under a With the Lyngon workflow heading" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" docs documents
+echo "This is a Lyngon repository." >>"$(skill "$repo" docs)"
+expect_error "undeclared workflow marker" "$repo" "SKILL.md:7: names 'This is a Lyngon repository'"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+printf -- '\n## With the Lyngon workflow\n\nTerms are in CONCEPTS.md.\n' >>"$(skill "$repo" plain)"
+expect_error "workflow section does not allow documents terms" "$repo" "SKILL.md:10: names 'CONCEPTS.md'"
+
+repo=$(new_repo)
+plugin "$repo" conv "documents, workflow"
+echo "Invoke conventions:engineering first." >>"$(skill "$repo" conv)"
+expect_ok "workflow term with workflow declared" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+printf -- '\n## With the Lyngon structure\n\nInvoke conventions:engineering first.\n' >>"$(skill "$repo" plain)"
+expect_error "structure section does not allow workflow terms" "$repo" "SKILL.md:10: names 'conventions:engineering'"
+
+repo=$(new_repo)
+plugin "$repo" plain "workflow, documents"
+expect_error "workflow listed before documents" "$repo" "plugins/plain/README.md: prerequisites must be listed once each in the order documents, workflow, baseline, structure"
+
+repo=$(new_repo)
+plugin "$repo" docs documents
+plugin "$repo" conv "documents, workflow"
+plugin "$repo" env baseline
+bundle "$repo" all "documents, workflow, baseline" docs conv env
+expect_ok "bundle declaring the union with workflow" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" docs documents
+plugin "$repo" conv "documents, workflow"
+bundle "$repo" core documents docs conv
+expect_error "core holding a workflow plugin" "$repo" "core must list exactly the plugins declaring at most documents: docs"
+
 if ((failures > 0)); then
   echo "test-validate-prerequisites: $failures failure(s)" >&2
   exit 1
