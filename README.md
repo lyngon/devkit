@@ -134,26 +134,27 @@ And the way of working in it, in the order things happen:
 
 ## Installing the plugins
 
-For yourself, in Claude Code:
+Install the plugins per repository, never at user scope: they carry Lyngon's working rules, among them the standing instruction to commit, push and open pull requests without asking, which only a repository that follows the Lyngon conventions should get.
+In the repository, in Claude Code:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 `all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
 A repository that keeps its own toolchain and layout installs `core` instead, which brings `discover`, `build`, `practice`, `review`, `writing` and `conventions` and needs only the Lyngon documents:
 
 ```sh
-claude plugin install core@lyngon
+claude plugin install core@lyngon --scope project
 ```
 
 The Prerequisites column says what each plugin needs from a repository; the rules are in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
 For a subset, install the members by name instead; `repo` brings `discover` with it as a dependency:
 
 ```sh
-claude plugin install repo@lyngon
-claude plugin install writing@lyngon
+claude plugin install repo@lyngon --scope project
+claude plugin install writing@lyngon --scope project
 ```
 
 ## Adopting a repository
@@ -173,7 +174,7 @@ The settings name every plugin, since Claude Code does not count a member instal
 One command still installs them all:
 
 ```sh
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 To add a plugin to an adopted repository later, `--scope project` writes it into the committed settings:

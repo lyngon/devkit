@@ -6,7 +6,7 @@ Prerequisites: documents, baseline, structure
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install all@lyngon
+claude plugin install all@lyngon --scope project
 ```
 
 This plugin has no skills of its own.

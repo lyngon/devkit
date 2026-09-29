@@ -17,5 +17,5 @@ Prerequisites: documents
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install discover@lyngon
+claude plugin install discover@lyngon --scope project
 ```

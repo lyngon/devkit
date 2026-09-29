@@ -23,5 +23,5 @@ The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `re
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install build@lyngon
+claude plugin install build@lyngon --scope project
 ```

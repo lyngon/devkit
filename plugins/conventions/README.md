@@ -35,5 +35,5 @@ On its own:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install conventions@lyngon
+claude plugin install conventions@lyngon --scope project
 ```

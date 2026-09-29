@@ -21,5 +21,5 @@ Prerequisites: documents, baseline, structure
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install repo@lyngon
+claude plugin install repo@lyngon --scope project
 ```

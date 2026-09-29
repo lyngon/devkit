@@ -6,7 +6,7 @@ Prerequisites: documents
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install core@lyngon
+claude plugin install core@lyngon --scope project
 ```
 
 This plugin has no skills of its own.

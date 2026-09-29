@@ -18,5 +18,5 @@ On its own:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install review@lyngon
+claude plugin install review@lyngon --scope project
 ```

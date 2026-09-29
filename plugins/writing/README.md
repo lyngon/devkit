@@ -16,5 +16,5 @@ Vendored from [poteto/noodle](https://github.com/poteto/noodle) (MIT), see the s
 
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install writing@lyngon
+claude plugin install writing@lyngon --scope project
 ```
