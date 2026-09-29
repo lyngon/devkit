@@ -48,7 +48,7 @@ The build skills have no concept of either, so every controller improvised, and 
 
 ## Already handled elsewhere
 
-Do not redesign these; they are in `docs/seed-prompts/build-scripts-and-templates.md` and `docs/seed-prompts/plan-and-approach-rules.md`:
+Do not redesign these; they landed in `build` 0.2.0 (see `plugins/build/CHANGELOG.md`) or are in `docs/seed-prompts/plan-and-approach-rules.md`:
 
 - the implementer template deferring to the brief on tests and commits;
 - the "State changes since the inputs were written" block for reviewers;

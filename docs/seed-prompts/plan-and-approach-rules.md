@@ -58,4 +58,4 @@ Change: one sentence in `plugins/discover/skills/approach/SKILL.md`, in step 4 o
 ## Out of scope
 
 - Owner gates and operational tasks: `docs/seed-prompts/owner-gates.md`.
-- Build scripts and templates: `docs/seed-prompts/build-scripts-and-templates.md`.
+- Build scripts and templates: landed in `build` 0.2.0 and `review` 0.2.0 (see their `CHANGELOG.md`).
