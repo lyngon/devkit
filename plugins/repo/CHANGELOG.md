@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.6.0 - 2026-09-29
+
+- The Terraform stack is now OpenTofu: `languages.opentofu`, `terraform-format` (which runs `tofu fmt`), tflint from nixpkgs with the AWS ruleset and a root `.tflint.hcl`, and a `{name}-tflint` hook for every root and HCL module. The stock `tflint` hook in git-hooks.nix passes file names, which tflint has rejected since 0.47 ("Command line arguments support was dropped in v0.47"); reproduced against the pinned nixpkgs. `add-package` shows an infrastructure environment's `devenv.nix`.
+
 ## 0.5.5 - 2026-09-29
 
 - Stock hooks (`ruff-format`, `ruff`, `terraform-format`) are enabled once in the root `devenv.nix`, and a package's `devenv.nix` adds only its own `{name}-` hooks. The package template scoped `ruff-format` and `ruff` per package, which fails evaluation as soon as a second Python package exists.

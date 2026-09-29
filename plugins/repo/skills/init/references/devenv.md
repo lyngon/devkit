@@ -122,7 +122,7 @@ Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 | Go | `go.enable = true;` | `gofmt` | `golangci-lint` | | `/bin/`, `*.test`, `coverage.out` |
 | Nix | `nix.enable = true;` | `nixfmt` (baseline) | `deadnix`, `statix` | | |
 | Shell | `shell.enable = true;` | `shfmt` | `shellcheck` (baseline) | | |
-| Terraform | `terraform.enable = true;` | `terraform-format` | `tflint` | | `.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `*.tfvars` (may hold secrets; `.terraform.lock.hcl` is committed) |
+| OpenTofu | `opentofu.enable = true;` | `terraform-format` (runs `tofu fmt`) | `{name}-tflint` (custom, below) | | `.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `*.tfvars` (may hold secrets; `.terraform.lock.hcl` is committed) |
 | Haskell | `haskell.enable = true;` (`stack.enable` and `cabal.enable` default to true; disable the one not used) | `ormolu`, `cabal-fmt` | `hlint` | | `dist-newstyle/`, `.stack-work/`, `*.hi`, `*.o` |
 
 A stack outside this table gets `languages.<name>.enable = true` when devenv has it, no hooks beyond the baseline, and a note in `CLAUDE.md` that hooks for it are not configured.
@@ -378,6 +378,50 @@ git-hooks.hooks = {
 
 In adopt mode, move an existing ESLint configuration and compiler flags into these files and show the diff.
 Existing code that fails is fixed, or the owner accepts a scoped `rules` override with a reason; never drop a preset to make code pass.
+
+### OpenTofu: tflint
+
+tflint and the ruleset of the cloud in use come from nixpkgs, in the root `devenv.nix`, so nothing is downloaded at lint time:
+
+```nix
+packages = [ (pkgs.tflint.withPlugins (p: [ p.tflint-ruleset-aws ])) ];
+```
+
+nixpkgs also has `tflint-ruleset-google`.
+The rulesets are enabled in `.tflint.hcl` at the repository root:
+
+```hcl
+plugin "terraform" {
+  enabled = true
+  preset  = "recommended"
+}
+
+plugin "aws" {
+  enabled = true
+}
+```
+
+The `aws` block has no `source` or `version`, because nixpkgs decides the version; a `version` that differs from it fails with "Plugin not found".
+
+Each root and each HCL module runs it on its own directory, from its `devenv.nix`:
+
+```nix
+{ config, ... }:
+{
+  git-hooks.hooks."{name}-tflint" = {
+    enable = true;
+    name = "{name} tflint";
+    entry = "tflint --chdir=infra/environments/{name} --config=${config.devenv.root}/.tflint.hcl";
+    files = "^infra/environments/{name}/.*\\.tf$";
+    pass_filenames = false;
+  };
+}
+```
+
+The stock `tflint` hook in git-hooks.nix passes file names, which tflint has rejected since 0.47; it stays disabled.
+`--config` is absolute because tflint resolves it against the `--chdir` directory.
+Without `--config`, tflint looks for `.tflint.hcl` only in that directory and silently runs without the AWS ruleset; `--recursive` has the same trap, since it reads the `.tflint.hcl` of each directory it visits.
+A root is linted without the modules it calls, so every module gets its own hook.
 
 ## Secrets
 
