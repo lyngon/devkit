@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.7.0 - 2026-09-29
+
+- `engineering` carries the user's standing instructions, replacing its "Handing over" section: commit on a feature branch without asking, one concern per commit; push and open a pull request once the full check passes; ask before a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release or a publish. The text says it counts as being asked, which overrides an agent's default of committing only on request. Work that does not belong to the current branch's open or merged pull request starts on a new branch.
+
 ## 0.6.0 - 2026-09-29
 
 - Every skill's description ends with when to invoke it ("Invoke before ..."), instead of saying the skill loads automatically. A skill's body reaches the agent only when the agent invokes it, and `paths` does not load it, so no convention reached an agent before. `validate-marketplace` requires the wording.

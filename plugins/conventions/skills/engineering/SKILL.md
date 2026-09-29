@@ -31,11 +31,18 @@ Language and document rules are separate skills: invoke the one for a file's kin
 - Prefer real collaborators and fakes over mocks of your own code. Mock only what crosses the process boundary.
 - A flaky test is a bug. Fix it or delete it; never retry it.
 
-## Handing over
+## Committing and handing over
 
-- Run the repository's full check before handing over. Never disable or skip a check to make it pass.
-- Report faithfully: failing tests with their output, skipped steps by name, done things plainly.
-- Commit messages follow Conventional Commits, one concern per commit.
+These are the user's standing instructions: they count as being asked to commit, push and open a pull request.
+
+- Work on a feature branch named `<type>/<slug>`, after the Conventional Commits type of its main change. On the default branch, create one first. When the current branch carries other work (its pull request is open or merged, or it is named for another change), start a new branch from the up-to-date default branch.
+- Commit without asking whenever a concern is done: one concern per commit, in Conventional Commits form. Commits not yet pushed may be amended or reordered.
+- When the work is done and the full check passes, push the branch and open a pull request without asking. The user reviews the pull request and decides the merge.
+- Run the full check before every push. Never disable, skip or weaken a check or hook to get past it.
+- Never rewrite pushed history without asking; fixes after a push are new commits.
+- Ask before any other effect outside the branch: a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish.
+- Without a remote, commit and report. With a remote but no forge CLI, push and hand over the pull request link the forge printed.
+- Report faithfully: failing checks with their output, skipped steps by name, done things plainly.
 
 ## With devenv
 
