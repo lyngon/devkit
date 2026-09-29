@@ -25,10 +25,12 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - "File structure" gained a bullet that the repository's layout decides where files go.
 - Execution handoff: the two options renamed to Delegate (`build:delegate`) and Inline (`build:execute`); the recommendation sentence kept; added that the plan is committed on the feature branch (creating the branch when still on main, because nothing is committed on main without consent), that the user reviews the plan now and the finished branch later and is not asked between tasks, and the sentence "You will not be asked again until the branch is finished" in the handoff text. The handoff messages are fenced `text` blocks instead of bold paragraphs. "Subagent-driven" and "Native" became "Delegate" and "Inline".
 - Added a `## With the Lyngon documents` section: decisions meeting the ADR bar go to `docs/adr/` via `discover:domain-model`, settled terms to `CONCEPTS.md`, and the plan is none of the four documents.
-- Self-review rewritten as a numbered list with the same four checks.
+- Self-review rewritten as a numbered list with the same four checks (two more were added later, see below).
 - "your human partner" replaced by "the user" throughout.
 - Reflowed to one sentence per line; every em dash removed; headings in sentence case; the "No placeholders" list reworded without dashes; `pytest` example command kept as an illustration.
 - Added a pointer to `WORKFLOW.md`, the shared flow document, symlinked into this skill from the devkit's `shared/`.
+- Added a `## Checks and commands` section after the task structure: every check the plan mandates is shown failing without its property and passing with it, with the `pipefail` and `grep -q` false negative as the example; a command a person runs by hand is POSIX sh or runs through `bash -c`, with a pointer to `conventions:shell` when the conventions plugin is installed. "No placeholders" gained "a check without a control".
+- Self-review gained two checks: 5, every mandated check proven both ways; 6, every block of dictated prose checked against the repository's recorded decisions, the gates and rules in its agent instructions, and the design's and plan's own findings. `## With the Lyngon documents` names the ADRs, `CLAUDE.md` and `CONCEPTS.md` for check 6.
 
 ## Review notes
 

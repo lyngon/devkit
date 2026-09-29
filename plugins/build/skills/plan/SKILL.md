@@ -153,6 +153,16 @@ The commit step is one commit per task on the feature branch, in Conventional Co
 A task may span several commits when the plan says so.
 Never `git commit` on main.
 
+## Checks and commands
+
+Every check the plan mandates (a script, a command with an expected output, a condition a task verifies before it proceeds) is proven both ways.
+The plan's steps show each one failing when its property does not hold and passing when it does, with the expected output of both runs, the same discipline the tasks apply to code.
+A check seen only one way may not test its property at all: under `set -o pipefail`, `cmd | grep -q 'lock held'` is false whenever `cmd` exits non-zero, so a check for a held lock fails exactly when the lock is held.
+
+A command a person runs by hand (an owner step, a recovery step in a README) is POSIX sh, or runs through `bash -c '...'` explicitly.
+Their shell may be zsh, where bash-only syntax such as `${PIPESTATUS[0]}` prints nothing.
+When the conventions plugin is installed, `conventions:shell` holds the rules an implementer meets while writing scripts.
+
 ## No placeholders
 
 Every step must contain the actual content an engineer needs.
@@ -164,6 +174,7 @@ These are plan failures; never write them:
 - "Similar to Task N" (repeat the code; the engineer may be reading tasks out of order)
 - Steps that describe what to do without showing how (code steps need code blocks)
 - References to types, functions or methods not defined in any task
+- A check without a control: a mandated script or command shown passing but never shown failing when its property does not hold
 
 ## Self-review
 
@@ -179,6 +190,10 @@ This is a checklist you run yourself, not a subagent dispatch.
 4. **Review focus.** For each input class or failure mode the spec implies, is there a task whose tests exercise it?
    The five uncovered ones most likely to bite a person go in the Review Focus section, and each line there gets its test added to the owning task.
    An empty section means you checked and found none, not that you skipped the check.
+5. **Checks proven both ways.** For every check the plan mandates, is there a step that shows it failing without its property and passing with it?
+   Add the missing run; a check without one is a placeholder.
+6. **Dictated prose.** Check every block of prose the plan dictates verbatim (a decision record, README steps, a working rule, a term's definition) against the repository's recorded decisions, the gates and rules in its agent instructions, and the findings recorded earlier in this design and plan.
+   The implementer copies it as written, so a contradiction the plan carries ships.
 
 If you find issues, fix them inline.
 No need to re-review; fix and move on.
@@ -232,4 +247,5 @@ If inline execution is chosen, call the Skill tool for `build:execute`.
 
 A decision made while planning that is hard to reverse, surprising without context and the result of a real trade-off is recorded as an ADR in `docs/adr/`: call the Skill tool for `discover:domain-model`.
 A term settled while planning goes into `CONCEPTS.md` the same way.
+Self-review item 6 checks dictated ADR text, README steps, `CLAUDE.md` lines and `CONCEPTS.md` entries against the existing ADRs and the gates and rules in `CLAUDE.md`.
 The plan itself is none of the four documents (`INTENT.md`, `CLAUDE.md`, `CONCEPTS.md`, the ADRs); it carries no purpose, working rule, term or decision that has to outlive the branch.
