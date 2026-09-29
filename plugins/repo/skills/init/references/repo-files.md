@@ -82,7 +82,14 @@ devenv test
 ```
 
 `devenv test` runs every git hook on every file, then `enterTest` from `devenv.nix`.
-devenv detects coding agents and hides task output; run with `DEVENV_NO_AI_AGENT=1` to see it.
+It prints task names and times, and hook output only when a hook fails.
+`DEVENV_NO_AI_AGENT=1` restores devenv's normal output, which shows no more of the hooks.
+Per-hook results come from prek, run inside the devenv shell:
+
+```sh
+prek run --all-files
+```
+
 {Per-package test commands, one line each, e.g. `cd apps/orders-api && uv run pytest`.}
 Never disable a hook to make a check pass.
 
