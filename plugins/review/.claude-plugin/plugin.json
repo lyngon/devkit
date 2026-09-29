@@ -1,6 +1,6 @@
 {
   "name": "review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement.",
   "author": {
     "name": "Lyngon",

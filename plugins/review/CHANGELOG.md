@@ -4,6 +4,10 @@ All notable changes to the `review` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.3.0 - 2026-09-29
+
+- `request` is mandatory before a pull request is opened rather than before a merge, and Minor findings that nobody fixes go into the pull request description.
+
 ## 0.2.0 - 2026-09-29
 
 - The reviewer template takes an optional "State changes since the inputs were written" section (`{STATE_CHANGES}`): the facts that superseded the plan, the spec or an inventory, such as a resource the owner removed by hand, so the reviewer does not report against a world that no longer exists.
