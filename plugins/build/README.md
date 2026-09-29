@@ -1,6 +1,6 @@
 # build
 
-From an approved design to an integrated branch.
+From an approved design to an open pull request.
 
 Prerequisites: documents
 
@@ -11,7 +11,7 @@ Prerequisites: documents
 - `/build:execute`: execute a plan yourself in the session, task by task, with one whole-branch review at the end. The cheap mode.
 - `/build:finish`: run the full check, offer the deferred findings for `docs/TODO.md`, remove the plan file, push the branch and open the pull request; merging locally or keeping the branch only on request.
 
-The user reviews at two gates: the plan before execution, and the finished branch afterwards, starting from the executor's "Rulings I made" and "Deferred minors" lists.
+The user reviews at two gates: the plan before execution, and the pull request afterwards, starting from the executor's "Rulings I made" and "Deferred minors" lists in its description.
 Between the gates the executor commits per task on a feature branch and does not stop to ask, except for the stop conditions every executor carries.
 The execution ledger and the task briefs live under `tmp/build/<plan>/`, the agent scratch directory, never in git.
 See [ADR 0016](../../docs/adr/0016-planned-work-is-reviewed-at-two-gates.md).

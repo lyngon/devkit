@@ -63,7 +63,7 @@
     {
       "name": "build",
       "source": "./plugins/build",
-      "description": "From an approved design to an integrated branch: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end.",
+      "description": "From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end.",
       "category": "engineering",
       "keywords": [
         "plan",

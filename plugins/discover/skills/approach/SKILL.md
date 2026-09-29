@@ -29,7 +29,7 @@ Before the first question, classify the request and say the classification aloud
   Present a short design in chat: approach, files touched, testing.
   Stop and wait for an explicit yes.
   Then implement through the normal workflow, with `practice:tdd` when the practice plugin is installed.
-  When the review and build plugins are installed, `review:request` before merging and `build:finish` to integrate the branch.
+  When the review and build plugins are installed, `review:request` before the pull request and `build:finish` to push the branch and open it.
   No plan file.
 - **Architectural**: new subsystems, restructuring how components fit together, or interfaces others depend on.
   Follow the architectural path below.

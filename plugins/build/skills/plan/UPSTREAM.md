@@ -31,6 +31,7 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - Added a pointer to `WORKFLOW.md`, the shared flow document, symlinked into this skill from the devkit's `shared/`.
 - Added a `## Checks and commands` section after the task structure: every check the plan mandates is shown failing without its property and passing with it, with the `pipefail` and `grep -q` false negative as the example; a command a person runs by hand is POSIX sh or runs through `bash -c`, with a pointer to `conventions:shell` when the conventions plugin is installed. "No placeholders" gained "a check without a control".
 - Self-review gained two checks: 5, every mandated check proven both ways; 6, every block of dictated prose checked against the repository's recorded decisions, the gates and rules in its agent instructions, and the design's and plan's own findings. `## With the Lyngon documents` names the ADRs, `CLAUDE.md` and `CONCEPTS.md` for check 6.
+- The execution handoff names the pull request that `build:finish` opens as the second gate, and says the rulings are presented in its description.
 
 ## Review notes
 
