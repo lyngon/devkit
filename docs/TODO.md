@@ -6,7 +6,6 @@ A queued item has a seed prompt in `docs/seed-prompts/`: paste the file into a f
 
 ## Queued
 
-- 2026-09-29: [Review on the pull request](seed-prompts/review-on-the-pull-request.md), a design through `discover:approach`. The agent commits on a feature branch without waiting for a file review, pushes and opens a pull request once the full check passes, and the owner reviews the pull request; in this repository and every repository using the devkit, amending ADR 0016.
 - 2026-09-27: [Repo plugin: session environment hooks](seed-prompts/session-environment-hooks.md). A SessionStart and a FileChanged hook that export the devenv environment into Claude Code's per-command environment file (the inherited environment is captured once and goes stale; `direnv exec` re-evaluates on every call), and a session-start line when the branch is behind its upstream.
 - 2026-09-27: [Owner gates and operational tasks](seed-prompts/owner-gates.md), a design through `discover:approach`. Tasks the owner performs or approves (an apply, a deletion, a deploy), tasks that commit nothing, review without a diff, pausing and resuming a run across sessions, and evidence that outlives the workspace; met in all three lyngon.com sessions.
 - 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when `discover:approach` decomposes work, kept by `build:finish` until the last piece lands.
