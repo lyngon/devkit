@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.3 - 2026-09-29
+
+- `init` enables every plugin by name in `.claude/settings.json`: `all@lyngon` and each of its members, or the chosen bundle or subset with its dependencies. With the bundle alone, Claude Code 2.1.278 did not load `build`, because it does not count a member installed with the bundle as enabled when it checks another member's dependencies. The README still installs with the one bundle command.
+
 ## 0.5.2 - 2026-09-23
 
 - `init` no longer writes a private marketplace credentials note into the README; the marketplace installs without credentials.

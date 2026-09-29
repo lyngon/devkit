@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Validate the marketplace manifest, every plugin directory, every SKILL.md,
-# every vendored skill's provenance and every catalog record.
+# every vendored skill's provenance, every catalog record and the plugins
+# enabled by the settings template of /repo:init.
 # Encodes the rules from CLAUDE.md and ADRs 0006 to 0008.
 set -euo pipefail
 
@@ -145,6 +146,26 @@ if [[ -f plugins/all/.claude-plugin/plugin.json ]]; then
   expected=$(jq -r '.plugins[] | select(.source | type == "string") | select(.category != "devkit") | select(.category != "bundle") | .name' "$manifest" | sort)
   actual=$(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' plugins/all/.claude-plugin/plugin.json | sort)
   [[ "$expected" == "$actual" ]] || fail "plugins/all: dependencies must be exactly: $(tr '\n' ' ' <<<"$expected")"
+fi
+
+# The settings template of /repo:init enables `all` and every member by name:
+# Claude Code does not count a member installed with the bundle as enabled when
+# it checks another member's dependencies.
+settings_template=plugins/repo/skills/init/references/repo-files.md
+if [[ -f plugins/all/.claude-plugin/plugin.json && -f "$settings_template" ]]; then
+  marketplace=$(jq -r '.name' "$manifest")
+  settings=$(awk '/^## \.claude\/settings\.json$/ { section = 1; next }
+    section && /^## / { exit }
+    section && /^```json$/ { block = 1; next }
+    block && /^```$/ { exit }
+    block' "$settings_template")
+  if jq -e '.enabledPlugins | type == "object"' <<<"$settings" >/dev/null 2>&1; then
+    expected=$(jq -r --arg m "$marketplace" '"all@" + $m, (.dependencies // [] | .[] | (if type == "string" then . else .name end) + "@" + $m)' plugins/all/.claude-plugin/plugin.json | sort)
+    actual=$(jq -r '.enabledPlugins | keys[]' <<<"$settings" | sort)
+    [[ "$expected" == "$actual" ]] || fail "$settings_template: enabledPlugins in the .claude/settings.json template must be exactly: $(tr '\n' ' ' <<<"$expected")"
+  else
+    fail "$settings_template: the .claude/settings.json section needs a JSON block with an enabledPlugins object"
+  fi
 fi
 
 # Every plugin directory must be listed.
