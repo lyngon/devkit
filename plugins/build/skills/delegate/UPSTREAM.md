@@ -38,6 +38,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `task-brief` and `review-package` print the bare path on stdout and their summary on stderr, where upstream printed `wrote <path>: ...` on stdout while SKILL.md said they print the path.
 - `task-brief` appends the plan's `### Global Constraints` section after the task text, found by the same fence-aware awk pass (a plan without one gives a brief without it); the "not found" check still looks at the task text only. The task reviewer template's `[GLOBAL_CONSTRAINTS]` (the controller pasted the constraints) became a pointer to the brief's Global Constraints section plus an optional one-sentence `[CONSTRAINT_EMPHASIS]`; the "attention lens" paragraph in SKILL.md was rewritten to match.
 - One brief and one report per task: "a uniquely named file" dropped; SKILL.md says regenerating a brief is harmless, and that a report file that already exists is a prior attempt's memory, kept and handed to the new implementer with the framing of fix rounds 4 and 5. The implementer template reads an existing report first and appends under a dated heading; the task reviewer template says the last dated attempt is the report on the diff.
+- `review-package` lists every commit with its full message (`### <short sha> <subject>`, then the body) instead of `git log --oneline`, so reviewers can check the commit rules; the task reviewer and re-review templates say so, and their fallback adds `git log`.
 
 ## Review notes
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Generate a review package: commit list, stat summary, and the net diff with
-# extended context, written to a file the reviewer reads in one call. Using
-# the recorded per-task BASE (not HEAD~1) keeps multi-commit tasks intact.
+# Generate a review package: every commit with its full message, a stat
+# summary, and the net diff with extended context, written to a file the
+# reviewer reads in one call. The full messages let the reviewer check the
+# commit rules without git. Using the recorded per-task BASE (not HEAD~1)
+# keeps multi-commit tasks intact.
 #
 # Usage: review-package PLAN_FILE BASE HEAD [OUTFILE]
 # Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/review-<base7>..<head7>.diff
@@ -40,8 +42,10 @@ fi
   echo "# Review package: ${base}..${head}"
   echo
   echo "## Commits"
-  git log --oneline "${base}..${head}"
   echo
+  # Subject as a heading, then the body with its trailers; cat -s squeezes
+  # the blank lines an empty body leaves.
+  git log --no-decorate --format='### %h %s%n%n%b' "${base}..${head}" | cat -s
   echo "## Files changed"
   git diff --stat "${base}..${head}"
   echo

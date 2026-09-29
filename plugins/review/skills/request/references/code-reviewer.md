@@ -42,15 +42,17 @@ Dispatch a subagent with:
     **Head:** {HEAD_SHA}
 
     ```bash
+    git log {BASE_SHA}..{HEAD_SHA}
     git diff --stat {BASE_SHA}..{HEAD_SHA}
     git diff {BASE_SHA}..{HEAD_SHA}
     ```
 
     ## Review package
 
-    Read {REVIEW_PACKAGE} first: it holds the commit list, the stat summary
-    and the net diff of the range above with extended context, in one file.
-    Use git only to look beyond what the package shows.
+    Read {REVIEW_PACKAGE} first: it holds every commit with its full message
+    (subject and body), the stat summary and the net diff of the range above
+    with extended context, in one file. Use git only to look beyond what the
+    package shows.
 
     ## The spec is a vision document
 

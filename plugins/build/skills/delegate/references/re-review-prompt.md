@@ -33,9 +33,10 @@ Dispatch a subagent with:
     **Head:** [HEAD_SHA]
     **Diff file:** [DIFF_FILE]
 
-    Read the diff file once. It contains the fix commits, a stat summary,
-    and the fix diff with surrounding context. Do not re-run git commands.
-    If the diff file is missing, fetch the diff yourself:
+    Read the diff file once. It contains the fix commits with their full
+    messages (subject and body), a stat summary, and the fix diff with
+    surrounding context. Do not re-run git commands. If the diff file is
+    missing, fetch the range yourself: `git log [FIX_BASE_SHA]..[HEAD_SHA]`,
     `git diff --stat [FIX_BASE_SHA]..[HEAD_SHA]` and
     `git diff [FIX_BASE_SHA]..[HEAD_SHA]`.
 

@@ -304,8 +304,8 @@ The broad review happens once, at the final whole-branch review.
 Never skip the task review, and never accept a report missing either verdict: spec compliance AND task quality are both required.
 Implementer self-review never replaces the task review; both are needed.
 
-- Hand the reviewer its diff as a file: run this skill's `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path it prints (or, without bash: `git log --oneline`, `git diff --stat` and `git diff -U10` for the range, redirected to one uniquely named file).
-  The output never enters your own context, and the reviewer sees the commit list, stat summary and full diff with context in one read.
+- Hand the reviewer its diff as a file: run this skill's `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path it prints (or, without bash: `git log`, `git diff --stat` and `git diff -U10` for the range, redirected to one uniquely named file).
+  The output never enters your own context, and the reviewer sees every commit with its full message, the stat summary and the full diff with context in one read.
   Use the BASE you recorded before dispatching the implementer, never `HEAD~1`, which silently truncates multi-commit tasks.
   Never dispatch a task reviewer without a diff file.
 - **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package) and at most one sentence of emphasis.
