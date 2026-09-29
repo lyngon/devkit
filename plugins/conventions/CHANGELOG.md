@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.1 - 2026-09-29
+
+- `nix` says that stock hooks such as `ruff` and `terraform-format` are enabled once in the root `devenv.nix`, and that a package's `devenv.nix` adds only its own `{name}-` hooks, since a hook's `files` holds one pattern and a stock hook scoped in two packages fails evaluation.
+
 ## 0.5.0 - 2026-09-29
 
 - Added `shell`, loaded for `*.sh`, `*.bash` and files under a `scripts/` directory: bash with `set -euo pipefail`, output captured and then matched instead of piped into `grep -q` under `pipefail`, and commands a person runs by hand in POSIX sh or through `bash -c`. `With devenv` makes every script a hook or task runs a `writeShellApplication`; `With the Lyngon baseline` names the `shellcheck` hook and how to silence a single finding.

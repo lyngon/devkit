@@ -36,4 +36,4 @@ paths:
 ## With the Lyngon structure
 
 - `lyngon.structure.enable = true` in the root `devenv.nix` turns on the layout check.
-- Languages are enabled once, in the root `devenv.nix`. A package's `devenv.nix` holds only its tasks, hooks scoped with `files`, and processes.
+- Languages and stock hooks (`ruff`, `terraform-format`) are enabled once, in the root `devenv.nix`. A package's `devenv.nix` holds only its tasks, its own `{name}-` hooks scoped with `files`, and processes; a stock hook scoped in two packages fails evaluation with conflicting `files` values.
