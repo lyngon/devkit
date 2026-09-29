@@ -13,6 +13,7 @@ Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 - Every reviewer gets the state changes since the plan was written, ledgered as `State:` lines, in an optional section.
 - The implementer template tests and commits as the brief says, with the previous behaviour as the default, and a brief may declare that a task commits nothing. Hook evidence is the output of an explicit hook run, never commit-time output; with devenv, `prek run --all-files`.
 - `delegate` and `execute` hand the plan workspace to `finish` instead of deleting it. `finish` offers the deferred minors and parked findings for `docs/TODO.md` before it removes the plan, and removes the workspace when the work lands.
+- `finish` ends a pull request with the landing steps for after the forge merges it: switch to the base branch, `git pull --ff-only`, remove the worktree and delete the local branch.
 
 ## 0.1.0 - 2026-09-23
 

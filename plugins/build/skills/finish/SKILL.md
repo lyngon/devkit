@@ -174,6 +174,21 @@ Report the URL to the user.
 
 Keep the worktree and the plan workspace: the work has not landed, and the user iterates on pull request feedback in the worktree.
 
+The merge then happens on the forge, and the local base branch does not follow it.
+End your report with the landing steps for after the merge, with the paths and names filled in and the lines that do not apply left out, so the user or the next session can run them:
+
+```bash
+cd <main repository root>
+git switch <base-branch>
+git pull --ff-only
+rm -rf <plan workspace>                # when Step 2 resolved one
+git worktree remove <worktree path>    # only under .worktrees/ or worktrees/, as in Step 7
+git branch -d <feature-branch>         # after the worktree: git refuses to delete a checked-out branch
+```
+
+A forge that squashed or rebased the pull request leaves the local branch unmerged in git's eyes, so `git branch -d` refuses it.
+Check that the pull request shows as merged, then delete it with `-D`.
+
 ### Option 3: Keep as it is
 
 Report: "Keeping branch [name]. Worktree preserved at [path]."
@@ -261,6 +276,7 @@ If your platform provides a workspace-exit tool, use it.
 | --- | --- | --- | --- | --- |
 | 1. Merge locally | yes | - | - | yes |
 | 2. Create a pull request | - | yes | yes | - |
+| 2, after the forge merged it (landing steps) | fast-forward the base (`git pull --ff-only`) | - | - | yes |
 | 3. Keep as it is | - | - | yes | - |
 | Discard (explicit request only) | - | - | - | yes (force) |
 
@@ -275,6 +291,7 @@ If your platform provides a workspace-exit tool, use it.
 | "'Yeah, get rid of it' counts as confirmation" | Only the typed word `discard` authorizes deletion. |
 | "The deferred minors are in the executor's message, that's enough" | The message scrolls away and the ledger goes with the workspace. Offer them for the TODO list before the plan is removed. |
 | "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |
+| "The PR is up, the local base branch will catch up on its own" | It will not. The next session starts on a stale base and misses what landed. End the report with the landing steps. |
 | "This other worktree looks stale, I'll clean it too" | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host. |
 | "Removal refused, `--force` is just finishing the cleanup" | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show the user and ask. |
 | "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
