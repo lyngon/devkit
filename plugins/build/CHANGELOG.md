@@ -11,6 +11,7 @@ Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 - One brief and one report per task. A report file left by an earlier attempt is handed to the new implementer, who reads it first and appends under a dated heading.
 - Review packages list every commit with its full message, so reviewers can check the commit rules.
 - Every reviewer gets the state changes since the plan was written, ledgered as `State:` lines, in an optional section.
+- The implementer template tests and commits as the brief says, with the previous behaviour as the default, and a brief may declare that a task commits nothing. Hook evidence is the output of an explicit hook run, never commit-time output; with devenv, `prek run --all-files`.
 
 ## 0.1.0 - 2026-09-23
 

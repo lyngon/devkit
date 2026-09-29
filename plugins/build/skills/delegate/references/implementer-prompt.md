@@ -37,11 +37,13 @@ Dispatch a subagent with:
 
     Once you're clear on requirements:
     1. Implement exactly what the task specifies
-    2. Write tests (following TDD if the task says to)
+    2. Test as the brief specifies; by default, write tests the way
+       practice:tdd requires
     3. Verify the implementation works
-    4. Commit your work: one commit per task on the current branch,
-       Conventional Commits, one concern per commit; more commits only
-       when the brief says so; never on main
+    4. Commit as the brief specifies; by default, one commit per task on
+       the current branch, Conventional Commits, one concern per commit,
+       never on main. A brief may declare that the task commits nothing;
+       then commit nothing, and say so in your report
     5. Self-review (see below)
     6. Report back
 
@@ -145,6 +147,10 @@ Dispatch a subagent with:
     - **TDD Evidence** (if TDD was required for this task):
       - RED: command run, relevant failing output before implementation, and why the failure was expected
       - GREEN: command run and relevant passing output after implementation
+    - **Hook evidence**, when the repository has git hooks: the output of
+      [HOOK_COMMAND], run after your last change. Commit-time hook output
+      is never evidence that a hook ran: a hook whose files are not staged
+      is skipped at commit time.
     - Files changed
     - Self-review findings (if any)
     - Any issues or concerns
@@ -152,7 +158,8 @@ Dispatch a subagent with:
     Then report back with ONLY (under 15 lines; the detail lives in the
     report file):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - Commits created (short SHA + subject)
+    - Commits created (short SHA + subject), or "none" when the brief
+      declares that the task commits nothing
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
     - The report file path
@@ -170,4 +177,10 @@ Dispatch a subagent with:
 - `[MODEL]`: required, the implementer model per the Model selection section of SKILL.md.
 - `[BRIEF_FILE]`: required, the task brief file that `scripts/task-brief PLAN N` printed.
 - `[REPORT_FILE]`: required, named after the brief (`task-N-brief.md` becomes `task-N-report.md`) in the same workspace; one per task, and a prior attempt's file is kept and appended to.
+- `[HOOK_COMMAND]`: the command that runs the repository's git hooks on demand and prints each hook's result, as the repository's instructions name it. Leave out the hook-evidence item when the repository has no git hooks.
 - `[directory]`: the worktree the implementer works in.
+
+## With devenv
+
+`[HOOK_COMMAND]` is `prek run --all-files`, or `prek run --files <paths>` for the files the task changed, run inside the devenv shell.
+A passing `devenv test` is never hook evidence: it prints task names and times, not each hook's result (devenv 2.3.1, also with `DEVENV_NO_AI_AGENT=1`).
