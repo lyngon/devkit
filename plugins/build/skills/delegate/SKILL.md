@@ -408,7 +408,10 @@ Never move to the next task while the review has open Critical or Important issu
 A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) runs in two dispatches around the gate, and you take the gate itself: an implementer cannot ask the owner anything.
 Read [owner-gates.md](references/owner-gates.md) before the first gated task and follow it step by step: the pre-gate dispatch, pinning, the pre-approval check, the gate message, the fresh post-gate dispatch that carries the approval in the implementer template's `[OWNER_GATE]` block, the record commit, the evidence review with [evidence-reviewer-prompt.md](references/evidence-reviewer-prompt.md), pausing and resuming.
 Each of the five stops above that the plan did not declare runs the same protocol as an unforeseen gate.
-The evidence review takes the place of the task review for a gated task; its findings go through the fix loop like any other.
+The evidence review takes the place of the task review for a gated task.
+Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round; the rest go through the fix loop like any other.
+Fix rounds 1 to 3 resume the post-gate implementer, whose `[OWNER_GATE]` block limits the approved commands to one run.
+The scoped re-review after an evidence-review fix gets the evidence reviewer's read-only access to the live system, so it can verify a finding about live state.
 
 ## Final review
 

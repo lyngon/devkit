@@ -43,6 +43,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - `task-done` records a passing test command that prints nothing, with `(no output)` as the last line, where upstream exited 1 under `pipefail` and recorded nothing.
 - `## Owner gates`: the evidence review passes the task's ledger lines and the hash of its record commit in place of the report files, which the inline executor does not write.
 - Setup follows Resuming in `../delegate/references/owner-gates.md` for a plan that declares owner gates or holds an Execution status, whether or not the run paused, where it restored only a paused run's ledger; recovering a lost workspace points gated tasks at the same section; the resume rule and its gated-task exception are one sentence; `PLAN_FILE` is the plan's path relative to the repository root in the ledger's identity line and every script call; the rationalization row says a run-time approval lapses when the session that received it ends before the post-gate part starts.
+- `## Owner gates`: the evidence review's findings are screened before any fix, and one whose fix needs another live action becomes an unforeseen gate.
 
 ## Review notes
 

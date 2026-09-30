@@ -56,6 +56,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `task-brief` refuses (exit 3) a step title that says "owner gate", in any case and followed by anything but a letter, without being a well-formed marker, and a task that a row of the Owner Gates index names but whose steps hold no marker with that row's ID; `references/owner-gates.md` says so.
 - `references/owner-gates.md`, which is not upstream: Resuming runs at every setup of a plan that declares owner gates or holds an Execution status, whether or not the run paused, and reconciles the ledger with `git log` since the pause commit, or else since the merge base; a run-time approval lapses when the session that received it ends before the post-gate part starts.
   Setup follows Resuming for such a plan, the resume rule and its gated-task exception are one sentence, and `PLAN_FILE` is the plan's path relative to the repository root in the ledger's identity line and every script call.
+- Owner gates, which are not upstream: the evidence review's findings are screened before any fix round, and one whose fix needs another live action becomes an unforeseen gate; the implementer template's post-gate `[OWNER_GATE]` text says the approval covers one run of the commands and that a fix round takes no effect outside the repository; the scoped re-review after an evidence-review fix gets read-only access to the live system.
 
 ## Review notes
 

@@ -75,7 +75,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Its message body is the evidence: the gate ID, the owner's answer verbatim with its time or the pre-approval, the pins, the commands run in order with their result lines, and the results of the checks.
    It holds summaries and identifiers, never a secret.
 7. **Evidence review.** Generate `review-package PLAN_FILE BASE HEAD` and dispatch the reviewer in [evidence-reviewer-prompt.md](evidence-reviewer-prompt.md) with both briefs, both reports, the pinned files, this gate's ledger lines, the `State:` lines and read-only access to the live system.
-   A fix that needs another live action is an unforeseen gate.
+   Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round.
 8. **Complete.** In `build:delegate`, ledger `Task N: complete (commits <base7>..<head7>, evidence review clean)`, or `(commits <base7>..<head7>, <K> parked)` after a tripped breaker.
    In `build:execute`, `task-done` records the completion once the evidence review is clean.
 

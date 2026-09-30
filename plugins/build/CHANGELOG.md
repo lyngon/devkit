@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.16 - 2026-09-30
+
+- `delegate`'s implementer template tells a post-gate implementer that the approval covers one run of the approved commands, and that in a fix round it never runs them again and takes no other effect outside the repository but reports BLOCKED, where a fix round resumed the implementer that held the approval and a finding about the live system invited a second apply.
+  Both executors screen the evidence review's findings before any fix, so one whose fix needs another live action becomes an unforeseen gate, and `delegate`'s scoped re-review after an evidence-review fix gets read-only access to the live system.
+
 ## 0.15.15 - 2026-09-30
 
 - `delegate`'s owner gate protocol reconciles the ledger with `git log` at every setup of a plan that declares owner gates or holds an Execution status, reading from the pause commit or else from the merge base, where it did so only after a pause; so a record commit whose completion was never ledgered, or a workspace lost without a pause, no longer lets a gated action run twice.
