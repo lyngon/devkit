@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.44 - 2026-09-30
+
+- The owner gate protocol's Resuming and the evidence reviewer template cover a resumed evidence review whose reports and pinned temporary files are gone with the workspace: the run ledgers `State: workspace lost before the evidence review of Task N; reports and temporary files gone`, and the reviewer checks the live state against the pins and the evidence in the record commit's body and the ledger's gate lines, in place of the missing files, as under `build:execute`, where neither text said what to review against.
+
 ## 0.15.43 - 2026-09-30
 
 - `delegate`'s and the owner gate protocol's one-run guard covers the final review's fix wave whenever it touches a gated task, which carries the post-gate `[OWNER_GATE]` block with its one-run sentence like every other fix dispatch after the post-gate part has acted, where the rule named only the task's own fix rounds.

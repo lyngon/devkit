@@ -49,6 +49,10 @@ Dispatch a subagent with:
     inline executor, which writes no reports, these are the task's ledger
     lines and its record commit.
     If one holds several dated attempts, the last one is current.
+    If the state list says the workspace was lost, the reports and the
+    pinned files are gone: check the live state against the pins in the
+    gate lines and the evidence in the record commit's body and the
+    gate lines, in place of the missing files.
 
     ## Commits Under Review
 
@@ -174,7 +178,7 @@ Dispatch a subagent with:
 - `[GATE_LINES]`: required, the ledger's lines for this gate, verbatim: the pre-gate line with its pins, and the answer or pre-approval line.
 - `[PINNED_FILES]`: required, the paths of the pinned files, or "none" for a gate pinned by command text alone.
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines.
-- `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required; the two report files, or under `build:execute` the task's ledger lines and the hash of its record commit.
+- `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required; the two report files, or under `build:execute` the task's ledger lines and the hash of its record commit; after a lost workspace, the same ledger lines and hash, with the `State: workspace lost before the evidence review of Task N; reports and temporary files gone` line among `[STATE_CHANGES]`.
 - `[BASE_SHA]`, `[HEAD_SHA]`: the commit before the task and the current commit.
 - `[DIFF_FILE]`: required, the path `review-package PLAN_FILE BASE HEAD` printed.
 - `[LIVE_ACCESS]`: required, how to reach the live system read-only (the tool, the profile or context, the calls the briefs' checks use), or "none" when the action changed nothing outside the repository.

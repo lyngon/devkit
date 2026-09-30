@@ -132,6 +132,7 @@ Follow these steps at every setup of a plan that declares owner gates or ends wi
    - A gated task whose record commit appears in the log (the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$'`) has acted: never re-run its post-gate part.
      Ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, only when the ledger lacks one.
      When the ledger shows its evidence review or an evidence-review fix round in progress, resume that loop at its next round; otherwise resume the task at step 7, the evidence review, which then completes it.
+     When the task's reports or pinned temporary files are gone with the workspace, ledger `State: workspace lost before the evidence review of Task N; reports and temporary files gone`: the reviewer then checks the live state against the pins and the evidence in the record commit's body and the ledger's gate lines, in place of the missing files, as under `build:execute`.
      When BASE was lost with the workspace, take as BASE the parent of the task's first commit in the log, which is the record commit's parent when that is the task's only commit.
 
    Ledger what the reconciliation found, on a fresh start and after a restore alike, as a line of its own: `Reconcile <time>: <since>..HEAD; <what it recovered, or "nothing to recover">`.
