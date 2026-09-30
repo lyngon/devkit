@@ -41,6 +41,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Owner gates: `Task N post-gate: started` is ledgered in the same call as `task-start --part post-gate`, before any post-gate step runs.
 - `workspace`, `execution-status restore` and `review-package` are named as `<this skill's directory>/../delegate/scripts/...` and run from the repository root, where "from this skill's directory" was read as changing into it.
 - `task-done` records a passing test command that prints nothing, with `(no output)` as the last line, where upstream exited 1 under `pipefail` and recorded nothing.
+- `## Owner gates`: the evidence review passes the task's ledger lines and the hash of its record commit in place of the report files, which the inline executor does not write.
 
 ## Review notes
 

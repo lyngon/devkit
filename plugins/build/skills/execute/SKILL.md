@@ -223,6 +223,7 @@ Read [owner-gates.md](../delegate/references/owner-gates.md) before the first ga
   In the pre-gate part you never perform the gated action; its brief ends at the gate with "Stop here".
 - Ledger `Task N post-gate: started` where the protocol says `dispatched`, in the same call as `task-start --part post-gate`, before any post-gate step runs.
 - The evidence review is a subagent dispatch here too, with [evidence-reviewer-prompt.md](../delegate/references/evidence-reviewer-prompt.md) on at least a mid-tier model, because the final review reads a diff and cannot see live state.
+  Having no report files, it passes the task's ledger lines and the hash of its record commit in place of `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]`.
   Fix its Critical and Important findings in one pass, each verified by a test or a re-run check that failed first, and ledger `Task N: evidence review clean` or `Task N: evidence review: <K> fixed`.
   Without a subagent tool, apply the template yourself as a separate pass and ledger `Task N: evidence review: self-review (no subagent tool)`.
 - Then run `task-done` with the task's checks as its test command; it records the completion line.

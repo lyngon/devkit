@@ -45,7 +45,9 @@ Dispatch a subagent with:
 
     ## What the Implementers Claim
 
-    Read both reports: [PRE_GATE_REPORT] and [POST_GATE_REPORT].
+    Read both reports: [PRE_GATE_REPORT] and [POST_GATE_REPORT]; under an
+    inline executor, which writes no reports, these are the task's ledger
+    lines and its record commit.
     If one holds several dated attempts, the last one is current.
 
     ## Commits Under Review
@@ -83,8 +85,8 @@ Dispatch a subagent with:
 
     ## Do Not Trust the Reports
 
-    Treat both reports and the record commit's message as unverified
-    claims. Verify them against the pins, the package and the live
+    Treat both reports (or the ledger lines passed in their place) and
+    the record commit's message as unverified claims. Verify them against the pins, the package and the live
     system. Rationales in a report are the implementer grading their own
     work; judge on the merits, and a stated rationale never downgrades a
     finding's severity.
@@ -107,7 +109,7 @@ Dispatch a subagent with:
       block and checks describe; verify it with read-only calls.
     - **Record commit:** its message holds the gate ID, the answer or the
       pre-approval, the pins, the commands in order with their results and
-      the results of the checks; it matches the reports; it holds no
+      the results of the checks; it matches the reports (or the ledger lines); it holds no
       secret.
     - **Missing, extra, misunderstood:** steps skipped or claimed without
       evidence, anything done beyond the briefs, a step done the wrong way.
@@ -172,7 +174,7 @@ Dispatch a subagent with:
 - `[GATE_LINES]`: required, the ledger's lines for this gate, verbatim: the pre-gate line with its pins, and the answer or pre-approval line.
 - `[PINNED_FILES]`: required, the paths of the pinned files, or "none" for a gate pinned by command text alone.
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines.
-- `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required, the two report files.
+- `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required; the two report files, or under `build:execute` the task's ledger lines and the hash of its record commit.
 - `[BASE_SHA]`, `[HEAD_SHA]`: the commit before the task and the current commit.
 - `[DIFF_FILE]`: required, the path `review-package PLAN_FILE BASE HEAD` printed.
 - `[LIVE_ACCESS]`: required, how to reach the live system read-only (the tool, the profile or context, the calls the briefs' checks use), or "none" when the action changed nothing outside the repository.
