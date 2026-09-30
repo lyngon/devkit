@@ -50,8 +50,9 @@ Dispatch a subagent with:
        the pre-gate part of an owner gate, which commits nothing; a task
        whose work lies outside the repository ends with a record commit
        (empty, with `git commit --allow-empty`, when nothing in the
-       repository changed) whose message body holds the evidence the
-       brief names
+       repository changed) whose message body starts with the line
+       `Owner gate: <gate ID>` and then holds the evidence the brief
+       names
     5. Self-review (see below)
     6. Report back
 

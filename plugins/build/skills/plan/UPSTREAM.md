@@ -36,6 +36,7 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - Owner gates, which are not upstream: a step title says "owner gate" only in a marker, and the executor refuses any other step title that says it and a task the index names without its marker.
 - The pointer to `WORKFLOW.md` names the user's two review gates; the first handoff template's clause about the owner gates not pre-approved is left out when the plan declares none; self-review item 7 says "an action an executor must stop for" where it said "stop-list action", a term the skill never defined.
 - Owner gates, which are not upstream: the executor removes a gated task's temporary files once the evidence review is clean, not before; a character a hook rejects in a pre-approval, or a `|` that would break the index table, is replaced by its plain form.
+- Owner gates, which are not upstream: the gate record commit body starts with the line `Owner gate: <id>`.
 
 ## Review notes
 

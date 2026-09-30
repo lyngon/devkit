@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.26 - 2026-09-30
+
+- A record commit is found by its first body line, `Owner gate: <id>`, with `git log --grep='^Owner gate: <id>$'`, in `delegate`'s owner gate protocol, `execute`, `finish` and the implementer template, and `plan` says the body starts with that line, where a record commit was any commit whose body named the gate ID, which also matched an earlier commit that only mentioned the gate.
+
 ## 0.15.25 - 2026-09-30
 
 - `delegate`'s `task-brief` reads an Owner Gates index Task cell of "Task 6" as task 6, so a task indexed that way without its marker is refused, where only a bare "6" was matched and the task extracted as ungated.

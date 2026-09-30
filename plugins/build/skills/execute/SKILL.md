@@ -221,6 +221,7 @@ Read [owner-gates.md](../delegate/references/owner-gates.md) before the first ga
 
 - Each part starts with `scripts/task-start PLAN_FILE N --part pre-gate` or `--part post-gate`, and you run its steps yourself; the post-gate part of an unforeseen gate starts with `scripts/task-start PLAN_FILE N` at the step after the stop, as the protocol's Unforeseen stops say.
   In the pre-gate part you never perform the gated action; its brief ends at the gate with "Stop here".
+- The record commit's body starts with the line `Owner gate: <id>`, followed by the evidence, as the protocol's step 6 says.
 - Ledger `Task N post-gate: started` where the protocol says `dispatched`, before any post-gate step runs.
 - The evidence review is a subagent dispatch here too, with [evidence-reviewer-prompt.md](../delegate/references/evidence-reviewer-prompt.md) on at least a mid-tier model, because the final review reads a diff and cannot see live state.
   Having no report files, it passes the task's ledger lines and the hash of its record commit in place of `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]`.

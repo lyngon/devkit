@@ -46,6 +46,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - `## Owner gates`: the evidence review's findings are screened before any fix, and one whose fix needs another live action becomes an unforeseen gate.
 - `## Owner gates`: the post-gate part of an unforeseen gate starts with `task-start PLAN_FILE N` without `--part`, at the step after the stop.
 - Finish: the "Owner gates" list holds one entry per gate, and the paragraph says `build:finish` puts three lists in the pull request description and reads the owner gates from their record commits.
+- Owner gates, which are not upstream: the record commit body starts with the line `Owner gate: <id>`.
 
 ## Review notes
 

@@ -76,7 +76,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    A mismatch stops it without acting: ledger `Gate <id>: approval void (<the check that failed>)`; the approval or pre-approval is void for this run, and the gate goes back to step 1, where step 3 asks.
    An action that fails partway (one of several applies fails) stops the part, which acts no further, as the plan's steps say; the failure becomes an unforeseen gate that shows the error.
 6. **Record commit.** The post-gate part ends with a record commit, empty (`git commit --allow-empty`) when the repository did not change.
-   Its message body is the evidence: the gate ID, the owner's answer verbatim with its time or the pre-approval, the pins, the commands run in order with their result lines, and the results of the checks.
+   Its message body starts with the line `Owner gate: <id>`, followed by the evidence: the owner's answer verbatim with its time or the pre-approval, the pins, the commands run in order with their result lines, and the results of the checks.
    It holds summaries and identifiers, never a secret.
 7. **Evidence review.** Generate `review-package PLAN_FILE BASE HEAD` and dispatch the reviewer in [evidence-reviewer-prompt.md](evidence-reviewer-prompt.md) with both briefs, both reports, the pinned files, this gate's ledger lines, the `State:` lines and read-only access to the live system.
    Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round.
@@ -126,7 +126,7 @@ Follow these steps at every setup of a plan that declares owner gates or ends wi
    Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the pause commit (the latest `docs(plan): pause at gate <id>` or `docs(plan): pause before Task N` commit) when the plan has one, and otherwise the merge base with the default branch.
    For each task the ledger does not already show complete:
    - A task without a gate whose commit steps all appear in the log is complete: ledger `Task N: complete (recovered from git log: <commits>)`.
-   - A gated task whose record commit appears in the log (its body names the gate ID) has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
+   - A gated task whose record commit appears in the log (the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$'`) has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
      When BASE was lost with the workspace, take as BASE the parent of the task's first commit in the log, which is the record commit's parent when that is the task's only commit.
 
 Resume at the first task that is not complete.
