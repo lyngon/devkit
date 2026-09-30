@@ -79,6 +79,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: Resuming runs `execution-status restore` also when a ledger is present, and its `Resume` line holds the text the restore printed, verbatim, on a line of its own.
 - `references/re-review-prompt.md`, which is not upstream: `[LIVE_ACCESS]` is required for every re-review after an evidence-review fix, whatever its findings are about, and the re-reviewer confirms that the fix round took no effect on the live system; Owner gates in SKILL.md says so.
 - Owner gates, which are not upstream: the pre-gate dispatch comes from the implementer template with its pre-gate `[OWNER_GATE]` text verbatim, in `references/owner-gates.md` step 1 and in SKILL.md.
+- `references/owner-gates.md`, which is not upstream: the evidence review gets the gate's ledger lines verbatim, the pre-gate line with its pins and every answer line or the pre-approval line.
 
 ## Review notes
 

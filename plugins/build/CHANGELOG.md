@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.38 - 2026-09-30
+
+- The owner gate protocol's evidence review names the gate's ledger lines it passes, verbatim: the pre-gate line with its pins, and every answer line or the pre-approval line, as the evidence reviewer template's `[GATE_LINES]` does, where step 7 said only "this gate's ledger lines", so a run passed the `waiting for owner` and `post-gate: dispatched` lines and left out the owner's answer and the pins.
+
 ## 0.15.37 - 2026-09-30
 
 - `delegate`'s pre-gate dispatch comes from the implementer template with the template's pre-gate `[OWNER_GATE]` text verbatim, in the owner gate protocol's step 1 and the Owner gates section, where only the post-gate dispatch was tied to the block, so a resumed run wrote a short pre-gate prompt of its own that dropped "leave every file the gate shows or acts on in place".
