@@ -446,6 +446,28 @@ status write "$repo/docs/plans/2026-01-01-no-newline.md" "Task 1 pre-gate (gate 
 check "execution-status write: a plan without a final newline gets the section after a blank line" \
   equals "$code|$(sed -n '3,5p' "$repo/docs/plans/2026-01-01-no-newline.md")" $'0|last\n\n## Execution status'
 
+# --- task-start --------------------------------------------------------------
+
+execute=$build/skills/execute/scripts
+repo=$(new_repo task-start)
+plan=$repo/docs/plans/2026-01-01-fixture.md
+fixture >"$plan"
+start() {
+  run bash -c 'cd "$1" && shift && bash "$@"' _ "$repo" "$execute/task-start" "$@"
+}
+
+start "$plan" 2 --part pre-gate
+check "task-start: passes --part to task-brief" \
+  equals "$code|$(sed -n 's/^brief: .*\///p' <<<"$out")" "0|task-2-pre-gate-brief.md"
+check "task-start: prints BASE" \
+  equals "$(sed -n 's/^base: //p' <<<"$out")" "$(git -C "$repo" rev-parse HEAD)"
+start "$plan" 2
+check "task-start: a gated task without --part fails as task-brief does" \
+  equals "$code" "3"
+start "$plan" 2 --bogus pre-gate
+check "task-start: anything but --part as the third argument is a usage error" \
+  equals "$code" "2"
+
 # --- Summary -----------------------------------------------------------------
 
 if [ "$failures" -gt 0 ]; then
