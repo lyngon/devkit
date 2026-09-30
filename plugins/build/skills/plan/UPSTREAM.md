@@ -32,6 +32,11 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - Added a `## Checks and commands` section after the task structure: every check the plan mandates is shown failing without its property and passing with it, with the `pipefail` and `grep -q` false negative as the example; a command a person runs by hand is POSIX sh or runs through `bash -c`, with a pointer to `conventions:shell` when the conventions plugin is installed. "No placeholders" gained "a check without a control".
 - Self-review gained two checks: 5, every mandated check proven both ways; 6, every block of dictated prose checked against the repository's recorded decisions, the gates and rules in its agent instructions, and the design's and plan's own findings. `## With the Lyngon documents` names the ADRs, `CLAUDE.md` and `CONCEPTS.md` for check 6.
 - The execution handoff names the pull request that `build:finish` opens as the second gate, and says the rulings are presented in its description; between the gates the executor asks the user nothing.
+- Owner gates, which are not upstream: a `### Owner Gates` index in the plan header; an `## Owner gates` section with the gate step, its fields and its rules; every task ends with at least one commit; a "No placeholders" item and self-review item 7 for gates; the handoff asks for pre-approvals by ID and records them in the index before invoking the executor.
+- Owner gates, which are not upstream: a step title says "owner gate" only in a marker, and the executor refuses any other step title that says it and a task the index names without its marker.
+- The pointer to `WORKFLOW.md` names the user's two review gates; the first handoff template's clause about the owner gates not pre-approved is left out when the plan declares none; self-review item 7 says "an action an executor must stop for" where it said "stop-list action", a term the skill never defined.
+- Owner gates, which are not upstream: the executor removes a gated task's temporary files once the evidence review is clean, not before; a character a hook rejects in a pre-approval, or a `|` that would break the index table, is replaced by its plain form.
+- Owner gates, which are not upstream: the gate record commit body starts with the line `Owner gate: <id>`.
 
 ## Review notes
 

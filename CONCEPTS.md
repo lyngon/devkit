@@ -79,6 +79,18 @@ _Avoid_: monorepo, package layout
 The way of working an owner adopts for a Lyngon repository: the agent follows the Lyngon conventions, commits each concern on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge.
 _Avoid_: process, flow (a flow is one path through the skills)
 
+**Review gate**:
+One of the two points where the owner reviews planned work: the design and the plan before execution, and the pull request after it.
+_Avoid_: gate on its own, checkpoint
+
+**Owner gate**:
+A point in the execution of a plan where the executor stops until the owner decides: approves or performs one hard-to-reverse action, or answers a question the executor must not settle alone. The plan declares the ones it foresees; every stop it did not foresee is one too.
+_Avoid_: gate on its own, approval step, hold point
+
+**Pre-approval**:
+The owner's explicit approval of one named owner gate, given when approving the plan, so that the executor passes that gate without stopping.
+_Avoid_: blanket approval, standing approval
+
 **Prerequisite**:
 Something a repository must have for a plugin to apply: the documents, the workflow, the baseline, or the structure. Declared per plugin; independent of each other. Using devenv at all is a condition a plugin may write for, not a prerequisite.
 _Avoid_: assumption, tier, requirement
@@ -93,3 +105,5 @@ _Avoid_: assumption, tier, requirement
 - The **Structure** is one of the shared convention documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - Every **Plugin** declares its **Prerequisites**; a bundle's are the union of its members'.
+- A plan's execution lies between its two **Review gates**; its **Owner gates** lie inside it.
+- An **Owner gate** has at most one **Pre-approval**, and only a gate whose action the executor performs can have one.

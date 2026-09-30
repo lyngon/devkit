@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# Keep a paused run's ledger on the branch. The ledger lives in the plan's
+# workspace under tmp/, which may be emptied at any time and which another
+# checkout never has. When a run pauses, `write` copies the ledger verbatim
+# into an `## Execution status` section of the plan, which the executor then
+# commits; when a run resumes, `restore` brings the workspace's ledger in line
+# with that copy.
+#
+# Usage: execution-status write PLAN_FILE RESUME_AT
+#        execution-status restore PLAN_FILE
+# write replaces an earlier section in place, or appends one at the end, and
+# leaves every other line of the plan as it was. restore recreates a missing
+# ledger, replaces a ledger that the copy extends, keeps a ledger that extends
+# the copy, and changes nothing when the plan has no section.
+# Both print the file they wrote or checked on stdout and a summary on stderr.
+# write gives a ledger without a final newline one before it copies it.
+# Exit: 1 when restore finds a ledger and a copy that disagree, or a section
+# without its fenced copy; 2 on a usage error, a RESUME_AT holding a newline,
+# or, for write, a missing ledger or a ledger line that would end the fence.
+set -euo pipefail
+
+usage() {
+  echo "usage: execution-status write PLAN_FILE RESUME_AT | execution-status restore PLAN_FILE" >&2
+  exit 2
+}
+
+[ $# -ge 2 ] || usage
+cmd=$1
+plan=$2
+case "$cmd" in
+  write) [ $# -eq 3 ] || usage ;;
+  restore) [ $# -eq 2 ] || usage ;;
+  *) usage ;;
+esac
+[ -f "$plan" ] || {
+  echo "no such plan file: $plan" >&2
+  exit 2
+}
+
+# Invoke via bash rather than direct exec: some plugin installers strip Unix
+# exec bits when unpacking.
+dir=$("${BASH:-bash}" "$(cd "$(dirname "$0")" && pwd)/workspace" "$plan")
+ledger=$dir/progress.md
+
+# The section runs from its heading to the next heading of level two or
+# higher outside a code fence. The awk programs below track fences the way
+# task-brief does, so a fenced `## Execution status` is text, not a heading.
+# shellcheck disable=SC2016  # an awk program, expanded by awk, not the shell
+fence_awk='
+  function fence() {
+    fenceline = 0
+    if (match($0, /^[ \t]*(```+|~~~+)/)) {
+      run = substr($0, RSTART, RLENGTH)
+      sub(/^[ \t]+/, "", run)
+      if (!infence) {
+        infence = 1
+        fch = substr(run, 1, 1)
+        flen = length(run)
+        fenceline = 1
+      } else if (substr(run, 1, 1) == fch && length(run) >= flen && $0 ~ /^[ \t]*[`~]+[ \t]*$/) {
+        infence = 0
+        fenceline = 1
+      }
+    }
+    return !infence && !fenceline
+  }
+'
+
+tmp=$(mktemp "$dir/execution-status.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+
+if [ "$cmd" = write ]; then
+  resume_at=$3
+  case "$resume_at" in
+    *$'\n'*)
+      echo "execution-status: RESUME_AT holds a newline; it must be one line" >&2
+      exit 2
+      ;;
+  esac
+  [ -f "$ledger" ] || {
+    echo "execution-status: no ledger at $ledger" >&2
+    exit 2
+  }
+  # The fence tracker takes a run of backticks after any indentation as a
+  # fence, so such a line would end the copy's fence early.
+  if grep -q '^[[:blank:]]*````' "$ledger"; then
+    echo "execution-status: the ledger holds a line starting with four backticks after any indentation, which would end the fence" >&2
+    exit 2
+  fi
+  # A ledger without a final newline gets one, so the closing fence keeps its
+  # own line and the copy still matches the ledger.
+  [ -z "$(tail -c 1 "$ledger")" ] || printf '\n' >>"$ledger"
+  section=$(mktemp "$dir/execution-status-section.XXXXXX")
+  trap 'rm -f "$tmp" "$section"' EXIT
+  {
+    echo "## Execution status"
+    echo
+    echo "The run paused here; \`build:finish\` removes this section with the rest of the plan."
+    echo "The fence holds the ledger verbatim, and an executor recreates \`progress.md\` from it when its workspace has none."
+    echo
+    echo "Resume at: $resume_at"
+    echo
+    echo '````text'
+    cat "$ledger"
+    echo '````'
+  } >"$section"
+  awk -v section="$section" "$fence_awk"'
+    function emit(   line) {
+      while ((getline line < section) > 0) print line
+      close(section)
+      done = 1
+    }
+    {
+      text = fence()
+      if (text && /^#+[ \t]/) {
+        level = match($0, /[^#]/) - 1
+        if (insec && level <= 2) {
+          insec = 0
+          print ""
+        }
+        if (!done && $0 ~ /^##[ \t]+Execution status[ \t]*$/) {
+          insec = 1
+          emit()
+          next
+        }
+      }
+      if (!insec) {
+        print
+        lastblank = ($0 ~ /^[ \t]*$/)
+      }
+    }
+    END {
+      if (!done) {
+        if (NR > 0 && !lastblank) print ""
+        emit()
+      }
+    }
+  ' "$plan" >"$tmp"
+  cat "$tmp" >"$plan"
+  printf '%s\n' "$plan"
+  echo "execution-status: wrote the Execution status into $plan (resume at: $resume_at)" >&2
+  exit 0
+fi
+
+# restore: extract the copy, then compare it with the ledger line by line.
+rc=0
+awk "$fence_awk"'
+  {
+    text = fence()
+    if (text && /^#+[ \t]/) {
+      level = match($0, /[^#]/) - 1
+      if (insec && level <= 2) insec = 0
+      if ($0 ~ /^##[ \t]+Execution status[ \t]*$/) { insec = 1; found = 1 }
+      next
+    }
+    if (!insec) next
+    if (!copying && !copied && $0 ~ /^````text[ \t]*$/) { copying = 1; next }
+    if (copying && $0 ~ /^````[ \t]*$/) { copying = 0; copied = 1; next }
+    if (copying) print
+  }
+  END {
+    if (!found) exit 10
+    if (!copied) exit 11
+  }
+' "$plan" >"$tmp" || rc=$?
+
+case "$rc" in
+  0) ;;
+  10)
+    printf '%s\n' "$ledger"
+    echo "execution-status: $plan has no Execution status; nothing to restore" >&2
+    exit 0
+    ;;
+  11)
+    echo "execution-status: the Execution status in $plan has no fenced ledger" >&2
+    exit 1
+    ;;
+  *) exit "$rc" ;;
+esac
+
+# True when every line of $1 starts $2, in order.
+is_prefix() {
+  local lines
+  lines=$(wc -l <"$1")
+  head -n "$((lines))" "$2" | cmp -s - "$1"
+}
+
+if [ ! -f "$ledger" ]; then
+  cp "$tmp" "$ledger"
+  msg="recreated the ledger from the plan's Execution status"
+elif cmp -s "$tmp" "$ledger"; then
+  msg="the ledger matches the plan's Execution status"
+elif is_prefix "$ledger" "$tmp"; then
+  cp "$tmp" "$ledger"
+  msg="replaced the ledger with the plan's longer copy"
+elif is_prefix "$tmp" "$ledger"; then
+  msg="kept the ledger, which extends the plan's copy"
+else
+  echo "execution-status: the ledger at $ledger and the Execution status in $plan disagree; neither extends the other" >&2
+  exit 1
+fi
+printf '%s\n' "$ledger"
+echo "execution-status: $msg" >&2

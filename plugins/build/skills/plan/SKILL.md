@@ -20,7 +20,7 @@ DRY. YAGNI. TDD. One commit per task.
 
 Assume they are a skilled developer who knows almost nothing about this repository's toolset or problem domain, and who does not know good test design very well.
 
-The flow this skill sits in, from `discover:approach` to `build:finish` and the user's two gates, is in [WORKFLOW.md](WORKFLOW.md).
+The flow this skill sits in, from `discover:approach` to `build:finish` and the user's two review gates, is in [WORKFLOW.md](WORKFLOW.md).
 
 ## Where the plan lives
 
@@ -90,6 +90,16 @@ Every `## Plan` section starts with this header:
 
 **Spec:** [The `## Design` section of this file, or the external spec it points at. The plan argues from the spec, so the spec travels with it; executors read both.]
 
+### Owner Gates
+
+[One row per owner gate in the plan (see Owner gates below), or the single line "None." when the plan has none:
+
+| ID | Task | Performed by | Consequences | Pre-approved |
+| --- | --- | --- | --- | --- |
+| `apply-state-bucket` | 6 | agent | creates the state bucket; versions kept forever | no |
+
+Pre-approved says "no" until the user pre-approves the gate at the handoff, and then holds their reply verbatim with its time; a gate that an instruction of the repository keeps from pre-approval says "not pre-approvable (<the instruction>)".]
+
 ### Global Constraints
 
 [The spec's project-wide requirements: version floors, dependency limits, naming and copy rules, platform requirements. One line each, with exact values copied verbatim from the spec. Every task's requirements implicitly include this section.]
@@ -151,7 +161,36 @@ git commit -m "feat: add specific feature"
 The paths and the test command above are illustrations; the repository's layout and its declared test command decide.
 The commit step is one commit per task on the feature branch, in Conventional Commits form with one concern per commit.
 A task may span several commits when the plan says so.
+Every task ends with at least one commit; a task whose work lies outside the repository ends with a record commit, as a task with an owner gate does.
 Never `git commit` on main.
+
+## Owner gates
+
+A task that exists to perform a hard-to-reverse action only the user may approve or perform (an apply, a deletion, a deploy, a production migration, a publish, a key rotation) carries an owner gate: a step where the executor stops until the user decides.
+
+```markdown
+- [ ] **Step 4: Owner gate `apply-state-bucket`**
+  - Show: `bootstrap.plan.txt` (rendered `tofu show` of `bootstrap.tfplan`)
+  - Acts on: `state/bootstrap.tfplan`
+  - Ask: "Apply this saved plan to the Common account?"
+  - Performed by: agent, `tofu -chdir=state apply -input=false bootstrap.tfplan`
+  - Consequences: creates the state bucket with `prevent_destroy`; every state version is kept forever; removing it needs a plan change
+  - On no: record the reason, treat it as a finding on the pre-gate steps, regenerate, ask again
+```
+
+- The marker carries the gate's ID, kebab-case and unique in the plan; the index, a pre-approval, the ledger and the record commit name the gate by it.
+  A step title says "owner gate" only in a marker, spelled as above: the executor refuses a task with any other step title that says it, and a task that the index names without holding the marker with its ID.
+- Each field is one line directly under the marker, indented two spaces. `Show`, `Ask`, `Performed by`, `Consequences` and `On no` are required; `Acts on` names what the approval pins when that differs from `Show`. `Show` and `Acts on` may list several files.
+- `Performed by` is `agent, <exact commands>` or `owner, <exact commands or instructions>`. The agent may perform an action only when the approval pins its effect: a frozen artifact (a saved plan, a packed tarball, an image by digest) by its hash; a command whose text and pinned inputs fully determine the effect; or an action that depends on live state, when the post-gate steps re-run its dry run right before acting and compare it byte for byte, which needs a deterministic dry run. The user performs everything else, a console action included.
+- `Consequences` says what a yes changes, which part of it cannot be undone, and how to recover if anything can.
+- A task has at most one gate. A sequence of irreversible actions is a sequence of tasks, so each is verified before the next runs.
+- The steps before the gate do only reversible work inside the worktree (scratch files, saved plans, dry runs) and read-only calls, and commit nothing; the step that produces what the gate shows has an `Expected:` line. The code the action needs is written, committed and reviewed in an earlier task.
+- The steps after the gate check the pins, perform or verify the action, run the checks, and end with the record commit: empty (`git commit --allow-empty`) when nothing in the repository changed, with the evidence in its body, which starts with the line `Owner gate: <id>` (then the answer or the pre-approval, the pins, the commands in order with their results, the results of the checks).
+- The task's Files block lists the pre-gate artifacts as `Temporary:`, so a paused run knows what to remove; otherwise the executor removes them once the evidence review is clean, not before, because the reviewer checks against them.
+- An owner action appears nowhere but at a gate inside a task: never after the branch is finished, never at the pull request.
+- Approving the plan pre-approves nothing. A gate can be pre-approved at the handoff only when the agent performs it, the step that produces its artifact has an exact `Expected:` line (such as `Plan: 6 to add, 0 to change, 0 to destroy.`), and no instruction of the repository requires the user's approval at run time.
+
+The executors' protocol at a gate is in `build:delegate`'s `references/owner-gates.md`.
 
 ## Checks and commands
 
@@ -175,6 +214,7 @@ These are plan failures; never write them:
 - Steps that describe what to do without showing how (code steps need code blocks)
 - References to types, functions or methods not defined in any task
 - A check without a control: a mandated script or command shown passing but never shown failing when its property does not hold
+- A gate missing a required field, or an owner action anywhere but at a gate inside a task
 
 ## Self-review
 
@@ -194,6 +234,10 @@ This is a checklist you run yourself, not a subagent dispatch.
    Add the missing run; a check without one is a placeholder.
 6. **Dictated prose.** Check every block of prose the plan dictates verbatim (a decision record, README steps, a working rule, a term's definition) against the repository's recorded decisions, the gates and rules in its agent instructions, and the findings recorded earlier in this design and plan.
    The implementer copies it as written, so a contradiction the plan carries ships.
+7. **Owner gates.** Every task that performs an action an executor must stop for (an irreversible or destructive operation, a security-sensitive action, a side effect outside the worktree) has a gate, and no step before a gate performs such an action.
+   Every gate has all its fields, and the index has exactly one row per gate, or "None." when there is none.
+   Every gate the agent performs has an action its approval pins, and every dry run a post-gate step compares is deterministic.
+   The step that produces a pre-approvable gate's artifact has an exact `Expected:` line, and every gate that an instruction of the repository keeps from pre-approval is marked, with the instruction named.
 
 If you find issues, fix them inline.
 No need to re-review; fix and move on.
@@ -206,12 +250,12 @@ If you are still on the main branch, create the branch first (`git switch -c <br
 Then link the file for the user to read.
 
 This is the first of the user's two review gates; the second is the pull request that `build:finish` opens.
-Between the two the executor asks them nothing: it rules on conflicts, records its rulings in a ledger, and presents them in the pull request description.
+Between the two the executor asks them nothing except at owner gates: it rules on conflicts, records its rulings in a ledger, and presents them in the pull request description.
 
 If the user has already explicitly supplied an execution method, ask them to review the plan and confirm it captures what they want; wait for that review before implementation, then use the supplied method.
 Otherwise, ask them to review the plan and choose an execution method before implementation.
 
-When no execution method has been supplied:
+When no execution method has been supplied (leave out ", except at the owner gates you do not pre-approve" when the plan declares no owner gates):
 
 ```text
 Plan complete and committed as docs/plans/<filename>.md. Please review it.
@@ -229,16 +273,31 @@ Which execution approach would you prefer?
 For this plan I recommend [one of the two], because [one sentence from the
 plan: how much the tasks depend on each other's interfaces, how many there
 are, what a shipped mistake would cost]. You will not be asked again until
-the branch is finished. Does the plan capture what you want, and which
-approach should we use?
+the branch is finished, except at the owner gates you do not pre-approve.
+[Only when the plan has owner gates that can be pre-approved:]
+These owner gates can be pre-approved, so the executor passes them without
+stopping; approving the plan pre-approves none of them:
+- <ID>: <Consequences>
+Which of them, if any, do you pre-approve?
+Does the plan capture what you want, and which approach should we use?
 ```
 
 When an execution method has already been supplied:
 
 ```text
 Plan complete and committed as docs/plans/<filename>.md. Please review it.
+[Only when the plan has owner gates that can be pre-approved:]
+These owner gates can be pre-approved, so the executor passes them without
+stopping; approving the plan pre-approves none of them:
+- <ID>: <Consequences>
+Which of them, if any, do you pre-approve?
 Does it capture what you want?
 ```
+
+Write each pre-approval the user gives into the index's Pre-approved column: their reply, verbatim, with the time from `date +%Y-%m-%dT%H:%M:%S%z`.
+Where a hook rejects a character of a verbatim answer, or a `|` would break a table, replace only that character with its plain form (`'`, `"`, `-`, `\|`) and keep the rest verbatim.
+A reply that approves the plan without naming a gate pre-approves none, and a gate marked not pre-approvable stays so whatever the reply says.
+Commit the index as `docs(plan): record pre-approved owner gates` before invoking the executor.
 
 If delegation is chosen, call the Skill tool for `build:delegate`.
 If inline execution is chosen, call the Skill tool for `build:execute`.

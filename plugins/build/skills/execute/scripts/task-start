@@ -4,26 +4,28 @@
 # task-brief, so both executors share one workspace) and record BASE, the
 # commit the task's review range is cut from. One tool call instead of two,
 # because every call in an inline session is a turn that re-reads the whole
-# context.
+# context. For a task with an owner gate, --part names the part to begin, as
+# task-brief takes it.
 #
-# Usage: task-start PLAN_FILE TASK_NUMBER
+# Usage: task-start PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate]
 # Prints:
 #   brief: <path to the task's brief file>
 #   base:  <full SHA of HEAD>
 set -euo pipefail
 
-if [ $# -ne 2 ]; then
-  echo "usage: task-start PLAN_FILE TASK_NUMBER" >&2
+if { [ $# -ne 2 ] && [ $# -ne 4 ]; } || { [ $# -eq 4 ] && [ "$3" != "--part" ]; }; then
+  echo "usage: task-start PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate]" >&2
   exit 2
 fi
 
 plan=$1
 n=$2
+shift 2
 delegate="$(cd "$(dirname "$0")/../../delegate/scripts" && pwd)"
 
 # Invoke via bash rather than direct exec: some plugin installers strip Unix
 # exec bits when unpacking.
-brief=$("${BASH:-bash}" "$delegate/task-brief" "$plan" "$n")
+brief=$("${BASH:-bash}" "$delegate/task-brief" "$plan" "$n" "$@")
 
 echo "brief: $brief"
 echo "base: $(git rev-parse HEAD)"

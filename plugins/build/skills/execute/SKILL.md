@@ -25,17 +25,18 @@ Execute it exactly, prove each step with a test you watched fail and then pass, 
 **Narration.** Between tool calls, narrate at most one short line; the ledger and the tool results carry the record.
 
 **Continuous execution.** Do not pause to check in with the user between tasks.
-They review at two gates only: the plan before execution, and the pull request afterwards.
+They review planned work at two review gates: the plan before execution, and the pull request afterwards.
+Between them they decide only at owner gates: the ones the plan declares, and the five stops below.
 They chose inline execution to spend less, not to answer "should I continue?" after every task.
-Execute all tasks from the plan without stopping.
+Execute all tasks from the plan without stopping anywhere else.
 
 **Rulings, not stalls.** Conflicts, ambiguities, plan defects: decide them.
 The spec is the binding authority, the plan is its argument, and your judgment settles what neither answers.
 Record every decision in the ledger as `Ruling: <what you decided>; <why>; <what it costs if wrong>`, and keep going.
 Deviating from the plan without a ledgered ruling is a decision made in secret.
 
-**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
-For those, stop and ask.
+**Five things stop you, besides the owner gates the plan declares:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
+For those, stop and ask, through the protocol in [Owner gates](#owner-gates): the plan may have declared the stop as an owner gate, which the owner may have pre-approved by its ID, and a stop it did not declare is an unforeseen gate.
 Never disable, skip or weaken a check or hook to make something pass.
 
 ## When to use
@@ -66,6 +67,8 @@ digraph process {
         "Commit as the plan's commit steps say" [shape=box];
         "Completion contract met?" [shape=diamond];
         "task-done: run tests, ledger the result; mark todo complete" [shape=box];
+        "Task has an owner gate?" [shape=diamond];
+        "Owner gate protocol (../delegate/references/owner-gates.md): pre-gate steps, gate, post-gate steps, record commit, evidence review" [shape=box];
     }
 
     "Setup: worktree, workspace + ledger, read plan + design, pre-flight scan" [shape=box];
@@ -75,7 +78,10 @@ digraph process {
     "Final review clean: list rulings and deferred minors, keep the workspace" [shape=box];
     "Invoke build:finish" [shape=box style=filled fillcolor=lightgreen];
 
-    "Setup: worktree, workspace + ledger, read plan + design, pre-flight scan" -> "task-start: brief + BASE; read the brief";
+    "Setup: worktree, workspace + ledger, read plan + design, pre-flight scan" -> "Task has an owner gate?";
+    "Task has an owner gate?" -> "task-start: brief + BASE; read the brief" [label="no"];
+    "Task has an owner gate?" -> "Owner gate protocol (../delegate/references/owner-gates.md): pre-gate steps, gate, post-gate steps, record commit, evidence review" [label="yes"];
+    "Owner gate protocol (../delegate/references/owner-gates.md): pre-gate steps, gate, post-gate steps, record commit, evidence review" -> "task-done: run tests, ledger the result; mark todo complete";
     "task-start: brief + BASE; read the brief" -> "Work the steps in order: TDD, run every verification, read every output";
     "Work the steps in order: TDD, run every verification, read every output" -> "Step output matches the plan's Expected?";
     "Step output matches the plan's Expected?" -> "Plan wrong? Rule and ledger. Code wrong? practice:debug" [label="no"];
@@ -85,7 +91,7 @@ digraph process {
     "Completion contract met?" -> "Work the steps in order: TDD, run every verification, read every output" [label="no: finish the task"];
     "Completion contract met?" -> "task-done: run tests, ledger the result; mark todo complete" [label="yes"];
     "task-done: run tests, ledger the result; mark todo complete" -> "More tasks remain?";
-    "More tasks remain?" -> "task-start: brief + BASE; read the brief" [label="yes"];
+    "More tasks remain?" -> "Task has an owner gate?" [label="yes"];
     "More tasks remain?" -> "Final whole-branch review via review:request (fresh reviewer if you have one)" [label="no"];
     "Final whole-branch review via review:request (fresh reviewer if you have one)" -> "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger";
     "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: list rulings and deferred minors, keep the workspace";
@@ -122,15 +128,17 @@ The harness's todo list is a live view; the ledger is the record.
 
 The workspace and ledger are shared with `build:delegate`, same directory, same format, so a plan can change executors mid-flight and the new one resumes from the same ledger.
 
-- Each plan owns a workspace: at skill start, run `../delegate/scripts/workspace PLAN_FILE` from this skill's directory (the script lives in `build:delegate`, which shares the workspace).
+- Each plan owns a workspace: at skill start, run `<this skill's directory>/../delegate/scripts/workspace PLAN_FILE` from the repository root (the script lives in `build:delegate`, which shares the workspace).
   It prints the plan's git-ignored directory, `<repo-root>/tmp/build/<plan-slug>/`, home to every artifact for this plan: ledger, briefs, review packages.
   Another plan's directory is never yours to read or write.
 - Check for this plan's ledger at `<workspace>/progress.md`.
-  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not redo them; resume at the first task without one.
+  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not redo them; resume at the first task without one, as Resuming in [owner-gates.md](../delegate/references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
   Their commits exist in git even when your context no longer remembers making them: after compaction, trust the ledger and `git log` over your own recollection.
   A ledger whose first line names a different plan file is another plan's progress: leave it and start your own, fresh.
-- Create the ledger with its identity as the first line: `# build ledger: plan <plan file path>`.
-- `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from `git log`.
+- For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](../delegate/references/owner-gates.md) and follow its Resuming, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before you read the ledger, and its other steps once the ledger exists, so create the ledger with its identity line first when none exists and no Execution status will recreate it; it restores a paused run's ledger with `<this skill's directory>/../delegate/scripts/execution-status restore PLAN_FILE`, run from the repository root, and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
+- Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
+  `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
+- `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise; for a plan with owner gates, Resuming in [owner-gates.md](../delegate/references/owner-gates.md) says how.
 
 ### Read the plan
 
@@ -155,7 +163,7 @@ Redirect long test output to a file in the workspace and read its tail; read a b
 
 ### 1. Take the task
 
-- Run this skill's `scripts/task-start PLAN_FILE N`.
+- Run this skill's `scripts/task-start PLAN_FILE N`; a task with an owner gate starts each part with `--part`, as [Owner gates](#owner-gates) says.
   It prints the brief path and BASE (the commit the task's range is cut from) in one call; the brief holds the task's text followed by the plan's Global Constraints.
   Read the brief for every task, including ones you remember from setup: what you remember is a summary, the brief has the exact values, signatures and test cases.
 - Mark the task's todo in progress.
@@ -206,9 +214,28 @@ It runs the tests, keeps the full output in the workspace, prints the tail, and,
 A failing run records nothing; the task is not complete.
 When it records, mark the todo complete and take the next task.
 
+## Owner gates
+
+A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) runs in two parts around the gate.
+Read [owner-gates.md](../delegate/references/owner-gates.md) at setup, where its Resuming runs, and follow it step by step, with these differences:
+
+- Each part starts with `scripts/task-start PLAN_FILE N --part pre-gate` or `--part post-gate`, and you run its steps yourself; the post-gate part of an unforeseen gate starts with `scripts/task-start PLAN_FILE N` at the step after the stop, as the protocol's Unforeseen stops say.
+  That part keeps the task's original BASE for the evidence-review package and for `task-done`, not the BASE a new `task-start` prints.
+  In the pre-gate part you never perform the gated action; its brief ends at the gate with "Stop here".
+- The record commit's body starts with the line `Owner gate: <id>`, followed by the evidence, as the protocol's step 6 says.
+- Ledger `Task N post-gate: started` where the protocol says `dispatched`, before any post-gate step runs.
+- The evidence review is a subagent dispatch here too, with [evidence-reviewer-prompt.md](../delegate/references/evidence-reviewer-prompt.md) on at least a mid-tier model, because the final review reads a diff and cannot see live state.
+  Having no report files, it passes the task's ledger lines and the hash of its record commit in place of `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]`.
+  Screen its findings before you fix any: one whose fix needs another live action becomes an unforeseen gate, never part of the fix pass.
+  Fix its Critical and Important findings in one pass, each verified by a test or a re-run check that failed first, and ledger `Task N: evidence review clean` or `Task N: evidence review: <K> fixed`.
+  Without a subagent tool, apply the template yourself as a separate pass and ledger `Task N: evidence review: self-review (no subagent tool)`.
+- Then run `task-done` with the task's checks as its test command; it records the completion line, and then you remove the task's temporary files, as the protocol's step 8 says.
+
 ## Final review
 
-Run `../delegate/scripts/review-package PLAN_FILE MERGE_BASE HEAD` from this skill's directory (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`) and review from the file it prints.
+Run `<this skill's directory>/../delegate/scripts/review-package PLAN_FILE MERGE_BASE HEAD` from the repository root (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`) and review from the file it prints.
+The final review stays after the last task, gated or not; the record commits of the gated tasks are in its package.
+A finding whose fix needs a live change gets an unforeseen owner gate in the fix pass.
 
 **With a subagent tool.** Call the Skill tool for `review:request`; it holds the reviewer template.
 Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's `Ruling:` lines, so it can weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
@@ -227,7 +254,7 @@ Re-grade first, by effect: the spec is a vision document, and a finding's grade 
 A reviewer who set a finding at Minor because the spec was silent has graded the spec, not the effect.
 Then:
 
-- **Critical and Important** enter the fix pass.
+- **Critical and Important** enter the fix pass, except a finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch: that one is yours to rule on and ledger, and the fix pass takes the rest.
 - **Minor** goes to the ledger as `Final: minor (deferred): <one-liner>` and to your final message under "Deferred minors".
   Minors never enter the fix pass, and never become rulings: a ruling is a decision about a conflict, not a note that you declined a polish suggestion.
 
@@ -242,12 +269,12 @@ There is no second fix pass.
 
 ## Finish
 
-Collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
-Both lists are exhaustive.
-Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: `build:finish` puts these two lists in the pull request description, and the user reads the pull request starting from them.
+Collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, every `minor (deferred)` line under "Deferred minors", and, under "Owner gates", one entry per gate from its `Gate` lines: its ID, the owner's answer or the pre-approval, and the record commit of its task.
+All three lists are exhaustive.
+Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: `build:finish` puts these three lists in the pull request description, and the user reads the pull request starting from them.
 
 When the final review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
-It reads the ledger's deferred minors before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
+It reads the ledger's deferred minors, and the owner gates from their record commits, before it removes the plan, so the user can keep the findings worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.
@@ -261,9 +288,12 @@ Call the Skill tool for `build:finish`.
 | "I'll run the full suite at the end instead of per step" | Per-step runs are how you learn which step broke it. The end-of-task run is the contract, not a substitute. |
 | "The plan is wrong here, I'll just do the right thing" | Do the right thing and ledger the ruling. Unledgered deviation is a decision made in secret. |
 | "I'll write the ledger lines after a few tasks" | Compaction does not wait for a convenient moment. One line per task, in the same message as the commit. |
-| "Let me check in before the next task" | They chose inline to spend less. Progress prompts spend their time instead. Only the five stops stop you. |
+| "Let me check in before the next task" | They chose inline to spend less. Progress prompts spend their time instead. Only owner gates, the five stops among them, stop you. |
 | "The hook fails on something unrelated, I'll skip it for this commit" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
 | "I read my own diff carefully; the final reviewer is redundant" | Same author, same blind spots. The reviewer is the only fresh context this run buys. |
+| "The owner will obviously say yes, I'll run the apply now" | Only an explicit yes passes a gate, or a pre-approval the plan's index records by the gate's ID. |
+| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again; an unforeseen gate is the exception, which Resuming in the protocol describes. |
+| "I checked the live state myself, the evidence review is redundant" | Same author, same blind spots, and the final review cannot see live state. Dispatch the evidence reviewer. |
 | "Tests should pass, the change was trivial" | "Should" is not evidence. The contract requires the command and its output. |
 | "Subagents are slow and expensive, I'll skip the final review too" | Inline already removed the per-task reviewers. One review of the whole branch is the floor, not the ceiling. |
 | "The reviewer said Minor, so it's Minor" | The label graded the spec's silence. Grade what the person gets. Re-grade, then gate. |

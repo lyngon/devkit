@@ -4,6 +4,18 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.6.1 - 2026-09-30
+
+- `WORKFLOW.md`, symlinked into `approach`, names the executor's "Owner gates" list beside "Rulings I made" and "Deferred minors" at the second review gate.
+
+## 0.6.0 - 2026-09-30
+
+- `WORKFLOW.md`, symlinked into `approach`, names the review gates and the owner gates, pre-approval by ID, the protocol every stop runs, the Execution status and the record commits.
+
+## 0.5.0 - 2026-09-30
+
+- `ADR-FORMAT.md`, symlinked into `domain-model`, says when an accepted ADR may be edited and that every edit adds a line to its `## Change log`.
+
 ## 0.4.0 - 2026-09-29
 
 - `WORKFLOW.md` names `conventions:engineering` only under a "With the Lyngon workflow" heading, and says the push is left to `/build:finish`.

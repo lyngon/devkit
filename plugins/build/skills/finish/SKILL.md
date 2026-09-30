@@ -44,7 +44,17 @@ PLAN_WORKSPACE=$(bash <this skill's directory>/../delegate/scripts/workspace doc
 ```
 
 `build:delegate` and `build:execute` hand this directory over instead of deleting it: its `progress.md` is their ledger, and Step 7 removes the directory once the work lands.
-Without a `progress.md`, no executor produced the branch and there is no ledger.
+When the plan ends with an `## Execution status` section, a paused run left a copy of its ledger in the plan: run `bash <this skill's directory>/../delegate/scripts/execution-status restore docs/plans/YYYY-MM-DD-<slug>.md` before the plan goes, whether or not `progress.md` exists, because it recreates a missing ledger, replaces a shorter one and keeps a longer one.
+Without either, no executor produced the branch and there is no ledger.
+
+Collect the owner gates for the description (Step 5) from their record commits, which outlive the workspace, in the branch's commits since the merge base with the base branch (Step 4 says which):
+
+```bash
+git log --format='%h %s%n%b' "$(git merge-base <base-branch> HEAD)"..HEAD
+```
+
+A record commit is the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$' "$(git merge-base <base-branch> HEAD)"..HEAD` (never without the range, since an earlier plan's record commit for the same gate ID may sit on the base branch), for each gate ID: a row of the plan's `### Owner Gates` index, or an `unplanned-<slug>` gate.
+Take one entry per gate: its ID, the owner's answer or the pre-approval the body holds, and the record commit's hash.
 
 Then remove the plan in a final commit:
 
@@ -133,8 +143,9 @@ The description carries, in this order:
 1. What changed and why, in a short paragraph.
 2. "Decisions for you": anything the user must decide, or "none".
 3. When an executor produced the branch, its "Rulings I made" and "Deferred minors" lists, and a link to the plan file at the parent of the plan-removal commit, since the plan does not show in the pull request's diff.
-4. Review findings nobody fixed.
-5. Verification: the full check command and its result, and any other evidence by name.
+4. When the branch has record commits, an "Owner gates" list, one entry per gate: its ID, the owner's answer verbatim with its time or the pre-approval, and the hash of the record commit that ends its task.
+5. Review findings nobody fixed.
+6. Verification: the full check command and its result, and any other evidence by name.
 
 Report the URL to the user.
 
@@ -313,3 +324,4 @@ If your platform provides a workspace-exit tool, use it.
 | "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
 | "The base branch is obviously main" | Before a local merge, confirm the fork point or ask. Merging into the wrong base is expensive to undo. |
 | "The push was rejected, force-push will fix it" | A rejected push means the remote moved. Investigate; force-push only on the user's explicit request. |
+| "The workspace is gone, so the ledger is lost" | A paused run left a copy in the plan's Execution status. Restore it before the plan is removed. |

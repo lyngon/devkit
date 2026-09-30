@@ -23,9 +23,9 @@ This also preserves your own context for coordination work.
 **Narration.** Between tool calls, narrate at most one short line; the ledger and the tool results carry the record.
 
 **Continuous execution.** Do not pause to check in with the user between tasks.
-They review at two gates only: the plan before execution, and the pull request afterwards.
-Execute all tasks from the plan without stopping.
-The only reasons to stop are the five named below, or all tasks complete.
+They review planned work at two review gates: the plan before execution, and the pull request afterwards.
+Between them they decide only at owner gates: the ones the plan declares, and the five stops below.
+Execute all tasks from the plan without stopping anywhere else.
 "Should I continue?" prompts and progress summaries waste their time; they asked you to execute the plan, so execute it.
 
 **Rulings, not stalls.** A running plan does not wait on a human.
@@ -34,8 +34,8 @@ The spec is the binding authority, the plan is its argument, and your judgment s
 Record every decision in the ledger as `Ruling: <what you decided>; <why>; <what it costs if wrong>`, and keep going.
 A wrong ruling costs rework the user can see and undo; a session parked on a question costs their whole day and buys nothing.
 
-**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
-For those, stop and ask.
+**Five things stop you, besides the owner gates the plan declares:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
+For those, stop and ask, through the protocol in [Owner gates](#owner-gates): the plan may have declared the stop as an owner gate, which the owner may have pre-approved by its ID, and a stop it did not declare is an unforeseen gate.
 Never disable, skip or weaken a check or hook to make something pass, and never let an implementer do so.
 
 ## When to use
@@ -90,16 +90,23 @@ digraph process {
         "Rule and continue; stop only if every path forward is a guess" [shape=box];
         "Park findings in ledger with rulings" [shape=box];
         "Append completion to ledger, mark todo complete" [shape=box];
+        "Task has an owner gate?" [shape=diamond];
+        "Owner gate protocol (references/owner-gates.md): pre-gate dispatch, gate, post-gate dispatch, record commit" [shape=box];
+        "Dispatch evidence reviewer (references/evidence-reviewer-prompt.md)" [shape=box];
     }
 
     "Setup: worktree, ledger check, read plan, pre-flight review" [shape=box];
     "More tasks remain?" [shape=diamond];
     "Dispatch final reviewer via review:request" [shape=box];
-    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" [shape=box];
+    "Final findings? Rule on those that need no change; ONE fix dispatch for the rest, one scoped re-review, adjudicate residuals" [shape=box];
     "Final review clean: list rulings and deferred minors, keep the workspace" [shape=box];
     "Invoke build:finish" [shape=box style=filled fillcolor=lightgreen];
 
-    "Setup: worktree, ledger check, read plan, pre-flight review" -> "Dispatch implementer subagent (references/implementer-prompt.md)";
+    "Setup: worktree, ledger check, read plan, pre-flight review" -> "Task has an owner gate?";
+    "Task has an owner gate?" -> "Dispatch implementer subagent (references/implementer-prompt.md)" [label="no"];
+    "Task has an owner gate?" -> "Owner gate protocol (references/owner-gates.md): pre-gate dispatch, gate, post-gate dispatch, record commit" [label="yes"];
+    "Owner gate protocol (references/owner-gates.md): pre-gate dispatch, gate, post-gate dispatch, record commit" -> "Dispatch evidence reviewer (references/evidence-reviewer-prompt.md)";
+    "Dispatch evidence reviewer (references/evidence-reviewer-prompt.md)" -> "Spec ✅ and quality approved?";
     "Dispatch implementer subagent (references/implementer-prompt.md)" -> "Implementer asks questions?";
     "Implementer asks questions?" -> "Answer questions, provide context" [label="yes"];
     "Answer questions, provide context" -> "Implementer implements, tests, commits, self-reviews";
@@ -122,10 +129,10 @@ digraph process {
     "Any load-bearing finding?" -> "Park findings in ledger with rulings" [label="no"];
     "Park findings in ledger with rulings" -> "Append completion to ledger, mark todo complete";
     "Append completion to ledger, mark todo complete" -> "More tasks remain?";
-    "More tasks remain?" -> "Dispatch implementer subagent (references/implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Task has an owner gate?" [label="yes"];
     "More tasks remain?" -> "Dispatch final reviewer via review:request" [label="no"];
-    "Dispatch final reviewer via review:request" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
-    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: list rulings and deferred minors, keep the workspace";
+    "Dispatch final reviewer via review:request" -> "Final findings? Rule on those that need no change; ONE fix dispatch for the rest, one scoped re-review, adjudicate residuals";
+    "Final findings? Rule on those that need no change; ONE fix dispatch for the rest, one scoped re-review, adjudicate residuals" -> "Final review clean: list rulings and deferred minors, keep the workspace";
     "Final review clean: list rulings and deferred minors, keep the workspace" -> "Invoke build:finish";
 }
 ```
@@ -161,13 +168,15 @@ Track progress in a ledger file, not only in todos.
   It prints the plan's git-ignored directory, `<repo-root>/tmp/build/<plan-slug>/`, home to every artifact for this plan: ledger, briefs, reports, review packages.
   Another plan's directory is never yours to read or write.
 - Check for this plan's ledger at `<workspace>/progress.md`.
-  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not re-dispatch them; resume at the first task without one.
+  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not re-dispatch them; resume at the first task without one, as Resuming in [owner-gates.md](references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
   A task whose last line is a fix round is mid-loop: resume the loop at the next round.
   A ledger whose first line names a different plan file is another plan's progress: leave it in place and start your own, fresh.
-- Create the ledger with its identity as the first line: `# build ledger: plan <plan file path>`.
+- For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](references/owner-gates.md) and follow its Resuming, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before you read the ledger, and its other steps once the ledger exists, so create the ledger with its identity line first when none exists and no Execution status will recreate it; it restores a paused run's ledger with `scripts/execution-status restore PLAN_FILE` and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
+- Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
+  `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
 - The ledger is your recovery map: the commits it names exist in git even when your context no longer remembers creating them.
   After compaction, trust the ledger and `git log` over your own recollection.
-- `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from `git log`.
+- `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise; for a plan with owner gates, Resuming in [owner-gates.md](references/owner-gates.md) says how.
 
 ### Read the plan
 
@@ -206,6 +215,8 @@ The final whole-branch review is one of these; dispatch it on the most capable a
 **Review tasks:** choose the model with the same judgment, scaled to the diff's size, complexity and risk.
 A small mechanical diff does not need the most capable model; a subtle concurrency change does.
 Scoped re-reviews of small fix diffs take a cheap-to-mid tier.
+
+**Evidence reviews** of tasks with an owner gate: at least a mid-tier model, and the most capable one when the action was destructive; a wrong verdict leaves an unverified change on a live system.
 
 **Fix-loop escalation (rounds 4 and 5):** use a model at least one tier above the implementer that got stuck.
 
@@ -250,9 +261,10 @@ Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fi
   Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
   Exact values (numbers, magic strings, signatures, test cases) appear only in the brief.
   Never make a subagent read the whole plan file.
+  A task with an owner gate gets two briefs, one per part, as [Owner gates](#owner-gates) says.
 - **Report file.** Name the implementer's report file after the brief (brief `task-N-brief.md`, report `task-N-report.md`, same workspace) and put it in the dispatch prompt.
   The implementer writes the full report there and returns only status, commits, a one-line test summary, and concerns.
-  There is one report per task.
+  There is one report per task, and two for a task with an owner gate, one per part, as with its briefs.
   A report file that already exists is a prior attempt's memory (a dispatch before compaction, or an earlier session): never delete or rename it.
   Hand its path to the new implementer with the framing fix rounds 4 and 5 use: "A prior implementer attempted this task; you own it now. Read the report file for what was tried."
   The implementer appends its own report under a dated heading.
@@ -274,7 +286,7 @@ Template: [implementer-prompt.md](references/implementer-prompt.md)
 Implementer subagents report one of four statuses.
 Handle each appropriately.
 
-**DONE:** generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory; it prints the path of the file it wrote, one per range; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
+**DONE:** generate the review package (this skill's `scripts/review-package PLAN_FILE BASE HEAD`, run from the repository root; it prints the path of the file it wrote, one per range; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
 
 **DONE_WITH_CONCERNS:** the implementer completed the work but flagged doubts.
 Read the concerns before proceeding.
@@ -389,31 +401,47 @@ When the review comes back clean, or every open finding is parked with a ruling 
 - `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a tripped breaker
 
 Then mark the todo complete and move on.
+A task with an owner gate completes as step 8 of [owner-gates.md](references/owner-gates.md) says: its line reads `evidence review clean`, or `<K> parked` after a tripped breaker, and then you remove its temporary files, the `Temporary:` entries of its Files block.
 Never move to the next task while the review has open Critical or Important issues that are neither fixed nor parked with a ruling at the cap.
+
+## Owner gates
+
+A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) runs in two dispatches around the gate, and you take the gate itself: an implementer cannot ask the owner anything.
+Read [owner-gates.md](references/owner-gates.md) at setup, where its Resuming runs, and follow it step by step: the pre-gate dispatch with the implementer template's pre-gate `[OWNER_GATE]` text, pinning, the pre-approval check, the gate message, the fresh post-gate dispatch that carries the approval in the implementer template's `[OWNER_GATE]` block, the record commit, the evidence review with [evidence-reviewer-prompt.md](references/evidence-reviewer-prompt.md), pausing and resuming.
+Each of the five stops above that the plan did not declare runs the same protocol as an unforeseen gate.
+The evidence review takes the place of the task review for a gated task.
+Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round; the rest go through the fix loop like any other.
+Fix rounds 1 to 3 resume the post-gate implementer.
+Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh (rounds 4 and 5, the fallback when the harness cannot resume, and the final review's fix wave whenever it touches a gated task), carries the implementer template's fix-round `[OWNER_GATE]` text, whether the agent or the owner performed the action, not the post-gate block, whose checks fail by construction once the action has run.
+A resumed implementer gets the fix-round text with the findings, since its context still holds the post-gate block.
+The scoped re-review after an evidence-review fix gets the evidence reviewer's read-only access to the live system in the re-review template's `[LIVE_ACCESS]` section, whatever the findings are about, so it can verify a finding about live state and confirm that the fix round took no effect there.
 
 ## Final review
 
 The final whole-branch review gets a package too: run `scripts/review-package PLAN_FILE MERGE_BASE HEAD` (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`), so the final reviewer reads one file instead of re-deriving the branch diff with git commands.
+The final review stays after the last task, gated or not; the record commits of the gated tasks are in its package.
+A finding whose fix needs a live change gets an unforeseen owner gate in the fix wave.
 
 Call the Skill tool for `review:request`; it carries the reviewer template.
 Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
+A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the findings that remain after your rulings.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave (`scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range, with [re-review-prompt.md](references/re-review-prompt.md)).
 Adjudicate any residual findings as in the task loop's breaker: park with rulings, or rule on the load-bearing ones and ledger what you decided.
-Only the five stops above stop you here.
+Only owner gates, the five stops above among them, stop you here.
 There is no second fix wave; residual load-bearing findings reach the user in the rulings list, in the pull request description that `build:finish` writes.
 
 ## Finish
 
-Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, and every `minor (deferred)` line under "Deferred minors".
-Both lists are exhaustive: if the ledger holds a ruling, the list holds it.
-Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: `build:finish` puts these two lists in the pull request description, and the user reads the pull request starting from them and asks for changes where you got it wrong.
+Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, every `minor (deferred)` line under "Deferred minors", and, under "Owner gates", one entry per gate from its `Gate` lines: its ID, the owner's answer or the pre-approval, and the record commit of its task.
+All three lists are exhaustive: if the ledger holds a ruling, the list holds it.
+Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: `build:finish` puts these three lists in the pull request description, and the user reads the pull request starting from them and asks for changes where you got it wrong.
 A ruling that dies with the workspace was a decision made in secret.
 
 When the final whole-branch review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
-It reads the ledger's deferred minors and parked findings before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
+It reads the ledger's deferred minors and parked findings, and the owner gates from their record commits, before it removes the plan, so the user can keep the findings worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.
@@ -432,8 +460,12 @@ Call the Skill tool for `build:finish`.
 | "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
 | "The implementer spawned its own reviewer, free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 | "The hook fails on something unrelated, tell the implementer to skip it" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
-| "Let me check in before the next task" | The user reviews the plan and the pull request, nothing in between. Only the five stops stop you. |
+| "Let me check in before the next task" | The user reviews the plan and the pull request and answers owner gates, nothing else in between. Only owner gates, the five stops among them, stop you. |
 | "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors and parked findings before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
+| "The owner will obviously say yes, I'll run the apply now" | Only an explicit yes passes a gate, or a pre-approval the plan's index records by the gate's ID. |
+| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again; an unforeseen gate is the exception, which Resuming in the protocol describes. |
+| "The task changed nothing in the repository, so there is nothing to commit" | A gated task ends with its record commit, empty if need be; the evidence lives in its message. |
+| "Resume the pre-gate implementer for the post-gate part" | The post-gate part is a fresh dispatch that carries the approval; the gate may have spanned sessions. |
 
 ## Example workflow
 
@@ -442,7 +474,9 @@ The test output below is an example; the repository's own test command decides.
 ```text
 [Setup: worktree confirmed with the user; on branch feature/recovery]
 [Read plan file once: docs/plans/2026-09-23-recovery.md; Design section read]
-[Resolve workspace: scripts/workspace docs/plans/2026-09-23-recovery.md; no ledger inside, fresh start]
+[Resolve workspace: scripts/workspace docs/plans/2026-09-23-recovery.md; no ledger inside]
+[Task 3 has an owner gate, so follow Resuming: no Execution status, so create the ledger with its identity line; git log from the merge base shows only the plan commit; fresh start]
+[Ledger: Reconcile 2026-09-23T13:10:05+0800: 9f8e7d6..HEAD; nothing to recover]
 [Create todos for all tasks]
 
 Task 1: Hook installation script
@@ -493,6 +527,27 @@ Re-reviewer: Missing progress reporting: ADDRESSED (src/recovery.js:41).
 
 ...
 
+Task 3: Apply the saved plan (owner gate apply-bucket)
+
+[Run task-brief PLAN_FILE 3 --part pre-gate; dispatch implementer with the pre-gate brief and the [OWNER_GATE] stop text]
+Implementer: plan saved, 6 to add; show output in bucket.plan.txt; no commits
+[Pre-gate Expected lines match; pin bucket.tfplan]
+[Ledger: Task 3 pre-gate: complete (no commits; pins bucket.tfplan sha256:5891b5b5...)]
+[Index: apply-bucket is not pre-approved; send the gate message]
+[Ledger: Gate apply-bucket: waiting for owner]
+
+User: "Yes."
+
+[Ledger: Gate apply-bucket: owner 2026-09-23T14:02:11+0800: "Yes."]
+[Run task-brief PLAN_FILE 3 --part post-gate; ledger: Task 3 post-gate: dispatched]
+[Dispatch a fresh implementer with the approval in [OWNER_GATE]]
+Implementer: pin matches; apply: 6 added; checks 9 PASS; empty record commit e1f2a3b with the evidence
+[Run review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer]
+Evidence reviewer: approval matched; live state verified; record commit accurate. Approved.
+[Ledger: Task 3: evidence review clean]
+[Ledger: Task 3: complete (commits b7c8d9e..e1f2a3b, evidence review clean)]
+[Remove the task's temporary files: bucket.tfplan, bucket.plan.txt]
+
 [After all tasks]
 [Run review-package PLAN_FILE MERGE_BASE HEAD; review:request on the most capable model]
 Final reviewer: all requirements met. Deferred minors triaged: none block the pull request.
@@ -502,6 +557,9 @@ Rulings I made:
 
 Deferred minors:
 - (none)
+
+Owner gates:
+- apply-bucket: "Yes." (2026-09-23T14:02:11+0800), record commit e1f2a3b
 
 [Leave this plan's workspace for build:finish]
 

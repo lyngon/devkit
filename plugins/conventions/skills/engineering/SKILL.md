@@ -40,7 +40,7 @@ These are the user's standing instructions: they count as being asked to commit,
 - When the work is done and the full check passes, push the branch and open a pull request without asking. The user reviews the pull request and decides the merge.
 - Run the full check before every push. Never disable, skip or weaken a check or hook to get past it.
 - Never rewrite pushed history without asking; fixes after a push are new commits.
-- Ask before any other effect outside the branch: a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish.
+- Ask before any other effect outside the branch: a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish. An owner gate that a plan declares and the user pre-approved by its ID counts as asking.
 - Without a remote, commit and report. With a remote but no forge CLI, push and hand over the pull request link the forge printed.
 - Report faithfully: failing checks with their output, skipped steps by name, done things plainly.
 

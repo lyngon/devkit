@@ -8,6 +8,7 @@ Decisions are in [docs/adr/](docs/adr/).
 
 This repository ships the Lyngon conventions and is also developed under them; keep the two apart.
 What it ships (`shared/`, `devenv/` and every plugin outside the `devkit` category) is written for any Lyngon repository and never assumes this repository's layout or rules.
+A plugin's README is the exception: it is read in this repository and may link its ADRs.
 The rules for developing this repository itself live in this file and `docs/conventions/`, and apply nowhere else.
 The shipped conventions apply here too, except where this file says otherwise.
 Before adding or changing a rule, decide which of the two it belongs to.
@@ -20,7 +21,7 @@ The `repo` plugin's hooks export the devenv environment into the agent session a
 devenv test
 ```
 
-`devenv test` runs every git hook on every file, then `validate-marketplace`, `validate-prerequisites` and the fixture tests of the validators.
+`devenv test` runs every git hook on every file, then `validate-marketplace`, `validate-prerequisites` and the fixture tests of the validators, the `repo` plugin's hooks and the `build` plugin's scripts.
 It prints task names and times, and hook output only when a hook fails.
 `DEVENV_NO_AI_AGENT=1` restores devenv's normal output, which shows no more of the hooks.
 Per-hook results come from prek, run inside the devenv shell:

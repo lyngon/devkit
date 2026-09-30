@@ -3,6 +3,14 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.11.0 - 2026-09-30
+
+- `engineering` counts an owner gate that a plan declares and the user pre-approved by its ID as asking before an effect outside the branch.
+
+## 0.10.0 - 2026-09-30
+
+- `adr` replaces "an accepted ADR is never rewritten" with a test: an edit is allowed when someone who acted on the old text would act the same way on the new one (terminology aligned with `CONCEPTS.md`, a typo, a broken link, a forward pointer, a `Status:` line), and a change of mind is still a new ADR. Every edit adds a dated line to a `## Change log` section at the end of the ADR, and an ADR counts as accepted once it is on the default branch. `ADR-FORMAT.md` gains the matching section.
+
 ## 0.9.1 - 2026-09-30
 
 - `engineering` ends with a `With the Lyngon baseline` section naming the `commitizen` and `prose-lint-commit-msg` hooks that check commit messages, like every other conventions skill names the hooks that check its rules.
