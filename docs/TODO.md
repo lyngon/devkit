@@ -6,7 +6,6 @@ A queued item has a seed prompt in `docs/seed-prompts/`: paste the file into a f
 
 ## Queued
 
-- 2026-09-27: [Repo plugin: session environment hooks](seed-prompts/session-environment-hooks.md). A SessionStart and a FileChanged hook that export the devenv environment into Claude Code's per-command environment file (the inherited environment is captured once and goes stale; `direnv exec` re-evaluates on every call), and a session-start line when the branch is behind its upstream.
 - 2026-09-27: [Owner gates and operational tasks](seed-prompts/owner-gates.md), a design through `discover:approach`. Tasks the owner performs or approves (an apply, a deletion, a deploy), tasks that commit nothing, review without a diff, pausing and resuming a run across sessions, and evidence that outlives the workspace; met in all three lyngon.com sessions.
 - 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when `discover:approach` decomposes work, kept by `build:finish` until the last piece lands.
 - 2026-09-26: [Session wrap-up skill](seed-prompts/conclude-skill.md), a design through `discover:approach`. Documents up to date and a clean branch, prompts for continuing, process improvements as a paste-ready devkit prompt that extends this file, and feedback on the session; run by hand at the end of a lyngon.com session on 2026-09-27, which settled where it sits (after the integration choice, before the push).
