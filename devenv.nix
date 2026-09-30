@@ -70,6 +70,23 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/hooks.sh" "$@"'';
   };
+
+  # Fixture tests for the build plugin's scripts. perl provides shasum, so
+  # the tests can run pin with each hash tool alone.
+  testBuildScripts = pkgs.writeShellApplication {
+    name = "test-build-scripts";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.diffutils
+      pkgs.gawk
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.perl
+    ];
+    text = ''exec "${config.devenv.root}/plugins/build/tests/scripts.sh" "$@"'';
+  };
 in
 {
   # Baseline hooks, MCP server file and languages come from ./devenv.
@@ -117,5 +134,6 @@ in
     ${lib.getExe testValidateStructure}
     ${lib.getExe testValidatePrerequisites}
     ${lib.getExe testRepoHooks}
+    ${lib.getExe testBuildScripts}
   '';
 }

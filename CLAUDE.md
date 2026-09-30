@@ -20,7 +20,7 @@ The `repo` plugin's hooks export the devenv environment into the agent session a
 devenv test
 ```
 
-`devenv test` runs every git hook on every file, then `validate-marketplace`, `validate-prerequisites` and the fixture tests of the validators.
+`devenv test` runs every git hook on every file, then `validate-marketplace`, `validate-prerequisites` and the fixture tests of the validators, the `repo` plugin's hooks and the `build` plugin's scripts.
 It prints task names and times, and hook output only when a hook fails.
 `DEVENV_NO_AI_AGENT=1` restores devenv's normal output, which shows no more of the hooks.
 Per-hook results come from prek, run inside the devenv shell:

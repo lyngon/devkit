@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Pin files for an owner gate: print each file's sha256 in the form the
+# ledger, the gate message and the record commit use, or check a file against
+# a recorded pin before the post-gate steps act on it. An approval covers
+# exactly the pinned bytes, so a regenerated or edited artifact fails the
+# check even when it reads the same.
+#
+# Usage: pin FILE...
+#        pin --check sha256:<64 hex digits> FILE
+# Prints one "sha256:<hex> <file>" line per file. --check prints nothing on a
+# match and exits 1 on a mismatch, naming both hashes on stderr.
+# Exit: 1 on a mismatch, 2 on a usage error, a missing file or no hash tool.
+set -euo pipefail
+
+usage() {
+  echo "usage: pin FILE... | pin --check sha256:<hex> FILE" >&2
+  exit 2
+}
+
+# sha256sum on Linux, shasum on macOS, chosen once here: an exit inside the
+# command substitution below would leave only that subshell. Reading stdin
+# keeps the file name out of their output, which both print as "<hex>  -".
+if command -v sha256sum >/dev/null 2>&1; then
+  hasher=(sha256sum)
+elif command -v shasum >/dev/null 2>&1; then
+  hasher=(shasum -a 256)
+else
+  echo "pin: neither sha256sum nor shasum is on PATH" >&2
+  exit 2
+fi
+
+hash_of() {
+  local out
+  out=$("${hasher[@]}" <"$1")
+  printf '%s\n' "${out%% *}"
+}
+
+require_file() {
+  [ -f "$1" ] || {
+    echo "pin: no such file: $1" >&2
+    exit 2
+  }
+}
+
+[ $# -ge 1 ] || usage
+
+if [ "$1" = "--check" ]; then
+  [ $# -eq 3 ] || usage
+  want=$2
+  file=$3
+  [[ $want =~ ^sha256:[0-9a-f]{64}$ ]] || {
+    echo "pin: not a pin: $want" >&2
+    exit 2
+  }
+  require_file "$file"
+  got="sha256:$(hash_of "$file")"
+  if [ "$got" != "$want" ]; then
+    echo "pin: $file does not match its pin: pinned $want, found $got" >&2
+    exit 1
+  fi
+  exit 0
+fi
+
+for f in "$@"; do
+  require_file "$f"
+done
+for f in "$@"; do
+  printf 'sha256:%s %s\n' "$(hash_of "$f")" "$f"
+done
