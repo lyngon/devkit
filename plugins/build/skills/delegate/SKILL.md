@@ -34,7 +34,7 @@ The spec is the binding authority, the plan is its argument, and your judgment s
 Record every decision in the ledger as `Ruling: <what you decided>; <why>; <what it costs if wrong>`, and keep going.
 A wrong ruling costs rework the user can see and undo; a session parked on a question costs their whole day and buys nothing.
 
-**Five things stop you, and only these:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
+**Five things stop you, besides the owner gates the plan declares:** an irreversible or destructive operation; a security-sensitive action; a side effect outside this worktree that norms say you ask about first (a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish; pushing the feature branch and opening its pull request are left to `build:finish`); a plan so broken that every path forward is a guess; and a check or hook that you could only get past by disabling, skipping or weakening it.
 For those, stop and ask, through the protocol in [Owner gates](#owner-gates): the plan may have declared the stop as an owner gate, which the owner may have pre-approved by its ID, and a stop it did not declare is an unforeseen gate.
 Never disable, skip or weaken a check or hook to make something pass, and never let an implementer do so.
 
@@ -423,7 +423,7 @@ If the final whole-branch review returns findings, dispatch ONE fix subagent wit
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave (`scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range, with [re-review-prompt.md](references/re-review-prompt.md)).
 Adjudicate any residual findings as in the task loop's breaker: park with rulings, or rule on the load-bearing ones and ledger what you decided.
-Only the five stops above stop you here.
+Only owner gates, the five stops above among them, stop you here.
 There is no second fix wave; residual load-bearing findings reach the user in the rulings list, in the pull request description that `build:finish` writes.
 
 ## Finish
@@ -453,7 +453,7 @@ Call the Skill tool for `build:finish`.
 | "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
 | "The implementer spawned its own reviewer, free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 | "The hook fails on something unrelated, tell the implementer to skip it" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
-| "Let me check in before the next task" | The user reviews the plan and the pull request, nothing in between. Only the five stops stop you. |
+| "Let me check in before the next task" | The user reviews the plan and the pull request and answers owner gates, nothing else in between. Only owner gates, the five stops among them, stop you. |
 | "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors and parked findings before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 | "The owner will obviously say yes, I'll run the apply now" | Only an explicit yes passes a gate, or a pre-approval the plan's index records by the gate's ID. |
 | "The artifact is identical to the one approved before the pause" | A run-time approval lapses at a pause. Re-run the pre-gate part and ask again. |
