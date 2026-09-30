@@ -110,15 +110,20 @@ At setup, a plan that ends with an `## Execution status` section is a paused run
 It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
 Ledger `Resume <time>: <what it printed>`.
 The copy is as old as the pause commit, the latest `docs(plan): pause at gate <id>` commit.
-Commits after it are work the copy does not show: read `git log --format='%h %s%n%b' <pause commit>..HEAD`, ledger `Task N: complete (recovered from git log: <commits>)` for each task those commits complete, and resume at the first task they do not.
-A gate whose record commit is in that log has acted: never re-run its post-gate part.
+Commits after it are work the copy does not show.
+Read `git log --format='%h %s%n%b' <pause commit>..HEAD`, and for each task the ledger does not already show complete:
+
+- A task without a gate whose commit steps all appear in the log is complete: ledger `Task N: complete (recovered from git log: <commits>)`.
+- A gated task whose record commit appears in the log has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
+
+Resume at the first task that is not complete.
 
 Then, for the task at a gate:
 
 - A run-time approval lapses at a pause: re-run the pre-gate part and ask again, even when the new artifact is identical.
 - A pre-approval does not lapse; step 3 checks it again.
 - An owner's "done" does not lapse: resume at the post-gate part, which verifies.
-- A `Task N post-gate: dispatched` (or `started`) line with no completion after it means the part may already have acted: never re-run it blindly; make it an unforeseen gate that shows its report.
+- A `Task N post-gate: dispatched` (or `started`) line with neither a completion nor a record commit after it means the part may already have acted: never re-run it blindly; make it an unforeseen gate that shows its report.
 
 The section stays in the plan until the next pause rewrites it or `build:finish` removes the plan.
 
@@ -134,6 +139,7 @@ Task 6 post-gate: dispatched
 Pause 2026-09-27T14:11:02+0800: resume at Task 6 pre-gate; removed backend_override.tf, bootstrap.tfplan
 Resume 2026-09-27T14:39:40+0800: recreated the ledger from the plan's Execution status
 Task 6: complete (commits 6033d2e..a1b2c3d, evidence review clean)
+Task 7: complete (recovered from git log: b4c5d6e)
 ```
 
 `Task 6 pre-gate:` never matches the resume check for `Task 6: complete`, so a finished pre-gate part never reads as a finished task.

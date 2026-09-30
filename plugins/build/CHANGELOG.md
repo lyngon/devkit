@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.10 - 2026-09-30
+
+- `delegate`'s Resuming section recovers a gated task whose record commit is in the log by ledgering its gate answer and resuming at its evidence review, which completes it, where it could be ledgered complete without that review; a post-gate line with a record commit after it no longer triggers the unforeseen-gate safeguard, and the ledger example shows a recovered completion.
+
 ## 0.15.9 - 2026-09-30
 
 - The evidence reviewer prompt reads the task's ledger lines and record commit where an inline executor wrote no report files, and `execute`'s `## Owner gates` says to pass them in place of `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]`, where the template marked the two report files as required.

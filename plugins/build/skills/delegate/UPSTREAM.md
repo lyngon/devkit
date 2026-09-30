@@ -53,7 +53,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: the artifact's quote goes below the gate message's `Artifact:` line.
 - `references/owner-gates.md`, which is not upstream: the gate message is sent as a single `text` fence.
 - The DONE step runs this skill's `scripts/review-package` from the repository root, where "from this skill's directory" could be read as changing into it.
-- `references/owner-gates.md`, which is not upstream: Resuming reconciles a restored ledger with `git log` since the pause commit and never re-runs a post-gate part whose record commit is in it.
+- `references/owner-gates.md`, which is not upstream: Resuming reconciles a restored ledger with `git log` since the pause commit, recovers completions and gate answers from it, and resumes a gated task whose record commit is there at its evidence review, never re-running its post-gate part.
 - `references/evidence-reviewer-prompt.md`, which is not upstream: `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]` are the task's ledger lines and record commit under an inline executor, which writes no report files.
 
 ## Review notes

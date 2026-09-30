@@ -1,6 +1,6 @@
 {
   "name": "build",
-  "version": "0.15.9",
+  "version": "0.15.10",
   "description": "From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end.",
   "author": {
     "name": "Lyngon",
