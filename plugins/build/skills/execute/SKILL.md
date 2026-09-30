@@ -128,14 +128,14 @@ The harness's todo list is a live view; the ledger is the record.
 
 The workspace and ledger are shared with `build:delegate`, same directory, same format, so a plan can change executors mid-flight and the new one resumes from the same ledger.
 
-- Each plan owns a workspace: at skill start, run `../delegate/scripts/workspace PLAN_FILE` from this skill's directory (the script lives in `build:delegate`, which shares the workspace).
+- Each plan owns a workspace: at skill start, run `<this skill's directory>/../delegate/scripts/workspace PLAN_FILE` from the repository root (the script lives in `build:delegate`, which shares the workspace).
   It prints the plan's git-ignored directory, `<repo-root>/tmp/build/<plan-slug>/`, home to every artifact for this plan: ledger, briefs, review packages.
   Another plan's directory is never yours to read or write.
 - Check for this plan's ledger at `<workspace>/progress.md`.
   If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not redo them; resume at the first task without one.
   Their commits exist in git even when your context no longer remembers making them: after compaction, trust the ledger and `git log` over your own recollection.
   A ledger whose first line names a different plan file is another plan's progress: leave it and start your own, fresh.
-- A plan that ends with an `## Execution status` section is a run that paused: before you read the ledger, run `../delegate/scripts/execution-status restore PLAN_FILE` from this skill's directory, as [owner-gates.md](../delegate/references/owner-gates.md) says under Resuming.
+- A plan that ends with an `## Execution status` section is a run that paused: before you read the ledger, run `<this skill's directory>/../delegate/scripts/execution-status restore PLAN_FILE` from the repository root, as [owner-gates.md](../delegate/references/owner-gates.md) says under Resuming.
   A task with a `Task <N> pre-gate:` line and no completion line is at its gate; resume it as that section says.
 - Create the ledger with its identity as the first line: `# build ledger: plan <plan file path>`.
 - `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise.
@@ -229,7 +229,7 @@ Read [owner-gates.md](../delegate/references/owner-gates.md) before the first ga
 
 ## Final review
 
-Run `../delegate/scripts/review-package PLAN_FILE MERGE_BASE HEAD` from this skill's directory (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`) and review from the file it prints.
+Run `<this skill's directory>/../delegate/scripts/review-package PLAN_FILE MERGE_BASE HEAD` from the repository root (MERGE_BASE is the commit the branch started from, for example `git merge-base main HEAD`) and review from the file it prints.
 The final review stays after the last task, gated or not; the record commits of the gated tasks are in its package.
 A finding whose fix needs a live change gets an unforeseen owner gate in the fix pass.
 

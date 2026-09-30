@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.6 - 2026-09-30
+
+- `execute` names `workspace`, `execution-status restore` and `review-package` by their path from its own directory and runs them from the repository root, and `delegate` runs `review-package` from the repository root, where both said to run them from the skill's directory, which an executor read as changing into it, so the scripts resolved the repository that holds the skill.
+
 ## 0.15.5 - 2026-09-30
 
 - `delegate`'s owner gate protocol sends the gate message as a single `text` fence, since the instruction to add no formatting alone still let an executor put the gate ID in backticks.

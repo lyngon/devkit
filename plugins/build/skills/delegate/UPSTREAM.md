@@ -52,6 +52,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: every answer at a gate is ledgered verbatim with its time, a "later" too.
 - `references/owner-gates.md`, which is not upstream: the artifact's quote goes below the gate message's `Artifact:` line.
 - `references/owner-gates.md`, which is not upstream: the gate message is sent as a single `text` fence.
+- The DONE step runs this skill's `scripts/review-package` from the repository root, where "from this skill's directory" could be read as changing into it.
 
 ## Review notes
 
