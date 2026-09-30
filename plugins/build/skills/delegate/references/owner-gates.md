@@ -46,7 +46,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Pin what the approval covers with `pin <files>`: the files in `Acts on`, or in `Show` when the gate has no `Acts on`.
    Ledger `Task N pre-gate: complete (no commits; pins <file> sha256:<hex>, ...)` with every hash whole.
    A command with no file inputs is pinned by its text: ledger it in backticks in place of a file.
-3. **Decide whether to ask.** A gate passes without asking only when its index row holds a pre-approval, `Performed by` names the agent, every pre-gate `Expected:` line matched, no ruling changed a step of the task, and no instruction of the repository requires the owner's approval of this action at run time.
+3. **Decide whether to ask.** A gate passes without asking only when its index row holds a pre-approval, `Performed by` names the agent, every pre-gate `Expected:` line matched, no ruling changed a step of the task, no pin check or dry-run re-check of this gate failed in this run, and no instruction of the repository requires the owner's approval of this action at run time.
    Then ledger `Gate <id>: pre-approved (plan index); Expected lines matched` and go to step 5.
    When a pre-approval exists but a condition fails, ledger `Gate <id>: pre-approval void (<the condition that failed>); asking`; an instruction of the repository that the plan did not mark wins over the pre-approval.
 4. **Ask.** Send the gate message as a single `text` fence with more backticks than any fence in what it quotes, and add no formatting: the plan's text stays verbatim, backticks included, and nothing else gets backticks. Ledger `Gate <id>: waiting for owner`, and wait:
@@ -69,7 +69,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 5. **Post-gate part.** Extract the brief with `task-brief PLAN_FILE N --part post-gate`, and ledger `Task N post-gate: dispatched` (`started` in `build:execute`).
    In `build:delegate`, dispatch a fresh implementer, never the pre-gate one resumed, because the gate may have spanned sessions; its report is `task-N-post-gate-report.md`, and the template's `[OWNER_GATE]` block carries the approval: the answer verbatim or the pre-approval, every pin, and the exact commands approved.
    Before anything else the part checks every pin with `pin --check sha256:<hex> <file>`, and for an action that depends on live state it re-runs the dry run and compares the output byte for byte with the approved one.
-   A mismatch stops it without acting: the approval is void, and the gate goes back to step 1.
+   A mismatch stops it without acting: ledger `Gate <id>: approval void (<the check that failed>)`; the approval or pre-approval is void for this run, and the gate goes back to step 1, where step 3 asks.
    An action that fails partway (one of several applies fails) stops the part, which acts no further, as the plan's steps say; the failure becomes an unforeseen gate that shows the error.
 6. **Record commit.** The post-gate part ends with a record commit, empty (`git commit --allow-empty`) when the repository did not change.
    Its message body is the evidence: the gate ID, the owner's answer verbatim with its time or the pre-approval, the pins, the commands run in order with their result lines, and the results of the checks.
@@ -124,7 +124,7 @@ Then, for the task at a gate:
 - A run-time approval lapses when the session that received it ends before the post-gate part starts, at a pause or not: re-run the pre-gate part and ask again, even when the new artifact is identical.
 - A pre-approval does not lapse; step 3 checks it again.
 - An owner's "done" does not lapse: resume at the post-gate part, which verifies.
-- A `Task N post-gate: dispatched` (or `started`) line with neither a completion nor a record commit after it means the part may already have acted: never re-run it blindly; make it an unforeseen gate that shows its report.
+- A `Task N post-gate: dispatched` (or `started`) line with neither a completion, a record commit nor a `Gate <id>: approval void` line after it means the part may already have acted: never re-run it blindly; make it an unforeseen gate that shows its report.
 
 The section stays in the plan until the next pause rewrites it or `build:finish` removes the plan.
 
@@ -137,6 +137,7 @@ Gate apply-state-bucket: owner 2026-09-27T14:51:55+0800: "Go ahead and apply!"
 Gate apply-state-bucket: pre-approved (plan index); Expected lines matched
 Gate apply-state-bucket: pre-approval void (Step 3 expected 6 to add, got 7 to add); asking
 Task 6 post-gate: dispatched
+Gate apply-state-bucket: approval void (pin check: bootstrap.tfplan changed)
 Pause 2026-09-27T14:11:02+0800: resume at Task 6 pre-gate; removed backend_override.tf, bootstrap.tfplan
 Resume 2026-09-27T14:39:40+0800: recreated the ledger from the plan's Execution status
 Task 6: complete (commits 6033d2e..a1b2c3d, evidence review clean)

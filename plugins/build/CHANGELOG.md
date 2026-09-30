@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.17 - 2026-09-30
+
+- `delegate`'s owner gate protocol voids a pre-approval for the run when a pin check or dry-run re-check of its gate fails, and ledgers `Gate <id>: approval void (<the check that failed>)`, where the gate went back to step 1 and the pre-approval check passed it again without asking.
+  Resuming reads that line as a post-gate part that stopped without acting.
+
 ## 0.15.16 - 2026-09-30
 
 - `delegate`'s implementer template tells a post-gate implementer that the approval covers one run of the approved commands, and that in a fix round it never runs them again and takes no other effect outside the repository but reports BLOCKED, where a fix round resumed the implementer that held the approval and a finding about the live system invited a second apply.
