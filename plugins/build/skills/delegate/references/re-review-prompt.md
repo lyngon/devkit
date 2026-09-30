@@ -61,7 +61,10 @@ Dispatch a subagent with:
     run the gated action or any command from the brief that takes effect.
     If a check you need would take effect, report it under Out-of-Scope
     Observations instead. Make one focused call per named check, and name
-    the check and the call in your report.
+    the check and the call in your report. Whatever the findings are
+    about, confirm with one such call that the live system is still in
+    the state the evidence review verified: a fix round takes no effect
+    outside the repository.
 
     ## You Do Not Dispatch Subagents
 
@@ -131,8 +134,8 @@ Dispatch a subagent with:
 - `[HEAD_SHA]`: the current commit.
 - `[DIFF_FILE]`: the path `scripts/review-package PLAN_FILE FIX_BASE HEAD` printed.
 
-- `[LIVE_ACCESS]` (optional): how to reach the live system read-only (the tool, the profile or context, the calls the brief's checks use).
-  Fill it for a re-review after an evidence-review fix, whose finding may be about live state, and leave out the whole "The Live System" section otherwise.
+- `[LIVE_ACCESS]` (required after an evidence-review fix, absent otherwise): how to reach the live system read-only (the tool, the profile or context, the calls the brief's checks use).
+  Fill it for every re-review after an evidence-review fix, whatever its findings are about, because the re-reviewer also confirms that the fix round took no effect on the live system; leave out the whole "The Live System" section for any other re-review.
 
 Leave out the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 
