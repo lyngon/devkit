@@ -6,6 +6,7 @@ A queued item has a seed prompt in `docs/seed-prompts/`: paste the file into a f
 
 ## Queued
 
+- 2026-09-30: [Run the build scripts in a worktree-isolated session](seed-prompts/script-invocation-in-worktrees.md), a bounded change. The skills say to run their scripts with `bash`, which a worktree-isolated Claude Code session refuses for scripts that run git; running them as executables works.
 - 2026-09-30: [Lighter plans](seed-prompts/lighter-plans.md), a design through `discover:approach`. Plan depth that scales with risk and the implementer's tier: exact values, interfaces, concrete tests and decision-carrying prose stay dictated, the rest may be intent with acceptance criteria. The owner gates plan ran to 3,430 lines for 13 tasks.
 - 2026-09-30: [Walk every state before fixing protocol text](seed-prompts/protocol-fix-state-walk.md), a bounded change. A fix brief for text that defines a protocol lists the states it touches and checks each before dispatch; three dictated fixes in the owner gates work each introduced a new Important finding.
 - 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when `discover:approach` decomposes work, kept by `build:finish` until the last piece lands.
