@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.24 - 2026-09-30
+
+- `delegate`'s owner gate protocol keeps the commits of an unforeseen gate whose run-time approval lapsed: a resumed run re-runs only the steps that produced its artifact, and only when the artifact is missing or its pin no longer matches, then asks again, where it said to re-run the whole pre-gate part, commits included.
+  A recovered gated task whose BASE was lost with the workspace takes the parent of its first commit in the log as BASE for its evidence review, where nothing said which BASE to use.
+
 ## 0.15.23 - 2026-09-30
 
 - `delegate`'s owner gate protocol shows one `Artifact:` line per pinned file and quotes the `Show` file for a pinned file that is not text, removes a task's temporary files only once its evidence review is clean, since the reviewer checks against them, and replaces only the character a hook rejects in a verbatim answer, or a `|` that would break a table, with its plain form.
