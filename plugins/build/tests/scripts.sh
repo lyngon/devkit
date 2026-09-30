@@ -351,6 +351,101 @@ brief "$plan" 7
 check "task-brief: a missing task exits 3" \
   equals "$code|$err" "3|task-brief: task 7 not found (no heading matching Task 7)"
 
+# --- execution-status --------------------------------------------------------
+
+repo=$(new_repo execution-status)
+plan=$repo/docs/plans/2026-01-01-paused.md
+printf '# Paused\n\n## Plan\n\n### Task 1: Only\n\n- [ ] **Step 1: Do it**\n' >"$plan"
+original=$(cat "$plan")
+status() {
+  run bash -c 'cd "$1" && shift && bash "$@"' _ "$repo" "$delegate/execution-status" "$@"
+}
+workspace=$(cd "$repo" && bash "$delegate/workspace" "$plan")
+ledger=$workspace/progress.md
+printf '# build ledger: plan %s\nTask 1 pre-gate: complete (no commits)\n' "$plan" >"$ledger"
+
+status write "$plan" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: prints the plan" \
+  equals "$code|$out" "0|$plan"
+check "execution-status write: appends the section after a blank line" \
+  equals "$(cat "$plan")" "$original
+
+## Execution status
+
+The run paused here; \`build:finish\` removes this section with the rest of the plan.
+The fence holds the ledger verbatim, and an executor recreates \`progress.md\` from it when its workspace has none.
+
+Resume at: Task 1 pre-gate (gate do-it)
+
+\`\`\`\`text
+# build ledger: plan $plan
+Task 1 pre-gate: complete (no commits)
+\`\`\`\`"
+
+printf 'Gate do-it: waiting for owner\n' >>"$ledger"
+status write "$plan" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: a second write leaves one section" \
+  equals "$(grep -c '^## Execution status' "$plan")" "1"
+check "execution-status write: a second write leaves the lines before the section byte for byte" \
+  cmp -s <(sed -n '1,/^## Execution status/p' "$plan" | sed '$d') <(printf '%s\n\n' "$original")
+check "execution-status write: the new section holds the whole ledger" \
+  contains "$(cat "$plan")" "Gate do-it: waiting for owner"
+
+printf '# Middle\n\n## Execution status\n\nold\n\n## Later\n\nkept\n' >"$repo/docs/plans/2026-01-01-middle.md"
+middle_workspace=$(cd "$repo" && bash "$delegate/workspace" "$repo/docs/plans/2026-01-01-middle.md")
+printf '# build ledger: plan middle\n' >"$middle_workspace/progress.md"
+status write "$repo/docs/plans/2026-01-01-middle.md" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: a section followed by another is replaced in place" \
+  equals "$(sed -n '/^old$/p;/^## Later$/,$p' "$repo/docs/plans/2026-01-01-middle.md")" $'## Later\n\nkept'
+
+rm "$ledger"
+status restore "$plan"
+check "execution-status restore: recreates a missing ledger from the copy" \
+  equals "$code|$out|$err|$(cat "$ledger")" "0|$ledger|execution-status: recreated the ledger from the plan's Execution status|# build ledger: plan $plan
+Task 1 pre-gate: complete (no commits)
+Gate do-it: waiting for owner"
+status restore "$plan"
+check "execution-status restore: a matching ledger stays" \
+  equals "$code|$err" "0|execution-status: the ledger matches the plan's Execution status"
+printf 'Pause 2026-01-01T10:00:00+0000: resume at Task 1 pre-gate\n' >>"$ledger"
+status restore "$plan"
+check "execution-status restore: keeps a ledger that extends the copy" \
+  equals "$code|$err|$(tail -n 1 "$ledger")" "0|execution-status: kept the ledger, which extends the plan's copy|Pause 2026-01-01T10:00:00+0000: resume at Task 1 pre-gate"
+head -n 2 "$ledger" >"$ledger.short" && mv "$ledger.short" "$ledger"
+status restore "$plan"
+check "execution-status restore: replaces a ledger that the copy extends" \
+  equals "$code|$err|$(tail -n 1 "$ledger")" "0|execution-status: replaced the ledger with the plan's longer copy|Gate do-it: waiting for owner"
+printf '# build ledger: plan %s\nTask 1: complete (commits a..b, review clean)\n' "$plan" >"$ledger"
+status restore "$plan"
+check "execution-status restore: a ledger and a copy that disagree exit 1" \
+  equals "$code|$(grep -c 'disagree' <<<"$err")" "1|1"
+printf '# No fence\n\n## Execution status\n\nold\n' >"$repo/docs/plans/2026-01-01-no-fence.md"
+status restore "$repo/docs/plans/2026-01-01-no-fence.md"
+check "execution-status restore: a section without a fenced ledger exits 1" \
+  equals "$code|$err" "1|execution-status: the Execution status in $repo/docs/plans/2026-01-01-no-fence.md has no fenced ledger"
+printf '# Plain\n' >"$repo/docs/plans/2026-01-01-plain.md"
+status restore "$repo/docs/plans/2026-01-01-plain.md"
+check "execution-status restore: a plan without the section changes nothing" \
+  equals "$code|$err" "0|execution-status: $repo/docs/plans/2026-01-01-plain.md has no Execution status; nothing to restore"
+
+cat >"$ledger" <<'EOF'
+# build ledger: plan docs/plans/2026-01-01-paused.md
+Ruling: keep a\b & "quoted" $HOME 'x' %s `tick`; costs nothing
+EOF
+cp "$ledger" "$tmp/special-ledger"
+status write "$plan" "Task 1 pre-gate (gate do-it)"
+rm "$ledger"
+status restore "$plan"
+check "execution-status: a ledger line with shell, sed and awk specials survives write and restore byte for byte" \
+  cmp -s "$ledger" "$tmp/special-ledger"
+
+printf '# No newline\n\nlast' >"$repo/docs/plans/2026-01-01-no-newline.md"
+no_newline_workspace=$(cd "$repo" && bash "$delegate/workspace" "$repo/docs/plans/2026-01-01-no-newline.md")
+printf '# build ledger: plan no-newline\n' >"$no_newline_workspace/progress.md"
+status write "$repo/docs/plans/2026-01-01-no-newline.md" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: a plan without a final newline gets the section after a blank line" \
+  equals "$code|$(sed -n '3,5p' "$repo/docs/plans/2026-01-01-no-newline.md")" $'0|last\n\n## Execution status'
+
 # --- Summary -----------------------------------------------------------------
 
 if [ "$failures" -gt 0 ]; then
