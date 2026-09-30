@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.35 - 2026-09-30
+
+- Resuming in `delegate`'s owner gate protocol runs `execution-status restore` also when a ledger is present, and ledgers the text it printed after its `execution-status:` prefix, verbatim, on a `Resume` line of its own, where a run with a ledger in place skipped the restore and another wrote its own summary of the reconciliation in place of what the restore printed.
+
 ## 0.15.34 - 2026-09-30
 
 - `delegate`'s owner gate protocol takes an owner's answer's time from `date` run when the answer arrives, and every time in a ledger line from `date` run when the line is written, where it named the command but not when to run it, so a run ledgered a "later" and its Pause line with the time it had taken before sending the gate message.

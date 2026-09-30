@@ -122,9 +122,9 @@ When the owner ends the session with no task at its gate, remove nothing, append
 
 Follow these steps at every setup of a plan that declares owner gates or ends with an `## Execution status` section, before reading the ledger, whether or not the run paused:
 
-1. When the plan ends with an `## Execution status` section, run `execution-status restore PLAN_FILE`.
+1. When the plan ends with an `## Execution status` section, run `execution-status restore PLAN_FILE`, also when a ledger is present.
    It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
-   Ledger `Resume <time>: <what it printed>`.
+   Ledger `Resume <time>: <what it printed>` on a line of its own, where what it printed is the text after its `execution-status:` prefix, verbatim, such as `recreated the ledger from the plan's Execution status`; what step 2 finds goes on the lines step 2 names.
 2. Reconcile the ledger with `git log`, which outlives the workspace.
    Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the merge base with the default branch.
    For each task the ledger does not already show complete:
