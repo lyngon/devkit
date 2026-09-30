@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.22 - 2026-09-30
+
+- `WORKFLOW.md`, symlinked into `plan`, names the executor's "Owner gates" list beside "Rulings I made" and "Deferred minors" at the second review gate.
+  `plan` names the user's two review gates where it said "two gates", leaves the owner gates clause out of the first handoff template when the plan declares none, and words self-review item 7 without the undefined "stop-list action".
+
 ## 0.15.21 - 2026-09-30
 
 - `finish` runs `execution-status restore` whenever the plan holds an Execution status, which keeps a longer ledger, where it ran only when `progress.md` was missing, and takes the pull request's "Owner gates" list from the record commits since the merge base, one entry per gate with its answer or pre-approval and the record commit's hash, where it took every `Gate` line of a ledger that may be gone.

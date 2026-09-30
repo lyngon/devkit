@@ -4,6 +4,10 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.6.1 - 2026-09-30
+
+- `WORKFLOW.md`, symlinked into `approach`, names the executor's "Owner gates" list beside "Rulings I made" and "Deferred minors" at the second review gate.
+
 ## 0.6.0 - 2026-09-30
 
 - `WORKFLOW.md`, symlinked into `approach`, names the review gates and the owner gates, pre-approval by ID, the protocol every stop runs, the Execution status and the record commits.

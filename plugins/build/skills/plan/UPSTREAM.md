@@ -34,6 +34,7 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - The execution handoff names the pull request that `build:finish` opens as the second gate, and says the rulings are presented in its description; between the gates the executor asks the user nothing.
 - Owner gates, which are not upstream: a `### Owner Gates` index in the plan header; an `## Owner gates` section with the gate step, its fields and its rules; every task ends with at least one commit; a "No placeholders" item and self-review item 7 for gates; the handoff asks for pre-approvals by ID and records them in the index before invoking the executor.
 - Owner gates, which are not upstream: a step title says "owner gate" only in a marker, and the executor refuses any other step title that says it and a task the index names without its marker.
+- The pointer to `WORKFLOW.md` names the user's two review gates; the first handoff template's clause about the owner gates not pre-approved is left out when the plan declares none; self-review item 7 says "an action an executor must stop for" where it said "stop-list action", a term the skill never defined.
 
 ## Review notes
 

@@ -1,6 +1,6 @@
 {
   "name": "discover",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and ADRs as they crystallise and gates implementation on approval.",
   "author": {
     "name": "Lyngon",

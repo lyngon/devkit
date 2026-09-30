@@ -20,7 +20,7 @@ DRY. YAGNI. TDD. One commit per task.
 
 Assume they are a skilled developer who knows almost nothing about this repository's toolset or problem domain, and who does not know good test design very well.
 
-The flow this skill sits in, from `discover:approach` to `build:finish` and the user's two gates, is in [WORKFLOW.md](WORKFLOW.md).
+The flow this skill sits in, from `discover:approach` to `build:finish` and the user's two review gates, is in [WORKFLOW.md](WORKFLOW.md).
 
 ## Where the plan lives
 
@@ -234,7 +234,7 @@ This is a checklist you run yourself, not a subagent dispatch.
    Add the missing run; a check without one is a placeholder.
 6. **Dictated prose.** Check every block of prose the plan dictates verbatim (a decision record, README steps, a working rule, a term's definition) against the repository's recorded decisions, the gates and rules in its agent instructions, and the findings recorded earlier in this design and plan.
    The implementer copies it as written, so a contradiction the plan carries ships.
-7. **Owner gates.** Every task that performs a stop-list action (an irreversible or destructive operation, a security-sensitive action, a side effect outside the worktree) has a gate, and no step before a gate performs one.
+7. **Owner gates.** Every task that performs an action an executor must stop for (an irreversible or destructive operation, a security-sensitive action, a side effect outside the worktree) has a gate, and no step before a gate performs such an action.
    Every gate has all its fields, and the index has exactly one row per gate, or "None." when there is none.
    Every gate the agent performs has an action its approval pins, and every dry run a post-gate step compares is deterministic.
    The step that produces a pre-approvable gate's artifact has an exact `Expected:` line, and every gate that an instruction of the repository keeps from pre-approval is marked, with the instruction named.
@@ -255,7 +255,7 @@ Between the two the executor asks them nothing except at owner gates: it rules o
 If the user has already explicitly supplied an execution method, ask them to review the plan and confirm it captures what they want; wait for that review before implementation, then use the supplied method.
 Otherwise, ask them to review the plan and choose an execution method before implementation.
 
-When no execution method has been supplied:
+When no execution method has been supplied (leave out ", except at the owner gates you do not pre-approve" when the plan declares no owner gates):
 
 ```text
 Plan complete and committed as docs/plans/<filename>.md. Please review it.
