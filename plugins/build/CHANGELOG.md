@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.33 - 2026-09-30
+
+- The completion of a task with an owner gate removes its temporary files in `delegate`'s Complete the task and in `execute`'s Owner gates section, as the owner gate protocol's step 8 says, where neither executor's completion text named the removal, so a run completed a gated task and left its pre-gate artifact behind.
+
 ## 0.15.32 - 2026-09-30
 
 - `delegate`'s owner gate protocol ledgers the evidence review's verdict as `Task N: evidence review clean` or `Task N: evidence review: <K> findings (<one-liners>)` before any fix round, where it named no line for it, so a run wrote its own form and Resuming, which reads the ledger for an evidence review in progress, had no line to find.

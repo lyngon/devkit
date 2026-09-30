@@ -401,6 +401,7 @@ When the review comes back clean, or every open finding is parked with a ruling 
 - `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a tripped breaker
 
 Then mark the todo complete and move on.
+A task with an owner gate completes as step 8 of [owner-gates.md](references/owner-gates.md) says: its line reads `evidence review clean`, and then you remove its temporary files, the `Temporary:` entries of its Files block.
 Never move to the next task while the review has open Critical or Important issues that are neither fixed nor parked with a ruling at the cap.
 
 ## Owner gates

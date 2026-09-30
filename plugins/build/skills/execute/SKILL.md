@@ -229,7 +229,7 @@ Read [owner-gates.md](../delegate/references/owner-gates.md) before the first ga
   Screen its findings before you fix any: one whose fix needs another live action becomes an unforeseen gate, never part of the fix pass.
   Fix its Critical and Important findings in one pass, each verified by a test or a re-run check that failed first, and ledger `Task N: evidence review clean` or `Task N: evidence review: <K> fixed`.
   Without a subagent tool, apply the template yourself as a separate pass and ledger `Task N: evidence review: self-review (no subagent tool)`.
-- Then run `task-done` with the task's checks as its test command; it records the completion line.
+- Then run `task-done` with the task's checks as its test command; it records the completion line, and then you remove the task's temporary files, as the protocol's step 8 says.
 
 ## Final review
 

@@ -74,6 +74,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/re-review-prompt.md`, which is not upstream: an optional `[LIVE_ACCESS]` section gives the re-review after an evidence-review fix read-only access to the live system, with the evidence reviewer's rules for read-only calls.
 - `references/implementer-prompt.md`, which is not upstream: `[REPORT_FILE]` says a gated task has two reports, one per part, named after their briefs.
 - `references/owner-gates.md`, which is not upstream: the evidence review's verdict is ledgered as `Task N: evidence review clean` or `Task N: evidence review: <K> findings (<one-liners>)` before any fix round.
+- Complete the task: a task with an owner gate completes as the protocol's step 8 says, with `evidence review clean` and the removal of its temporary files.
 
 ## Review notes
 
