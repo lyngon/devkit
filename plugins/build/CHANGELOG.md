@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.37 - 2026-09-30
+
+- `delegate`'s pre-gate dispatch comes from the implementer template with the template's pre-gate `[OWNER_GATE]` text verbatim, in the owner gate protocol's step 1 and the Owner gates section, where only the post-gate dispatch was tied to the block, so a resumed run wrote a short pre-gate prompt of its own that dropped "leave every file the gate shows or acts on in place".
+
 ## 0.15.36 - 2026-09-30
 
 - `delegate`'s scoped re-review after an evidence-review fix gets read-only access to the live system whatever its findings are about, and confirms with one read-only call that the fix round took no effect there, where the template called `[LIVE_ACCESS]` optional and tied it to a finding about live state, so a run left it out for a fix to a record commit's message and told the re-reviewer not to look at the live system.

@@ -39,7 +39,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 
 ## The protocol
 
-1. **Pre-gate part.** Record BASE, extract the brief with `task-brief PLAN_FILE N --part pre-gate` (`task-start PLAN_FILE N --part pre-gate` in `build:execute`), and run the part: in `build:delegate` a dispatch whose report is `task-N-pre-gate-report.md`, in `build:execute` your own steps.
+1. **Pre-gate part.** Record BASE, extract the brief with `task-brief PLAN_FILE N --part pre-gate` (`task-start PLAN_FILE N --part pre-gate` in `build:execute`), and run the part: in `build:delegate` a dispatch from the implementer template whose `[OWNER_GATE]` block holds the template's pre-gate text verbatim, with the report `task-N-pre-gate-report.md`, in `build:execute` your own steps.
    Nobody performs the gated action here.
    `task-brief` refuses a malformed gate, and a task the index names without its marker, before anything runs; rule on the plan defect, or stop when every path forward is a guess.
 2. **Compare and pin.** Compare every `Expected:` line of the pre-gate steps with the real output; a mismatch is handled as in any task, with a ruling or the fix loop, before the gate.
