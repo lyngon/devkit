@@ -46,11 +46,12 @@ Dispatch a subagent with:
     3. Verify the implementation works
     4. Commit as the brief specifies; by default, one commit per task on
        the current branch, Conventional Commits, one concern per commit,
-       never on main. Every task ends with at least one commit: a task
+       never on main. Every task ends with at least one commit, except
+       the pre-gate part of an owner gate, which commits nothing; a task
        whose work lies outside the repository ends with a record commit
        (empty, with `git commit --allow-empty`, when nothing in the
        repository changed) whose message body holds the evidence the
-       brief names. The pre-gate part of an owner gate commits nothing
+       brief names
     5. Self-review (see below)
     6. Report back
 

@@ -264,7 +264,7 @@ Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fi
   A task with an owner gate gets two briefs, one per part, as [Owner gates](#owner-gates) says.
 - **Report file.** Name the implementer's report file after the brief (brief `task-N-brief.md`, report `task-N-report.md`, same workspace) and put it in the dispatch prompt.
   The implementer writes the full report there and returns only status, commits, a one-line test summary, and concerns.
-  There is one report per task.
+  There is one report per task, and two for a task with an owner gate, one per part, as with its briefs.
   A report file that already exists is a prior attempt's memory (a dispatch before compaction, or an earlier session): never delete or rename it.
   Hand its path to the new implementer with the framing fix rounds 4 and 5 use: "A prior implementer attempted this task; you own it now. Read the report file for what was tried."
   The implementer appends its own report under a dated heading.

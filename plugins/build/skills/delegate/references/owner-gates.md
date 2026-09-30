@@ -46,7 +46,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Pin what the approval covers with `pin <files>`: the files in `Acts on`, or in `Show` when the gate has no `Acts on`.
    Ledger `Task N pre-gate: complete (no commits; pins <file> sha256:<hex>, ...)` with every hash whole.
    A command with no file inputs is pinned by its text: ledger it in backticks in place of a file.
-3. **Decide whether to ask.** A gate passes without asking only when its index row holds a pre-approval, `Performed by` names the agent, every pre-gate `Expected:` line matched, no ruling changed a step of the task, no pin check or dry-run re-check of this gate failed in this run, and no instruction of the repository requires the owner's approval of this action at run time.
+3. **Decide whether to ask.** A gate passes without asking only when its index row holds a pre-approval, `Performed by` names the agent for an action the approval pins, every pre-gate `Expected:` line matched, no ruling changed a step of the task, no pin check or dry-run re-check of this gate failed in this run, and no instruction of the repository requires the owner's approval of this action at run time.
    Then ledger `Gate <id>: pre-approved (plan index); Expected lines matched` and go to step 5.
    When a pre-approval exists but a condition fails, ledger `Gate <id>: pre-approval void (<the condition that failed>); asking`; an instruction of the repository that the plan did not mark wins over the pre-approval.
 4. **Ask.** Send the gate message as a single `text` fence with more backticks than any fence in what it quotes, and add no formatting: the plan's text stays verbatim, backticks included, and nothing else gets backticks. Ledger `Gate <id>: waiting for owner`, and wait:
@@ -60,11 +60,15 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Answer yes, no with what to change, or later.
    ```
 
-   Below the `Artifact:` line, quote the artifact verbatim when it has at most 40 lines; otherwise quote the pre-gate `Expected:` lines and give the file's path.
+   The message has one `Artifact:` line per pinned file.
+   Below them, quote each artifact verbatim when it has at most 40 lines, and in place of a pinned file that is not text (a `.tfplan`) quote the gate's `Show` file; for a quote over 40 lines, give the pre-gate `Expected:` lines and the file's path instead.
    A gate pinned by a command's text shows `Command: <the command>` in place of the `Artifact:` line.
    At a gate the owner performs, a `Commands:` line followed by the exact commands or instructions takes the place of the `Artifact:` line and the quote, and the last line is `Answer done once they have run (with the output if you have it), no with what to change, or later.`
    Only an explicit yes at a gate the agent performs, or "done" at a gate the owner performs, passes the gate.
    Ledger every answer verbatim, a "later" too, with the time from `date +%Y-%m-%dT%H:%M:%S%z`: `Gate <id>: owner <time>: "<answer>"`.
+   The answer travels on into the record commit's body and, through a pause, into the plan.
+   Where a hook rejects a character of a verbatim answer, or a `|` would break a table, replace only that character with its plain form (`'`, `"`, `-`, `\|`) and keep the rest verbatim.
+   When the pause commit is the one rejected, make the replacement in the ledger and run `execution-status write` again, so the plan's copy still matches the ledger.
    A no follows the gate's `On no`; "later" pauses the run (see [Pausing](#pausing)).
 5. **Post-gate part.** Extract the brief with `task-brief PLAN_FILE N --part post-gate`, and ledger `Task N post-gate: dispatched` (`started` in `build:execute`).
    In `build:delegate`, dispatch a fresh implementer, never the pre-gate one resumed, because the gate may have spanned sessions; its report is `task-N-post-gate-report.md`, and the template's `[OWNER_GATE]` block carries the approval: the answer verbatim or the pre-approval, every pin, and the exact commands approved.
@@ -78,6 +82,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round.
 8. **Complete.** In `build:delegate`, ledger `Task N: complete (commits <base7>..<head7>, evidence review clean)`, or `(commits <base7>..<head7>, <K> parked)` after a tripped breaker.
    In `build:execute`, `task-done` records the completion once the evidence review is clean.
+   Then remove the task's temporary files (the `Temporary:` entries of its Files block); only a pause at the gate removes them earlier, because the evidence reviewer checks against them.
 
 ## Unforeseen stops
 
@@ -97,16 +102,18 @@ A final-review finding whose fix needs a live change gets such a gate in the fix
 ## Pausing
 
 A run pauses on "later" at a gate, when the owner ends the session, or when you are about to end with a gate unanswered.
-In this order:
+When a task is at its gate (asked or answered, its post-gate part not started), in this order:
 
 1. Remove the task's pre-gate artifacts, the files its Files block lists as temporary, so a stale one can never be acted on.
    After an owner's "done", remove nothing: the action has happened, and the run resumes at the post-gate part.
 2. Append `Pause <time>: resume at Task N pre-gate; removed <files>` to the ledger, or `resume at Task N post-gate` after "done".
-3. Run `execution-status write PLAN_FILE "Task N pre-gate (gate <id>)"`, or `post-gate` after "done".
+3. Run `execution-status write PLAN_FILE "Task N pre-gate (gate <id>)"`, or `execution-status write PLAN_FILE "Task N post-gate (gate <id>)"` after "done".
    It copies the ledger verbatim into an `## Execution status` section at the end of the plan, replacing an earlier one.
 4. Commit the plan alone: `git commit -m "docs(plan): pause at gate <id>" -- PLAN_FILE`.
    Do not push; give the owner the push command in case they want a backup.
 5. End with a prompt the owner can paste to resume: the executor's skill and the plan path.
+
+When the owner ends the session with no task at its gate, remove nothing, append `Pause <time>: resume at Task N` (the first task without a completion line), run `execution-status write PLAN_FILE "Task N"`, commit the plan alone as in step 4 with the message `docs(plan): pause before Task N`, and end as step 5 says.
 
 ## Resuming
 
@@ -116,7 +123,7 @@ Follow these steps at every setup of a plan that declares owner gates or ends wi
    It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
    Ledger `Resume <time>: <what it printed>`.
 2. Reconcile the ledger with `git log`, which outlives the workspace.
-   Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the pause commit (the latest `docs(plan): pause at gate <id>` commit) when the plan has one, and otherwise the merge base with the default branch.
+   Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the pause commit (the latest `docs(plan): pause at gate <id>` or `docs(plan): pause before Task N` commit) when the plan has one, and otherwise the merge base with the default branch.
    For each task the ledger does not already show complete:
    - A task without a gate whose commit steps all appear in the log is complete: ledger `Task N: complete (recovered from git log: <commits>)`.
    - A gated task whose record commit appears in the log (its body names the gate ID) has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
@@ -132,6 +139,8 @@ Then, for the task at a gate:
 The section stays in the plan until the next pause rewrites it or `build:finish` removes the plan.
 
 ## Ledger lines
+
+The ledger holds summaries and identifiers, never a secret: a pause commits it to the branch.
 
 ```text
 Task 6 pre-gate: complete (no commits; pins bootstrap.tfplan sha256:<64 hex digits>)

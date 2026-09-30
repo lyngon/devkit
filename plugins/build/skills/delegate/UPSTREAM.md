@@ -63,6 +63,8 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `scripts/pin`, which is not upstream: a directory, a file it cannot read and a hash that did not come out are refused with exit 2 and a message naming the file, before any line is printed, where an unreadable file printed `sha256: <file>` with an empty hash and exited 0.
 - `scripts/execution-status`, which is not upstream: `write` gives a ledger without a final newline one, refuses a ledger line of four backticks after any indentation, as the fence tracker reads it, and refuses a RESUME_AT holding a newline.
 - Finish: the "Owner gates" list holds one entry per gate, and the paragraph says `build:finish` puts three lists in the pull request description and reads the owner gates from their record commits.
+- `references/owner-gates.md`, which is not upstream: the gate message has one `Artifact:` line per pinned file and quotes the `Show` file for a pinned file that is not text; a character a hook rejects in a verbatim answer, or a `|` in a table, is replaced by its plain form; temporary files are removed once the evidence review is clean; a session the owner ends with no task at its gate pauses as `docs(plan): pause before Task N`, and Resuming reads from that commit too; the ledger never holds a secret; Pausing spells out the post-gate argument of `execution-status write`; step 3 passes a pre-approved gate only for an action the approval pins, as "Who performs the action" requires.
+  SKILL.md says a gated task has two reports, one per part; the implementer template joins the pre-gate exception to "Every task ends with at least one commit".
 
 ## Review notes
 

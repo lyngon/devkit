@@ -186,7 +186,7 @@ A task that exists to perform a hard-to-reverse action only the user may approve
 - A task has at most one gate. A sequence of irreversible actions is a sequence of tasks, so each is verified before the next runs.
 - The steps before the gate do only reversible work inside the worktree (scratch files, saved plans, dry runs) and read-only calls, and commit nothing; the step that produces what the gate shows has an `Expected:` line. The code the action needs is written, committed and reviewed in an earlier task.
 - The steps after the gate check the pins, perform or verify the action, run the checks, and end with the record commit: empty (`git commit --allow-empty`) when nothing in the repository changed, with the evidence in its body (the gate ID, the answer or the pre-approval, the pins, the commands in order with their results, the results of the checks).
-- The task's Files block lists the pre-gate artifacts as `Temporary:`, so a paused run knows what to remove.
+- The task's Files block lists the pre-gate artifacts as `Temporary:`, so a paused run knows what to remove; otherwise the executor removes them once the evidence review is clean, not before, because the reviewer checks against them.
 - An owner action appears nowhere but at a gate inside a task: never after the branch is finished, never at the pull request.
 - Approving the plan pre-approves nothing. A gate can be pre-approved at the handoff only when the agent performs it, the step that produces its artifact has an exact `Expected:` line (such as `Plan: 6 to add, 0 to change, 0 to destroy.`), and no instruction of the repository requires the user's approval at run time.
 
@@ -295,6 +295,7 @@ Does it capture what you want?
 ```
 
 Write each pre-approval the user gives into the index's Pre-approved column: their reply, verbatim, with the time from `date +%Y-%m-%dT%H:%M:%S%z`.
+Where a hook rejects a character of a verbatim answer, or a `|` would break a table, replace only that character with its plain form (`'`, `"`, `-`, `\|`) and keep the rest verbatim.
 A reply that approves the plan without naming a gate pre-approves none, and a gate marked not pre-approvable stays so whatever the reply says.
 Commit the index as `docs(plan): record pre-approved owner gates` before invoking the executor.
 

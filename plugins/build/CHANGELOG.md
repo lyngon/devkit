@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.23 - 2026-09-30
+
+- `delegate`'s owner gate protocol shows one `Artifact:` line per pinned file and quotes the `Show` file for a pinned file that is not text, removes a task's temporary files only once its evidence review is clean, since the reviewer checks against them, and replaces only the character a hook rejects in a verbatim answer, or a `|` that would break a table, with its plain form.
+  A session the owner ends with no task at its gate pauses with `docs(plan): pause before Task N`, which Resuming reads from too; the ledger never holds a secret; Pausing spells out the post-gate argument of `execution-status write`; the pre-approval check passes a gate only for an action the approval pins, where it could pass a gate that "Who performs the action" says must ask.
+  `delegate` says a gated task has two reports, one per part, and its implementer template joins the pre-gate exception to "Every task ends with at least one commit"; `plan` agrees on temporary files and on replacing a character in a pre-approval.
+
 ## 0.15.22 - 2026-09-30
 
 - `WORKFLOW.md`, symlinked into `plan`, names the executor's "Owner gates" list beside "Rulings I made" and "Deferred minors" at the second review gate.
