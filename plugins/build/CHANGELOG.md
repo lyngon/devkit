@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.27 - 2026-09-30
+
+- `delegate`'s owner gate protocol reconciles the ledger with the commits since the merge base with the default branch, always, where it read from the pause commit when the plan had one, a window that misses a `pause before Task N` commit made after the record commit of a gated task whose evidence review was still running.
+  A gated task whose record commit is in the log gets its `Gate <id>` line only when the ledger lacks one, and resumes its evidence review or fix loop at the next round when the ledger shows one in progress, where it restarted at the evidence review.
+
 ## 0.15.26 - 2026-09-30
 
 - A record commit is found by its first body line, `Owner gate: <id>`, with `git log --grep='^Owner gate: <id>$'`, in `delegate`'s owner gate protocol, `execute`, `finish` and the implementer template, and `plan` says the body starts with that line, where a record commit was any commit whose body named the gate ID, which also matched an earlier commit that only mentioned the gate.

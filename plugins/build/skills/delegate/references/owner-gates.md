@@ -123,10 +123,12 @@ Follow these steps at every setup of a plan that declares owner gates or ends wi
    It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
    Ledger `Resume <time>: <what it printed>`.
 2. Reconcile the ledger with `git log`, which outlives the workspace.
-   Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the pause commit (the latest `docs(plan): pause at gate <id>` or `docs(plan): pause before Task N` commit) when the plan has one, and otherwise the merge base with the default branch.
+   Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the merge base with the default branch.
    For each task the ledger does not already show complete:
    - A task without a gate whose commit steps all appear in the log is complete: ledger `Task N: complete (recovered from git log: <commits>)`.
-   - A gated task whose record commit appears in the log (the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$'`) has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
+   - A gated task whose record commit appears in the log (the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$'`) has acted: never re-run its post-gate part.
+     Ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, only when the ledger lacks one.
+     When the ledger shows its evidence review or an evidence-review fix round in progress, resume that loop at its next round; otherwise resume the task at step 7, the evidence review, which then completes it.
      When BASE was lost with the workspace, take as BASE the parent of the task's first commit in the log, which is the record commit's parent when that is the task's only commit.
 
 Resume at the first task that is not complete.

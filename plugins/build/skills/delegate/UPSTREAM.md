@@ -68,6 +68,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: when an unforeseen gate's run-time approval lapses, its commits stay and a resumed run re-runs only the steps that produced its artifact, and only when the artifact is missing or its pin no longer matches, then asks again; a recovered gated task whose BASE was lost with the workspace takes the parent of its first commit in the log as BASE.
 - `task-brief` reads an Owner Gates index Task cell of "6" or "Task 6" alike when it checks that an indexed task holds its marker.
 - Owner gates, which are not upstream: a record commit is the commit whose body has the line `Owner gate: <id>`, where it was any commit whose body named the gate ID.
+- `references/owner-gates.md`, which is not upstream: Resuming reads the log from the merge base with the default branch, never from a pause commit, and a recovered gated task ledgers its `Gate` line only when the ledger lacks one and resumes a running evidence review or fix loop at its next round.
 
 ## Review notes
 
