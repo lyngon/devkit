@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.42 - 2026-09-30
+
+- Both executors' final review rules on a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, and ledgers the ruling, as in the task loop, and the fix wave takes the rest, where the final review sent every finding to the one fix wave and a finding that needed no change became a fix or an unrecorded skip.
+
 ## 0.15.41 - 2026-09-30
 
 - The owner gate protocol's Resuming names the ledger line for what the reconciliation with `git log` found, `Reconcile <time>: <since>..HEAD; <what it recovered, or "nothing to recover">`, on a fresh start and after a restore alike, with an example among the ledger lines, where it named no line and a run recorded the result as a `Resume` line or not at all.

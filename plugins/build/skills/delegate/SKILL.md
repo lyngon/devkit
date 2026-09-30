@@ -425,6 +425,7 @@ Call the Skill tool for `review:request`; it carries the reviewer template.
 Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
+A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the rest.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave (`scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range, with [re-review-prompt.md](references/re-review-prompt.md)).
 Adjudicate any residual findings as in the task loop's breaker: park with rulings, or rule on the load-bearing ones and ledger what you decided.

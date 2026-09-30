@@ -254,7 +254,7 @@ Re-grade first, by effect: the spec is a vision document, and a finding's grade 
 A reviewer who set a finding at Minor because the spec was silent has graded the spec, not the effect.
 Then:
 
-- **Critical and Important** enter the fix pass.
+- **Critical and Important** enter the fix pass, except a finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch: that one is yours to rule on and ledger, and the fix pass takes the rest.
 - **Minor** goes to the ledger as `Final: minor (deferred): <one-liner>` and to your final message under "Deferred minors".
   Minors never enter the fix pass, and never become rulings: a ruling is a decision about a conflict, not a note that you declined a polish suggestion.
 
