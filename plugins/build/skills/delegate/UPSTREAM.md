@@ -50,6 +50,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Owner gates, which are not upstream: continuous execution names the review gates and the owner gates; the five stops run the protocol in `references/owner-gates.md`, as unforeseen gates when the plan did not declare them; the process graph branches on a gated task; setup restores a paused run's ledger with `scripts/execution-status restore`; evidence reviews get a model floor; the final review stays after the last task; the final message lists the owner gates; four rationalization rows and a gated task in the example workflow.
 - `references/owner-gates.md`, which is not upstream: the gate message's lines are sent exactly as the template shows them, with no backticks or other formatting added.
 - `references/owner-gates.md`, which is not upstream: every answer at a gate is ledgered verbatim with its time, a "later" too.
+- `references/owner-gates.md`, which is not upstream: the artifact's quote goes below the gate message's `Artifact:` line.
 
 ## Review notes
 

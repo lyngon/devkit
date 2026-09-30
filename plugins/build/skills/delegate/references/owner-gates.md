@@ -60,7 +60,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Answer yes, no with what to change, or later.
    ```
 
-   Quote the artifact verbatim when it has at most 40 lines; otherwise quote the pre-gate `Expected:` lines and link the file.
+   Below the `Artifact:` line, quote the artifact verbatim when it has at most 40 lines; otherwise quote the pre-gate `Expected:` lines and link the file.
    At a gate the owner performs, give the exact commands or instructions in place of the artifact, and ask for "done" once they have run, with the output when the owner has it.
    Only an explicit yes, or "done" at a gate the owner performs, passes the gate.
    Ledger every answer verbatim, a "later" too, with the time from `date +%Y-%m-%dT%H:%M:%S%z`: `Gate <id>: owner <time>: "<answer>"`.
