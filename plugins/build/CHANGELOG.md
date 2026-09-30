@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.1 - 2026-09-30
+
+- `delegate`'s owner gate protocol says the gate message's lines are sent exactly as its template shows them, with no backticks or other formatting added, so its first line always reads `Owner gate <id> (Task N)`.
+
 ## 0.15.0 - 2026-09-30
 
 - `WORKFLOW.md`, symlinked into `plan`, names the review gates and the owner gates: the user pre-approves owner gates by ID at the first review gate, the executors stop only at owner gates, every stop runs the same protocol, and the Execution status and the record commits are listed with what gets written where. The README says so.

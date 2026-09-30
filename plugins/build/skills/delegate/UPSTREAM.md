@@ -48,6 +48,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Added `scripts/execution-status`, which is not upstream: it writes a paused run's ledger into the plan's `## Execution status` section and restores the workspace's ledger from it.
 - Added `references/owner-gates.md` and `references/evidence-reviewer-prompt.md`, which are not upstream. Implementer template: every task ends with at least one commit, a task whose work lies outside the repository with a record commit (empty when nothing changed), replacing "a brief may declare that the task commits nothing"; an optional `## Owner Gate` section (`[OWNER_GATE]`) tells a pre-gate implementer to stop at the gate, and a post-gate implementer what the approval covers and to check the pins first.
 - Owner gates, which are not upstream: continuous execution names the review gates and the owner gates; the five stops run the protocol in `references/owner-gates.md`, as unforeseen gates when the plan did not declare them; the process graph branches on a gated task; setup restores a paused run's ledger with `scripts/execution-status restore`; evidence reviews get a model floor; the final review stays after the last task; the final message lists the owner gates; four rationalization rows and a gated task in the example workflow.
+- `references/owner-gates.md`, which is not upstream: the gate message's lines are sent exactly as the template shows them, with no backticks or other formatting added.
 
 ## Review notes
 
