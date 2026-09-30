@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.32 - 2026-09-30
+
+- `delegate`'s owner gate protocol ledgers the evidence review's verdict as `Task N: evidence review clean` or `Task N: evidence review: <K> findings (<one-liners>)` before any fix round, where it named no line for it, so a run wrote its own form and Resuming, which reads the ledger for an evidence review in progress, had no line to find.
+
 ## 0.15.31 - 2026-09-30
 
 - The implementer template says a gated task has two reports, one per part, named after their briefs, where `[REPORT_FILE]` described one report per task, and the README says the ledger is copied into the plan when a run pauses, which covers a pause before a task as well as one at a gate.

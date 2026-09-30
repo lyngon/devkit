@@ -79,6 +79,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Its message body starts with the line `Owner gate: <id>`, followed by the evidence: the owner's answer verbatim with its time or the pre-approval, the pins, the commands run in order with their result lines, and the results of the checks.
    It holds summaries and identifiers, never a secret.
 7. **Evidence review.** Generate `review-package PLAN_FILE BASE HEAD` and dispatch the reviewer in [evidence-reviewer-prompt.md](evidence-reviewer-prompt.md) with both briefs (for an unforeseen gate, the task's whole brief and `gate-<id>.md`, pinned or not, in their place), both reports, the pinned files, this gate's ledger lines, the `State:` lines and read-only access to the live system.
+   In `build:delegate`, ledger its verdict when it arrives, before any fix round: `Task N: evidence review clean`, or `Task N: evidence review: <K> findings (<one-liners>)`; `build:execute` ledgers the lines its skill names.
    Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round.
    Every fix dispatch for the task after its post-gate part has acted, resumed or fresh, carries the post-gate `[OWNER_GATE]` block with its one-run sentence: "The approval covers one run of these commands. In a fix round, never run them again and take no other effect outside the repository: report BLOCKED instead."
 8. **Complete.** In `build:delegate`, ledger `Task N: complete (commits <base7>..<head7>, evidence review clean)`, or `(commits <base7>..<head7>, <K> parked)` after a tripped breaker.
@@ -158,6 +159,7 @@ Task 6 post-gate: dispatched
 Gate apply-state-bucket: approval void (pin check: bootstrap.tfplan changed)
 Pause 2026-09-27T14:11:02+0800: resume at Task 6 pre-gate; removed backend_override.tf, bootstrap.tfplan
 Resume 2026-09-27T14:39:40+0800: recreated the ledger from the plan's Execution status
+Task 6: evidence review clean
 Task 6: complete (commits 6033d2e..a1b2c3d, evidence review clean)
 Task 7: complete (recovered from git log: b4c5d6e)
 ```
