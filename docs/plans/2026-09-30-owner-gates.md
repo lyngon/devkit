@@ -195,7 +195,19 @@ There is no separate review after an owner step.
 The rule "an accepted ADR is never rewritten" becomes a test: an edit is allowed only when someone who acted on the old text would act the same way on the new one.
 Aligning terminology with `CONCEPTS.md`, fixing a typo or a broken link, and adding a forward pointer pass; anything that widens, narrows or reverses the decision, its reasons or its consequences is a new ADR.
 This is organization-wide, in `conventions:adr` and `shared/ADR-FORMAT.md`, and retires the devkit-only exception of 2026-09-29.
-Under it, ADR 0016 gets "review gates" for "gates" and a pointer to ADR 0018; its ledger sentence stays, and ADR 0018 records the exception.
+
+Every edit to an accepted ADR adds one line to a `## Change log` section at its end, which the first edit creates: the date and the nature of the change.
+
+```markdown
+## Change log
+
+- 2026-09-30: "gates" became "review gates", matching `CONCEPTS.md`; added a pointer to ADR 0018.
+```
+
+A `Status:` line is an edit too and gets its line.
+An ADR is accepted once it is on the default branch; edits on the branch that introduces it are part of writing it and add no line.
+
+Under this rule, ADR 0016 gets "review gates" for "gates", a pointer to ADR 0018 and its first change log line; its ledger sentence stays, and ADR 0018 records the exception.
 
 ### Components
 
@@ -239,11 +251,11 @@ Under it, ADR 0016 gets "review gates" for "gates" and a pointer to ADR 0018; it
 
 `shared/WORKFLOW.md` (symlinked into `build` and `discover`): "Who decides what" names the review gates and owner gates, pre-approval and the protocol for every stop; Gate 1 includes the pre-approvals; the executor step names the owner gates; "What gets written where" adds the Execution status and the record commits.
 
-`shared/ADR-FORMAT.md` and `plugins/conventions/skills/adr/SKILL.md`: the ADR edit test.
+`shared/ADR-FORMAT.md` and `plugins/conventions/skills/adr/SKILL.md`: the ADR edit test, the `## Change log` section (ADR-FORMAT.md lists it with the optional sections, as required once an accepted ADR is edited), and when an ADR counts as accepted.
 
 `plugins/conventions/skills/engineering/SKILL.md`: "Ask before any other effect outside the branch" gains that an owner gate pre-approved by ID counts as asking.
 
-`docs/adr/0016-planned-work-is-reviewed-at-two-gates.md`: "review gates" and the pointer to ADR 0018.
+`docs/adr/0016-planned-work-is-reviewed-at-two-gates.md`: "review gates", the pointer to ADR 0018, and a `## Change log` with that edit's line.
 
 `devenv.nix`: the fixture tests of the build scripts join `enterTest`.
 
