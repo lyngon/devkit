@@ -89,6 +89,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Final review: a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is the controller's to rule on and ledger; the fix wave takes the rest.
 - Owner gates, which are not upstream: the one-run guard on fix dispatches also covers the final review's fix wave whenever it touches a gated task.
 - Owner gates, which are not upstream: after a lost workspace, `references/owner-gates.md` ledgers a `State:` line and `references/evidence-reviewer-prompt.md` reviews against the pins, the record commit's body and the gate lines in place of the missing reports and temporary files.
+- Owner gates, which are not upstream: an unforeseen gate raised by an evidence-review finding, after every step ran, gets its own start line in `references/owner-gates.md` and the implementer template, and its post-gate part runs only the commands approved at this gate or the checks that verify the owner's fix.
 
 ## Review notes
 

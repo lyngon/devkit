@@ -96,8 +96,8 @@ A stop the plan did not declare (an implementer reports BLOCKED on an ungated ap
   With nothing to pin, the owner performs the action.
 - The task splits where it stopped: the steps already done are its pre-gate part, keeping their report, and the rest runs after the answer as a post-gate part that carries the answer.
 - `task-brief --part` refuses a task the plan did not gate, so for such a task the post-gate part gets the whole brief (`task-brief PLAN_FILE N`, or `task-start PLAN_FILE N` in `build:execute`) and the line `Steps 1 to K are done; start at Step K+1.` beside the `[OWNER_GATE]` block, where K is the last step done or, for an action the owner performed, the step that held that action.
-  An unforeseen gate raised inside a task the plan gated (a partial apply, an evidence-review finding) gets that task's post-gate brief with the same line, not the whole brief.
-  One raised by an evidence-review finding, after every step ran, names no start step: its post-gate part runs the approved commands from the block and `gate-<id>.md`, then the record commit.
+  An unforeseen gate raised inside a task the plan gated by a partial apply gets that task's post-gate brief with the same line, not the whole brief.
+  One raised by an evidence-review finding, after every step ran, gets the line `Every step of the brief is done, its gated action included; never run them again.` in place of the start-step line: its post-gate part runs only the commands approved at this gate, from the block and `gate-<id>.md`, or, when the owner performed the fix, only the checks that verify it, then the record commit.
   Commits the task made before it stopped stay; the post-gate part builds on them, and a resumed run never redoes them (see [Resuming](#resuming)).
 - It can never be pre-approved.
 - Ledger the answer as a gate line and as `State: owner answered <id>: "<answer>"`, so every later reviewer judges against it.

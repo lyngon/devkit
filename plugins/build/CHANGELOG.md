@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.48 - 2026-09-30
+
+- An unforeseen gate raised by an evidence-review finding, after every step of the brief ran, gets its own start line, `Every step of the brief is done, its gated action included; never run them again.`, in place of the start-step line, and its post-gate part runs only the commands approved at this gate, or only the checks that verify the owner's fix, where it had no line and the other unforeseen-gate text sent it to steps that had already run.
+
 ## 0.15.47 - 2026-09-30
 
 - Owner gate text tidied after the last review: Resuming says its restore runs before the ledger is read and its other steps once the ledger exists, creating the ledger with its identity line first when none exists; the record commit check in the evidence reviewer template and the unforeseen variant of the implementer template require a body that starts with the line `Owner gate: <id>`; the evidence reviewer gets every answer line or the pre-approval line; the delegate skill's example workflow shows the Reconcile line, the evidence review line and the removal of temporary files; its completion line for a gated task allows `<K> parked`; the final fix dispatch takes the findings left after the controller's rulings, and the process graph says so; the re-review template fills `[LIVE_ACCESS]` for a final fix wave that touched a gated task; an unforeseen gate raised by an evidence-review finding names no start step.
