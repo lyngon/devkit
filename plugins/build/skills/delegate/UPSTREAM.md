@@ -62,6 +62,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
   The implementer template's `[OWNER_GATE]` text has the variant for it.
 - `scripts/pin`, which is not upstream: a directory, a file it cannot read and a hash that did not come out are refused with exit 2 and a message naming the file, before any line is printed, where an unreadable file printed `sha256: <file>` with an empty hash and exited 0.
 - `scripts/execution-status`, which is not upstream: `write` gives a ledger without a final newline one, refuses a ledger line of four backticks after any indentation, as the fence tracker reads it, and refuses a RESUME_AT holding a newline.
+- Finish: the "Owner gates" list holds one entry per gate, and the paragraph says `build:finish` puts three lists in the pull request description and reads the owner gates from their record commits.
 
 ## Review notes
 

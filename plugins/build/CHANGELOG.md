@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.21 - 2026-09-30
+
+- `finish` runs `execution-status restore` whenever the plan holds an Execution status, which keeps a longer ledger, where it ran only when `progress.md` was missing, and takes the pull request's "Owner gates" list from the record commits since the merge base, one entry per gate with its answer or pre-approval and the record commit's hash, where it took every `Gate` line of a ledger that may be gone.
+  `delegate`'s and `execute`'s Finish paragraphs say one entry per gate, that `build:finish` puts three lists in the description, not two, and that it reads the owner gates too.
+
 ## 0.15.20 - 2026-09-30
 
 - `delegate`'s `execution-status write` gives a ledger without a final newline one, where the closing fence joined the ledger's last line and `restore` then found no fenced ledger; refuses a ledger line of four backticks after any indentation, where only an unindented one was caught although the fence tracker ends the fence at either; and refuses a RESUME_AT holding a newline.

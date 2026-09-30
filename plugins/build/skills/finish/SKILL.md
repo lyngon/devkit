@@ -44,13 +44,17 @@ PLAN_WORKSPACE=$(bash <this skill's directory>/../delegate/scripts/workspace doc
 ```
 
 `build:delegate` and `build:execute` hand this directory over instead of deleting it: its `progress.md` is their ledger, and Step 7 removes the directory once the work lands.
-When it has no `progress.md` but the plan ends with an `## Execution status` section, a paused run left its ledger in the plan: recreate it before the plan goes, with `bash <this skill's directory>/../delegate/scripts/execution-status restore docs/plans/YYYY-MM-DD-<slug>.md`.
+When the plan ends with an `## Execution status` section, a paused run left a copy of its ledger in the plan: run `bash <this skill's directory>/../delegate/scripts/execution-status restore docs/plans/YYYY-MM-DD-<slug>.md` before the plan goes, whether or not `progress.md` exists, because it recreates a missing ledger, replaces a shorter one and keeps a longer one.
 Without either, no executor produced the branch and there is no ledger.
-Collect the ledger's owner gates for the description (Step 5):
+
+Collect the owner gates for the description (Step 5) from their record commits, which outlive the workspace, in the branch's commits since the merge base with the base branch (Step 4 says which):
 
 ```bash
-grep -E '^Gate ' "$PLAN_WORKSPACE/progress.md"
+git log --format='%h %s%n%b' "$(git merge-base <base-branch> HEAD)"..HEAD
 ```
+
+A record commit is one whose body names a gate ID: a row of the plan's `### Owner Gates` index, or an `unplanned-<slug>` gate.
+Take one entry per gate: its ID, the owner's answer or the pre-approval the body holds, and the record commit's hash.
 
 Then remove the plan in a final commit:
 
@@ -139,7 +143,7 @@ The description carries, in this order:
 1. What changed and why, in a short paragraph.
 2. "Decisions for you": anything the user must decide, or "none".
 3. When an executor produced the branch, its "Rulings I made" and "Deferred minors" lists, and a link to the plan file at the parent of the plan-removal commit, since the plan does not show in the pull request's diff.
-4. When the ledger has owner gates, an "Owner gates" list: each gate's ID, the owner's answer verbatim with its time or the pre-approval, and the record commit that ends its task.
+4. When the branch has record commits, an "Owner gates" list, one entry per gate: its ID, the owner's answer verbatim with its time or the pre-approval, and the hash of the record commit that ends its task.
 5. Review findings nobody fixed.
 6. Verification: the full check command and its result, and any other evidence by name.
 

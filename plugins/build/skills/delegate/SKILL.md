@@ -431,13 +431,13 @@ There is no second fix wave; residual load-bearing findings reach the user in th
 
 ## Finish
 
-Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, every `minor (deferred)` line under "Deferred minors", and every `Gate` line under "Owner gates", each with the record commit of its task.
+Collect every ledger line containing `Ruling:` (pre-flight rulings, parked findings, breaker adjudications, all of them) into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, every `minor (deferred)` line under "Deferred minors", and, under "Owner gates", one entry per gate from its `Gate` lines: its ID, the owner's answer or the pre-approval, and the record commit of its task.
 All three lists are exhaustive: if the ledger holds a ruling, the list holds it.
-Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: `build:finish` puts these two lists in the pull request description, and the user reads the pull request starting from them and asks for changes where you got it wrong.
+Your final message is where the decisions you took on the user's behalf, and the findings nobody acted on, reach them: `build:finish` puts these three lists in the pull request description, and the user reads the pull request starting from them and asks for changes where you got it wrong.
 A ruling that dies with the workspace was a decision made in secret.
 
 When the final whole-branch review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
-It reads the ledger's deferred minors and parked findings before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
+It reads the ledger's deferred minors and parked findings, and the owner gates from their record commits, before it removes the plan, so the user can keep the findings worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.

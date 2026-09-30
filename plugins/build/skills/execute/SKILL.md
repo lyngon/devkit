@@ -267,12 +267,12 @@ There is no second fix pass.
 
 ## Finish
 
-Collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, every `minor (deferred)` line under "Deferred minors", and every `Gate` line under "Owner gates", each with the record commit of its task.
+Collect every ledger line containing `Ruling:` into your final message under "Rulings I made", in the order you made them, each with what it costs if wrong, every `minor (deferred)` line under "Deferred minors", and, under "Owner gates", one entry per gate from its `Gate` lines: its ID, the owner's answer or the pre-approval, and the record commit of its task.
 All three lists are exhaustive.
-Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: `build:finish` puts these two lists in the pull request description, and the user reads the pull request starting from them.
+Your final message is where the decisions you took on the user's behalf, and the findings you chose not to act on, reach them: `build:finish` puts these three lists in the pull request description, and the user reads the pull request starting from them.
 
 When the final review is clean and its fixes are committed, leave this plan's workspace in place and hand it to `build:finish`.
-It reads the ledger's deferred minors before it removes the plan, so the user can keep the ones worth doing, and it removes the workspace once the work lands.
+It reads the ledger's deferred minors, and the owner gates from their record commits, before it removes the plan, so the user can keep the findings worth doing, and it removes the workspace once the work lands.
 Sibling directories belong to other plans; leave them alone.
 
 Call the Skill tool for `build:finish`.
