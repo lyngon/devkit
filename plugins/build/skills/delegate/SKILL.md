@@ -411,8 +411,9 @@ Read [owner-gates.md](references/owner-gates.md) at setup, where its Resuming ru
 Each of the five stops above that the plan did not declare runs the same protocol as an unforeseen gate.
 The evidence review takes the place of the task review for a gated task.
 Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round; the rest go through the fix loop like any other.
-Fix rounds 1 to 3 resume the post-gate implementer, whose `[OWNER_GATE]` block limits the approved commands to one run.
-Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh (rounds 4 and 5, the fallback when the harness cannot resume, and the final review's fix wave whenever it touches a gated task), carries the post-gate `[OWNER_GATE]` block with its one-run sentence: "The approval covers one run of these commands. In a fix round, never run them again and take no other effect outside the repository: report BLOCKED instead."
+Fix rounds 1 to 3 resume the post-gate implementer.
+Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh (rounds 4 and 5, the fallback when the harness cannot resume, and the final review's fix wave whenever it touches a gated task), carries the implementer template's fix-round `[OWNER_GATE]` text, not the post-gate block, whose checks fail by construction once the action has run.
+A resumed implementer gets the fix-round text with the findings, since its context still holds the post-gate block.
 The scoped re-review after an evidence-review fix gets the evidence reviewer's read-only access to the live system in the re-review template's `[LIVE_ACCESS]` section, whatever the findings are about, so it can verify a finding about live state and confirm that the fix round took no effect there.
 
 ## Final review
