@@ -82,6 +82,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: the evidence review gets the gate's ledger lines verbatim, the pre-gate line with its pins and every answer line or the pre-approval line.
 - Example workflow: the setup of the gated plan follows Resuming and reads `git log` from the merge base before a fresh start.
 - Owner gates, which are not upstream: `references/owner-gates.md` is read at setup, and Resuming runs before the ledger is read or created, also on a fresh start with no ledger, because a lost workspace looks like one; the setup bullet and `references/owner-gates.md` say why.
+- `references/owner-gates.md`, which is not upstream: Resuming names the ledger line for the `git log` reconciliation, `Reconcile <time>: <since>..HEAD; <what it recovered>`.
 
 ## Review notes
 

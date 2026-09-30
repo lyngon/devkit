@@ -134,6 +134,8 @@ Follow these steps at every setup of a plan that declares owner gates or ends wi
      When the ledger shows its evidence review or an evidence-review fix round in progress, resume that loop at its next round; otherwise resume the task at step 7, the evidence review, which then completes it.
      When BASE was lost with the workspace, take as BASE the parent of the task's first commit in the log, which is the record commit's parent when that is the task's only commit.
 
+   Ledger what the reconciliation found, on a fresh start and after a restore alike, as a line of its own: `Reconcile <time>: <since>..HEAD; <what it recovered, or "nothing to recover">`.
+
 Resume at the first task that is not complete.
 Then, for the task at a gate:
 
@@ -162,6 +164,7 @@ Pause 2026-09-27T14:11:02+0800: resume at Task 6 pre-gate; removed backend_overr
 Resume 2026-09-27T14:39:40+0800: recreated the ledger from the plan's Execution status
 Task 6: evidence review clean
 Task 6: complete (commits 6033d2e..a1b2c3d, evidence review clean)
+Reconcile 2026-09-27T14:39:41+0800: 3f2e1d0..HEAD; Task 7 complete, recovered from b4c5d6e
 Task 7: complete (recovered from git log: b4c5d6e)
 ```
 
