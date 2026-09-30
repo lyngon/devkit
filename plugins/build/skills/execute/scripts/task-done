@@ -47,7 +47,7 @@ if [ "$rc" -ne 0 ]; then
   exit "$rc"
 fi
 
-last=$(awk 'NF { l = $0 } END { print l }' "$log")
+last=$(awk '/[^[:space:]]/ { l = $0 } END { print l }' "$log")
 [ -n "$last" ] || last='(no output)'
 [ -f "$ledger" ] || printf '# build ledger: plan %s\n' "$plan" > "$ledger"
 line="Task $n: complete (commits $(git rev-parse --short=7 "$base")..$(git rev-parse --short=7 HEAD), tests: $cmd → $last)"

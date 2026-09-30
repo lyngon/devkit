@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.12 - 2026-09-30
+
+- `execute`'s `task-done` skips lines of only whitespace, a carriage return included, when it picks the last output line for the ledger, so a check whose output ends with a spinner clearing its line records its last real line.
+
 ## 0.15.11 - 2026-09-30
 
 - `delegate`'s owner gate protocol no longer says the gate message's lines are exact: the message keeps the plan's text verbatim in a `text` fence with more backticks than any fence it quotes, a gate pinned by a command's text shows `Command:` in place of the `Artifact:` line, and a gate the owner performs shows a `Commands:` line and asks for "done", where the exact template ended in "Answer yes, no with what to change, or later." and read as letting a "yes" pass an owner-performed gate.

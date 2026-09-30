@@ -489,10 +489,13 @@ check "task-done: a passing check that prints nothing exits 0" \
 check "task-done: a passing check that prints nothing is recorded as (no output)" \
   contains "$(ledger_of)" "tests: true → (no output))"
 done_run "$plan" 2 "$base" -- bash -c 'echo ok; echo'
-check "task-done: the last non-blank output line is recorded" \
+check "task-done: a check with output is recorded" \
   contains "$(ledger_of)" "Task 2: complete (commits"
 check "task-done: a blank line after the output does not replace it" \
   contains "$(ledger_of)" "→ ok)"
+done_run "$plan" 3 "$base" -- bash -c "printf '3/3 pass\n\r   \r\n'"
+check "task-done: a line of only a carriage return and spaces does not replace the output" \
+  contains "$(ledger_of)" "→ 3/3 pass)"
 
 # --- Summary -----------------------------------------------------------------
 
