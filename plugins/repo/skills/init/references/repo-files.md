@@ -202,9 +202,13 @@ Claude Code installs a bundle's members as dependencies but does not count them 
 Plugins are not installed for colleagues automatically (Claude Code 2.1.195 and later); Claude Code shows them the install command, and the README repeats it.
 The README's install commands name the bundle, or the chosen plugins, and `conventions`; they do not enumerate a bundle's members, which only these settings do.
 The key under `extraKnownMarketplaces` must equal the marketplace manifest name (`lyngon`): Claude Code registers under the manifest name and the `@marketplace` suffixes in `enabledPlugins` must match it. Project marketplaces are applied once per Claude Code process start, after the folder is trusted.
+`attribution.commit` is empty because the Lyngon conventions never name an agent as co-author: without it, Claude Code tells every session and subagent that commits to add its `Co-Authored-By` trailer, and each one has to weigh that against the rule (Claude Code 2.0.62 and later read this key).
 
 ```json
 {
+  "attribution": {
+    "commit": ""
+  },
   "extraKnownMarketplaces": {
     "lyngon": {
       "source": {
