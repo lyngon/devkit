@@ -49,7 +49,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 3. **Decide whether to ask.** A gate passes without asking only when its index row holds a pre-approval, `Performed by` names the agent, every pre-gate `Expected:` line matched, no ruling changed a step of the task, and no instruction of the repository requires the owner's approval of this action at run time.
    Then ledger `Gate <id>: pre-approved (plan index); Expected lines matched` and go to step 5.
    When a pre-approval exists but a condition fails, ledger `Gate <id>: pre-approval void (<the condition that failed>); asking`; an instruction of the repository that the plan did not mark wins over the pre-approval.
-4. **Ask.** Send the gate message as a single `text` fence, its lines exactly as below with no backticks or other formatting added, ledger `Gate <id>: waiting for owner`, and wait:
+4. **Ask.** Send the gate message as a single `text` fence with more backticks than any fence in what it quotes, and add no formatting: the plan's text stays verbatim, backticks included, and nothing else gets backticks. Ledger `Gate <id>: waiting for owner`, and wait:
 
    ```text
    Owner gate <id> (Task N)
@@ -60,9 +60,10 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Answer yes, no with what to change, or later.
    ```
 
-   Below the `Artifact:` line, quote the artifact verbatim when it has at most 40 lines; otherwise quote the pre-gate `Expected:` lines and link the file.
-   At a gate the owner performs, give the exact commands or instructions in place of the artifact, and ask for "done" once they have run, with the output when the owner has it.
-   Only an explicit yes, or "done" at a gate the owner performs, passes the gate.
+   Below the `Artifact:` line, quote the artifact verbatim when it has at most 40 lines; otherwise quote the pre-gate `Expected:` lines and give the file's path.
+   A gate pinned by a command's text shows `Command: <the command>` in place of the `Artifact:` line.
+   At a gate the owner performs, a `Commands:` line followed by the exact commands or instructions takes the place of the `Artifact:` line and the quote, and the last line is `Answer done once they have run (with the output if you have it), no with what to change, or later.`
+   Only an explicit yes at a gate the agent performs, or "done" at a gate the owner performs, passes the gate.
    Ledger every answer verbatim, a "later" too, with the time from `date +%Y-%m-%dT%H:%M:%S%z`: `Gate <id>: owner <time>: "<answer>"`.
    A no follows the gate's `On no`; "later" pauses the run (see [Pausing](#pausing)).
 5. **Post-gate part.** Extract the brief with `task-brief PLAN_FILE N --part post-gate`, and ledger `Task N post-gate: dispatched` (`started` in `build:execute`).

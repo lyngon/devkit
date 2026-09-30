@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.11 - 2026-09-30
+
+- `delegate`'s owner gate protocol no longer says the gate message's lines are exact: the message keeps the plan's text verbatim in a `text` fence with more backticks than any fence it quotes, a gate pinned by a command's text shows `Command:` in place of the `Artifact:` line, and a gate the owner performs shows a `Commands:` line and asks for "done", where the exact template ended in "Answer yes, no with what to change, or later." and read as letting a "yes" pass an owner-performed gate.
+
 ## 0.15.10 - 2026-09-30
 
 - `delegate`'s Resuming section recovers a gated task whose record commit is in the log by ledgering its gate answer and resuming at its evidence review, which completes it, where it could be ledgered complete without that review; a post-gate line with a record commit after it no longer triggers the unforeseen-gate safeguard, and the ledger example shows a recovered completion.
