@@ -75,6 +75,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/implementer-prompt.md`, which is not upstream: `[REPORT_FILE]` says a gated task has two reports, one per part, named after their briefs.
 - `references/owner-gates.md`, which is not upstream: the evidence review's verdict is ledgered as `Task N: evidence review clean` or `Task N: evidence review: <K> findings (<one-liners>)` before any fix round.
 - Complete the task: a task with an owner gate completes as the protocol's step 8 says, with `evidence review clean` and the removal of its temporary files.
+- `references/owner-gates.md`, which is not upstream: an answer's time comes from `date` run when the answer arrives, and every time in a ledger line from `date` run when the line is written.
 
 ## Review notes
 

@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.34 - 2026-09-30
+
+- `delegate`'s owner gate protocol takes an owner's answer's time from `date` run when the answer arrives, and every time in a ledger line from `date` run when the line is written, where it named the command but not when to run it, so a run ledgered a "later" and its Pause line with the time it had taken before sending the gate message.
+
 ## 0.15.33 - 2026-09-30
 
 - The completion of a task with an owner gate removes its temporary files in `delegate`'s Complete the task and in `execute`'s Owner gates section, as the owner gate protocol's step 8 says, where neither executor's completion text named the removal, so a run completed a gated task and left its pre-gate artifact behind.

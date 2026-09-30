@@ -65,7 +65,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    A gate pinned by a command's text shows `Command: <the command>` in place of the `Artifact:` line.
    At a gate the owner performs, a `Commands:` line followed by the exact commands or instructions takes the place of the `Artifact:` line and the quote, and the last line is `Answer done once they have run (with the output if you have it), no with what to change, or later.`
    Only an explicit yes at a gate the agent performs, or "done" at a gate the owner performs, passes the gate.
-   Ledger every answer verbatim, a "later" too, with the time from `date +%Y-%m-%dT%H:%M:%S%z`: `Gate <id>: owner <time>: "<answer>"`.
+   Ledger every answer verbatim, a "later" too, with the time from `date +%Y-%m-%dT%H:%M:%S%z` run when the answer arrives, never a time taken before it: `Gate <id>: owner <time>: "<answer>"`.
    The answer travels on into the record commit's body and, through a pause, into the plan.
    Where a hook rejects a character of a verbatim answer, or a `|` would break a table, replace only that character with its plain form (`'`, `"`, `-`, `\|`) and keep the rest verbatim.
    When the pause commit is the one rejected, make the replacement in the ledger and run `execution-status write` again, so the plan's copy still matches the ledger.
@@ -148,6 +148,7 @@ The section stays in the plan until the next pause rewrites it or `build:finish`
 ## Ledger lines
 
 The ledger holds summaries and identifiers, never a secret: a pause commits it to the branch.
+Every `<time>` in a line is the output of `date +%Y-%m-%dT%H:%M:%S%z` run when the line is written.
 
 ```text
 Task 6 pre-gate: complete (no commits; pins bootstrap.tfplan sha256:<64 hex digits>)
