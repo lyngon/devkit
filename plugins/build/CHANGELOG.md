@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.19 - 2026-09-30
+
+- `delegate`'s `pin` refuses a directory, a file it cannot read and a hash that did not come out, with exit 2 and a message naming the file, before it prints any line, where a file without read permission printed `sha256: <file>` with an empty hash and exited 0, and `--check` reported an empty hash as a mismatch.
+
 ## 0.15.18 - 2026-09-30
 
 - `delegate`'s owner gate protocol pins the artifact of an unforeseen gate: its `Show` is the written statement plus any artifact the stopped part produced, which becomes its `Acts on`, and the owner performs an action with nothing to pin, where the statement alone was pinned and the artifact that then got applied never was.

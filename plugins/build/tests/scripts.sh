@@ -86,6 +86,30 @@ check "pin --check: a malformed pin is a usage error" \
 run bash "$delegate/pin" "$repo/missing.txt"
 check "pin: a missing file is an error, with nothing printed" \
   equals "$code|$out" "2|"
+mkdir -p "$repo/a-directory"
+run bash "$delegate/pin" "$repo/artifact.txt" "$repo/a-directory"
+check "pin: a directory is refused by name, with nothing printed" \
+  equals "$code|$out|$err" "2||pin: not a readable file: $repo/a-directory"
+# Root reads a file without read permission, so only others can test it.
+if [ "$(id -u)" -ne 0 ]; then
+  printf 'hidden\n' >"$repo/unreadable.txt"
+  chmod 000 "$repo/unreadable.txt"
+  run bash "$delegate/pin" "$repo/unreadable.txt"
+  check "pin: a file without read permission is refused by name, with nothing printed" \
+    equals "$code|$out|$err" "2||pin: not a readable file: $repo/unreadable.txt"
+  chmod 600 "$repo/unreadable.txt"
+fi
+blank=$tmp/blank-hash-tool
+mkdir -p "$blank"
+ln -s "$(command -v bash)" "$blank/bash"
+printf '#!%s\nexit 0\n' "$(command -v bash)" >"$blank/sha256sum"
+chmod +x "$blank/sha256sum"
+run env -i PATH="$blank" "$blank/bash" "$delegate/pin" "$repo/artifact.txt"
+check "pin: an empty hash is refused by name, with nothing printed" \
+  equals "$code|$out|$err" "2||pin: could not hash $repo/artifact.txt"
+run env -i PATH="$blank" "$blank/bash" "$delegate/pin" --check "sha256:$hello" "$repo/artifact.txt"
+check "pin --check: an empty hash is refused by name, not reported as a mismatch" \
+  equals "$code|$out|$err" "2||pin: could not hash $repo/artifact.txt"
 for tool in sha256sum shasum; do
   only=$tmp/only-$tool
   mkdir -p "$only"
