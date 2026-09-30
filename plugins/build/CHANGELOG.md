@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.8 - 2026-09-30
+
+- `delegate`'s owner gate protocol reconciles a restored ledger with the commits after the pause commit: it ledgers the tasks those commits complete as recovered from `git log`, resumes at the first task they do not complete, and never re-runs the post-gate part of a gate whose record commit is in the log, where the copy in the plan, as old as the pause commit, would have had a resumed run redo the tasks and a pre-approved gate act a second time.
+
 ## 0.15.7 - 2026-09-30
 
 - `execute`'s `task-done` records a passing test command that prints nothing, with `(no output)` as the last line, where it exited 1 under `pipefail` and recorded nothing although the check passed.

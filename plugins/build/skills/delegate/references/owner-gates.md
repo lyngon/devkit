@@ -109,6 +109,9 @@ In this order:
 At setup, a plan that ends with an `## Execution status` section is a paused run: run `execution-status restore PLAN_FILE` before reading the ledger.
 It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
 Ledger `Resume <time>: <what it printed>`.
+The copy is as old as the pause commit, the latest `docs(plan): pause at gate <id>` commit.
+Commits after it are work the copy does not show: read `git log --format='%h %s%n%b' <pause commit>..HEAD`, ledger `Task N: complete (recovered from git log: <commits>)` for each task those commits complete, and resume at the first task they do not.
+A gate whose record commit is in that log has acted: never re-run its post-gate part.
 
 Then, for the task at a gate:
 
