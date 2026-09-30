@@ -30,6 +30,26 @@ Most ADRs need none.
 - `## Considered options`: when the rejected alternatives are worth remembering, so nobody proposes them again in six months.
 - `## Consequences`: when non-obvious downstream effects need calling out.
 - A `Status:` line (`proposed`, `accepted`, `deprecated`, `superseded by 0007`) when a decision has been revisited. Omit it otherwise.
+- `## Change log`: required once an accepted ADR is edited; see [Editing an accepted ADR](#editing-an-accepted-adr).
+
+## Editing an accepted ADR
+
+An ADR is accepted once it is on the default branch; edits on the branch that introduces it are part of writing it.
+An accepted ADR records what was decided and why, and git keeps its original wording, so an edit is allowed only when someone who acted on the old text would act exactly the same way on the new text:
+
+- aligning its terminology with `CONCEPTS.md`;
+- fixing a typo or a broken link;
+- adding a forward pointer, such as "See also ADR 0012", or a `Status:` line.
+
+Anything that widens, narrows or reverses the decision, its reasons or its consequences is a new ADR, and the old one gets a `Status:` line or a forward pointer.
+
+Every edit adds one line to a `## Change log` section at the end of the ADR, which the first edit creates: the date and the nature of the change.
+
+```md
+## Change log
+
+- 2026-10-02: "customer" became "client", matching `CONCEPTS.md`; added a pointer to ADR 0012.
+```
 
 ## When to write one
 

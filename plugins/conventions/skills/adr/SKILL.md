@@ -14,7 +14,8 @@ Format and rules are in [ADR-FORMAT.md](ADR-FORMAT.md); this is the short form.
 - The title is the decision, stated as a sentence: "Vendored skills are rewritten, not merged".
 - One to three sentences of context, decision and why is a complete ADR. Add `## Considered options` only when the rejected alternatives must not be proposed again, `## Consequences` only for effects a reader would miss.
 - Numbering is sequential per directory: the next number after the highest present. Repository-wide decisions in `docs/adr/`, a package's decisions in its own `docs/adr/`.
-- An accepted ADR is never rewritten. A change of mind is a new ADR, and the old one gets a `Status: superseded by NNNN` line.
+- An ADR is accepted once it is on the default branch. An edit to an accepted ADR is allowed only when someone who acted on the old text would act the same way on the new one: terminology aligned with `CONCEPTS.md`, a typo, a broken link, a forward pointer, a `Status:` line. A change of mind (anything that widens, narrows or reverses the decision, its reasons or its consequences) is a new ADR, and the old one gets a `Status: superseded by NNNN` line or a forward pointer.
+- Every edit to an accepted ADR adds a dated line saying what changed to a `## Change log` section at its end, which the first edit creates.
 - Say what was rejected and why when the rejection is not obvious; the explicit no is as valuable as the yes.
 
 ## With the Lyngon baseline
