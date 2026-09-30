@@ -98,7 +98,7 @@ digraph process {
     "Setup: worktree, ledger check, read plan, pre-flight review" [shape=box];
     "More tasks remain?" [shape=diamond];
     "Dispatch final reviewer via review:request" [shape=box];
-    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" [shape=box];
+    "Final findings? Rule on those that need no change; ONE fix dispatch for the rest, one scoped re-review, adjudicate residuals" [shape=box];
     "Final review clean: list rulings and deferred minors, keep the workspace" [shape=box];
     "Invoke build:finish" [shape=box style=filled fillcolor=lightgreen];
 
@@ -131,8 +131,8 @@ digraph process {
     "Append completion to ledger, mark todo complete" -> "More tasks remain?";
     "More tasks remain?" -> "Task has an owner gate?" [label="yes"];
     "More tasks remain?" -> "Dispatch final reviewer via review:request" [label="no"];
-    "Dispatch final reviewer via review:request" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
-    "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: list rulings and deferred minors, keep the workspace";
+    "Dispatch final reviewer via review:request" -> "Final findings? Rule on those that need no change; ONE fix dispatch for the rest, one scoped re-review, adjudicate residuals";
+    "Final findings? Rule on those that need no change; ONE fix dispatch for the rest, one scoped re-review, adjudicate residuals" -> "Final review clean: list rulings and deferred minors, keep the workspace";
     "Final review clean: list rulings and deferred minors, keep the workspace" -> "Invoke build:finish";
 }
 ```
@@ -171,7 +171,7 @@ Track progress in a ledger file, not only in todos.
   If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not re-dispatch them; resume at the first task without one, as Resuming in [owner-gates.md](references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
   A task whose last line is a fix round is mid-loop: resume the loop at the next round.
   A ledger whose first line names a different plan file is another plan's progress: leave it in place and start your own, fresh.
-- For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](references/owner-gates.md) and follow its Resuming before you read or create the ledger, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: it restores a paused run's ledger with `scripts/execution-status restore PLAN_FILE` and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
+- For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](references/owner-gates.md) and follow its Resuming, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before you read the ledger, and its other steps once the ledger exists, so create the ledger with its identity line first when none exists and no Execution status will recreate it; it restores a paused run's ledger with `scripts/execution-status restore PLAN_FILE` and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
 - Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
   `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
 - The ledger is your recovery map: the commits it names exist in git even when your context no longer remembers creating them.
@@ -401,7 +401,7 @@ When the review comes back clean, or every open finding is parked with a ruling 
 - `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a tripped breaker
 
 Then mark the todo complete and move on.
-A task with an owner gate completes as step 8 of [owner-gates.md](references/owner-gates.md) says: its line reads `evidence review clean`, and then you remove its temporary files, the `Temporary:` entries of its Files block.
+A task with an owner gate completes as step 8 of [owner-gates.md](references/owner-gates.md) says: its line reads `evidence review clean`, or `<K> parked` after a tripped breaker, and then you remove its temporary files, the `Temporary:` entries of its Files block.
 Never move to the next task while the review has open Critical or Important issues that are neither fixed nor parked with a ruling at the cap.
 
 ## Owner gates
@@ -426,7 +426,7 @@ Call the Skill tool for `review:request`; it carries the reviewer template.
 Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
-A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the rest.
+A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the findings that remain after your rulings.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave (`scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range, with [re-review-prompt.md](references/re-review-prompt.md)).
 Adjudicate any residual findings as in the task loop's breaker: park with rulings, or rule on the load-bearing ones and ledger what you decided.
@@ -475,7 +475,8 @@ The test output below is an example; the repository's own test command decides.
 [Setup: worktree confirmed with the user; on branch feature/recovery]
 [Read plan file once: docs/plans/2026-09-23-recovery.md; Design section read]
 [Resolve workspace: scripts/workspace docs/plans/2026-09-23-recovery.md; no ledger inside]
-[Task 3 has an owner gate, so follow Resuming: no Execution status; git log from the merge base shows only the plan commit; fresh start]
+[Task 3 has an owner gate, so follow Resuming: no Execution status, so create the ledger with its identity line; git log from the merge base shows only the plan commit; fresh start]
+[Ledger: Reconcile 2026-09-23T13:10:05+0800: 9f8e7d6..HEAD; nothing to recover]
 [Create todos for all tasks]
 
 Task 1: Hook installation script
@@ -543,6 +544,8 @@ User: "Yes."
 Implementer: pin matches; apply: 6 added; checks 9 PASS; empty record commit e1f2a3b with the evidence
 [Run review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer]
 Evidence reviewer: approval matched; live state verified; record commit accurate. Approved.
+[Ledger: Task 3: evidence review clean]
+[Remove the task's temporary files: bucket.tfplan, bucket.plan.txt]
 [Ledger: Task 3: complete (commits b7c8d9e..e1f2a3b, evidence review clean)]
 
 [After all tasks]

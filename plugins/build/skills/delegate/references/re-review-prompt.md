@@ -134,8 +134,8 @@ Dispatch a subagent with:
 - `[HEAD_SHA]`: the current commit.
 - `[DIFF_FILE]`: the path `scripts/review-package PLAN_FILE FIX_BASE HEAD` printed.
 
-- `[LIVE_ACCESS]` (required after an evidence-review fix, absent otherwise): how to reach the live system read-only (the tool, the profile or context, the calls the brief's checks use).
-  Fill it for every re-review after an evidence-review fix, whatever its findings are about, because the re-reviewer also confirms that the fix round took no effect on the live system; leave out the whole "The Live System" section for any other re-review.
+- `[LIVE_ACCESS]` (required after an evidence-review fix and after a final fix wave that touched a gated task, absent otherwise): how to reach the live system read-only (the tool, the profile or context, the calls the brief's checks use).
+  Fill it for every re-review after an evidence-review fix, and for the re-review of a final fix wave that touched a gated task, whatever its findings are about, because the re-reviewer also confirms that the fix round took no effect on the live system; leave out the whole "The Live System" section for any other re-review.
 
 Leave out the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 

@@ -50,7 +50,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Owner gates, which are not upstream: an unforeseen gate's post-gate part keeps the task's original BASE for the evidence-review package and `task-done`; the lapsed-approval row names the unforeseen-gate exception.
 - Owner gates, which are not upstream: after `task-done` records a gated task's completion, the task's temporary files are removed, as the protocol's step 8 says.
 - Final review: a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is ruled on and ledgered; the fix pass takes the rest.
-- Owner gates, which are not upstream: `../delegate/references/owner-gates.md` is read at setup, and Resuming runs before the ledger is read or created, also on a fresh start with no ledger, because a lost workspace looks like one.
+- Owner gates, which are not upstream: `../delegate/references/owner-gates.md` is read at setup, and Resuming runs also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before the ledger is read, its other steps once the ledger exists, created first with its identity line when none exists and no Execution status recreates it.
 
 ## Review notes
 

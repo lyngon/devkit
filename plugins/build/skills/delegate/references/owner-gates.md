@@ -97,6 +97,7 @@ A stop the plan did not declare (an implementer reports BLOCKED on an ungated ap
 - The task splits where it stopped: the steps already done are its pre-gate part, keeping their report, and the rest runs after the answer as a post-gate part that carries the answer.
 - `task-brief --part` refuses a task the plan did not gate, so for such a task the post-gate part gets the whole brief (`task-brief PLAN_FILE N`, or `task-start PLAN_FILE N` in `build:execute`) and the line `Steps 1 to K are done; start at Step K+1.` beside the `[OWNER_GATE]` block, where K is the last step done or, for an action the owner performed, the step that held that action.
   An unforeseen gate raised inside a task the plan gated (a partial apply, an evidence-review finding) gets that task's post-gate brief with the same line, not the whole brief.
+  One raised by an evidence-review finding, after every step ran, names no start step: its post-gate part runs the approved commands from the block and `gate-<id>.md`, then the record commit.
   Commits the task made before it stopped stay; the post-gate part builds on them, and a resumed run never redoes them (see [Resuming](#resuming)).
 - It can never be pre-approved.
 - Ledger the answer as a gate line and as `State: owner answered <id>: "<answer>"`, so every later reviewer judges against it.
@@ -121,7 +122,9 @@ When the owner ends the session with no task at its gate, remove nothing, append
 
 ## Resuming
 
-Follow these steps at every setup of a plan that declares owner gates or ends with an `## Execution status` section, before reading or creating the ledger, whether or not the run paused, and also when there is no ledger at all: a lost workspace looks like a fresh start, and only `git log` shows a gated task that has already acted.
+Follow these steps at every setup of a plan that declares owner gates or ends with an `## Execution status` section, whether or not the run paused, and also when there is no ledger at all: a lost workspace looks like a fresh start, and only `git log` shows a gated task that has already acted.
+Step 1, the restore, runs before the ledger is read; the later steps read and write ledger lines, so they run after the ledger exists.
+When there is none and no Execution status will recreate it, create it with its identity line first (`# build ledger: plan <PLAN_FILE>`).
 
 1. When the plan ends with an `## Execution status` section, run `execution-status restore PLAN_FILE`, also when a ledger is present.
    It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.

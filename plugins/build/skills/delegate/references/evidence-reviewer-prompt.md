@@ -30,7 +30,7 @@ Dispatch a subagent with:
     [GATE_LINES]
 
     These are the ledger's lines for this gate: the pins recorded before
-    it, and the owner's answer verbatim with its time, or the
+    it, and every answer of the owner verbatim with its time, or the
     pre-approval. The pinned files are: [PINNED_FILES]
     They are your baseline: the action must match them, and nothing
     beyond them may have happened.
@@ -111,7 +111,8 @@ Dispatch a subagent with:
       and matched. Anything done beyond the approval is Critical.
     - **Live state:** the live system is in the state the task's Produces
       block and checks describe; verify it with read-only calls.
-    - **Record commit:** its message holds the gate ID, the answer or the
+    - **Record commit:** its message body starts with the line
+      `Owner gate: <id>` and holds the answer or the
       pre-approval, the pins, the commands in order with their results and
       the results of the checks; it matches the reports (or the ledger
       lines); it holds no secret.
@@ -175,7 +176,7 @@ Dispatch a subagent with:
 - `[MODEL]`: required, at least a mid-tier model, and the most capable when the action was destructive.
 - `[PRE_GATE_BRIEF]`, `[POST_GATE_BRIEF]`: required, the two briefs `task-brief --part` wrote; for an unforeseen gate, the task's whole brief and `gate-<id>.md` in their place.
 - `[CONSTRAINT_EMPHASIS]` (optional): one sentence naming the global constraint this task is most likely to break.
-- `[GATE_LINES]`: required, the ledger's lines for this gate, verbatim: the pre-gate line with its pins, and the answer or pre-approval line.
+- `[GATE_LINES]`: required, the ledger's lines for this gate, verbatim: the pre-gate line with its pins, and every answer line or the pre-approval line.
 - `[PINNED_FILES]`: required, the paths of the pinned files, or "none" for a gate pinned by command text alone.
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines.
 - `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required; the two report files, or under `build:execute` the task's ledger lines and the hash of its record commit; after a lost workspace, the same ledger lines and hash, with the `State: workspace lost before the evidence review of Task N; reports and temporary files gone` line among `[STATE_CHANGES]`.
