@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.11.1 - 2026-09-30
+
+- The `CLAUDE.md` template of `init` no longer restates organization-wide conventions that the `conventions` skills already carry: installing tools imperatively, disabling a hook, Conventional Commits, one sentence per line, dashes and curly quotes. `conventions:documents` says they are never copied into `CLAUDE.md`, and the baseline hooks still reject every violation.
+
 ## 0.11.0 - 2026-09-30
 
 - The `SessionStart` hook adds a line when the current branch is behind its upstream, with the count and `git pull --ff-only`. It counts what the last fetch saw and does not fetch, since the stale branch that misled a lyngon.com session was already behind after the previous session's fetch.
