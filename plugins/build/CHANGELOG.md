@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.31 - 2026-09-30
+
+- The implementer template says a gated task has two reports, one per part, named after their briefs, where `[REPORT_FILE]` described one report per task, and the README says the ledger is copied into the plan when a run pauses, which covers a pause before a task as well as one at a gate.
+
 ## 0.15.30 - 2026-09-30
 
 - `delegate`'s scoped re-review template gains an optional `[LIVE_ACCESS]` section with the evidence reviewer's rules for read-only calls (never the gated action or anything that takes effect, one focused call per named check), filled for a re-review after an evidence-review fix, where the Owner gates section promised that re-review read-only access to the live system but the template had no slot for it.

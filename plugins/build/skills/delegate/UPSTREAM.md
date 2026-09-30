@@ -72,6 +72,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Owner gates, which are not upstream: every fix dispatch for a gated task after its post-gate part has acted, the fresh implementers of rounds 4 and 5 included, carries the post-gate `[OWNER_GATE]` block with its one-run sentence.
 - Owner gates, which are not upstream: an unforeseen gate is pinned again after its artifact is rebuilt on resume, is reviewed against the task's whole brief and `gate-<id>.md`, and in a task the plan gated gets that task's post-gate brief; the implementer template starts an owner-performed unforeseen gate's steps after the owner's action; the lapsed-approval row names the unforeseen-gate exception.
 - `references/re-review-prompt.md`, which is not upstream: an optional `[LIVE_ACCESS]` section gives the re-review after an evidence-review fix read-only access to the live system, with the evidence reviewer's rules for read-only calls.
+- `references/implementer-prompt.md`, which is not upstream: `[REPORT_FILE]` says a gated task has two reports, one per part, named after their briefs.
 
 ## Review notes
 
