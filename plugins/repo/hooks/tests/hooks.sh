@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Exercise the repo plugin's hook scripts against throwaway projects: the
-# environment export with stub devenv and direnv commands. Run through
-# `devenv test`.
+# environment export with stub devenv and direnv commands, and the session
+# start lines with real git repositories. Run through `devenv test`.
 set -euo pipefail
 
 hooks=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 failures=0
 
 # --- Fixture helpers ---------------------------------------------------------
@@ -15,7 +17,7 @@ failures=0
 # devenv and direnv exist.
 tools=$tmp/tools
 mkdir -p "$tools"
-for tool in bash cat dirname env grep mktemp mv rm sed sort; do
+for tool in bash cat dirname env git grep mktemp mv rm sed sort; do
   ln -s "$(command -v "$tool")" "$tools/$tool"
 done
 
@@ -197,6 +199,65 @@ project=$(new_project)
 run_export "$project" "$stubs_direnv:$stubs_devenv:$tools" SessionStart CLAUDE_ENV_FILE=
 check "no CLAUDE_ENV_FILE: writes nothing, exits 0 and says why" \
   equals "$(ls "$project/env-file.sh" 2>/dev/null)$out|$code: $err" "|0: repo plugin: no devenv environment to export, because CLAUDE_ENV_FILE is not set"
+
+# --- session-start.sh --------------------------------------------------------
+
+commit() {
+  git -C "$1" -c user.name=test -c user.email=test@example.com -c commit.gpgsign=false commit -q --allow-empty -m "$2"
+}
+
+# upstream_clone <commits the clone is behind>: a clone whose upstream has
+# moved on by that many commits, seen through a fetch.
+upstream_clone() {
+  local behind=$1 dir i
+  dir=$(mktemp -d "$tmp/git.XXXXXX")
+  git init -q --bare -b main "$dir/origin.git"
+  git init -q -b main "$dir/other"
+  git -C "$dir/other" remote add origin "$dir/origin.git"
+  commit "$dir/other" base
+  git -C "$dir/other" push -q origin main
+  git clone -q "$dir/origin.git" "$dir/clone"
+  for ((i = 1; i <= behind; i++)); do
+    commit "$dir/other" "upstream $i"
+    git -C "$dir/other" push -q origin main
+  done
+  git -C "$dir/clone" fetch -q
+  echo "$dir/clone"
+}
+
+run_session_start() {
+  code=0
+  out=$(env -i PATH="$tools" HOME="$tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 CLAUDE_PROJECT_DIR="$1" "$hooks/session-start.sh" 2>"$tmp/stderr") || code=$?
+  err=$(<"$tmp/stderr")
+}
+
+run_session_start "$(upstream_clone 2)"
+check "two commits behind: one line saying so, with the command" \
+  equals "$code|$out|$err" "0|The current branch is 2 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`.|"
+
+run_session_start "$(upstream_clone 1)"
+check "one commit behind: the singular" \
+  equals "$out" "The current branch is 1 commit behind its upstream; fast-forward before starting: \`git pull --ff-only\`."
+
+clone=$(upstream_clone 0)
+commit "$clone" ahead
+run_session_start "$clone"
+check "up to date or ahead: nothing" equals "$code|$out|$err" "0||"
+
+dir=$(mktemp -d "$tmp/git.XXXXXX")
+git init -q -b main "$dir"
+commit "$dir" only
+run_session_start "$dir"
+check "no upstream: nothing" equals "$code|$out|$err" "0||"
+
+run_session_start "$(mktemp -d "$tmp/plain.XXXXXX")"
+check "not a git repository: nothing" equals "$code|$out|$err" "0||"
+
+clone=$(upstream_clone 3)
+echo "This repository follows the Lyngon structure. Packages are laid out by kind." >"$clone/CLAUDE.md"
+run_session_start "$clone"
+check "structure marker and behind: the structure text, then the line" \
+  equals "$out" "$(cat "$hooks/session-start-structure.txt")"$'\n'"The current branch is 3 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."
 
 if ((failures > 0)); then
   echo "repo hooks tests: $failures failure(s)" >&2

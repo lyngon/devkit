@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.11.0 - 2026-09-30
+
+- The `SessionStart` hook adds a line when the current branch is behind its upstream, with the count and `git pull --ff-only`. It counts what the last fetch saw and does not fetch, since the stale branch that misled a lyngon.com session was already behind after the previous session's fetch.
+
 ## 0.10.0 - 2026-09-30
 
 - New `SessionStart`, `FileChanged` and `CwdChanged` hooks export the devenv environment into the agent session and keep it current. Claude Code captures its environment once, at start, so tools and variables added to `devenv.nix` never reached the agent's Bash commands during a session, and a stale start went unnoticed until a tool was missing or the wrong identity was used. The hook exports through direnv when it has allowed `.envrc` and from `devenv direnv-export` otherwise, and returns the files to watch, a package's `devenv.nix` included, because a plugin's `FileChanged` matcher watches nothing. The `CLAUDE.md` template says to run commands without a `devenv shell --` wrapper, and the README template and `devenv.md` say that `mkhl.direnv` covers only the start of a session.
