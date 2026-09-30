@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.28 - 2026-09-30
+
+- `delegate`'s Owner gates section and the owner gate protocol's evidence review step say that every fix dispatch for a gated task after its post-gate part has acted, the fresh implementers of rounds 4 and 5 and the fallback when the harness cannot resume included, carries the post-gate `[OWNER_GATE]` block with its one-run sentence, where only rounds 1 to 3, which resume the post-gate implementer, were said to be limited to one run of the approved commands.
+
 ## 0.15.27 - 2026-09-30
 
 - `delegate`'s owner gate protocol reconciles the ledger with the commits since the merge base with the default branch, always, where it read from the pause commit when the plan had one, a window that misses a `pause before Task N` commit made after the record commit of a gated task whose evidence review was still running.

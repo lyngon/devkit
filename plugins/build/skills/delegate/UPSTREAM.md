@@ -69,6 +69,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `task-brief` reads an Owner Gates index Task cell of "6" or "Task 6" alike when it checks that an indexed task holds its marker.
 - Owner gates, which are not upstream: a record commit is the commit whose body has the line `Owner gate: <id>`, where it was any commit whose body named the gate ID.
 - `references/owner-gates.md`, which is not upstream: Resuming reads the log from the merge base with the default branch, never from a pause commit, and a recovered gated task ledgers its `Gate` line only when the ledger lacks one and resumes a running evidence review or fix loop at its next round.
+- Owner gates, which are not upstream: every fix dispatch for a gated task after its post-gate part has acted, the fresh implementers of rounds 4 and 5 included, carries the post-gate `[OWNER_GATE]` block with its one-run sentence.
 
 ## Review notes
 
