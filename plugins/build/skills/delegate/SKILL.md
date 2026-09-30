@@ -412,7 +412,7 @@ Each of the five stops above that the plan did not declare runs the same protoco
 The evidence review takes the place of the task review for a gated task.
 Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round; the rest go through the fix loop like any other.
 Fix rounds 1 to 3 resume the post-gate implementer.
-Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh (rounds 4 and 5, the fallback when the harness cannot resume, and the final review's fix wave whenever it touches a gated task), carries the implementer template's fix-round `[OWNER_GATE]` text, not the post-gate block, whose checks fail by construction once the action has run.
+Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh (rounds 4 and 5, the fallback when the harness cannot resume, and the final review's fix wave whenever it touches a gated task), carries the implementer template's fix-round `[OWNER_GATE]` text, whether the agent or the owner performed the action, not the post-gate block, whose checks fail by construction once the action has run.
 A resumed implementer gets the fix-round text with the findings, since its context still holds the post-gate block.
 The scoped re-review after an evidence-review fix gets the evidence reviewer's read-only access to the live system in the re-review template's `[LIVE_ACCESS]` section, whatever the findings are about, so it can verify a finding about live state and confirm that the fix round took no effect there.
 
@@ -545,8 +545,8 @@ Implementer: pin matches; apply: 6 added; checks 9 PASS; empty record commit e1f
 [Run review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer]
 Evidence reviewer: approval matched; live state verified; record commit accurate. Approved.
 [Ledger: Task 3: evidence review clean]
-[Remove the task's temporary files: bucket.tfplan, bucket.plan.txt]
 [Ledger: Task 3: complete (commits b7c8d9e..e1f2a3b, evidence review clean)]
+[Remove the task's temporary files: bucket.tfplan, bucket.plan.txt]
 
 [After all tasks]
 [Run review-package PLAN_FILE MERGE_BASE HEAD; review:request on the most capable model]

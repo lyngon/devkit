@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.49 - 2026-09-30
+
+- Fix rounds after a gate the owner performed get their own `[OWNER_GATE]` text in the implementer template, which opens with the owner's action and answer and never asks for the pins or the dry run, and the delegate skill and its owner gates reference send the fix-round text whether the agent or the owner performed the action; the delegate skill's example workflow ledgers the completion before it removes the task's temporary files, as step 8 says.
+
 ## 0.15.48 - 2026-09-30
 
 - An unforeseen gate raised by an evidence-review finding, after every step of the brief ran, gets its own start line, `Every step of the brief is done, its gated action included; never run them again.`, in place of the start-step line, and its post-gate part runs only the commands approved at this gate, or only the checks that verify the owner's fix, where it had no line and the other unforeseen-gate text sent it to steps that had already run.
