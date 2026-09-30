@@ -132,13 +132,13 @@ The workspace and ledger are shared with `build:delegate`, same directory, same 
   It prints the plan's git-ignored directory, `<repo-root>/tmp/build/<plan-slug>/`, home to every artifact for this plan: ledger, briefs, review packages.
   Another plan's directory is never yours to read or write.
 - Check for this plan's ledger at `<workspace>/progress.md`.
-  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not redo them; resume at the first task without one.
+  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not redo them; resume at the first task without one, as Resuming in [owner-gates.md](../delegate/references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
   Their commits exist in git even when your context no longer remembers making them: after compaction, trust the ledger and `git log` over your own recollection.
   A ledger whose first line names a different plan file is another plan's progress: leave it and start your own, fresh.
-- A plan that ends with an `## Execution status` section is a run that paused: before you read the ledger, run `<this skill's directory>/../delegate/scripts/execution-status restore PLAN_FILE` from the repository root, as [owner-gates.md](../delegate/references/owner-gates.md) says under Resuming.
-  A task with a `Task <N> pre-gate:` line and no completion line is at its gate; resume it as that section says.
-- Create the ledger with its identity as the first line: `# build ledger: plan <plan file path>`.
-- `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise.
+- For a plan that declares owner gates or ends with an `## Execution status` section, follow Resuming in [owner-gates.md](../delegate/references/owner-gates.md) before you read the ledger, whether or not the run paused: it restores a paused run's ledger with `<this skill's directory>/../delegate/scripts/execution-status restore PLAN_FILE`, run from the repository root, and reconciles the ledger with `git log`.
+- Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
+  `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
+- `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise; for a plan with owner gates, Resuming in [owner-gates.md](../delegate/references/owner-gates.md) says how.
 
 ### Read the plan
 
@@ -289,7 +289,7 @@ Call the Skill tool for `build:finish`.
 | "The hook fails on something unrelated, I'll skip it for this commit" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
 | "I read my own diff carefully; the final reviewer is redundant" | Same author, same blind spots. The reviewer is the only fresh context this run buys. |
 | "The owner will obviously say yes, I'll run the apply now" | Only an explicit yes passes a gate, or a pre-approval the plan's index records by the gate's ID. |
-| "The artifact is identical to the one approved before the pause" | A run-time approval lapses at a pause. Re-run the pre-gate part and ask again. |
+| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again. |
 | "I checked the live state myself, the evidence review is redundant" | Same author, same blind spots, and the final review cannot see live state. Dispatch the evidence reviewer. |
 | "Tests should pass, the change was trivial" | "Should" is not evidence. The contract requires the command and its output. |
 | "Subagents are slow and expensive, I'll skip the final review too" | Inline already removed the per-task reviewers. One review of the whole branch is the floor, not the ceiling. |

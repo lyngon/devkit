@@ -54,6 +54,8 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: Resuming reconciles a restored ledger with `git log` since the pause commit, recovers completions and gate answers from it, and resumes a gated task whose record commit is there at its evidence review, never re-running its post-gate part.
 - `references/evidence-reviewer-prompt.md`, which is not upstream: `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]` are the task's ledger lines and record commit under an inline executor, which writes no report files.
 - `task-brief` refuses (exit 3) a step title that says "owner gate", in any case and followed by anything but a letter, without being a well-formed marker, and a task that a row of the Owner Gates index names but whose steps hold no marker with that row's ID; `references/owner-gates.md` says so.
+- `references/owner-gates.md`, which is not upstream: Resuming runs at every setup of a plan that declares owner gates or holds an Execution status, whether or not the run paused, and reconciles the ledger with `git log` since the pause commit, or else since the merge base; a run-time approval lapses when the session that received it ends before the post-gate part starts.
+  Setup follows Resuming for such a plan, the resume rule and its gated-task exception are one sentence, and `PLAN_FILE` is the plan's path relative to the repository root in the ledger's identity line and every script call.
 
 ## Review notes
 

@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.15 - 2026-09-30
+
+- `delegate`'s owner gate protocol reconciles the ledger with `git log` at every setup of a plan that declares owner gates or holds an Execution status, reading from the pause commit or else from the merge base, where it did so only after a pause; so a record commit whose completion was never ledgered, or a workspace lost without a pause, no longer lets a gated action run twice.
+  A run-time approval lapses when the session that received it ends before the post-gate part starts, at a pause or not, where the text said only "at a pause".
+  `delegate` and `execute` follow this at setup, say that `PLAN_FILE` is the plan's path relative to the repository root in the ledger's identity line and every script call, and join the resume rule with its gated-task exception.
+
 ## 0.15.14 - 2026-09-30
 
 - `delegate`'s `task-brief` refuses (exit 3) a step title that says "owner gate" without being a well-formed marker, such as the Title Case `Owner Gate`, and a task that the Owner Gates index names but whose steps hold no marker with that ID, where it extracted either task as ungated, the gated action included; a step titled "Owner gateway" is no longer taken for a malformed marker.

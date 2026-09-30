@@ -107,21 +107,21 @@ In this order:
 
 ## Resuming
 
-At setup, a plan that ends with an `## Execution status` section is a paused run: run `execution-status restore PLAN_FILE` before reading the ledger.
-It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
-Ledger `Resume <time>: <what it printed>`.
-The copy is as old as the pause commit, the latest `docs(plan): pause at gate <id>` commit.
-Commits after it are work the copy does not show.
-Read `git log --format='%h %s%n%b' <pause commit>..HEAD`, and for each task the ledger does not already show complete:
+Follow these steps at every setup of a plan that declares owner gates or ends with an `## Execution status` section, before reading the ledger, whether or not the run paused:
 
-- A task without a gate whose commit steps all appear in the log is complete: ledger `Task N: complete (recovered from git log: <commits>)`.
-- A gated task whose record commit appears in the log has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
+1. When the plan ends with an `## Execution status` section, run `execution-status restore PLAN_FILE`.
+   It recreates a missing ledger from the copy, replaces a ledger that the copy extends, keeps a ledger that extends the copy, and exits 1 when they disagree, which is an unforeseen stop.
+   Ledger `Resume <time>: <what it printed>`.
+2. Reconcile the ledger with `git log`, which outlives the workspace.
+   Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the pause commit (the latest `docs(plan): pause at gate <id>` commit) when the plan has one, and otherwise the merge base with the default branch.
+   For each task the ledger does not already show complete:
+   - A task without a gate whose commit steps all appear in the log is complete: ledger `Task N: complete (recovered from git log: <commits>)`.
+   - A gated task whose record commit appears in the log (its body names the gate ID) has acted: ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, never re-run its post-gate part, and resume the task at step 7, the evidence review, which then completes it.
 
 Resume at the first task that is not complete.
-
 Then, for the task at a gate:
 
-- A run-time approval lapses at a pause: re-run the pre-gate part and ask again, even when the new artifact is identical.
+- A run-time approval lapses when the session that received it ends before the post-gate part starts, at a pause or not: re-run the pre-gate part and ask again, even when the new artifact is identical.
 - A pre-approval does not lapse; step 3 checks it again.
 - An owner's "done" does not lapse: resume at the post-gate part, which verifies.
 - A `Task N post-gate: dispatched` (or `started`) line with neither a completion nor a record commit after it means the part may already have acted: never re-run it blindly; make it an unforeseen gate that shows its report.
