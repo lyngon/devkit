@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.30 - 2026-09-30
+
+- `delegate`'s scoped re-review template gains an optional `[LIVE_ACCESS]` section with the evidence reviewer's rules for read-only calls (never the gated action or anything that takes effect, one focused call per named check), filled for a re-review after an evidence-review fix, where the Owner gates section promised that re-review read-only access to the live system but the template had no slot for it.
+
 ## 0.15.29 - 2026-09-30
 
 - An unforeseen gate's resume, review and post-gate brief are complete: a resumed run pins the artifact again after re-running the steps that produced it, the rationalization rows on a lapsed approval name the unforeseen-gate exception, and an owner-performed unforeseen gate's post-gate part starts at the first step after the owner's action, in the protocol and in the implementer template, where it started at Step K+1, which can be that action.

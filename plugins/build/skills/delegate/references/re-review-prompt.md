@@ -51,6 +51,18 @@ Dispatch a subagent with:
     Your review is read-only on this checkout. Do not mutate the working
     tree, the index, HEAD, or branch state in any way.
 
+    ## The Live System
+
+    [LIVE_ACCESS]
+
+    Query the live system with read-only calls only: calls that
+    describe, list, get or plan without taking effect. Never run a call
+    that creates, changes, deletes, locks or unlocks anything, and never
+    run the gated action or any command from the brief that takes effect.
+    If a check you need would take effect, report it under Out-of-Scope
+    Observations instead. Make one focused call per named check, and name
+    the check and the call in your report.
+
     ## You Do Not Dispatch Subagents
 
     Do all of this review yourself. Never spawn a subagent to review part
@@ -118,6 +130,9 @@ Dispatch a subagent with:
 - `[FIX_BASE_SHA]`: the head the previous review saw.
 - `[HEAD_SHA]`: the current commit.
 - `[DIFF_FILE]`: the path `scripts/review-package PLAN_FILE FIX_BASE HEAD` printed.
+
+- `[LIVE_ACCESS]` (optional): how to reach the live system read-only (the tool, the profile or context, the calls the brief's checks use).
+  Fill it for a re-review after an evidence-review fix, whose finding may be about live state, and leave out the whole "The Live System" section otherwise.
 
 Leave out the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 

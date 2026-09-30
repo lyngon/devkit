@@ -412,7 +412,7 @@ The evidence review takes the place of the task review for a gated task.
 Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round; the rest go through the fix loop like any other.
 Fix rounds 1 to 3 resume the post-gate implementer, whose `[OWNER_GATE]` block limits the approved commands to one run.
 Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh (rounds 4 and 5, and the fallback when the harness cannot resume), carries the post-gate `[OWNER_GATE]` block with its one-run sentence: "The approval covers one run of these commands. In a fix round, never run them again and take no other effect outside the repository: report BLOCKED instead."
-The scoped re-review after an evidence-review fix gets the evidence reviewer's read-only access to the live system, so it can verify a finding about live state.
+The scoped re-review after an evidence-review fix gets the evidence reviewer's read-only access to the live system in the re-review template's `[LIVE_ACCESS]` section, so it can verify a finding about live state.
 
 ## Final review
 
