@@ -78,7 +78,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 6. **Record commit.** The post-gate part ends with a record commit, empty (`git commit --allow-empty`) when the repository did not change.
    Its message body starts with the line `Owner gate: <id>`, followed by the evidence: the owner's answer verbatim with its time or the pre-approval, the pins, the commands run in order with their result lines, and the results of the checks.
    It holds summaries and identifiers, never a secret.
-7. **Evidence review.** Generate `review-package PLAN_FILE BASE HEAD` and dispatch the reviewer in [evidence-reviewer-prompt.md](evidence-reviewer-prompt.md) with both briefs, both reports, the pinned files, this gate's ledger lines, the `State:` lines and read-only access to the live system.
+7. **Evidence review.** Generate `review-package PLAN_FILE BASE HEAD` and dispatch the reviewer in [evidence-reviewer-prompt.md](evidence-reviewer-prompt.md) with both briefs (for an unforeseen gate, the task's whole brief and `gate-<id>.md`, pinned or not, in their place), both reports, the pinned files, this gate's ledger lines, the `State:` lines and read-only access to the live system.
    Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round.
    Every fix dispatch for the task after its post-gate part has acted, resumed or fresh, carries the post-gate `[OWNER_GATE]` block with its one-run sentence: "The approval covers one run of these commands. In a fix round, never run them again and take no other effect outside the repository: report BLOCKED instead."
 8. **Complete.** In `build:delegate`, ledger `Task N: complete (commits <base7>..<head7>, evidence review clean)`, or `(commits <base7>..<head7>, <K> parked)` after a tripped breaker.
@@ -93,7 +93,8 @@ A stop the plan did not declare (an implementer reports BLOCKED on an ungated ap
 - Its `Show` is `gate-<id>.md`, which you write in the workspace (what you met, the options and what each costs), plus any artifact the part produced; that artifact is its `Acts on`, which step 2 pins.
   With nothing to pin, the owner performs the action.
 - The task splits where it stopped: the steps already done are its pre-gate part, keeping their report, and the rest runs after the answer as a post-gate part that carries the answer.
-- `task-brief --part` refuses a task the plan did not gate, so the post-gate part gets the whole brief (`task-brief PLAN_FILE N`, or `task-start PLAN_FILE N` in `build:execute`) and the line `Steps 1 to K are done; start at Step K+1.` beside the `[OWNER_GATE]` block.
+- `task-brief --part` refuses a task the plan did not gate, so for such a task the post-gate part gets the whole brief (`task-brief PLAN_FILE N`, or `task-start PLAN_FILE N` in `build:execute`) and the line `Steps 1 to K are done; start at Step K+1.` beside the `[OWNER_GATE]` block, where K is the last step done or, for an action the owner performed, the step that held that action.
+  An unforeseen gate raised inside a task the plan gated (a partial apply, an evidence-review finding) gets that task's post-gate brief with the same line, not the whole brief.
   Commits the task made before it stopped stay; the post-gate part builds on them, and a resumed run never redoes them (see [Resuming](#resuming)).
 - It can never be pre-approved.
 - Ledger the answer as a gate line and as `State: owner answered <id>: "<answer>"`, so every later reviewer judges against it.
@@ -136,7 +137,7 @@ Resume at the first task that is not complete.
 Then, for the task at a gate:
 
 - A run-time approval lapses when the session that received it ends before the post-gate part starts, at a pause or not: re-run the pre-gate part and ask again, even when the new artifact is identical.
-  An unforeseen gate is the exception: the commits its steps made stay, and you re-run only the steps that produced its artifact, and only when the artifact is missing or its pin no longer matches (`pin --check`), then write `gate-<id>.md` again if it is gone and ask again.
+  An unforeseen gate is the exception: the commits its steps made stay, and you re-run only the steps that produced its artifact, and only when the artifact is missing or its pin no longer matches (`pin --check`), pin it again (step 2) when you re-ran them, then write `gate-<id>.md` again if it is gone and ask again.
 - A pre-approval does not lapse; step 3 checks it again.
 - An owner's "done" does not lapse: resume at the post-gate part, which verifies.
 - A `Task N post-gate: dispatched` (or `started`) line with neither a completion, a record commit nor a `Gate <id>: approval void` line after it means the part may already have acted: never re-run it blindly; make it an unforeseen gate that shows its report.

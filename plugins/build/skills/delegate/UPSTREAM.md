@@ -70,6 +70,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Owner gates, which are not upstream: a record commit is the commit whose body has the line `Owner gate: <id>`, where it was any commit whose body named the gate ID.
 - `references/owner-gates.md`, which is not upstream: Resuming reads the log from the merge base with the default branch, never from a pause commit, and a recovered gated task ledgers its `Gate` line only when the ledger lacks one and resumes a running evidence review or fix loop at its next round.
 - Owner gates, which are not upstream: every fix dispatch for a gated task after its post-gate part has acted, the fresh implementers of rounds 4 and 5 included, carries the post-gate `[OWNER_GATE]` block with its one-run sentence.
+- Owner gates, which are not upstream: an unforeseen gate is pinned again after its artifact is rebuilt on resume, is reviewed against the task's whole brief and `gate-<id>.md`, and in a task the plan gated gets that task's post-gate brief; the implementer template starts an owner-performed unforeseen gate's steps after the owner's action; the lapsed-approval row names the unforeseen-gate exception.
 
 ## Review notes
 

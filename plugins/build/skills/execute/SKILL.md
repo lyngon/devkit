@@ -220,6 +220,7 @@ A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) run
 Read [owner-gates.md](../delegate/references/owner-gates.md) before the first gated task and follow it step by step, with these differences:
 
 - Each part starts with `scripts/task-start PLAN_FILE N --part pre-gate` or `--part post-gate`, and you run its steps yourself; the post-gate part of an unforeseen gate starts with `scripts/task-start PLAN_FILE N` at the step after the stop, as the protocol's Unforeseen stops say.
+  That part keeps the task's original BASE for the evidence-review package and for `task-done`, not the BASE a new `task-start` prints.
   In the pre-gate part you never perform the gated action; its brief ends at the gate with "Stop here".
 - The record commit's body starts with the line `Owner gate: <id>`, followed by the evidence, as the protocol's step 6 says.
 - Ledger `Task N post-gate: started` where the protocol says `dispatched`, before any post-gate step runs.
@@ -291,7 +292,7 @@ Call the Skill tool for `build:finish`.
 | "The hook fails on something unrelated, I'll skip it for this commit" | A check you would have to skip is a stop condition, not an obstacle. Stop and ask. |
 | "I read my own diff carefully; the final reviewer is redundant" | Same author, same blind spots. The reviewer is the only fresh context this run buys. |
 | "The owner will obviously say yes, I'll run the apply now" | Only an explicit yes passes a gate, or a pre-approval the plan's index records by the gate's ID. |
-| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again. |
+| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again; an unforeseen gate is the exception, which Resuming in the protocol describes. |
 | "I checked the live state myself, the evidence review is redundant" | Same author, same blind spots, and the final review cannot see live state. Dispatch the evidence reviewer. |
 | "Tests should pass, the change was trivial" | "Should" is not evidence. The contract requires the command and its output. |
 | "Subagents are slow and expensive, I'll skip the final review too" | Inline already removed the per-task reviewers. One review of the whole branch is the floor, not the ceiling. |

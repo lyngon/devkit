@@ -460,7 +460,7 @@ Call the Skill tool for `build:finish`.
 | "Let me check in before the next task" | The user reviews the plan and the pull request and answers owner gates, nothing else in between. Only owner gates, the five stops among them, stop you. |
 | "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors and parked findings before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 | "The owner will obviously say yes, I'll run the apply now" | Only an explicit yes passes a gate, or a pre-approval the plan's index records by the gate's ID. |
-| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again. |
+| "The artifact is identical to the one approved before the pause" | A run-time approval lapses when the session that received it ends before the post-gate part starts. Re-run the pre-gate part and ask again; an unforeseen gate is the exception, which Resuming in the protocol describes. |
 | "The task changed nothing in the repository, so there is nothing to commit" | A gated task ends with its record commit, empty if need be; the evidence lives in its message. |
 | "Resume the pre-gate implementer for the post-gate part" | The post-gate part is a fresh dispatch that carries the approval; the gate may have spanned sessions. |
 

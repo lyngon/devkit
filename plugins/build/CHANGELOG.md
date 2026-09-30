@@ -4,6 +4,13 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.29 - 2026-09-30
+
+- An unforeseen gate's resume, review and post-gate brief are complete: a resumed run pins the artifact again after re-running the steps that produced it, the rationalization rows on a lapsed approval name the unforeseen-gate exception, and an owner-performed unforeseen gate's post-gate part starts at the first step after the owner's action, in the protocol and in the implementer template, where it started at Step K+1, which can be that action.
+  `execute` keeps the task's original BASE for an unforeseen gate's evidence-review package and `task-done`.
+  The evidence reviewer gets the task's whole brief and `gate-<id>.md` for an unforeseen gate, pinned or not, in place of the two part briefs.
+  An unforeseen gate raised inside a task the plan gated gets that task's post-gate brief with the start-step line, not the whole brief.
+
 ## 0.15.28 - 2026-09-30
 
 - `delegate`'s Owner gates section and the owner gate protocol's evidence review step say that every fix dispatch for a gated task after its post-gate part has acted, the fresh implementers of rounds 4 and 5 and the fallback when the harness cannot resume included, carries the post-gate `[OWNER_GATE]` block with its one-run sentence, where only rounds 1 to 3, which resume the post-gate implementer, were said to be limited to one run of the approved commands.

@@ -20,8 +20,8 @@ Dispatch a subagent with:
     ## What Was Requested
 
     Read both briefs: [PRE_GATE_BRIEF] and [POST_GATE_BRIEF].
-    The gate block in them names what the owner saw (Show), what the
-    approval pins (Acts on), who performed the action, and what it
+    The gate block in them (or `gate-<id>.md` for an unforeseen gate)
+    names what the owner saw (Show), what the approval pins (Acts on), who performed the action, and what it
     changes. Their Global Constraints section, when present, binds this
     task as much as the task text does. [CONSTRAINT_EMPHASIS]
 
@@ -169,7 +169,7 @@ Dispatch a subagent with:
 ## Placeholders
 
 - `[MODEL]`: required, at least a mid-tier model, and the most capable when the action was destructive.
-- `[PRE_GATE_BRIEF]`, `[POST_GATE_BRIEF]`: required, the two briefs `task-brief --part` wrote.
+- `[PRE_GATE_BRIEF]`, `[POST_GATE_BRIEF]`: required, the two briefs `task-brief --part` wrote; for an unforeseen gate, the task's whole brief and `gate-<id>.md` in their place.
 - `[CONSTRAINT_EMPHASIS]` (optional): one sentence naming the global constraint this task is most likely to break.
 - `[GATE_LINES]`: required, the ledger's lines for this gate, verbatim: the pre-gate line with its pins, and the answer or pre-approval line.
 - `[PINNED_FILES]`: required, the paths of the pinned files, or "none" for a gate pinned by command text alone.
