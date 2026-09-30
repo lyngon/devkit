@@ -36,7 +36,7 @@ Language and document rules are separate skills: invoke the one for a file's kin
 These are the user's standing instructions: they count as being asked to commit, push and open a pull request.
 
 - Work on a feature branch named `<type>/<slug>`, after the Conventional Commits type of its main change. On the default branch, create one first. When the current branch carries other work (its pull request is open or merged, or it is named for another change), start a new branch from the up-to-date default branch.
-- Commit without asking whenever a concern is done: one concern per commit, in Conventional Commits form. Commits not yet pushed may be amended or reordered.
+- Commit without asking whenever a concern is done: one concern per commit, in Conventional Commits form. Commit messages use no em or en dashes and no curly quotes. Commits not yet pushed may be amended or reordered.
 - When the work is done and the full check passes, push the branch and open a pull request without asking. The user reviews the pull request and decides the merge.
 - Run the full check before every push. Never disable, skip or weaken a check or hook to get past it.
 - Never rewrite pushed history without asking; fixes after a push are new commits.
@@ -48,6 +48,10 @@ These are the user's standing instructions: they count as being asked to commit,
 
 - The environment is `devenv.nix`; the full check is `devenv test`, which runs every git hook on every file. Never disable a hook.
 - Secrets are declared in `secretspec.toml`.
+
+## With the Lyngon baseline
+
+Commit messages are checked by the `commitizen` and `prose-lint-commit-msg` hooks.
 
 ## With the Lyngon structure
 
