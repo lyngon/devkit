@@ -56,6 +56,20 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/tests/validate-prerequisites.sh" "$@"'';
   };
+  # Fixture tests for the repo plugin's hook scripts; zsh reads back the
+  # environment file, as Claude Code's Bash tool does in a zsh session.
+  testRepoHooks = pkgs.writeShellApplication {
+    name = "test-repo-hooks";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.zsh
+    ];
+    text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/hooks.sh" "$@"'';
+  };
 in
 {
   # Baseline hooks, MCP server file and languages come from ./devenv.
@@ -102,5 +116,6 @@ in
     validate-prerequisites
     ${lib.getExe testValidateStructure}
     ${lib.getExe testValidatePrerequisites}
+    ${lib.getExe testRepoHooks}
   '';
 }

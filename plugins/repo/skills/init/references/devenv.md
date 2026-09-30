@@ -86,7 +86,7 @@ The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no len
 
 Do not enable `claude.code.enable`.
 It would take over `.claude/settings.json` with a fixed key set and drop the marketplace registration.
-Do not enable Claude Code hooks through devenv; the git hooks are the feedback loop, and the one Claude Code hook a Lyngon repository has comes from the `repo` plugin.
+Do not enable Claude Code hooks through devenv; the git hooks are the feedback loop, and the Claude Code hooks a Lyngon repository has come from the plugins.
 
 ### .envrc
 
@@ -480,7 +480,7 @@ Never add a service because the stack suggests one.
 
 - **direnv**: `direnv allow` once; `.envrc` does the rest.
 - **devenv hook**: `eval "$(devenv hook zsh)"` (or `bash`, `fish`; `devenv hook fish | source`) in the user's shell configuration, then `devenv allow` in the repository. Subshell-based, deactivates on leaving the directory.
-- **VS Code**: the `mkhl.direnv` extension loads `.envrc` into the extension host, so the Claude Code extension and integrated terminals see the devenv tools. Without it, Claude Code hooks and MCP servers still load (they are files), but the tools they call are missing from PATH.
+- **VS Code**: the `mkhl.direnv` extension loads `.envrc` into the extension host, so integrated terminals see the devenv tools and the Claude Code extension starts with them. The `repo` plugin's hooks export the current environment into each agent session and refresh it when the devenv files change. Without `mkhl.direnv`, Claude Code hooks and MCP servers still load (they are files), but the tools an MCP server calls are missing from PATH.
 - **AI agents**: devenv detects Claude Code and switches to quiet, non-TUI output on its own. Set `DEVENV_NO_AI_AGENT=1` to disable that.
 
 ## Verification

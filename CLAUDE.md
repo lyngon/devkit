@@ -9,6 +9,7 @@ Decisions are in [docs/adr/](docs/adr/).
 ## Checks
 
 Every tool comes from `devenv.nix`. If one is missing, add it there; never install anything imperatively.
+The `repo` plugin's hooks export the devenv environment into the agent session and refresh it when the devenv files change, so run commands directly, without a `devenv shell --` wrapper.
 
 ```sh
 devenv test

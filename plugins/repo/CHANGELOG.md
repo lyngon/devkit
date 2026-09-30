@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.10.0 - 2026-09-30
+
+- New `SessionStart`, `FileChanged` and `CwdChanged` hooks export the devenv environment into the agent session and keep it current. Claude Code captures its environment once, at start, so tools and variables added to `devenv.nix` never reached the agent's Bash commands during a session, and a stale start went unnoticed until a tool was missing or the wrong identity was used. The hook exports through direnv when it has allowed `.envrc` and from `devenv direnv-export` otherwise, and returns the files to watch, a package's `devenv.nix` included, because a plugin's `FileChanged` matcher watches nothing. The `CLAUDE.md` template says to run commands without a `devenv shell --` wrapper, and the README template and `devenv.md` say that `mkhl.direnv` covers only the start of a session.
+
 ## 0.9.0 - 2026-09-29
 
 - The plugin declares the `workflow` prerequisite, and `init` adopts the Lyngon workflow in every scope: the settings it writes enable `conventions` next to `core` or a subset, the interview says so, and the README template installs `core` with `conventions` when the settings do (ADR 0017).
