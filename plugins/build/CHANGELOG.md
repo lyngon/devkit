@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.43 - 2026-09-30
+
+- `delegate`'s and the owner gate protocol's one-run guard covers the final review's fix wave whenever it touches a gated task, which carries the post-gate `[OWNER_GATE]` block with its one-run sentence like every other fix dispatch after the post-gate part has acted, where the rule named only the task's own fix rounds.
+
 ## 0.15.42 - 2026-09-30
 
 - Both executors' final review rules on a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, and ledgers the ruling, as in the task loop, and the fix wave takes the rest, where the final review sent every finding to the one fix wave and a finding that needed no change became a fix or an unrecorded skip.
