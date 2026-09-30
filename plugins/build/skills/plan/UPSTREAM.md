@@ -33,6 +33,7 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - Self-review gained two checks: 5, every mandated check proven both ways; 6, every block of dictated prose checked against the repository's recorded decisions, the gates and rules in its agent instructions, and the design's and plan's own findings. `## With the Lyngon documents` names the ADRs, `CLAUDE.md` and `CONCEPTS.md` for check 6.
 - The execution handoff names the pull request that `build:finish` opens as the second gate, and says the rulings are presented in its description; between the gates the executor asks the user nothing.
 - Owner gates, which are not upstream: a `### Owner Gates` index in the plan header; an `## Owner gates` section with the gate step, its fields and its rules; every task ends with at least one commit; a "No placeholders" item and self-review item 7 for gates; the handoff asks for pre-approvals by ID and records them in the index before invoking the executor.
+- Owner gates, which are not upstream: a step title says "owner gate" only in a marker, and the executor refuses any other step title that says it and a task the index names without its marker.
 
 ## Review notes
 

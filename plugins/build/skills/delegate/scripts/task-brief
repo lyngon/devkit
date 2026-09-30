@@ -15,6 +15,9 @@
 # line that stops the implementer there; --part post-gate yields the header,
 # the gate block and the steps after it. A malformed gate is refused before
 # anything is written, so it fails before a dispatch rather than at the gate.
+# So is a step whose title mentions an owner gate without being a well-formed
+# marker, and a task that a row of the Owner Gates index names but whose
+# steps hold no marker with that row's ID, so a gate is never missed.
 #
 # Usage: task-brief PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate] [OUTFILE]
 # Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-brief.md, or
@@ -23,7 +26,7 @@
 # same plan text, so regenerating it is harmless).
 # Prints the brief's path on stdout and a summary on stderr.
 # Exit: 2 on a usage error; 3 when the task is missing, its gate is
-# malformed, or the part does not fit the task.
+# malformed or unmarked, or the part does not fit the task.
 set -euo pipefail
 
 usage() {
@@ -84,6 +87,9 @@ awk -v n="$n" -v part="$part" '
     failed = 1
     exit 3
   }
+  function unmarked(id) {
+    return "owner gate `" id "` is indexed for task " n ", which has no marker for it"
+  }
   function trim(s) {
     sub(/^[ \t]+/, "", s)
     sub(/[ \t]+$/, "", s)
@@ -119,7 +125,10 @@ awk -v n="$n" -v part="$part" '
     split($0, cells, "|")
     id = trim(cells[2])
     gsub(/`/, "", id)
-    if (id != "ID") indexed[id] = 1
+    if (id != "ID") {
+      indexed[id] = 1
+      if (trim(cells[3]) == n) gated[id] = 1
+    }
   }
   text && /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/ {
     id = $0
@@ -131,7 +140,9 @@ awk -v n="$n" -v part="$part" '
     task[++nt] = $0
     if (text && $0 ~ /^- \[[ xX]\] \*\*Step [0-9]+/) {
       if (!firststep) firststep = nt
-      if ($0 ~ /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate/) {
+      # Every mention of an owner gate in a step title must be a well-formed
+      # marker; "gateway" and "gates" are other words.
+      if (tolower($0) ~ /owner gate([^a-z]|$)/) {
         if ($0 !~ /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/)
           fail("task " n ": malformed owner gate marker: " $0)
         ngates++
@@ -149,12 +160,14 @@ awk -v n="$n" -v part="$part" '
     while (nt > 0 && task[nt] ~ /^[ \t]*$/) nt--
     if (ngates > 1) fail("task " n " has " ngates " owner gates; a task has at most one")
     if (ngates == 0) {
+      for (id in gated) fail(unmarked(id))
       if (part != "") fail("task " n " has no owner gate; leave out --part")
       for (i = 1; i <= nt; i++) print task[i]
     } else {
       if (gid !~ /^[a-z0-9]+(-[a-z0-9]+)*$/) fail("owner gate `" gid "`: the ID must be kebab-case")
       if (seen[gid] > 1) fail("owner gate `" gid "` appears " seen[gid] " times in the plan; an ID is unique")
       if (!(gid in indexed)) fail("owner gate `" gid "` is missing from the Owner Gates index")
+      for (id in gated) if (id != gid) fail(unmarked(id))
       # The gate block is the marker and the lines under it that start with
       # two spaces; each field is one of those lines.
       last = gate

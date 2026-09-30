@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.14 - 2026-09-30
+
+- `delegate`'s `task-brief` refuses (exit 3) a step title that says "owner gate" without being a well-formed marker, such as the Title Case `Owner Gate`, and a task that the Owner Gates index names but whose steps hold no marker with that ID, where it extracted either task as ungated, the gated action included; a step titled "Owner gateway" is no longer taken for a malformed marker.
+  `plan` tells plan authors so.
+
 ## 0.15.13 - 2026-09-30
 
 - `execute`'s `## Owner gates` asks for `Task N post-gate: started` to be ledgered before any post-gate step runs, in any call, where it also required the same call as `task-start --part post-gate`.

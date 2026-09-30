@@ -347,6 +347,22 @@ s/^- \[ \] \*\*Step 2: Owner gate `apply-thing`\*\*$/- [ ] **Step 2: Owner gate 
 EOF
 fixture >"$plan"
 
+fixture | sed 's/Owner gate \(.apply-thing.\)/Owner Gate \1/' >"$plan"
+brief "$plan" 2
+check "task-brief refuses a Title Case gate marker rather than extracting the task ungated" \
+  equals "$code|$err" "3|task-brief: task 2: malformed owner gate marker: - [ ] **Step 2: Owner Gate \`apply-thing\`**"
+
+fixture | sed 's/^\(| .apply-thing. | \)2 |/\11 |/' >"$plan"
+brief "$plan" 1
+check "task-brief refuses a task the index gates when the task has no marker for it" \
+  equals "$code|$err" "3|task-brief: owner gate \`apply-thing\` is indexed for task 1, which has no marker for it"
+
+fixture | sed 's/^- \[ \] \*\*Step 2: Commit\*\*$/- [ ] **Step 2: Owner gateway setup**/' >"$plan"
+brief "$plan" 1
+check "task-brief: a step titled with \"Owner gateway\" is no gate marker, and the task extracts ungated" \
+  equals "$code|$(grep -c '^- \[ \] \*\*Step 2: Owner gateway setup\*\*$' <<<"$body")" "0|1"
+fixture >"$plan"
+
 brief "$plan" 7
 check "task-brief: a missing task exits 3" \
   equals "$code|$err" "3|task-brief: task 7 not found (no heading matching Task 7)"

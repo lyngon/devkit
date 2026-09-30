@@ -179,6 +179,7 @@ A task that exists to perform a hard-to-reverse action only the user may approve
 ```
 
 - The marker carries the gate's ID, kebab-case and unique in the plan; the index, a pre-approval, the ledger and the record commit name the gate by it.
+  A step title says "owner gate" only in a marker, spelled as above: the executor refuses a task with any other step title that says it, and a task that the index names without holding the marker with its ID.
 - Each field is one line directly under the marker, indented two spaces. `Show`, `Ask`, `Performed by`, `Consequences` and `On no` are required; `Acts on` names what the approval pins when that differs from `Show`. `Show` and `Acts on` may list several files.
 - `Performed by` is `agent, <exact commands>` or `owner, <exact commands or instructions>`. The agent may perform an action only when the approval pins its effect: a frozen artifact (a saved plan, a packed tarball, an image by digest) by its hash; a command whose text and pinned inputs fully determine the effect; or an action that depends on live state, when the post-gate steps re-run its dry run right before acting and compare it byte for byte, which needs a deterministic dry run. The user performs everything else, a console action included.
 - `Consequences` says what a yes changes, which part of it cannot be undone, and how to recover if anything can.
