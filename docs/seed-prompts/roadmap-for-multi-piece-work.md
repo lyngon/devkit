@@ -24,4 +24,4 @@ In lyngon.com (2026-09-27) the first session needed a hand-made overview file an
 2. Content: the pieces, their order, the status of each, the transient facts the later pieces need, and a pointer to each piece's plan; nothing that belongs in the Lyngon documents.
 3. Who writes and updates it: `discover:approach` at decomposition, `build:finish` when a piece lands (status) and when the last piece lands (removal).
 4. How a fresh session finds it: the session-start hook, a link from each piece's plan, or a convention in the plan header.
-5. Its relation to the pause record of `docs/seed-prompts/owner-gates.md`, so the two do not become two files for one purpose.
+5. Its relation to the `## Execution status` section a paused run writes into its plan (ADR 0018), so the two do not become two files for one purpose.
