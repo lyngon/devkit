@@ -171,7 +171,7 @@ Track progress in a ledger file, not only in todos.
   If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not re-dispatch them; resume at the first task without one, as Resuming in [owner-gates.md](references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
   A task whose last line is a fix round is mid-loop: resume the loop at the next round.
   A ledger whose first line names a different plan file is another plan's progress: leave it in place and start your own, fresh.
-- For a plan that declares owner gates or ends with an `## Execution status` section, follow Resuming in [owner-gates.md](references/owner-gates.md) before you read the ledger, whether or not the run paused: it restores a paused run's ledger with `scripts/execution-status restore PLAN_FILE` and reconciles the ledger with `git log`.
+- For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](references/owner-gates.md) and follow its Resuming before you read or create the ledger, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: it restores a paused run's ledger with `scripts/execution-status restore PLAN_FILE` and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
 - Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
   `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
 - The ledger is your recovery map: the commits it names exist in git even when your context no longer remembers creating them.
@@ -407,7 +407,7 @@ Never move to the next task while the review has open Critical or Important issu
 ## Owner gates
 
 A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) runs in two dispatches around the gate, and you take the gate itself: an implementer cannot ask the owner anything.
-Read [owner-gates.md](references/owner-gates.md) before the first gated task and follow it step by step: the pre-gate dispatch with the implementer template's pre-gate `[OWNER_GATE]` text, pinning, the pre-approval check, the gate message, the fresh post-gate dispatch that carries the approval in the implementer template's `[OWNER_GATE]` block, the record commit, the evidence review with [evidence-reviewer-prompt.md](references/evidence-reviewer-prompt.md), pausing and resuming.
+Read [owner-gates.md](references/owner-gates.md) at setup, where its Resuming runs, and follow it step by step: the pre-gate dispatch with the implementer template's pre-gate `[OWNER_GATE]` text, pinning, the pre-approval check, the gate message, the fresh post-gate dispatch that carries the approval in the implementer template's `[OWNER_GATE]` block, the record commit, the evidence review with [evidence-reviewer-prompt.md](references/evidence-reviewer-prompt.md), pausing and resuming.
 Each of the five stops above that the plan did not declare runs the same protocol as an unforeseen gate.
 The evidence review takes the place of the task review for a gated task.
 Screen its findings before any fix round: one whose fix needs another live action becomes an unforeseen gate, never a fix round; the rest go through the fix loop like any other.

@@ -135,7 +135,7 @@ The workspace and ledger are shared with `build:delegate`, same directory, same 
   If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not redo them; resume at the first task without one, as Resuming in [owner-gates.md](../delegate/references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
   Their commits exist in git even when your context no longer remembers making them: after compaction, trust the ledger and `git log` over your own recollection.
   A ledger whose first line names a different plan file is another plan's progress: leave it and start your own, fresh.
-- For a plan that declares owner gates or ends with an `## Execution status` section, follow Resuming in [owner-gates.md](../delegate/references/owner-gates.md) before you read the ledger, whether or not the run paused: it restores a paused run's ledger with `<this skill's directory>/../delegate/scripts/execution-status restore PLAN_FILE`, run from the repository root, and reconciles the ledger with `git log`.
+- For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](../delegate/references/owner-gates.md) and follow its Resuming before you read or create the ledger, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: it restores a paused run's ledger with `<this skill's directory>/../delegate/scripts/execution-status restore PLAN_FILE`, run from the repository root, and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
 - Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
   `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
 - `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise; for a plan with owner gates, Resuming in [owner-gates.md](../delegate/references/owner-gates.md) says how.
@@ -217,7 +217,7 @@ When it records, mark the todo complete and take the next task.
 ## Owner gates
 
 A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) runs in two parts around the gate.
-Read [owner-gates.md](../delegate/references/owner-gates.md) before the first gated task and follow it step by step, with these differences:
+Read [owner-gates.md](../delegate/references/owner-gates.md) at setup, where its Resuming runs, and follow it step by step, with these differences:
 
 - Each part starts with `scripts/task-start PLAN_FILE N --part pre-gate` or `--part post-gate`, and you run its steps yourself; the post-gate part of an unforeseen gate starts with `scripts/task-start PLAN_FILE N` at the step after the stop, as the protocol's Unforeseen stops say.
   That part keeps the task's original BASE for the evidence-review package and for `task-done`, not the BASE a new `task-start` prints.

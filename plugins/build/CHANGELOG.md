@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.40 - 2026-09-30
+
+- Both executors read the owner gate protocol at setup and follow its Resuming before they read or create the ledger, also on a fresh start with no ledger, because a lost workspace looks like one and only `git log` shows a gated task that has already acted, where they read the protocol before the first gated task and followed Resuming "whether or not the run paused", which a run starting a gated plan read as not applying to a fresh start, even after the example workflow showed the reconciliation.
+
 ## 0.15.39 - 2026-09-30
 
 - `delegate`'s example workflow follows Resuming at the setup of its gated plan and reads `git log` from the merge base before it starts fresh, where it went from "no ledger inside" straight to a fresh start, against the setup rule, and a run started a gated plan the same way.
