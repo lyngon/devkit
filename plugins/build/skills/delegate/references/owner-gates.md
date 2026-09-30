@@ -84,8 +84,11 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 A stop the plan did not declare (an implementer reports BLOCKED on an ungated apply, the plan is broken beyond guessing, a check could only be passed by weakening it) runs the same protocol:
 
 - Its ID is `unplanned-<slug>`.
-- Its `Show` is `gate-<id>.md`, which you write in the workspace: what you met, the options and what each costs, and the path of any artifact the part produced.
+- Its `Show` is `gate-<id>.md`, which you write in the workspace (what you met, the options and what each costs), plus any artifact the part produced; that artifact is its `Acts on`, which step 2 pins.
+  With nothing to pin, the owner performs the action.
 - The task splits where it stopped: the steps already done are its pre-gate part, keeping their report, and the rest runs after the answer as a post-gate part that carries the answer.
+- `task-brief --part` refuses a task the plan did not gate, so the post-gate part gets the whole brief (`task-brief PLAN_FILE N`, or `task-start PLAN_FILE N` in `build:execute`) and the line `Steps 1 to K are done; start at Step K+1.` beside the `[OWNER_GATE]` block.
+  Commits the task made before it stopped stay; the post-gate part builds on them.
 - It can never be pre-approved.
 - Ledger the answer as a gate line and as `State: owner answered <id>: "<answer>"`, so every later reviewer judges against it.
 

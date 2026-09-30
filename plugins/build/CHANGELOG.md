@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.18 - 2026-09-30
+
+- `delegate`'s owner gate protocol pins the artifact of an unforeseen gate: its `Show` is the written statement plus any artifact the stopped part produced, which becomes its `Acts on`, and the owner performs an action with nothing to pin, where the statement alone was pinned and the artifact that then got applied never was.
+  Its post-gate part gets the whole brief and the step to start at, since `task-brief --part` refuses an ungated task, and builds on the commits made before the stop; the implementer template and `execute` say so.
+
 ## 0.15.17 - 2026-09-30
 
 - `delegate`'s owner gate protocol voids a pre-approval for the run when a pin check or dry-run re-check of its gate fails, and ledgers `Gate <id>: approval void (<the check that failed>)`, where the gate went back to step 1 and the pre-approval check passed it again without asking.
