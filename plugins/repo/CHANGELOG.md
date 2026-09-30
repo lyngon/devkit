@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.12.0 - 2026-09-30
+
+- The `.claude/settings.json` that `init` writes sets `attribution.commit` to an empty string, so Claude Code no longer tells sessions and subagents to add a `Co-Authored-By` trailer that the Lyngon conventions forbid.
+
 ## 0.11.1 - 2026-09-30
 
 - The `CLAUDE.md` template of `init` no longer restates organization-wide conventions that the `conventions` skills already carry: installing tools imperatively, disabling a hook, Conventional Commits, one sentence per line, dashes and curly quotes. `conventions:documents` says they are never copied into `CLAUDE.md`, and the baseline hooks still reject every violation.
