@@ -6,6 +6,12 @@ How to use and contribute is in [README.md](README.md).
 Terms are in [CONCEPTS.md](CONCEPTS.md).
 Decisions are in [docs/adr/](docs/adr/).
 
+This repository ships the Lyngon conventions and is also developed under them; keep the two apart.
+What it ships (`shared/`, `devenv/` and every plugin outside the `devkit` category) is written for any Lyngon repository and never assumes this repository's layout or rules.
+The rules for developing this repository itself live in this file and `docs/conventions/`, and apply nowhere else.
+The shipped conventions apply here too, except where this file says otherwise.
+Before adding or changing a rule, decide which of the two it belongs to.
+
 ## Checks
 
 Every tool comes from `devenv.nix`. If one is missing, add it there; never install anything imperatively.
