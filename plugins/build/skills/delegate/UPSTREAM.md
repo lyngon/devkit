@@ -66,6 +66,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: the gate message has one `Artifact:` line per pinned file and quotes the `Show` file for a pinned file that is not text; a character a hook rejects in a verbatim answer, or a `|` in a table, is replaced by its plain form; temporary files are removed once the evidence review is clean; a session the owner ends with no task at its gate pauses as `docs(plan): pause before Task N`, and Resuming reads from that commit too; the ledger never holds a secret; Pausing spells out the post-gate argument of `execution-status write`; step 3 passes a pre-approved gate only for an action the approval pins, as "Who performs the action" requires.
   SKILL.md says a gated task has two reports, one per part; the implementer template joins the pre-gate exception to "Every task ends with at least one commit".
 - `references/owner-gates.md`, which is not upstream: when an unforeseen gate's run-time approval lapses, its commits stay and a resumed run re-runs only the steps that produced its artifact, and only when the artifact is missing or its pin no longer matches, then asks again; a recovered gated task whose BASE was lost with the workspace takes the parent of its first commit in the log as BASE.
+- `task-brief` reads an Owner Gates index Task cell of "6" or "Task 6" alike when it checks that an indexed task holds its marker.
 
 ## Review notes
 

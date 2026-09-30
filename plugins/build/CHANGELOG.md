@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.25 - 2026-09-30
+
+- `delegate`'s `task-brief` reads an Owner Gates index Task cell of "Task 6" as task 6, so a task indexed that way without its marker is refused, where only a bare "6" was matched and the task extracted as ungated.
+
 ## 0.15.24 - 2026-09-30
 
 - `delegate`'s owner gate protocol keeps the commits of an unforeseen gate whose run-time approval lapsed: a resumed run re-runs only the steps that produced its artifact, and only when the artifact is missing or its pin no longer matches, then asks again, where it said to re-run the whole pre-gate part, commits included.

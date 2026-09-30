@@ -127,7 +127,10 @@ awk -v n="$n" -v part="$part" '
     gsub(/`/, "", id)
     if (id != "ID") {
       indexed[id] = 1
-      if (trim(cells[3]) == n) gated[id] = 1
+      # The Task cell reads "6" or "Task 6" alike.
+      tn = trim(cells[3])
+      sub(/^Task[ \t]*/, "", tn)
+      if (tn == n) gated[id] = 1
     }
   }
   text && /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/ {

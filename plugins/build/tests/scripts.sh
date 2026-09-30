@@ -385,6 +385,11 @@ brief "$plan" 1
 check "task-brief refuses a task the index gates when the task has no marker for it" \
   equals "$code|$err" "3|task-brief: owner gate \`apply-thing\` is indexed for task 1, which has no marker for it"
 
+fixture | sed 's/^\(| .apply-thing. | \)2 |/\1Task 1 |/' >"$plan"
+brief "$plan" 1
+check "task-brief reads an index Task cell of \"Task 1\" as task 1, and refuses the task without its marker" \
+  equals "$code|$err" "3|task-brief: owner gate \`apply-thing\` is indexed for task 1, which has no marker for it"
+
 fixture | sed 's/^- \[ \] \*\*Step 2: Commit\*\*$/- [ ] **Step 2: Owner gateway setup**/' >"$plan"
 brief "$plan" 1
 check "task-brief: a step titled with \"Owner gateway\" is no gate marker, and the task extracts ungated" \
