@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.46 - 2026-09-30
+
+- A record commit is looked up on the branch only: Resuming and the finish skill's owner gates list run `git log --grep='^Owner gate: <id>$'` over the range from the merge base with the default branch to `HEAD`, where the lookup had no range and an earlier plan's record commit with the same gate ID on the default branch read an unacted gate as acted.
+
 ## 0.15.45 - 2026-09-30
 
 - Every fix dispatch for a gated task after its post-gate part has acted, resumed or fresh, and the final review's fix wave whenever it touches a gated task, carries a fix-round `[OWNER_GATE]` text of the implementer template, where it carried the post-gate block: that block's pin checks and dry-run re-check fail by construction once the action has run, so each such dispatch reported BLOCKED, and its "end with the record commit" invited a second record commit.

@@ -53,7 +53,7 @@ Collect the owner gates for the description (Step 5) from their record commits, 
 git log --format='%h %s%n%b' "$(git merge-base <base-branch> HEAD)"..HEAD
 ```
 
-A record commit is the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$'`, for each gate ID: a row of the plan's `### Owner Gates` index, or an `unplanned-<slug>` gate.
+A record commit is the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$' "$(git merge-base <base-branch> HEAD)"..HEAD` (never without the range, since an earlier plan's record commit for the same gate ID may sit on the base branch), for each gate ID: a row of the plan's `### Owner Gates` index, or an `unplanned-<slug>` gate.
 Take one entry per gate: its ID, the owner's answer or the pre-approval the body holds, and the record commit's hash.
 
 Then remove the plan in a final commit:
