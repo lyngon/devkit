@@ -77,15 +77,19 @@ run bash "$delegate/pin" --check "sha256:$hello" "$repo/artifact.txt"
 check "pin --check: a matching pin exits 0 and prints nothing" \
   equals "$code|$out|$err" "0||"
 printf 'hello!\n' >"$repo/edited.txt"
+edited=c8a31cb076b21999bd2cdcfa5f446a7a6644de88037087112fa18bd90cc13984
 run bash "$delegate/pin" --check "sha256:$hello" "$repo/edited.txt"
-check "pin --check: an edited file exits 1 and names both hashes" \
-  equals "$code|$(grep -c "pinned sha256:$hello, found sha256:" <<<"$err")" "1|1"
+check "pin --check: an edited file exits 1 and names both hashes, the found one the edited file's" \
+  equals "$code|$err" "1|pin: $repo/edited.txt does not match its pin: pinned sha256:$hello, found sha256:$edited"
 run bash "$delegate/pin" --check "sha256:abc" "$repo/artifact.txt"
-check "pin --check: a malformed pin is a usage error" \
-  equals "$code" "2"
+check "pin --check: a malformed pin is a usage error that names it" \
+  equals "$code|$err" "2|pin: not a pin: sha256:abc"
 run bash "$delegate/pin" "$repo/missing.txt"
-check "pin: a missing file is an error, with nothing printed" \
-  equals "$code|$out" "2|"
+check "pin: a missing file is an error that names it, with nothing printed" \
+  equals "$code|$out|$err" "2||pin: no such file: $repo/missing.txt"
+run bash "$delegate/pin" "$repo/artifact.txt" "$repo/missing.txt"
+check "pin: a missing file after a valid one prints nothing for the valid one" \
+  equals "$code|$out|$err" "2||pin: no such file: $repo/missing.txt"
 mkdir -p "$repo/a-directory"
 run bash "$delegate/pin" "$repo/artifact.txt" "$repo/a-directory"
 check "pin: a directory is refused by name, with nothing printed" \
@@ -507,6 +511,9 @@ check "task-start: a gated task without --part fails as task-brief does" \
 start "$plan" 2 --bogus pre-gate
 check "task-start: anything but --part as the third argument is a usage error" \
   equals "$code" "2"
+start "$plan" 2 --part
+check "task-start: --part without a value is a usage error" \
+  equals "$code|$err" "2|usage: task-start PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate]"
 
 # --- task-done ---------------------------------------------------------------
 
