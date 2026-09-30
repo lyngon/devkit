@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.5 - 2026-09-30
+
+- `delegate`'s owner gate protocol sends the gate message as a single `text` fence, since the instruction to add no formatting alone still let an executor put the gate ID in backticks.
+
 ## 0.15.4 - 2026-09-30
 
 - `delegate`'s owner gate protocol places the artifact's quote below the gate message's `Artifact:` line, so a message sent exactly as its template shows it still quotes the artifact.

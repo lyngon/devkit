@@ -51,6 +51,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: the gate message's lines are sent exactly as the template shows them, with no backticks or other formatting added.
 - `references/owner-gates.md`, which is not upstream: every answer at a gate is ledgered verbatim with its time, a "later" too.
 - `references/owner-gates.md`, which is not upstream: the artifact's quote goes below the gate message's `Artifact:` line.
+- `references/owner-gates.md`, which is not upstream: the gate message is sent as a single `text` fence.
 
 ## Review notes
 

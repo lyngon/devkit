@@ -49,7 +49,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 3. **Decide whether to ask.** A gate passes without asking only when its index row holds a pre-approval, `Performed by` names the agent, every pre-gate `Expected:` line matched, no ruling changed a step of the task, and no instruction of the repository requires the owner's approval of this action at run time.
    Then ledger `Gate <id>: pre-approved (plan index); Expected lines matched` and go to step 5.
    When a pre-approval exists but a condition fails, ledger `Gate <id>: pre-approval void (<the condition that failed>); asking`; an instruction of the repository that the plan did not mark wins over the pre-approval.
-4. **Ask.** Send the gate message, its lines exactly as below with no backticks or other formatting added, ledger `Gate <id>: waiting for owner`, and wait:
+4. **Ask.** Send the gate message as a single `text` fence, its lines exactly as below with no backticks or other formatting added, ledger `Gate <id>: waiting for owner`, and wait:
 
    ```text
    Owner gate <id> (Task N)
