@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.13 - 2026-09-30
+
+- `execute`'s `## Owner gates` asks for `Task N post-gate: started` to be ledgered before any post-gate step runs, in any call, where it also required the same call as `task-start --part post-gate`.
+
 ## 0.15.12 - 2026-09-30
 
 - `execute`'s `task-done` skips lines of only whitespace, a carriage return included, when it picks the last output line for the ledger, so a check whose output ends with a spinner clearing its line records its last real line.
