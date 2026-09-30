@@ -61,6 +61,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/owner-gates.md`, which is not upstream: an unforeseen gate's `Show` adds any artifact the part produced, which is its `Acts on` and gets pinned, and the owner performs an action with nothing to pin; its post-gate part gets the whole brief and the step to start at, since `task-brief --part` refuses an ungated task, and builds on the commits made before the stop.
   The implementer template's `[OWNER_GATE]` text has the variant for it.
 - `scripts/pin`, which is not upstream: a directory, a file it cannot read and a hash that did not come out are refused with exit 2 and a message naming the file, before any line is printed, where an unreadable file printed `sha256: <file>` with an empty hash and exited 0.
+- `scripts/execution-status`, which is not upstream: `write` gives a ledger without a final newline one, refuses a ledger line of four backticks after any indentation, as the fence tracker reads it, and refuses a RESUME_AT holding a newline.
 
 ## Review notes
 

@@ -439,8 +439,26 @@ printf '# Middle\n\n## Execution status\n\nold\n\n## Later\n\nkept\n' >"$repo/do
 middle_workspace=$(cd "$repo" && bash "$delegate/workspace" "$repo/docs/plans/2026-01-01-middle.md")
 printf '# build ledger: plan middle\n' >"$middle_workspace/progress.md"
 status write "$repo/docs/plans/2026-01-01-middle.md" "Task 1 pre-gate (gate do-it)"
-check "execution-status write: a section followed by another is replaced in place" \
-  equals "$(sed -n '/^old$/p;/^## Later$/,$p' "$repo/docs/plans/2026-01-01-middle.md")" $'## Later\n\nkept'
+check "execution-status write: a section followed by another is replaced in place, the lines before it and the blank line before the next heading kept" \
+  equals "$(cat "$repo/docs/plans/2026-01-01-middle.md")" "$(cat <<'EOF'
+# Middle
+
+## Execution status
+
+The run paused here; `build:finish` removes this section with the rest of the plan.
+The fence holds the ledger verbatim, and an executor recreates `progress.md` from it when its workspace has none.
+
+Resume at: Task 1 pre-gate (gate do-it)
+
+````text
+# build ledger: plan middle
+````
+
+## Later
+
+kept
+EOF
+)"
 
 rm "$ledger"
 status restore "$plan"
@@ -489,6 +507,75 @@ printf '# build ledger: plan no-newline\n' >"$no_newline_workspace/progress.md"
 status write "$repo/docs/plans/2026-01-01-no-newline.md" "Task 1 pre-gate (gate do-it)"
 check "execution-status write: a plan without a final newline gets the section after a blank line" \
   equals "$code|$(sed -n '3,5p' "$repo/docs/plans/2026-01-01-no-newline.md")" $'0|last\n\n## Execution status'
+
+# own_plan <slug> <first line>: a plan with that one line and its own
+# workspace, printing the plan's path; its ledger is ledger_of_plan.
+own_plan() {
+  local p=$repo/docs/plans/2026-01-01-$1.md
+  printf '%s\n' "$2" >"$p"
+  echo "$p"
+}
+ledger_of_plan() {
+  echo "$(cd "$repo" && bash "$delegate/workspace" "$1")/progress.md"
+}
+
+p=$(own_plan ledger-newline '# Ledger newline')
+printf '# build ledger: plan ledger-newline\nGate do-it: waiting for owner' >"$(ledger_of_plan "$p")"
+status write "$p" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: a ledger without a final newline keeps the closing fence on its own line" \
+  equals "$code|$(tail -n 2 "$p")" $'0|Gate do-it: waiting for owner\n````'
+status restore "$p"
+check "execution-status write: a ledger without a final newline gets one, so it matches its copy" \
+  equals "$code|$err" "0|execution-status: the ledger matches the plan's Execution status"
+
+p=$(own_plan guard '# Guard')
+printf '# build ledger: plan guard\n````\n' >"$(ledger_of_plan "$p")"
+status write "$p" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: refuses a ledger line of four backticks and leaves the plan" \
+  equals "$code|$err|$(cat "$p")" "2|execution-status: the ledger holds a line starting with four backticks after any indentation, which would end the fence|# Guard"
+printf '# build ledger: plan guard\n   ````\n' >"$(ledger_of_plan "$p")"
+status write "$p" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: refuses a ledger line of four backticks indented by three spaces" \
+  equals "$code|$err|$(cat "$p")" "2|execution-status: the ledger holds a line starting with four backticks after any indentation, which would end the fence|# Guard"
+
+p=$(own_plan resume-newline '# Resume newline')
+printf '# build ledger: plan resume-newline\n' >"$(ledger_of_plan "$p")"
+status write "$p" $'Task 1 pre-gate (gate do-it)\nResume at: Task 9'
+check "execution-status write: a RESUME_AT holding a newline is a usage error that leaves the plan" \
+  equals "$code|$err|$(cat "$p")" "2|execution-status: RESUME_AT holds a newline; it must be one line|# Resume newline"
+
+p=$repo/docs/plans/2026-01-01-fenced.md
+printf '# Fenced\n\n~~~markdown\n## Execution status\n\nan example\n~~~\n' >"$p"
+fenced_original=$(cat "$p")
+status restore "$p"
+check "execution-status restore: a fenced Execution status heading is not the section" \
+  equals "$code|$err" "0|execution-status: $p has no Execution status; nothing to restore"
+printf '# build ledger: plan fenced\n' >"$(ledger_of_plan "$p")"
+status write "$p" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: a fenced Execution status heading stays, and the section is appended after it" \
+  equals "$code|$(sed -n '1,7p' "$p")|$(grep -c '^## Execution status$' "$p")|$(sed -n '9p' "$p")" "0|$fenced_original|2|## Execution status"
+
+p=$(own_plan no-ledger '# No ledger')
+status write "$p" "Task 1 pre-gate (gate do-it)"
+check "execution-status write: without a ledger, exits 2 and leaves the plan" \
+  equals "$code|$err|$(cat "$p")" "2|execution-status: no ledger at $(ledger_of_plan "$p")|# No ledger"
+
+usage_msg="usage: execution-status write PLAN_FILE RESUME_AT | execution-status restore PLAN_FILE"
+status
+check "execution-status: no arguments is a usage error" \
+  equals "$code|$err" "2|$usage_msg"
+status write "$p"
+check "execution-status: write without RESUME_AT is a usage error" \
+  equals "$code|$err" "2|$usage_msg"
+status restore "$p" extra
+check "execution-status: restore with an extra argument is a usage error" \
+  equals "$code|$err" "2|$usage_msg"
+status bogus "$p"
+check "execution-status: an unknown command is a usage error" \
+  equals "$code|$err" "2|$usage_msg"
+status restore "$repo/docs/plans/nowhere.md"
+check "execution-status: a missing plan file exits 2" \
+  equals "$code|$err" "2|no such plan file: $repo/docs/plans/nowhere.md"
 
 # --- task-start --------------------------------------------------------------
 

@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.20 - 2026-09-30
+
+- `delegate`'s `execution-status write` gives a ledger without a final newline one, where the closing fence joined the ledger's last line and `restore` then found no fenced ledger; refuses a ledger line of four backticks after any indentation, where only an unindented one was caught although the fence tracker ends the fence at either; and refuses a RESUME_AT holding a newline.
+
 ## 0.15.19 - 2026-09-30
 
 - `delegate`'s `pin` refuses a directory, a file it cannot read and a hash that did not come out, with exit 2 and a message naming the file, before it prints any line, where a file without read permission printed `sha256: <file>` with an empty hash and exited 0, and `--check` reported an empty hash as a mismatch.

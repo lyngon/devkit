@@ -13,8 +13,10 @@
 # ledger, replaces a ledger that the copy extends, keeps a ledger that extends
 # the copy, and changes nothing when the plan has no section.
 # Both print the file they wrote or checked on stdout and a summary on stderr.
+# write gives a ledger without a final newline one before it copies it.
 # Exit: 1 when restore finds a ledger and a copy that disagree, or a section
-# without its fenced copy; 2 on a usage error.
+# without its fenced copy; 2 on a usage error, a RESUME_AT holding a newline,
+# or, for write, a missing ledger or a ledger line that would end the fence.
 set -euo pipefail
 
 usage() {
@@ -69,14 +71,25 @@ trap 'rm -f "$tmp"' EXIT
 
 if [ "$cmd" = write ]; then
   resume_at=$3
+  case "$resume_at" in
+    *$'\n'*)
+      echo "execution-status: RESUME_AT holds a newline; it must be one line" >&2
+      exit 2
+      ;;
+  esac
   [ -f "$ledger" ] || {
     echo "execution-status: no ledger at $ledger" >&2
     exit 2
   }
-  if grep -q '^````' "$ledger"; then
-    echo "execution-status: the ledger holds a line starting with four backticks, which would end the fence" >&2
+  # The fence tracker takes a run of backticks after any indentation as a
+  # fence, so such a line would end the copy's fence early.
+  if grep -q '^[[:blank:]]*````' "$ledger"; then
+    echo "execution-status: the ledger holds a line starting with four backticks after any indentation, which would end the fence" >&2
     exit 2
   fi
+  # A ledger without a final newline gets one, so the closing fence keeps its
+  # own line and the copy still matches the ledger.
+  [ -z "$(tail -c 1 "$ledger")" ] || printf '\n' >>"$ledger"
   section=$(mktemp "$dir/execution-status-section.XXXXXX")
   trap 'rm -f "$tmp" "$section"' EXIT
   {
