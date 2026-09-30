@@ -121,6 +121,236 @@ run bash -c 'cd "$1" && bash "$2/review-package" docs/plans/2026-01-01-demo.md H
 check "review-package: an empty range is still refused" \
   equals "$code" "3"
 
+# --- task-brief --------------------------------------------------------------
+
+# The fixture's fences are tildes; a copy with backticks proves both kinds.
+# Task 1 holds a fenced fake task heading and gate after an inner fence, which
+# must stay text; the plan ends with an Execution status after the last task.
+fixture() {
+  cat <<'EOF'
+# Fixture
+
+## Design
+
+Nothing here.
+
+## Plan
+
+### Owner Gates
+
+| ID | Task | Performed by | Consequences | Pre-approved |
+| --- | --- | --- | --- | --- |
+| `apply-thing` | 2 | agent | creates the thing | no |
+
+### Global Constraints
+
+- Constraint one.
+
+### Task 1: Ungated
+
+**Files:**
+
+- Create: `a.txt`
+
+- [ ] **Step 1: Write a**
+
+~~~~markdown
+~~~bash
+### Task 9: Inside an inner fence
+~~~
+- [ ] **Step 2: Owner gate `fenced-gate`**
+~~~~
+
+- [ ] **Step 2: Commit**
+
+### Task 2: Gated
+
+**Files:**
+
+- Temporary: `thing.plan`
+
+- [ ] **Step 1: Plan the thing**
+
+Run: `make-plan > thing.plan`
+
+- [ ] **Step 2: Owner gate `apply-thing`**
+  - Show: `thing.plan`
+  - Ask: "Apply thing.plan?"
+  - Performed by: agent, `apply --set key:value thing.plan`
+  - Consequences: creates the thing; it cannot be removed
+  - On no: record the reason and stop
+
+- [ ] **Step 3: Apply**
+
+Run: `apply thing.plan`
+
+- [ ] **Step 4: Record**
+
+### Task 3: Last
+
+- [ ] **Step 1: Finish**
+
+## Execution status
+
+Resume at: Task 2 pre-gate (gate apply-thing)
+EOF
+}
+
+repo=$(new_repo task-brief)
+plan=$repo/docs/plans/2026-01-01-fixture.md
+fixture >"$plan"
+brief() {
+  run bash -c 'cd "$1" && shift && bash "$@"' _ "$repo" "$delegate/task-brief" "$@"
+  body=$(cat "$out" 2>/dev/null || true)
+}
+
+brief "$plan" 1
+check "task-brief: an ungated task prints the path of task-1-brief.md" \
+  equals "$code|${out##*/}" "0|task-1-brief.md"
+check "task-brief: a fenced task heading and gate stay inside the task" \
+  contains "$body" "- [ ] **Step 2: Commit**"
+check "task-brief: the task stops at the next task" \
+  lacks "$body" "### Task 2: Gated"
+check "task-brief: the Global Constraints follow the task" \
+  equals "$(tail -n 3 <<<"$body")" $'### Global Constraints\n\n- Constraint one.'
+
+fixture | tr '~' '`' >"$repo/docs/plans/2026-01-01-backticks.md"
+brief "$repo/docs/plans/2026-01-01-backticks.md" 1
+check "task-brief: backtick fences inside a longer backtick fence stay text" \
+  equals "$code|$(grep -c 'Step 2: Commit' <<<"$body")" "0|1"
+
+brief "$plan" 2
+check "task-brief: a gated task without --part is refused" \
+  equals "$code|$err" "3|task-brief: task 2 has owner gate \`apply-thing\`; pass --part pre-gate or --part post-gate"
+check "task-brief: a refusal writes no brief" \
+  equals "$(compgen -G "$repo/tmp/build/2026-01-01-fixture/task-2*" || true)" ""
+
+brief "$plan" 2 --part pre-gate
+check "task-brief: the pre-gate brief is task-2-pre-gate-brief.md" \
+  equals "$code|${out##*/}" "0|task-2-pre-gate-brief.md"
+check "task-brief: the pre-gate brief holds the header, the pre-gate steps, the gate and the stop line" \
+  equals "$(sed -n '1,/^Stop here/p' <<<"$body")" "$(cat <<'EOF'
+### Task 2: Gated
+
+**Files:**
+
+- Temporary: `thing.plan`
+
+- [ ] **Step 1: Plan the thing**
+
+Run: `make-plan > thing.plan`
+
+- [ ] **Step 2: Owner gate `apply-thing`**
+  - Show: `thing.plan`
+  - Ask: "Apply thing.plan?"
+  - Performed by: agent, `apply --set key:value thing.plan`
+  - Consequences: creates the thing; it cannot be removed
+  - On no: record the reason and stop
+
+Stop here: the controller takes the gate.
+EOF
+)"
+check "task-brief: the pre-gate brief leaves out the post-gate steps" \
+  equals "$code|$(grep -c 'Step 3: Apply' <<<"$body")" "0|0"
+check "task-brief: the pre-gate brief ends with the Global Constraints" \
+  equals "$(tail -n 1 <<<"$body")" "- Constraint one."
+
+brief "$plan" 2 --part post-gate
+check "task-brief: the post-gate brief holds the header, the gate and the post-gate steps" \
+  equals "$(sed -n '1,/^- \[ \] \*\*Step 4/p' <<<"$body")" "$(cat <<'EOF'
+### Task 2: Gated
+
+**Files:**
+
+- Temporary: `thing.plan`
+
+- [ ] **Step 2: Owner gate `apply-thing`**
+  - Show: `thing.plan`
+  - Ask: "Apply thing.plan?"
+  - Performed by: agent, `apply --set key:value thing.plan`
+  - Consequences: creates the thing; it cannot be removed
+  - On no: record the reason and stop
+
+- [ ] **Step 3: Apply**
+
+Run: `apply thing.plan`
+
+- [ ] **Step 4: Record**
+EOF
+)"
+check "task-brief: the post-gate brief leaves out the pre-gate steps" \
+  equals "$code|$(grep -c 'Step 1: Plan the thing' <<<"$body")" "0|0"
+check "task-brief: the post-gate brief stops at the next task" \
+  equals "$code|$(grep -c 'Task 3: Last' <<<"$body")" "0|0"
+
+brief "$plan" 3
+check "task-brief: the last task stops before the Execution status" \
+  equals "$code|$(grep -c 'Step 1: Finish' <<<"$body")|$(grep -c 'Resume at:' <<<"$body")" "0|1|0"
+
+brief "$plan" 1 --part pre-gate
+check "task-brief: --part on an ungated task is refused" \
+  equals "$code|$err" "3|task-brief: task 1 has no owner gate; leave out --part"
+
+check "task-brief: a field value holding a colon and backticks is read by its field name" \
+  contains "$(cat "$repo/tmp/build/2026-01-01-fixture/task-2-pre-gate-brief.md")" "  - Performed by: agent, \`apply --set key:value thing.plan\`"
+
+brief "$plan" 1
+with_index=$body
+fixture | sed '/^### Owner Gates$/,/^### Global Constraints$/{/^### Global Constraints$/!d;}' | sed '/^### Task 2: Gated$/,$d' >"$plan"
+brief "$plan" 1
+check "task-brief: a plan without an Owner Gates index or a gate extracts its tasks as before" \
+  equals "$code|$body" "0|$with_index"
+
+fixture | sed 's/^- \[ \] \*\*Step 2: Owner gate/- [x] **Step 2: Owner gate/' >"$plan"
+brief "$plan" 2 --part pre-gate
+check "task-brief: a ticked gate step is still a gate" \
+  equals "$code|$(grep -c '^- \[x\] \*\*Step 2: Owner gate' <<<"$body")|$(grep -c '^Stop here: the controller takes the gate.$' <<<"$body")" "0|1|1"
+fixture >"$plan"
+
+# refused <label> <expected stderr> <sed script>: task 2 of a fixture edited by
+# the sed script is refused with exactly that message.
+refused() {
+  local label=$1 expected=$2 edit=$3
+  fixture | sed "$edit" >"$plan"
+  brief "$plan" 2 --part pre-gate
+  check "task-brief refuses $label" equals "$code|$err" "3|task-brief: $expected"
+}
+# Each case is three lines: what is refused, the exact message, and the sed
+# script that breaks the fixture that way.
+while read -r label && read -r expected && read -r edit; do
+  refused "$label" "$expected" "$edit"
+done <<'EOF'
+a second gate in the task
+task 2 has 2 owner gates; a task has at most one
+s/^- \[ \] \*\*Step 4: Record\*\*$/- [ ] **Step 4: Owner gate `record-thing`**/
+a missing field
+owner gate `apply-thing`: the field Consequences is missing
+/^  - Consequences:/d
+a field given twice
+owner gate `apply-thing`: the field Ask appears twice
+s/^  - On no: .*/  - Ask: "Really?"/
+a performer that is neither agent nor owner
+owner gate `apply-thing`: Performed by must start with "agent, " or "owner, "
+s/^  - Performed by: agent, /  - Performed by: whoever, /
+an ID missing from the index
+owner gate `apply-thing` is missing from the Owner Gates index
+s/^| `apply-thing` |/| `apply-other` |/
+an ID that is not kebab-case
+owner gate `Apply_Thing`: the ID must be kebab-case
+s/Owner gate `apply-thing`/Owner gate `Apply_Thing`/
+a duplicate ID
+owner gate `apply-thing` appears 2 times in the plan; an ID is unique
+s/^- \[ \] \*\*Step 2: Commit\*\*$/- [ ] **Step 2: Owner gate `apply-thing`**/
+a malformed marker
+task 2: malformed owner gate marker: - [ ] **Step 2: Owner gate apply-thing**
+s/^- \[ \] \*\*Step 2: Owner gate `apply-thing`\*\*$/- [ ] **Step 2: Owner gate apply-thing**/
+EOF
+fixture >"$plan"
+
+brief "$plan" 7
+check "task-brief: a missing task exits 3" \
+  equals "$code|$err" "3|task-brief: task 7 not found (no heading matching Task 7)"
+
 # --- Summary -----------------------------------------------------------------
 
 if [ "$failures" -gt 0 ]; then

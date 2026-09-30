@@ -5,62 +5,193 @@
 # task's requirements implicitly include the Global Constraints; a plan
 # without that section yields a brief without it.
 #
-# Usage: task-brief PLAN_FILE TASK_NUMBER [OUTFILE]
-# Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-brief.md
-# (one per task, per plan and per worktree; every call writes the same plan
-# text, so regenerating it is harmless).
+# A task runs from its heading to the next heading of the same or a higher
+# level outside a code fence, so a section after the last task (such as an
+# Execution status) never leaks into its brief.
+#
+# A task with an owner gate (a step `- [ ] **Step N: Owner gate `<id>`**`
+# followed by its field lines) is extracted in two parts. --part pre-gate
+# yields the task's header, the steps before the gate, the gate block and a
+# line that stops the implementer there; --part post-gate yields the header,
+# the gate block and the steps after it. A malformed gate is refused before
+# anything is written, so it fails before a dispatch rather than at the gate.
+#
+# Usage: task-brief PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate] [OUTFILE]
+# Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-brief.md, or
+# task-<N>-pre-gate-brief.md and task-<N>-post-gate-brief.md for the parts
+# (one per task and part, per plan and per worktree; every call writes the
+# same plan text, so regenerating it is harmless).
 # Prints the brief's path on stdout and a summary on stderr.
+# Exit: 2 on a usage error; 3 when the task is missing, its gate is
+# malformed, or the part does not fit the task.
 set -euo pipefail
 
-if [ $# -lt 2 ] || [ $# -gt 3 ]; then
-  echo "usage: task-brief PLAN_FILE TASK_NUMBER [OUTFILE]" >&2
+usage() {
+  echo "usage: task-brief PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate] [OUTFILE]" >&2
   exit 2
-fi
+}
 
+[ $# -ge 2 ] || usage
 plan=$1
 n=$2
-[ -f "$plan" ] || { echo "no such plan file: $plan" >&2; exit 2; }
+shift 2
+part=""
+if [ $# -ge 1 ] && [ "$1" = "--part" ]; then
+  [ $# -ge 2 ] || usage
+  part=$2
+  shift 2
+  case "$part" in
+    pre-gate | post-gate) ;;
+    *) usage ;;
+  esac
+fi
+[ $# -le 1 ] || usage
+[ -f "$plan" ] || {
+  echo "no such plan file: $plan" >&2
+  exit 2
+}
+case "$n" in
+  '' | *[!0-9]*)
+    echo "not a task number: $n" >&2
+    exit 2
+    ;;
+esac
 
-if [ $# -eq 3 ]; then
-  out=$3
+name="task-${n}-brief.md"
+[ -z "$part" ] || name="task-${n}-${part}-brief.md"
+if [ $# -eq 1 ]; then
+  out=$1
 else
   # Invoke via bash rather than direct exec: some plugin installers strip
   # Unix exec bits when unpacking.
   dir=$("${BASH:-bash}" "$(cd "$(dirname "$0")" && pwd)/workspace" "$plan")
-  out="$dir/task-${n}-brief.md"
+  out="$dir/$name"
 fi
 
-# One fence-aware pass collects both sections. The task runs to the next task
-# heading; the Global Constraints run to the next heading of the same or a
-# higher level. Trailing blank lines are trimmed so exactly one separates them.
-awk -v n="$n" '
-  /^```/ { infence = !infence }
-  !infence && /^#+[ \t]/ {
+# Write next to the brief and move it into place only on success, so a
+# refusal never leaves a partial brief behind.
+tmpout=$(mktemp "${out}.XXXXXX")
+trap 'rm -f "$tmpout"' EXIT
+
+# One fence-aware pass collects the task, the Global Constraints, the IDs in
+# the Owner Gates index and every gate marker in the plan. A fence opens with
+# three or more backticks or tildes and closes with a run of the same
+# character at least as long, so a fence inside a longer fence stays text.
+awk -v n="$n" -v part="$part" '
+  function fail(msg) {
+    printf "task-brief: %s\n", msg | "cat 1>&2"
+    close("cat 1>&2")
+    failed = 1
+    exit 3
+  }
+  function trim(s) {
+    sub(/^[ \t]+/, "", s)
+    sub(/[ \t]+$/, "", s)
+    return s
+  }
+  {
+    fenceline = 0
+    if (match($0, /^[ \t]*(```+|~~~+)/)) {
+      run = substr($0, RSTART, RLENGTH)
+      sub(/^[ \t]+/, "", run)
+      if (!infence) {
+        infence = 1
+        fch = substr(run, 1, 1)
+        flen = length(run)
+        fenceline = 1
+      } else if (substr(run, 1, 1) == fch && length(run) >= flen && $0 ~ /^[ \t]*[`~]+[ \t]*$/) {
+        infence = 0
+        fenceline = 1
+      }
+    }
+    text = !infence && !fenceline
+  }
+  text && /^#+[ \t]/ {
     level = match($0, /[^#]/) - 1
     if (ingc && level <= gclevel) ingc = 0
+    if (inidx && level <= idxlevel) inidx = 0
+    if (intask && level <= tasklevel) intask = 0
     if ($0 ~ /^#+[ \t]+Global Constraints[ \t]*$/) { ingc = 1; gclevel = level }
+    if ($0 ~ /^#+[ \t]+Owner Gates[ \t]*$/) { inidx = 1; idxlevel = level }
+    if ($0 ~ ("^#+[ \t]+Task[ \t]+" n "([^0-9]|$)")) { intask = 1; tasklevel = level }
   }
-  !infence && /^#+[ \t]+Task[ \t]+[0-9]+/ {
-    intask = ($0 ~ ("^#+[ \t]+Task[ \t]+" n "([^0-9]|$)"))
+  text && inidx && /^\|/ && $0 !~ /^\|[ \t:|-]+$/ {
+    split($0, cells, "|")
+    id = trim(cells[2])
+    gsub(/`/, "", id)
+    if (id != "ID") indexed[id] = 1
   }
-  intask { task[++nt] = $0 }
+  text && /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/ {
+    id = $0
+    sub(/^[^`]*`/, "", id)
+    sub(/`.*$/, "", id)
+    seen[id]++
+  }
+  intask {
+    task[++nt] = $0
+    if (text && $0 ~ /^- \[[ xX]\] \*\*Step [0-9]+/) {
+      if (!firststep) firststep = nt
+      if ($0 ~ /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate/) {
+        if ($0 !~ /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/)
+          fail("task " n ": malformed owner gate marker: " $0)
+        ngates++
+        gate = nt
+        gid = $0
+        sub(/^[^`]*`/, "", gid)
+        sub(/`.*$/, "", gid)
+      }
+    }
+  }
   ingc { gc[++ng] = $0 }
   END {
-    if (nt == 0) exit
+    if (failed) exit 3
+    if (nt == 0) fail("task " n " not found (no heading matching Task " n ")")
     while (nt > 0 && task[nt] ~ /^[ \t]*$/) nt--
-    for (i = 1; i <= nt; i++) print task[i]
+    if (ngates > 1) fail("task " n " has " ngates " owner gates; a task has at most one")
+    if (ngates == 0) {
+      if (part != "") fail("task " n " has no owner gate; leave out --part")
+      for (i = 1; i <= nt; i++) print task[i]
+    } else {
+      if (gid !~ /^[a-z0-9]+(-[a-z0-9]+)*$/) fail("owner gate `" gid "`: the ID must be kebab-case")
+      if (seen[gid] > 1) fail("owner gate `" gid "` appears " seen[gid] " times in the plan; an ID is unique")
+      if (!(gid in indexed)) fail("owner gate `" gid "` is missing from the Owner Gates index")
+      # The gate block is the marker and the lines under it that start with
+      # two spaces; each field is one of those lines.
+      last = gate
+      while (last < nt && task[last + 1] ~ /^  /) last++
+      for (i = gate + 1; i <= last; i++) {
+        if (task[i] ~ /^  - (Show|Acts on|Ask|Performed by|Consequences|On no):[ \t]/) {
+          field = task[i]
+          sub(/^  - /, "", field)
+          sub(/:.*$/, "", field)
+          if (field in have) fail("owner gate `" gid "`: the field " field " appears twice")
+          have[field] = 1
+          if (field == "Performed by" && task[i] !~ /^  - Performed by:[ \t]+(agent|owner), /)
+            fail("owner gate `" gid "`: Performed by must start with \"agent, \" or \"owner, \"")
+        }
+      }
+      nreq = split("Show|Ask|Performed by|Consequences|On no", required, "|")
+      for (k = 1; k <= nreq; k++)
+        if (!(required[k] in have)) fail("owner gate `" gid "`: the field " required[k] " is missing")
+      if (part == "") fail("task " n " has owner gate `" gid "`; pass --part pre-gate or --part post-gate")
+      if (part == "pre-gate") {
+        for (i = 1; i <= last; i++) print task[i]
+        print ""
+        print "Stop here: the controller takes the gate."
+      } else {
+        for (i = 1; i < firststep; i++) print task[i]
+        for (i = gate; i <= nt; i++) print task[i]
+      }
+    }
     while (ng > 0 && gc[ng] ~ /^[ \t]*$/) ng--
     if (ng > 0) {
       print ""
       for (i = 1; i <= ng; i++) print gc[i]
     }
   }
-' "$plan" > "$out"
+' "$plan" >"$tmpout"
 
-if [ ! -s "$out" ]; then
-  echo "task ${n} not found in ${plan} (no heading matching 'Task ${n}')" >&2
-  exit 3
-fi
-
+mv "$tmpout" "$out"
+trap - EXIT
 printf '%s\n' "$out"
-echo "task-brief: task ${n}, $(wc -l < "$out" | tr -d ' ') lines" >&2
+echo "task-brief: task ${n}${part:+ $part}, $(wc -l <"$out" | tr -d ' ') lines" >&2
