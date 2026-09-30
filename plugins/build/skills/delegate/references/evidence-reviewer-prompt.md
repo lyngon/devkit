@@ -86,10 +86,10 @@ Dispatch a subagent with:
     ## Do Not Trust the Reports
 
     Treat both reports (or the ledger lines passed in their place) and
-    the record commit's message as unverified claims. Verify them against the pins, the package and the live
-    system. Rationales in a report are the implementer grading their own
-    work; judge on the merits, and a stated rationale never downgrades a
-    finding's severity.
+    the record commit's message as unverified claims. Verify them against
+    the pins, the package and the live system. Rationales in a report
+    are the implementer grading their own work; judge on the merits, and
+    a stated rationale never downgrades a finding's severity.
 
     ## Checks
 
@@ -109,8 +109,8 @@ Dispatch a subagent with:
       block and checks describe; verify it with read-only calls.
     - **Record commit:** its message holds the gate ID, the answer or the
       pre-approval, the pins, the commands in order with their results and
-      the results of the checks; it matches the reports (or the ledger lines); it holds no
-      secret.
+      the results of the checks; it matches the reports (or the ledger
+      lines); it holds no secret.
     - **Missing, extra, misunderstood:** steps skipped or claimed without
       evidence, anything done beyond the briefs, a step done the wrong way.
 
