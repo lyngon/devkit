@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.9.1 - 2026-09-30
+
+- `engineering` ends with a `With the Lyngon baseline` section naming the `commitizen` and `prose-lint-commit-msg` hooks that check commit messages, like every other conventions skill names the hooks that check its rules.
+
 ## 0.9.0 - 2026-09-30
 
 - `engineering` says commit messages use no em or en dashes and no curly quotes. The baseline's `prose-lint` hook already rejected them at `commit-msg`, but only the `CLAUDE.md` template of `repo:init` said so, and that template no longer restates organization-wide conventions.

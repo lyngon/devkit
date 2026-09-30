@@ -49,6 +49,10 @@ These are the user's standing instructions: they count as being asked to commit,
 - The environment is `devenv.nix`; the full check is `devenv test`, which runs every git hook on every file. Never disable a hook.
 - Secrets are declared in `secretspec.toml`.
 
+## With the Lyngon baseline
+
+Commit messages are checked by the `commitizen` and `prose-lint-commit-msg` hooks.
+
 ## With the Lyngon structure
 
 - Packages are created with `/repo:add-package`, never by hand.

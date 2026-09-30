@@ -1,6 +1,6 @@
 {
   "name": "conventions",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, ADRs and the standard documents.",
   "author": {
     "name": "Lyngon",
