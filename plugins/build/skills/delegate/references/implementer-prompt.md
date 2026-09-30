@@ -23,6 +23,10 @@ Dispatch a subagent with:
 
     [Scene-setting: where this fits, dependencies, architectural context]
 
+    ## Owner Gate
+
+    [OWNER_GATE]
+
     ## Before You Begin
 
     If you have questions about:
@@ -42,8 +46,11 @@ Dispatch a subagent with:
     3. Verify the implementation works
     4. Commit as the brief specifies; by default, one commit per task on
        the current branch, Conventional Commits, one concern per commit,
-       never on main. A brief may declare that the task commits nothing;
-       then commit nothing, and say so in your report
+       never on main. Every task ends with at least one commit: a task
+       whose work lies outside the repository ends with a record commit
+       (empty, with `git commit --allow-empty`, when nothing in the
+       repository changed) whose message body holds the evidence the
+       brief names. The pre-gate part of an owner gate commits nothing
     5. Self-review (see below)
     6. Report back
 
@@ -158,8 +165,8 @@ Dispatch a subagent with:
     Then report back with ONLY (under 15 lines; the detail lives in the
     report file):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - Commits created (short SHA + subject), or "none" when the brief
-      declares that the task commits nothing
+    - Commits created (short SHA + subject), or "none" for the pre-gate
+      part of an owner gate
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
     - The report file path
@@ -176,6 +183,7 @@ Dispatch a subagent with:
 
 - `[MODEL]`: required, the implementer model per the Model selection section of SKILL.md.
 - `[BRIEF_FILE]`: required, the task brief file that `scripts/task-brief PLAN N` printed.
+- `[OWNER_GATE]` (only for a task with an owner gate; leave out the whole `## Owner Gate` section otherwise): for the pre-gate part, "Your brief ends at an owner gate, and you run only the steps before it. Never perform the gated action, nor anything its `Performed by` line names; commit nothing; leave every file the gate shows or acts on in place, because the controller shows them to the owner. When the steps before the gate are done, report DONE." For the post-gate part of a gate the agent performs, "The owner has approved this gate, and the approval covers exactly this: \<the answer verbatim with its time, or `pre-approved in the plan's Owner Gates index`\>; pins: \<each file with its full sha256\>; commands: \<the exact commands approved\>. Before anything else, check every pin with `bash \<build:delegate's scripts directory\>/pin --check sha256:\<hex\> \<file\>`; for an action whose effect depends on live state, re-run the dry run the brief names and compare its output byte for byte with the approved one. On any mismatch, stop without acting and report BLOCKED with both values. Then run the steps after the gate, and end with the record commit the brief describes." For the post-gate part of a gate the owner performed, "The owner performed this gate's action and answered: \<the answer verbatim with its time\>. Never perform it again. Run the steps after the gate, which verify the result, and end with the record commit the brief describes."
 - `[REPORT_FILE]`: required, named after the brief (`task-N-brief.md` becomes `task-N-report.md`) in the same workspace; one per task, and a prior attempt's file is kept and appended to.
 - `[HOOK_COMMAND]`: the command that runs the repository's git hooks on demand and prints each hook's result, as the repository's instructions name it. Leave out the hook-evidence item when the repository has no git hooks.
 - `[directory]`: the worktree the implementer works in.

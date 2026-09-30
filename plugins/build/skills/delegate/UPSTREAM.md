@@ -46,6 +46,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Added `scripts/pin`, which is not upstream: it prints `sha256:<hex> <file>` for each file and checks a file against a pin with `--check`, using `sha256sum` or `shasum -a 256`; the owner gate protocol pins what an approval covers with it.
 - `task-brief`: a task ends at the next heading of the same or a higher level, where upstream ran it to the next task heading and let the last task run to the end of the file; fences are tracked by character and length, where upstream toggled on every line starting with three backticks; `--part pre-gate|post-gate` extracts the two parts of a task with an owner gate; malformed gates are refused with exit 3, and the brief is written to a temporary file that is moved into place only on success.
 - Added `scripts/execution-status`, which is not upstream: it writes a paused run's ledger into the plan's `## Execution status` section and restores the workspace's ledger from it.
+- Added `references/owner-gates.md` and `references/evidence-reviewer-prompt.md`, which are not upstream. Implementer template: every task ends with at least one commit, a task whose work lies outside the repository with a record commit (empty when nothing changed), replacing "a brief may declare that the task commits nothing"; an optional `## Owner Gate` section (`[OWNER_GATE]`) tells a pre-gate implementer to stop at the gate, and a post-gate implementer what the approval covers and to check the pins first.
 
 ## Review notes
 
