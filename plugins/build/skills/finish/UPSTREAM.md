@@ -48,3 +48,4 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-23.
 - Verdict: clear with patches, all applied.
 - Noticed while rewriting: removing the plan (Step 2) happens after the full check (Step 1) and adds a commit; the check is not re-run, since deleting a Markdown file cannot change the tests, but a hook that lints Markdown links would still run on that commit through the normal commit hooks.
 - 2026-09-29: pushing and opening a pull request no longer wait for a menu choice (ADR 0016 and the standing instructions in `conventions:engineering`); merging, force-pushing and discarding still wait for the user.
+- Owner gates, which are not upstream: Step 2 recreates a paused run's ledger from the plan's `## Execution status` with `../delegate/scripts/execution-status restore` and collects the ledger's `Gate` lines; the description gains an "Owner gates" list; one rationalization row.

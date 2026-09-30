@@ -44,7 +44,13 @@ PLAN_WORKSPACE=$(bash <this skill's directory>/../delegate/scripts/workspace doc
 ```
 
 `build:delegate` and `build:execute` hand this directory over instead of deleting it: its `progress.md` is their ledger, and Step 7 removes the directory once the work lands.
-Without a `progress.md`, no executor produced the branch and there is no ledger.
+When it has no `progress.md` but the plan ends with an `## Execution status` section, a paused run left its ledger in the plan: recreate it before the plan goes, with `bash <this skill's directory>/../delegate/scripts/execution-status restore docs/plans/YYYY-MM-DD-<slug>.md`.
+Without either, no executor produced the branch and there is no ledger.
+Collect the ledger's owner gates for the description (Step 5):
+
+```bash
+grep -E '^Gate ' "$PLAN_WORKSPACE/progress.md"
+```
 
 Then remove the plan in a final commit:
 
@@ -133,8 +139,9 @@ The description carries, in this order:
 1. What changed and why, in a short paragraph.
 2. "Decisions for you": anything the user must decide, or "none".
 3. When an executor produced the branch, its "Rulings I made" and "Deferred minors" lists, and a link to the plan file at the parent of the plan-removal commit, since the plan does not show in the pull request's diff.
-4. Review findings nobody fixed.
-5. Verification: the full check command and its result, and any other evidence by name.
+4. When the ledger has owner gates, an "Owner gates" list: each gate's ID, the owner's answer verbatim with its time or the pre-approval, and the record commit that ends its task.
+5. Review findings nobody fixed.
+6. Verification: the full check command and its result, and any other evidence by name.
 
 Report the URL to the user.
 
@@ -313,3 +320,4 @@ If your platform provides a workspace-exit tool, use it.
 | "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
 | "The base branch is obviously main" | Before a local merge, confirm the fork point or ask. Merging into the wrong base is expensive to undo. |
 | "The push was rejected, force-push will fix it" | A rejected push means the remote moved. Investigate; force-push only on the user's explicit request. |
+| "The workspace is gone, so the ledger is lost" | A paused run left a copy in the plan's Execution status. Restore it before the plan is removed. |
