@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.7 - 2026-09-30
+
+- `execute`'s `task-done` records a passing test command that prints nothing, with `(no output)` as the last line, where it exited 1 under `pipefail` and recorded nothing although the check passed.
+
 ## 0.15.6 - 2026-09-30
 
 - `execute` names `workspace`, `execution-status restore` and `review-package` by their path from its own directory and runs them from the repository root, and `delegate` runs `review-package` from the repository root, where both said to run them from the skill's directory, which an executor read as changing into it, so the scripts resolved the repository that holds the skill.

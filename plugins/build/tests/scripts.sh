@@ -468,6 +468,32 @@ start "$plan" 2 --bogus pre-gate
 check "task-start: anything but --part as the third argument is a usage error" \
   equals "$code" "2"
 
+# --- task-done ---------------------------------------------------------------
+
+repo=$(new_repo task-done)
+plan=$repo/docs/plans/2026-01-01-fixture.md
+fixture >"$plan"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m "docs(plan): fixture"
+base=$(git -C "$repo" rev-parse HEAD)
+done_run() {
+  run bash -c 'cd "$1" && shift && "$@"' _ "$repo" "$build/skills/execute/scripts/task-done" "$@"
+}
+ledger_of() {
+  cat "$(cd "$repo" && "$delegate/workspace" "$plan")/progress.md"
+}
+
+done_run "$plan" 1 "$base" -- true
+check "task-done: a passing check that prints nothing exits 0" \
+  equals "$code" "0"
+check "task-done: a passing check that prints nothing is recorded as (no output)" \
+  contains "$(ledger_of)" "tests: true → (no output))"
+done_run "$plan" 2 "$base" -- bash -c 'echo ok; echo'
+check "task-done: the last non-blank output line is recorded" \
+  contains "$(ledger_of)" "Task 2: complete (commits"
+check "task-done: a blank line after the output does not replace it" \
+  contains "$(ledger_of)" "→ ok)"
+
 # --- Summary -----------------------------------------------------------------
 
 if [ "$failures" -gt 0 ]; then

@@ -40,6 +40,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Owner gates, which are not upstream: continuous execution names the review gates and the owner gates; the five stops run the protocol in `../delegate/references/owner-gates.md`; the process graph branches on a gated task; `task-start` passes `--part pre-gate|post-gate` to `task-brief`; setup restores a paused run's ledger; an `## Owner gates` section says how the inline executor differs (it runs both parts, dispatches the evidence reviewer, and records the completion with `task-done`); the final message lists the owner gates; three rationalization rows; the stop list names the owner gates the plan declares beside the five stops.
 - Owner gates: `Task N post-gate: started` is ledgered in the same call as `task-start --part post-gate`, before any post-gate step runs.
 - `workspace`, `execution-status restore` and `review-package` are named as `<this skill's directory>/../delegate/scripts/...` and run from the repository root, where "from this skill's directory" was read as changing into it.
+- `task-done` records a passing test command that prints nothing, with `(no output)` as the last line, where upstream exited 1 under `pipefail` and recorded nothing.
 
 ## Review notes
 
