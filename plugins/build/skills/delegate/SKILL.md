@@ -472,7 +472,8 @@ The test output below is an example; the repository's own test command decides.
 ```text
 [Setup: worktree confirmed with the user; on branch feature/recovery]
 [Read plan file once: docs/plans/2026-09-23-recovery.md; Design section read]
-[Resolve workspace: scripts/workspace docs/plans/2026-09-23-recovery.md; no ledger inside, fresh start]
+[Resolve workspace: scripts/workspace docs/plans/2026-09-23-recovery.md; no ledger inside]
+[Task 3 has an owner gate, so follow Resuming: no Execution status; git log from the merge base shows only the plan commit; fresh start]
 [Create todos for all tasks]
 
 Task 1: Hook installation script

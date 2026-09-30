@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.39 - 2026-09-30
+
+- `delegate`'s example workflow follows Resuming at the setup of its gated plan and reads `git log` from the merge base before it starts fresh, where it went from "no ledger inside" straight to a fresh start, against the setup rule, and a run started a gated plan the same way.
+
 ## 0.15.38 - 2026-09-30
 
 - The owner gate protocol's evidence review names the gate's ledger lines it passes, verbatim: the pre-gate line with its pins, and every answer line or the pre-approval line, as the evidence reviewer template's `[GATE_LINES]` does, where step 7 said only "this gate's ledger lines", so a run passed the `waiting for owner` and `post-gate: dispatched` lines and left out the owner's answer and the pins.
