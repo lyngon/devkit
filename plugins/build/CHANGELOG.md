@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.3 - 2026-09-30
+
+- `delegate`'s owner gate protocol ledgers every answer at a gate verbatim with its time, a "later" too, so the ledger shows that the owner paused the run.
+
 ## 0.15.2 - 2026-09-30
 
 - `execute` ledgers `Task N post-gate: started` in the same call as `task-start --part post-gate`, before any post-gate step runs, so a run lost after the gated action still shows a started post-gate part when it resumes.

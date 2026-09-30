@@ -63,7 +63,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
    Quote the artifact verbatim when it has at most 40 lines; otherwise quote the pre-gate `Expected:` lines and link the file.
    At a gate the owner performs, give the exact commands or instructions in place of the artifact, and ask for "done" once they have run, with the output when the owner has it.
    Only an explicit yes, or "done" at a gate the owner performs, passes the gate.
-   Ledger the answer verbatim, with the time from `date +%Y-%m-%dT%H:%M:%S%z`: `Gate <id>: owner <time>: "<answer>"`.
+   Ledger every answer verbatim, a "later" too, with the time from `date +%Y-%m-%dT%H:%M:%S%z`: `Gate <id>: owner <time>: "<answer>"`.
    A no follows the gate's `On no`; "later" pauses the run (see [Pausing](#pausing)).
 5. **Post-gate part.** Extract the brief with `task-brief PLAN_FILE N --part post-gate`, and ledger `Task N post-gate: dispatched` (`started` in `build:execute`).
    In `build:delegate`, dispatch a fresh implementer, never the pre-gate one resumed, because the gate may have spanned sessions; its report is `task-N-post-gate-report.md`, and the template's `[OWNER_GATE]` block carries the approval: the answer verbatim or the pre-approval, every pin, and the exact commands approved.
