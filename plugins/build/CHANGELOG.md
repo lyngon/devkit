@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.15.50 - 2026-10-04
+
+- The finish skill's commands run in a session that its harness isolates in a worktree: each is a plain command with its values written out, where Steps 2, 3, 6 and 7 captured output in shell variables and wrapped git in command substitution, which Claude Code refuses there as "too complex to verify that it stays inside the worktree".
+  The plan workspace, the merge base, the git directories, the worktree path and the main repository root are read from what a command printed and written into the next one.
+  Step 6 says that such a session hands a local merge, a discard and the cleanup of Step 7 to the user, because the harness refuses git in the main repository.
+
 ## 0.15.49 - 2026-09-30
 
 - Fix rounds after a gate the owner performed get their own `[OWNER_GATE]` text in the implementer template, which opens with the owner's action and answer and never asks for the pins or the dry run, and the delegate skill and its owner gates reference send the fix-round text whether the agent or the owner performed the action; the delegate skill's example workflow ledgers the completion before it removes the task's temporary files, as step 8 says.
