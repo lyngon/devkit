@@ -16,6 +16,10 @@ description: >-
 
 Core principle: verify the full check, remove the plan, detect the environment, push and open the pull request, and clean up only what has landed.
 
+Run each command below on its own, as a plain command with every value written out.
+A name in angle brackets stands for a value: a branch or file you know, or a path or hash that an earlier command printed.
+A shell variable does not last from one shell call to the next, and a harness that isolates the session in a worktree refuses a command it cannot check before it runs, such as command substitution around git or a variable where a path goes.
+
 ## Step 1: Run the full check
 
 Run the repository's full check: every lint and every test, as the repository's own instructions name it (`npm test`, `cargo test`, `pytest` and `go test ./...` are examples of a test command, not the assumption).
@@ -40,9 +44,10 @@ When the branch carries a plan file, `docs/plans/YYYY-MM-DD-<slug>.md`, first re
 The script lives in `build:delegate`, at `../delegate/scripts/workspace` from this skill's directory:
 
 ```bash
-PLAN_WORKSPACE=$(bash <this skill's directory>/../delegate/scripts/workspace docs/plans/YYYY-MM-DD-<slug>.md)
+bash <this skill's directory>/../delegate/scripts/workspace docs/plans/YYYY-MM-DD-<slug>.md
 ```
 
+It prints the path of the plan workspace, `<plan workspace>` below.
 `build:delegate` and `build:execute` hand this directory over instead of deleting it: its `progress.md` is their ledger, and Step 7 removes the directory once the work lands.
 When the plan ends with an `## Execution status` section, a paused run left a copy of its ledger in the plan: run `bash <this skill's directory>/../delegate/scripts/execution-status restore docs/plans/YYYY-MM-DD-<slug>.md` before the plan goes, whether or not `progress.md` exists, because it recreates a missing ledger, replaces a shorter one and keeps a longer one.
 Without either, no executor produced the branch and there is no ledger.
@@ -50,10 +55,11 @@ Without either, no executor produced the branch and there is no ledger.
 Collect the owner gates for the description (Step 5) from their record commits, which outlive the workspace, in the branch's commits since the merge base with the base branch (Step 4 says which):
 
 ```bash
-git log --format='%h %s%n%b' "$(git merge-base <base-branch> HEAD)"..HEAD
+git merge-base <base-branch> HEAD
+git log --format='%h %s%n%b' <merge base>..HEAD
 ```
 
-A record commit is the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$' "$(git merge-base <base-branch> HEAD)"..HEAD` (never without the range, since an earlier plan's record commit for the same gate ID may sit on the base branch), for each gate ID: a row of the plan's `### Owner Gates` index, or an `unplanned-<slug>` gate.
+A record commit is the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$' <merge base>..HEAD` (never without the range, since an earlier plan's record commit for the same gate ID may sit on the base branch), for each gate ID: a row of the plan's `### Owner Gates` index, or an `unplanned-<slug>` gate.
 Take one entry per gate: its ID, the owner's answer or the pre-approval the body holds, and the record commit's hash.
 
 Then remove the plan in a final commit:
@@ -73,7 +79,7 @@ Record it first: call the Skill tool for `discover:domain-model`, commit the ADR
 Before deleting, also collect the findings nobody acted on: the executor's "Deferred minors" and the ledger's `minor (deferred)` and parked lines, each finding once:
 
 ```bash
-grep -E 'minor \(deferred\)|: parked;' "$PLAN_WORKSPACE/progress.md"
+grep -E 'minor \(deferred\)|: parked;' <plan workspace>/progress.md
 ```
 
 They go into the pull request description (Step 5), and the report then asks which of them go to `docs/TODO.md`; nothing waits on that answer.
@@ -82,21 +88,22 @@ A branch no executor produced has no ledger: say so and move on.
 ## Step 3: Detect the environment
 
 ```bash
-GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
-GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
-# Capture now, while still inside the workspace: a local merge changes
-# directory before cleanup (Step 7) needs this value
-WORKTREE_PATH=$(git rev-parse --show-toplevel)
+git rev-parse --path-format=absolute --git-dir
+git rev-parse --path-format=absolute --git-common-dir
+git rev-parse --show-toplevel
 git remote -v
 ```
 
-This determines how the branch is pushed and how cleanup works:
+The first three print the git directory, the common git directory and the worktree path.
+Note all three now, while still inside the worktree, because a local merge changes directory before cleanup (Step 7) needs them.
+
+They determine how the branch is pushed and how cleanup works:
 
 | State | Push | Cleanup |
 | --- | --- | --- |
-| `GIT_DIR == GIT_COMMON` (normal repository) | The branch, with its upstream | No worktree to clean up |
-| `GIT_DIR != GIT_COMMON`, named branch | The branch, with its upstream | Provenance-based (see Step 7) |
-| `GIT_DIR != GIT_COMMON`, detached HEAD | HEAD as a new branch; no local merge | Externally managed, leave in place |
+| The git directory is the common git directory (normal repository) | The branch, with its upstream | No worktree to clean up |
+| The two differ, named branch | The branch, with its upstream | Provenance-based (see Step 7) |
+| The two differ, detached HEAD | HEAD as a new branch; no local merge | Externally managed, leave in place |
 
 Without a remote there is nothing to push; Step 5 says what to do instead.
 
@@ -187,14 +194,16 @@ The user's standing instructions in `conventions:engineering` cover pushing the 
 ## Step 6: Other outcomes, on request
 
 Only when the user asked for one of these instead of the pull request.
+A local merge and a discard run git in the main repository, which a harness that isolates the session in its worktree refuses.
+In such a session, hand the commands of this step and of Step 7 to the user with the paths and names filled in, as the landing steps of Step 5 do.
 Each one ends its report with the question about `docs/TODO.md` from Step 5 when Step 2 collected deferred findings, and answers it before Step 7 removes the plan workspace.
 
 ### Merge locally
 
 ```bash
-# Get the main repository root for CWD safety
-MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-cd "$MAIN_ROOT"
+# Get the main repository root for CWD safety: the first worktree listed
+git worktree list
+cd <main repository root>
 
 # Merge first; verify success before removing anything
 git checkout <base-branch>
@@ -235,8 +244,8 @@ Wait for that exact confirmation.
 When it arrives:
 
 ```bash
-MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-cd "$MAIN_ROOT"
+git worktree list
+cd <main repository root>
 ```
 
 Then clean up the plan workspace and the worktree (Step 7), and force-delete the branch:
@@ -249,23 +258,23 @@ git branch -D <feature-branch>
 
 Runs for a local merge and a confirmed discard.
 The pull request and a kept branch always preserve the worktree and the plan workspace, since the work has not landed.
-Both callers have already changed directory to the main repository root (worktree removal must run from outside the worktree) and use the `PLAN_WORKSPACE` value resolved in Step 2 and the `GIT_DIR`, `GIT_COMMON` and `WORKTREE_PATH` values captured in Step 3, from before that directory change.
+Both callers have already changed directory to the main repository root (worktree removal must run from outside the worktree) and use the plan workspace resolved in Step 2 and the git directory, the common git directory and the worktree path noted in Step 3, from before that directory change.
 
 **If Step 2 resolved a plan workspace:** remove it; the work has landed or been discarded, and its deferred findings were offered for `docs/TODO.md`:
 
 ```bash
-rm -rf "$PLAN_WORKSPACE"
+rm -rf <plan workspace>
 ```
 
 Sibling directories under `tmp/build/` belong to other plans; leave them alone.
 
-**If `GIT_DIR == GIT_COMMON`:** a normal repository, no worktree to clean up.
+**If the git directory is the common git directory:** a normal repository, no worktree to clean up.
 Done.
 
-**If `WORKTREE_PATH` is under `.worktrees/` or `worktrees/`:** the executor created this worktree; we own cleanup:
+**If the worktree path is under `.worktrees/` or `worktrees/`:** the executor created this worktree; we own cleanup:
 
 ```bash
-git worktree remove "$WORKTREE_PATH"
+git worktree remove <worktree path>
 git worktree prune  # Self-healing: clean up any stale registrations
 ```
 
@@ -274,7 +283,7 @@ Never `--force` on your own initiative.
 Show the user what is at stake and ask:
 
 ```bash
-git -C "$WORKTREE_PATH" status --porcelain -uall
+git -C <worktree path> status --porcelain -uall
 ```
 
 ```text
