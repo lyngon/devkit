@@ -122,5 +122,5 @@ _Avoid_: assumption, tier, requirement
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - Every **Plugin** declares its **Prerequisites**; a bundle's are the union of its members'.
 - A **Plan**'s execution lies between its two **Review gates**; its **Owner gates** lie inside it.
-- Every task of a **Plan** has **Acceptance lines**; it has **Dictated text** only where the wording is the decision, and a **Mandated check** only where a command's exact output is the behaviour.
+- A task of a **Plan** states the behaviour it leaves to its implementer as **Acceptance lines**; it has **Dictated text** only where the wording is the decision, and a **Mandated check** only where a command's exact output is the behaviour.
 - An **Owner gate** has at most one **Pre-approval**, and only a gate whose action the executor performs can have one.
