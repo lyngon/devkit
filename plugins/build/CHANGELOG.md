@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.0 - 2026-10-06
+
+- `WORKFLOW.md`, symlinked into `plan`, says what a plan holds (interfaces, acceptance lines, dictated text, owner gates and mandated checks, with the implementer writing the tests and the code), that the task reviewer gives a verdict on every acceptance line, and which plans suit `/build:execute`.
+
 ## 0.24.0 - 2026-10-06
 
 - `build:execute` works a task as its implementer: for each acceptance line it writes the failing test, watches it fail, then writes the code, places dictated text word for word, and walks a States block, ledgering `<label>: walked <state>: <outcome>; ...`.

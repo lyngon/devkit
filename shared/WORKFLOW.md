@@ -33,9 +33,9 @@ A well-scoped change to a flow that already exists in the repository.
 A new subsystem, a restructuring, or an interface others depend on.
 
 1. `/discover:approach` runs the interview; `CONCEPTS.md` terms and ADRs are written as they settle, and the design goes to `docs/plans/YYYY-MM-DD-<slug>.md`.
-2. `/build:plan` appends the tasks to that file and commits it on the feature branch.
+2. `/build:plan` appends the plan to that file (the tasks in order, with their interfaces, acceptance lines, dictated text, owner gates and mandated checks; the implementer writes the tests and the code) and commits it on the feature branch.
 3. **Review gate 1**: the user reviews the design and the plan, picks the executor, and pre-approves by ID the owner gates they want passed without a stop.
-4. `/build:delegate` (a fresh implementer per task, a reviewer after each task; the default beyond a handful of tasks) or `/build:execute` (inline, one review at the end) builds it, one commit per task, without asking, and stops only at owner gates.
+4. `/build:delegate` (a fresh implementer per task, and a reviewer after each task who gives a verdict on every acceptance line; the default) or `/build:execute` (inline, one review at the end; for a plan of about five tasks or fewer with no owner gate the agent performs) builds it, one commit per task, without asking, and stops only at owner gates.
 5. `/build:finish` runs the full check, removes the plan file, pushes the branch and opens the pull request.
 6. **Review gate 2**: the user reviews the pull request, starting from the executor's "Rulings I made", "Deferred minors" and "Owner gates" lists in its description, and merges it or asks for changes.
 7. `review:receive` handles the feedback; the fixes go through `practice:tdd` and are pushed as new commits after the full check.

@@ -4,6 +4,10 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.8.0 - 2026-10-06
+
+- `WORKFLOW.md`, symlinked into `approach`, says what a plan holds (interfaces, acceptance lines, dictated text, owner gates and mandated checks, with the implementer writing the tests and the code), that the task reviewer gives a verdict on every acceptance line, and which plans suit `/build:execute`.
+
 ## 0.7.0 - 2026-10-06
 
 - `approach` checks in the self-review of its design file that every value an implementer must use exactly is stated and every edge behaviour is named with its outcome, since a plan copies them from the design and decides none.
