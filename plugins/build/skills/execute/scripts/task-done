@@ -22,10 +22,15 @@ delegate="$(cd "$(dirname "$0")/../../delegate/scripts" && pwd)"
 
 git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
 
+# The label comes from task-brief, so one parser decides what a task is called;
+# a task it refuses stops here, before the test command runs.
 # Invoke via bash rather than direct exec: some plugin installers strip Unix
 # exec bits when unpacking.
+label=$("${BASH:-bash}" "$delegate/task-brief" "$plan" "$n" --label)
+
 dir=$("${BASH:-bash}" "$delegate/workspace" "$plan")
-log="$dir/task-${n}-tests.log"
+log="$dir/task-${label#Task }"
+log="${log// /-}-tests.log"
 ledger="$dir/progress.md"
 
 # Render the command the way a person would type it, for the ledger line.
@@ -43,13 +48,13 @@ rc=0
 
 tail -n 5 "$log"
 if [ "$rc" -ne 0 ]; then
-  echo "task-done: test command exited $rc; Task $n NOT recorded (full output: $log)" >&2
+  echo "task-done: test command exited $rc; $label NOT recorded (full output: $log)" >&2
   exit "$rc"
 fi
 
 last=$(awk '/[^[:space:]]/ { l = $0 } END { print l }' "$log")
 [ -n "$last" ] || last='(no output)'
 [ -f "$ledger" ] || printf '# build ledger: plan %s\n' "$plan" > "$ledger"
-line="Task $n: complete (commits $(git rev-parse --short=7 "$base")..$(git rev-parse --short=7 HEAD), tests: $cmd → $last)"
+line="$label: complete (commits $(git rev-parse --short=7 "$base")..$(git rev-parse --short=7 HEAD), tests: $cmd → $last)"
 printf '%s\n' "$line" >> "$ledger"
 echo "ledger: $line"

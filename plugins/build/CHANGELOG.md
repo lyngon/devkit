@@ -4,6 +4,13 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.18.0 - 2026-10-06
+
+- `task-start` prints a third line, `label: <label>`, with the label `task-brief --label` gives (`Task 3 rate-limiter`, or `Task 3` for a task without a slug), with or without `--part`.
+  `task-done` takes the label from `task-brief --label` too: it ledgers `<label>: complete (commits ...)`, keeps the test output in `task-N-slug-tests.log` and names the task by its label when the test command fails.
+  A task `task-brief` refuses (a malformed slug, a task the plan does not have) stops `task-done` before it runs the test command, and nothing is recorded.
+  A task without a slug keeps its ledger line and log name.
+
 ## 0.17.0 - 2026-10-06
 
 - `task-brief` reads a task's slug from its heading, ``### Task N `slug`: Title``, and names the brief by it: `task-N-slug-brief.md`, `task-N-slug-pre-gate-brief.md` and `task-N-slug-post-gate-brief.md`; a heading without a slug gives the names as before.

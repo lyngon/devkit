@@ -11,6 +11,7 @@
 # Prints:
 #   brief: <path to the task's brief file>
 #   base:  <full SHA of HEAD>
+#   label: <the task's label, `Task N slug` or `Task N`, as task-brief --label prints it>
 set -euo pipefail
 
 if { [ $# -ne 2 ] && [ $# -ne 4 ]; } || { [ $# -eq 4 ] && [ "$3" != "--part" ]; }; then
@@ -27,5 +28,8 @@ delegate="$(cd "$(dirname "$0")/../../delegate/scripts" && pwd)"
 # exec bits when unpacking.
 brief=$("${BASH:-bash}" "$delegate/task-brief" "$plan" "$n" "$@")
 
+label=$("${BASH:-bash}" "$delegate/task-brief" "$plan" "$n" --label)
+
 echo "brief: $brief"
 echo "base: $(git rev-parse HEAD)"
+echo "label: $label"

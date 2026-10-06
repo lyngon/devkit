@@ -782,6 +782,22 @@ start "$plan" 2 --part
 check "task-start: --part without a value is a usage error" \
   equals "$code|$err" "2|usage: task-start PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate]"
 
+start_slugged=$repo/docs/plans/2026-01-01-slugged.md
+slug_fixture $'### Task 3 `rate-limiter`: Title' >"$start_slugged"
+start "$start_slugged" 3
+check "task-start: prints brief, base and label, in that order" \
+  equals "$code|$(cut -d: -f1 <<<"$out" | paste -sd, -)" "0|brief,base,label"
+check "task-start: the label of a task with a slug is its number and slug" \
+  equals "$(sed -n 's/^label: //p' <<<"$out")" "Task 3 rate-limiter"
+start "$start_slugged" 4 --part pre-gate
+check "task-start: the label is the same with --part" \
+  equals "$code|$(sed -n 's/^label: //p' <<<"$out")" "0|Task 4 gated"
+start_unslugged=$repo/docs/plans/2026-01-01-unslugged.md
+slug_fixture '### Task 3: Title' >"$start_unslugged"
+start "$start_unslugged" 3
+check "task-start: the label of a task without a slug is its number" \
+  equals "$(sed -n 's/^label: //p' <<<"$out")" "Task 3"
+
 # --- task-done ---------------------------------------------------------------
 
 repo=$(new_repo task-done)
@@ -810,6 +826,37 @@ check "task-done: a blank line after the output does not replace it" \
 done_run "$plan" 3 "$base" -- bash -c "printf '3/3 pass\n\r   \r\n'"
 check "task-done: a line of only a carriage return and spaces does not replace the output" \
   contains "$(ledger_of)" "→ 3/3 pass)"
+check "task-done: a task without a slug keeps its ledger line and log name" \
+  equals "$(grep -c '^Task 3: complete (commits' <<<"$(ledger_of)")|$(compgen -G "$(cd "$repo" && "$delegate/workspace" "$plan")/task-3-tests.log" | wc -l)" "1|1"
+
+done_slugged=$repo/docs/plans/2026-01-01-slugged.md
+slug_fixture $'### Task 3 `rate-limiter`: Title' >"$done_slugged"
+slugged_ledger() {
+  cat "$(cd "$repo" && "$delegate/workspace" "$done_slugged")/progress.md"
+}
+done_run "$done_slugged" 3 "$base" -- bash -c 'echo ok'
+check "task-done: a task with a slug is recorded under its label" \
+  equals "$code|$(sed -n 's/^\(Task 3 rate-limiter: complete (commits\).*/\1/p' <<<"$(slugged_ledger)")" "0|Task 3 rate-limiter: complete (commits"
+check "task-done: a task with a slug keeps its test output in task-3-rate-limiter-tests.log" \
+  equals "$(cat "$(cd "$repo" && "$delegate/workspace" "$done_slugged")/task-3-rate-limiter-tests.log")" "ok"
+
+done_run "$done_slugged" 3 "$base" -- bash -c 'echo broken; exit 4'
+check "task-done: a failing check exits with its status and names the task by its label" \
+  equals "$code|${err%% (full output*}" "4|task-done: test command exited 4; Task 3 rate-limiter NOT recorded"
+check "task-done: a failing check records nothing" \
+  equals "$(grep -c 'broken' <<<"$(slugged_ledger)" || true)|$(grep -c '^Task 3 rate-limiter: complete' <<<"$(slugged_ledger)")" "0|1"
+
+# A refused task stops task-done before the check runs.
+refused_done() {
+  local label=$1 heading=$2 n=$3 plan_path=$repo/docs/plans/2026-01-01-refused-done.md
+  slug_fixture "$heading" >"$plan_path"
+  rm -rf "$repo/tmp/build/2026-01-01-refused-done" "$tmp/ran"
+  done_run "$plan_path" "$n" "$base" -- touch "$tmp/ran"
+  check "task-done: $label exits non-zero, runs no check and records nothing" \
+    equals "$([ "$code" -ne 0 ] && echo nonzero)|$(compgen -G "$tmp/ran" || true)|$(compgen -G "$repo/tmp/build/2026-01-01-refused-done/*" || true)" "nonzero||"
+}
+refused_done "a malformed slug" $'### Task 3 `Rate_Limiter`: Title' 3
+refused_done "a task the plan does not have" $'### Task 3 `rate-limiter`: Title' 9
 
 # --- Summary -----------------------------------------------------------------
 

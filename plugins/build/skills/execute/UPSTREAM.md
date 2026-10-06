@@ -64,3 +64,4 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-23.
 - Verdict: clear with patches, all applied.
 - Noticed while rewriting: `task-done` renders the test command for the ledger line and quotes arguments containing spaces or shell metacharacters; an argument containing a single quote is still rendered unquoted. Cosmetic, ledger only.
 - The scripts have no file extension, so the prerequisite validator does not scan them; they contain no prerequisite terms anyway.
+- Scripts `task-start` and `task-done`: take the task's label from `../../delegate/scripts/task-brief --label`; `task-start` prints it as a third line, `label: <label>`; `task-done` ledgers `<label>: complete (...)`, names the log `task-N-slug-tests.log` and its failure message by the label, and stops before the test command when `task-brief` refuses the task.
