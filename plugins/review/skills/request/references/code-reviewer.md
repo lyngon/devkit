@@ -22,13 +22,23 @@ Dispatch a subagent with:
 
     {PLAN_OR_REQUIREMENTS}
 
+    When this is a plan whose tasks have Acceptance blocks, check every
+    acceptance line of every task against the branch as it stands at
+    {HEAD_SHA}: a later task may have broken what an earlier one built,
+    and inline execution had no reviewer per task. Report each line that
+    does not hold, or that no test covers where one could, as an issue
+    that names the task and the line. When a task has a States block,
+    read the text it dictated in each state, in the files as they stand
+    now, and report every state as HOLDS or BROKEN; a BROKEN state is at
+    least Important.
+
     ## Review focus
 
     {REVIEW_FOCUS}
 
-    These are the input classes and failure modes the plan's tests do not
-    exercise. Check each of these deliberately and report on each one, even
-    when you find nothing.
+    These are the input classes and failure modes that no task's
+    acceptance lines cover. Check each of these deliberately and report
+    on each one, even when you find nothing.
 
     ## Rulings made during execution
 
@@ -145,6 +155,11 @@ Dispatch a subagent with:
     ### Strengths
     [What is well done? Be specific.]
 
+    ### Acceptance lines and states
+    [For a plan with Acceptance blocks: "all N lines hold", or each line
+    that does not, by task; then one line per state, HOLDS or BROKEN.
+    Leave this section out otherwise.]
+
     ### Issues
 
     #### Critical (must fix)
@@ -205,7 +220,7 @@ Dispatch a subagent with:
 
 Leave out the "Review package", "Review focus", "Rulings made during execution" and "State changes since the inputs were written" sections when there is nothing to fill them with.
 
-**The reviewer returns:** Strengths, Issues (Critical, Important, Minor), Declined to judge, Recommendations, Assessment.
+**The reviewer returns:** Strengths, Acceptance lines and states, Issues (Critical, Important, Minor), Declined to judge, Recommendations, Assessment.
 
 ## Example output
 

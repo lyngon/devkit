@@ -36,6 +36,7 @@ The template gives the reviewer exactly that context and nothing of the requeste
 - The review package section says the package carries every commit's full message, and the git range block adds `git log`, so the commit messages can be checked with or without a package.
 - Dropped nothing else; the read-only rule, the no-subagents rule, the spec-as-vision section, the check lists, the calibration, the critical rules, the rationalization table, the red flags and the example output are kept.
 - The description and the mandatory list name opening a pull request where they named merging, and step 3 sends Minor findings that nobody fixes to the pull request description.
+- The whole-branch reviewer checks every task's acceptance lines and states: a paragraph under "Requirements or plan", the review focus described as the failure modes that no task's acceptance lines cover, and an output section "Acceptance lines and states" that is left out for a bounded change or a plan without Acceptance blocks.
 
 ## Review notes
 
