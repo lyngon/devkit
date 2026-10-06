@@ -4,6 +4,13 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.19.0 - 2026-10-06
+
+- `build:plan` writes plans of decisions and facts: an ordinary task has Files, Interfaces, Intent, Acceptance and Commit, with no steps, no test code and no implementation, because the implementer writes the tests and the code.
+  A task with an owner gate or a mandated check keeps steps, each with a slug after its number; tasks and steps are referred to by label, number and slug together.
+  Text whose wording is the decision goes in a task as dictated text, located by file, section and anchor, with a States block when it is protocol text.
+  Self-review gained the line test, a size check and a check of dictated text against its states; the handoff reports the plan's size and longest task, and recommends `build:execute` for about five tasks or fewer without an owner gate the agent performs.
+
 ## 0.18.1 - 2026-10-06
 
 - `task-done` builds the test log's name from the label alone, so a repository path that holds a space no longer breaks the log's path and keeps the test command from running.

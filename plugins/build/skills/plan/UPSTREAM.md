@@ -11,7 +11,7 @@
 ## Why it is here
 
 Nothing in the devkit turned a settled design into an executable plan.
-This skill's task shape (files, interfaces, five steps each with expected output, no placeholders) is what lets a fresh implementer or a mid-tier model execute without the designer's context, and its self-review catches the gaps before execution starts.
+This skill's task shape (files, interfaces, no placeholders) is what lets a fresh implementer or a mid-tier model execute without the designer's context, and its self-review catches the gaps before execution starts.
 
 ## Local patches
 
@@ -37,6 +37,11 @@ This skill's task shape (files, interfaces, five steps each with expected output
 - The pointer to `WORKFLOW.md` names the user's two review gates; the first handoff template's clause about the owner gates not pre-approved is left out when the plan declares none; self-review item 7 says "an action an executor must stop for" where it said "stop-list action", a term the skill never defined.
 - Owner gates, which are not upstream: the executor removes a gated task's temporary files once the evidence review is clean, not before; a character a hook rejects in a pre-approval, or a `|` that would break the index table, is replaced by its plain form.
 - Owner gates, which are not upstream: the gate record commit body starts with the line `Owner gate: <id>`.
+
+- Departs from upstream's rule of complete code in every step: a task has Intent, Acceptance and Commit blocks and no steps, and holds no test code or implementation, because the implementer writes the tests and the code. The "Bite-sized granularity" section is removed, "Overview" is rewritten around what the implementer cannot know or must not decide, and "No placeholders" is rewritten to match.
+- Added dictated text (a task's blocks of text placed word for word, located by file, section and anchor, with a States block for protocol text), tasks with steps only for an owner gate or a mandated check, a slug in every task heading and step, and the rule that tasks and steps are referred to by label.
+- Self-review rewritten to nine items: the line test, a size check and a check of dictated text against its states were added, and the type-consistency check also covers references to tasks and steps.
+- Execution handoff: a recommendation rule (`build:execute` for about five tasks or fewer without an owner gate the agent performs, `build:delegate` otherwise), the plan's size and longest task in both messages, and an inline-review warning for an owner gate the agent performs.
 
 ## Review notes
 
