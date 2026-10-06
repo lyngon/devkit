@@ -100,6 +100,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - The task loop, which is not upstream: a fresh subagent whose dispatch has a prompt template reads the template's prompt itself, from a file; the dispatch names that file, fills each placeholder by its name and says which sections do not apply, and the controller never pastes, condenses or rewords a template. "Reviewer inputs" names the prompt file beside the three paths.
 - Added `scripts/prompt-file`, which is not upstream: it writes the prompt of a template (the content of its first fenced `text` block after the `prompt: |` line, without the block's indentation, the dispatch lines above it and the notes below it) to `prompt-<template name>` in the plan's workspace and prints the path; a template without such a block or without a `prompt: |` line is refused with exit 3 and nothing written.
 - Workspace and ledger, which is not upstream: a ledger line whose format starts with `<label>` starts with the label, with nothing before it, a time included; a time goes only where a format has `<time>`.
+- Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format, in the owner gate protocol and in the dispatch descriptions of the four templates, which gained a `[LABEL]` placeholder; brief and report names carry the slug and a report is named from its brief with `-report.md` in place of `-brief.md`.
 
 ## Review notes
 
@@ -112,4 +113,3 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-23.
 - Verdict: clear with patches, all applied.
 - Noticed while rewriting: `workspace` adopts any marker-less directory under `tmp/build/` whose name matches the plan slug, so a directory created by hand with that name becomes the plan's workspace; harmless in practice, kept as upstream.
 - The scripts have no file extension, so the prerequisite validator does not scan them; they contain no prerequisite terms anyway.
-- Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format, in the owner gate protocol and in the dispatch descriptions of the four templates, which gained a `[LABEL]` placeholder; brief and report names carry the slug and a report is named from its brief with `-report.md` in place of `-brief.md`.
