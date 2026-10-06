@@ -250,6 +250,10 @@ Reserve one dispatch per task for work that needs its own judgment, its own test
 Everything you paste into a dispatch prompt, and everything a subagent prints back, stays resident in your context for the rest of the session and is re-read on every later turn.
 Hand artifacts over as files.
 
+**A template goes out whole.**
+A fresh subagent whose dispatch has a prompt template (the four in `references/`, and the reviewer template that `review:request` carries) reads that prompt as the template has it, with the placeholders filled and a section left out only where the template's file or its skill says so.
+Never condense or reword a template to save context: a rule reaches the subagent only if its sentence does, and a paraphrase drops the ones you did not think to keep.
+
 **Waiting on dispatched subagents.**
 Never poll a wait interface with short timeouts, and never sit in one silent, open-ended wait either.
 While you have local work (ledger updates, packaging the next review, reading reports), keep working; child results arrive on their own.

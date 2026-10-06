@@ -97,6 +97,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/implementer-prompt.md`, which is not upstream: "Your Job" builds what Intent and acceptance lines require, writes a failing test per acceptance line and places dictated text as written; a "Dictated Text and States" section has the implementer read the text in each state and report BLOCKED on a conflict; the report format gained Acceptance, Task test command and States.
 - Handle the report and Review the task, which are not upstream: a report without its Acceptance item or task test command is incomplete and the implementer is resumed before the review; the task reviewer runs the task's own test files once with the reported command; the example workflow shows a verdict per acceptance line and a covering test per line in the implementer's report; one rationalization row.
 - `references/task-reviewer-prompt.md`, which is not upstream: "Tests" has the reviewer run the reported task test command once, and "Part 1: Spec Compliance" gives a verdict per acceptance line (COVERED, MET, MISSING) and per state (HOLDS, BROKEN) and reads the whole of the files the dictated text sits in; the output format lists Acceptance, States and Tests run.
+- The task loop, which is not upstream: a fresh subagent whose dispatch has a prompt template reads that prompt as the template has it, with the placeholders filled and a section left out only where the template's file or its skill says so; the controller never condenses or rewords a template.
 
 ## Review notes
 

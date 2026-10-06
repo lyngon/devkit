@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.22.1 - 2026-10-06
+
+- `build:delegate` sends a prompt template whole: a fresh subagent reads the template's prompt with the placeholders filled, and the controller never condenses or rewords it.
+  A controller that wrote its own shorter version of the task reviewer template left out the rule that an acceptance line met only in the diff, where a test could have covered it, is MISSING, and its reviewers passed such lines as MET.
+
 ## 0.22.0 - 2026-10-06
 
 - `build:delegate` reviews a task by a verdict per acceptance line (COVERED, MET or MISSING) and per state of a States block (HOLDS or BROKEN), and the task reviewer runs the task's own test files once with the command the implementer reported.
