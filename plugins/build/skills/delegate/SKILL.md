@@ -178,6 +178,8 @@ Track progress in a ledger file, not only in todos.
   `scripts/task-brief PLAN_FILE N --label` prints it.
   In the ledger, in a shell argument, in a commit message and in a file name the slug is bare; in Markdown it is in backticks, as the heading has it.
   `<label>` stands for it in every ledger line format below and in the owner gate protocol, and a task's brief and report carry the slug in their file names.
+  A ledger line whose format starts with `<label>` starts with the label: nothing goes before it, a time included.
+  A time goes only where a format has `<time>`.
   The number identifies the task, and the slug is there to catch a wrong number: when a ledger line's number and slug do not belong to one heading of the plan, do not read the line as progress until you have checked `git log` for the commits it names.
   When they are there, the task is done, and you ledger `State: "<the line>" is <label>`; when they are not, it is not done.
 - The ledger is your recovery map: the commits it names exist in git even when your context no longer remembers creating them.

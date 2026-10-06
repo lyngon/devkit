@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.23.1 - 2026-10-06
+
+- `build:delegate` starts a task's ledger line with its label: nothing goes before it, a time included, and a time goes only where a line format has `<time>`.
+  A controller had put a time before the label on every line, so no line matched `<label>: complete` at its start.
+
 ## 0.23.0 - 2026-10-06
 
 - `build:delegate` hands a prompt template to a subagent as a file: the new script `prompt-file` writes the template's prompt to the plan's workspace, and the dispatch names that file and fills each placeholder by its name, one line each.

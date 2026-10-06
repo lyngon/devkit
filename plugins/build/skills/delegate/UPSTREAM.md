@@ -99,6 +99,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `references/task-reviewer-prompt.md`, which is not upstream: "Tests" has the reviewer run the reported task test command once, and "Part 1: Spec Compliance" gives a verdict per acceptance line (COVERED, MET, MISSING) and per state (HOLDS, BROKEN) and reads the whole of the files the dictated text sits in; the output format lists Acceptance, States and Tests run.
 - The task loop, which is not upstream: a fresh subagent whose dispatch has a prompt template reads the template's prompt itself, from a file; the dispatch names that file, fills each placeholder by its name and says which sections do not apply, and the controller never pastes, condenses or rewords a template. "Reviewer inputs" names the prompt file beside the three paths.
 - Added `scripts/prompt-file`, which is not upstream: it writes the prompt of a template (the content of its first fenced `text` block after the `prompt: |` line, without the block's indentation, the dispatch lines above it and the notes below it) to `prompt-<template name>` in the plan's workspace and prints the path; a template without such a block or without a `prompt: |` line is refused with exit 3 and nothing written.
+- Workspace and ledger, which is not upstream: a ledger line whose format starts with `<label>` starts with the label, with nothing before it, a time included; a time goes only where a format has `<time>`.
 
 ## Review notes
 
