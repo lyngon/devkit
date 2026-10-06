@@ -101,6 +101,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Added `scripts/prompt-file`, which is not upstream: it writes the prompt of a template (the content of its first fenced `text` block after the `prompt: |` line, without the block's indentation, the dispatch lines above it and the notes below it) to `prompt-<template name>` in the plan's workspace and prints the path; a template without such a block or without a `prompt: |` line is refused with exit 3 and nothing written.
 - Workspace and ledger, which is not upstream: a ledger line whose format starts with `<label>` starts with the label, with nothing before it, a time included; a time goes only where a format has `<time>`.
 - Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format, in the owner gate protocol and in the dispatch descriptions of the four templates, which gained a `[LABEL]` placeholder; brief and report names carry the slug and a report is named from its brief with `-report.md` in place of `-brief.md`.
+- `task-brief` reads an Owner Gates index Task cell as the task's number, with or without `Task` before it and a slug after it, and refuses a cell whose slug differs from the slug of the task's heading or that has one where the heading has none (the former line reading "6" or "Task 6" alike is superseded).
 
 ## Review notes
 

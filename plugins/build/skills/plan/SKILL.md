@@ -91,7 +91,7 @@ Every `## Plan` section starts with this header:
 
 | ID | Task | Performed by | Consequences | Pre-approved |
 | --- | --- | --- | --- | --- |
-| `apply-state-bucket` | 6 | agent | creates the state bucket; versions kept forever | no |
+| `apply-state-bucket` | Task 6 `state-bucket` | agent | creates the state bucket; versions kept forever | no |
 
 Pre-approved says "no" until the user pre-approves the gate at the handoff, and then holds their reply verbatim with its time; a gate that an instruction of the repository keeps from pre-approval says "not pre-approvable (<the instruction>)".]
 

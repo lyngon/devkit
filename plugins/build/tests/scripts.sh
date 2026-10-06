@@ -390,6 +390,43 @@ brief "$plan" 1
 check "task-brief reads an index Task cell of \"Task 1\" as task 1, and refuses the task without its marker" \
   equals "$code|$err" "3|task-brief: owner gate \`apply-thing\` is indexed for task 1, which has no marker for it"
 
+# An index Task cell may hold the number, the word Task and the slug of the
+# task's heading, with or without backticks around the slug.
+cell_plan() {
+  cat <<EOF
+# Cells
+
+## Plan
+
+### Owner Gates
+
+| ID | Task | Performed by | Consequences | Pre-approved |
+| --- | --- | --- | --- | --- |
+| \`apply-state-bucket\` | $1 | agent | creates the bucket | no |
+
+### Task 6 ${2:+\`$2\`}: Bucket
+
+Make the bucket.
+EOF
+}
+cell_plan_file=$repo/docs/plans/2026-01-01-cells.md
+for cell in 6 'Task 6' $'6 `state-bucket`' $'Task 6 `state-bucket`' 'Task 6 state-bucket'; do
+  cell_plan "$cell" state-bucket >"$cell_plan_file"
+  brief "$cell_plan_file" 6
+  check "task-brief: an index Task cell of \"$cell\" names task 6, which is refused without its marker" \
+    equals "$code|$err" "3|task-brief: owner gate \`apply-state-bucket\` is indexed for task 6, which has no marker for it"
+done
+cell_plan $'Task 6 `other-bucket`' state-bucket >"$cell_plan_file"
+brief "$cell_plan_file" 6
+check "task-brief: an index Task cell whose slug differs from the heading's is refused, naming both" \
+  equals "$code|$err|$out" "3|task-brief: owner gate \`apply-state-bucket\`: the index names task 6 as \`other-bucket\`, but its heading has the slug \`state-bucket\`|"
+cell_plan $'Task 6 `state-bucket`' '' >"$cell_plan_file"
+brief "$cell_plan_file" 6
+check "task-brief: an index Task cell with a slug for a heading without one is refused, naming both" \
+  equals "$code|$err|$out" "3|task-brief: owner gate \`apply-state-bucket\`: the index names task 6 as \`state-bucket\`, but its heading has no slug|"
+check "task-brief: a refused cell writes no brief" \
+  equals "$(compgen -G "$repo/tmp/build/2026-01-01-cells/task-6*" || true)" ""
+
 fixture | sed 's/^- \[ \] \*\*Step 2: Commit\*\*$/- [ ] **Step 2: Owner gateway setup**/' >"$plan"
 brief "$plan" 1
 check "task-brief: a step titled with \"Owner gateway\" is no gate marker, and the task extracts ungated" \

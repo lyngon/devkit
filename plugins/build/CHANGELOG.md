@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.1 - 2026-10-06
+
+- `task-brief` reads an Owner Gates index Task cell that holds a task's label (``6 `state-bucket` ``, ``Task 6 `state-bucket` ``, `Task 6 state-bucket`) as well as `6` and `Task 6`, so a task the index names is still refused without its marker, and refuses a cell whose slug is not the slug of that task's heading.
+  The plan skill's example row now names the task by its label.
+
 ## 0.25.0 - 2026-10-06
 
 - `WORKFLOW.md`, symlinked into `plan`, says what a plan holds (interfaces, acceptance lines, dictated text, owner gates and mandated checks, with the implementer writing the tests and the code), that the task reviewer gives a verdict on every acceptance line, and which plans suit `/build:execute`.

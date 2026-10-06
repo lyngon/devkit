@@ -42,6 +42,7 @@ This skill's task shape (files, interfaces, no placeholders) is what lets a fres
 - Added dictated text (a task's blocks of text placed word for word, located by file, section and anchor, with a States block for protocol text), tasks with steps only for an owner gate or a mandated check, a slug in every task heading and step, and the rule that tasks and steps are referred to by label.
 - Self-review rewritten to nine items: the line test, a size check and a check of dictated text against its states were added, and the type-consistency check also covers references to tasks and steps.
 - Execution handoff: a recommendation rule (`build:execute` for about five tasks or fewer without an owner gate the agent performs, `build:delegate` otherwise), the plan's size and longest task in both messages, and an inline-review warning for an owner gate the agent performs.
+- The Owner Gates index example row names its task by its label (``Task 6 `state-bucket` ``).
 
 ## Review notes
 

@@ -17,7 +17,10 @@
 # anything is written, so it fails before a dispatch rather than at the gate.
 # So is a step whose title mentions an owner gate without being a well-formed
 # marker, and a task that a row of the Owner Gates index names but whose
-# steps hold no marker with that row's ID, so a gate is never missed.
+# steps hold no marker with that row's ID, so a gate is never missed. The
+# Task cell of that index holds the task's number, with or without the word
+# Task before it and the task's slug after it (`6`, `Task 6`, ``6 `slug` ``,
+# `Task 6 slug`); a slug that is not the heading's is refused.
 #
 # A task heading ``### Task N `slug`: Title`` gives the task the slug `slug`;
 # any other task heading gives it none. A slug is kebab-case (lowercase
@@ -144,10 +147,18 @@ scan() {
     gsub(/`/, "", id)
     if (id != "ID") {
       indexed[id] = 1
-      # The Task cell reads "6" or "Task 6" alike.
+      # The Task cell is the label of a task: its number, with or without the
+      # word Task before it and a slug after it.
       tn = trim(cells[3])
       sub(/^Task[ \t]*/, "", tn)
-      if (tn == n) gated[id] = 1
+      if (match(tn, /^[0-9]+/) && substr(tn, 1, RLENGTH) == n) {
+        rest = substr(tn, RLENGTH + 1)
+        if (rest == "" || rest ~ /^[ \t`]/) {
+          gsub(/`/, "", rest)
+          gated[id] = 1
+          cslug[id] = trim(rest)
+        }
+      }
     }
   }
   text && /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/ {
@@ -187,6 +198,10 @@ scan() {
       exit 0
     }
     while (nt > 0 && task[nt] ~ /^[ \t]*$/) nt--
+    for (id in gated) {
+      if (cslug[id] == "" || cslug[id] == slug) continue
+      fail("owner gate `" id "`: the index names task " n " as `" cslug[id] "`, but its heading " (slug == "" ? "has no slug" : "has the slug `" slug "`"))
+    }
     if (ngates > 1) fail("task " n " has " ngates " owner gates; a task has at most one")
     if (ngates == 0) {
       for (id in gated) fail(unmarked(id))
