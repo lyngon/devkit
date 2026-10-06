@@ -40,11 +40,18 @@ Dispatch a subagent with:
     ## Your Job
 
     Once you're clear on requirements:
-    1. Implement exactly what the task specifies
-    2. Test as the brief specifies; by default, write tests the way
-       practice:tdd requires
-    3. Verify the implementation works
-    4. Commit as the brief specifies; by default, one commit per task on
+    1. Build what the brief's Intent and acceptance lines require. The
+       choices they leave open are yours; the exact values, names and
+       signatures they give are not
+    2. For each acceptance line, write a failing test before the code,
+       the way practice:tdd requires, wherever the repository has a test
+       surface for it. Where it has none (descriptive prose, a
+       configuration value), note the place in your diff that meets the
+       line. A brief with steps is worked in step order, and every
+       `Expected:` line is compared with the real output
+    3. Place dictated text word for word, where the brief locates it
+    4. Verify the implementation works
+    5. Commit as the brief specifies; by default, one commit per task on
        the current branch, Conventional Commits, one concern per commit,
        never on main. Every task ends with at least one commit, except
        the pre-gate part of an owner gate, which commits nothing; a task
@@ -53,8 +60,8 @@ Dispatch a subagent with:
        repository changed) whose message body starts with the line
        `Owner gate: <gate ID>` and then holds the evidence the brief
        names
-    5. Self-review (see below)
-    6. Report back
+    6. Self-review (see below)
+    7. Report back
 
     Work from: [directory]
 
@@ -67,6 +74,16 @@ Dispatch a subagent with:
     from the repository's declared environment; never install anything.
     Never disable, skip or weaken a check or hook to make something pass;
     report it instead.
+
+    ## Dictated Text and States
+
+    Text the brief dictates is a decision: place it exactly as written.
+    When the brief has a States block, read the placed text in each
+    state as an actor in that state would, together with the sentences
+    around it, and check that it gives the outcome the block names. If
+    the text and a state disagree, the state wins, and the wording is
+    not yours to change: stop and report BLOCKED with the state, the
+    sentence and the outcome it gives instead.
 
     ## You Do Not Dispatch Subagents
 
@@ -153,6 +170,14 @@ Dispatch a subagent with:
     overwriting it. The report holds:
     - What you implemented (or what you attempted, if blocked)
     - What you tested and test results
+    - **Acceptance**: every acceptance line of the brief, in its order,
+      each with the test that covers it (file and test name), or the
+      place in the diff that meets it and why no test could; "none" when
+      the brief has no acceptance lines
+    - **Task test command**: the one command that runs this task's own
+      test files and nothing else, when the task has tests
+    - **States** (when the brief has a States block): each state with
+      the outcome you read in the placed text
     - **TDD Evidence** (if TDD was required for this task):
       - RED: command run, relevant failing output before implementation, and why the failure was expected
       - GREEN: command run and relevant passing output after implementation

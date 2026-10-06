@@ -198,7 +198,7 @@ Before dispatching Task 1, scan the plan once for conflicts, writing down what y
 
 The scan's output is a table, not a verdict.
 One row for every pair of tasks that share a file or an interface: the two tasks, what one produces against what the other consumes, and what you found.
-One row for every task: whether its own text agrees with itself, the tests it specifies against the code it specifies, the files it creates against the files it later touches.
+One row for every task: whether its own text agrees with itself, its acceptance lines against its Interfaces block, its dictated text against its States, the files it creates against the files it later touches.
 "The scan is clean" without those rows is not a scan you ran.
 
 Write the table to the ledger.
@@ -210,13 +210,13 @@ The review loop remains the net for conflicts that only emerge from implementati
 
 Use the least powerful model that can handle each role, to conserve cost and increase speed.
 
-**Mechanical implementation tasks** (isolated functions, clear specs, one or two files): use a fast, cheap model.
-Most implementation tasks are mechanical when the plan is well-specified.
+**Plan tasks:** use a mid-tier model for the implementer of every plan task.
+The plan is written for a skilled developer: it gives the interfaces, the acceptance lines and the facts of the repository, and the implementer writes the tests and the code, which the cheapest tier does poorly from prose.
 
-**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a mid-tier model.
-
-**Architecture and design tasks:** use the most capable available model.
+**Tasks that need broad judgment** (the task judges other work, or its Intent says it needs an understanding of the whole codebase): use the most capable available model.
 The final whole-branch review is one of these; dispatch it on the most capable available model, not the session default.
+
+**Mechanical work:** the cheapest tier keeps the batch of small same-shape edits and the single-file mechanical fix, where the dispatch lists every file with its change.
 
 **Review tasks:** choose the model with the same judgment, scaled to the diff's size, complexity and risk.
 A small mechanical diff does not need the most capable model; a subtle concurrency change does.
@@ -231,15 +231,14 @@ An omitted model inherits your session's model, often the most capable and most 
 
 **Turn count beats token price.**
 Wall-clock and context cost scale with how many turns a subagent takes, and the cheapest models routinely take two to three times the turns on multi-step work, costing more overall.
-Use a mid-tier model as the floor for reviewers and for implementers working from prose descriptions.
-When the task's plan text contains the complete code to write, the implementation is transcription plus testing: use the cheapest tier for that implementer.
-Single-file mechanical fixes also take the cheapest tier.
+Use a mid-tier model as the floor for task reviewers and for the implementers of plan tasks.
+The reviewer of a task with a States block reasons about states the diff does not show, as a re-review with a walk list does.
 
-Task complexity signals for implementation tasks:
+Signals for an implementation dispatch:
 
-- Touches one or two files with a complete spec: cheap model.
-- Touches multiple files with integration concerns: mid-tier model.
-- Requires design judgment or broad codebase understanding: most capable model.
+- A plan task: mid-tier model.
+- A batch of same-shape edits, or a single-file mechanical fix: cheap model.
+- A task that judges other work or needs broad codebase understanding: most capable model.
 
 ## The task loop
 
@@ -265,7 +264,7 @@ Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fi
   There is one brief per task, and every call writes the same plan text, so regenerating it after compaction or in a new session is harmless.
   Compose the dispatch so the brief stays the single source of requirements.
   Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
-  Exact values (numbers, magic strings, signatures, test cases) appear only in the brief.
+  Exact values (numbers, magic strings, signatures, acceptance lines, dictated text) appear only in the brief.
   Never make a subagent read the whole plan file.
   A task with an owner gate gets two briefs, one per part, as [Owner gates](#owner-gates) says.
 - **Report file.** Name the implementer's report file after the brief, with `-report.md` in place of `-brief.md` (brief `task-3-rate-limiter-brief.md`, report `task-3-rate-limiter-report.md`, same workspace), and put it in the dispatch prompt.
@@ -309,6 +308,10 @@ Assess the blocker:
 2. If the task requires more reasoning, re-dispatch with a more capable model.
 3. If the task is too large, break it into smaller pieces.
 4. If the plan itself is wrong, rule on the correction, ledger it, and re-dispatch with the ruling carried in the dispatch.
+
+A BLOCKED report that names a state and a sentence of dictated text is the fourth case, and the state wins.
+Rule on the smallest rewording that gives the state its outcome, ledger the ruling, and ledger the new wording as a `State:` line too, because it supersedes the plan's text for every reviewer from then on.
+Re-dispatch with the reworded sentence carried in the dispatch.
 
 Never ignore an escalation or force the same model to retry without changes.
 If the implementer said it is stuck, something needs to change.

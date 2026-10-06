@@ -4,6 +4,13 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.21.0 - 2026-10-06
+
+- `build:delegate` picks a mid-tier implementer for every plan task, and keeps the cheapest tier for a batch of same-shape edits and a single-file mechanical fix; the plan scan checks acceptance lines against Interfaces and dictated text against States.
+  The implementer template has the implementer write a failing test per acceptance line, place dictated text word for word, read it in each state of a States block and report BLOCKED when a state disagrees.
+  Its report gained the Acceptance, Task test command and States items.
+  A BLOCKED report on dictated text is ruled on by the controller, who ledgers the new wording as a `State:` line.
+
 ## 0.20.0 - 2026-10-06
 
 - `build:delegate` and `build:execute` name a task by its label (`Task 3 rate-limiter`, or `Task 3` for a heading without a slug) in every ledger line, pause line, `execution-status write` argument, pause commit subject and gate message, and in the dispatch descriptions of the four templates, which take a `[LABEL]` placeholder.
