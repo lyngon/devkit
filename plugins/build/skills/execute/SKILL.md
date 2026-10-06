@@ -19,8 +19,8 @@ Inline execution pays for one context (yours) plus one reviewer at the end.
 What it gives up is a fresh context per task and a second pair of eyes per task.
 This skill keeps what those two things bought, by other means: the brief is the spec, the ledger is your memory, TDD is the per-task gate, and the final reviewer is the second pair of eyes.
 
-**Core principle.** The plan already did the thinking.
-Execute it exactly, prove each step with a test you watched fail and then pass, and leave a record that survives your own forgetting.
+**Core principle.** The plan carries the decisions; the tests and the code are yours.
+Build exactly what its acceptance lines, interfaces and dictated text say, prove each acceptance line with a test you watched fail and then pass, and leave a record that survives your own forgetting.
 
 **Narration.** Between tool calls, narrate at most one short line; the ledger and the tool results carry the record.
 
@@ -46,7 +46,8 @@ Never disable, skip or weaken a check or hook to make something pass.
   Never fabricate a dispatch; run the plan here.
 - Tasks are mostly independent, the same precondition as `build:delegate`.
 
-A fully specified plan makes inline execution transcription plus testing: it runs well on a mid-tier session model, and the one place the most capable model earns its cost is the final review, which this skill dispatches separately.
+The plan is written for a skilled developer, so inline execution needs a session model of the mid tier or above; below it, the plan's assumption about its implementer does not hold.
+The one place the most capable model earns its cost is the final review, which this skill dispatches separately.
 Tell the user so when they choose inline.
 
 Prefer `build:delegate` when the user wants a review gate on every task, or when the plan is long enough that its later tasks would run on a compacted context.
@@ -61,10 +62,10 @@ digraph process {
     subgraph cluster_per_task {
         label="Per task";
         "task-start: brief + BASE; read the brief" [shape=box];
-        "Work the steps in order: TDD, run every verification, read every output" [shape=box];
-        "Step output matches the plan's Expected?" [shape=diamond];
+        "Work the task: a failing test per acceptance line, then the code; a task with steps in step order" [shape=box];
+        "Tests and Expected lines come out as the task says?" [shape=diamond];
         "Plan wrong? Rule and ledger. Code wrong? practice:debug" [shape=box];
-        "Commit as the plan's commit steps say" [shape=box];
+        "Commit with the subject the task gives" [shape=box];
         "Completion contract met?" [shape=diamond];
         "task-done: run tests, ledger the result; mark todo complete" [shape=box];
         "Task has an owner gate?" [shape=diamond];
@@ -82,13 +83,13 @@ digraph process {
     "Task has an owner gate?" -> "task-start: brief + BASE; read the brief" [label="no"];
     "Task has an owner gate?" -> "Owner gate protocol (../delegate/references/owner-gates.md): pre-gate steps, gate, post-gate steps, record commit, evidence review" [label="yes"];
     "Owner gate protocol (../delegate/references/owner-gates.md): pre-gate steps, gate, post-gate steps, record commit, evidence review" -> "task-done: run tests, ledger the result; mark todo complete";
-    "task-start: brief + BASE; read the brief" -> "Work the steps in order: TDD, run every verification, read every output";
-    "Work the steps in order: TDD, run every verification, read every output" -> "Step output matches the plan's Expected?";
-    "Step output matches the plan's Expected?" -> "Plan wrong? Rule and ledger. Code wrong? practice:debug" [label="no"];
-    "Plan wrong? Rule and ledger. Code wrong? practice:debug" -> "Work the steps in order: TDD, run every verification, read every output";
-    "Step output matches the plan's Expected?" -> "Commit as the plan's commit steps say" [label="yes, last step"];
-    "Commit as the plan's commit steps say" -> "Completion contract met?";
-    "Completion contract met?" -> "Work the steps in order: TDD, run every verification, read every output" [label="no: finish the task"];
+    "task-start: brief + BASE; read the brief" -> "Work the task: a failing test per acceptance line, then the code; a task with steps in step order";
+    "Work the task: a failing test per acceptance line, then the code; a task with steps in step order" -> "Tests and Expected lines come out as the task says?";
+    "Tests and Expected lines come out as the task says?" -> "Plan wrong? Rule and ledger. Code wrong? practice:debug" [label="no"];
+    "Plan wrong? Rule and ledger. Code wrong? practice:debug" -> "Work the task: a failing test per acceptance line, then the code; a task with steps in step order";
+    "Tests and Expected lines come out as the task says?" -> "Commit with the subject the task gives" [label="yes"];
+    "Commit with the subject the task gives" -> "Completion contract met?";
+    "Completion contract met?" -> "Work the task: a failing test per acceptance line, then the code; a task with steps in step order" [label="no: finish the task"];
     "Completion contract met?" -> "task-done: run tests, ledger the result; mark todo complete" [label="yes"];
     "task-done: run tests, ledger the result; mark todo complete" -> "More tasks remain?";
     "More tasks remain?" -> "Task has an owner gate?" [label="yes"];
@@ -171,30 +172,37 @@ Redirect long test output to a file in the workspace and read its tail; read a b
 
 - Run this skill's `scripts/task-start PLAN_FILE N`; a task with an owner gate starts each part with `--part`, as [Owner gates](#owner-gates) says.
   It prints the brief path, BASE (the commit the task's range is cut from) and the task's label in one call; the brief holds the task's text followed by the plan's Global Constraints, and the label starts every ledger line you write for the task.
-  Read the brief for every task, including ones you remember from setup: what you remember is a summary, the brief has the exact values, signatures and test cases.
+  Read the brief for every task, including ones you remember from setup: what you remember is a summary, the brief has the exact values, signatures and acceptance lines.
 - Mark the task's todo in progress.
 
 Every tool call is a turn that re-reads your whole context.
 Bookkeeping rides along with work: a ledger append in the same call as the commit, never in a call of its own.
 
-### 2. Work the steps
+### 2. Work the task
 
-The plan's steps are already in RED-GREEN order; follow them in that order under `practice:tdd`, loaded at setup.
-A test step's code is written first and run first.
-Watching it fail is a step, not a formality: a test that passes before the implementation exists is a finding about the test.
+A task without steps is yours to build, under `practice:tdd`, loaded at setup.
+For each acceptance line, write the test first, run it and watch it fail, then write the code that makes it pass.
+Watching it fail is part of the work, not a formality: a test that passes before the implementation exists is a finding about the test.
+Where the repository has no test surface for a line (descriptive prose, a configuration value), check the line against your diff after the change.
+The choices the task leaves open are yours; the exact values, names and signatures it gives are not.
 
+Place dictated text word for word.
+When the task has a States block, read the placed text in each state as an actor in that state would, with the sentences around it, and ledger the walk as `<label>: walked <state>: <outcome>; ...`, one pair per state.
+When the text and a state disagree, the state wins: rule on the smallest rewording that gives the state its outcome, and ledger it as a ruling.
+
+A task with steps is worked in step order: it holds an owner gate or a mandated check, or its plan was written before plans had tasks without steps.
 Every step that runs a command has an `Expected:` line.
 Run the command, read its output, and compare.
-Three outcomes:
 
-- **Matches.** Next step.
+Whatever the task's kind, a test or a step that does not come out as the task says has one of two causes:
+
 - **The code is wrong.** Call the Skill tool for `practice:debug`.
-  Find the cause; never patch the symptom to make the step's output match.
-- **The plan is wrong.** A step contradicts the spec, an interface from an earlier task does not match what this task consumes, a command cannot work.
+  Find the cause; never patch the symptom to make the output match.
+- **The plan is wrong.** An acceptance line contradicts the spec, an interface from an earlier task does not match what this task consumes, a command cannot work.
   Rule on the smallest change that satisfies the spec, ledger it as `<label>: Ruling: <finding>; <what you decided and why>`, and continue.
   The ruling is carried, not remembered: later tasks that touch the same interface read it from the ledger.
 
-Commit as the plan's commit steps say: one commit per task on the feature branch, Conventional Commits, one concern per commit.
+Commit with the subject the task gives: one commit per task on the feature branch, Conventional Commits, one concern per commit.
 A task that spans several commits is fine when the plan says so; BASE is what the review range is cut from, never `HEAD~1`.
 Never commit on main.
 
@@ -202,9 +210,10 @@ Never commit on main.
 
 Before a task's ledger line, all of the following are true, with evidence in this session, not inferred from the diff looking right:
 
-- Every test the brief names exists and ran in this task, and you read the output.
+- Every acceptance line has a test that ran in this task and that you saw fail before the implementation existed; or, where the repository has no test surface for the line, you checked it against the diff.
+- In a task with steps, every `Expected:` line was compared against real output.
+- A task with a States block has its `walked` line in the ledger.
 - The final test run for the task passed: `task-done` is that run, and it writes the command and result into the ledger line.
-- Every `Expected:` line in the brief was compared against real output.
 - Every deviation from the brief has a `Ruling:` line in the ledger.
 
 **Required sub-skill:** `practice:verify` governs the claim.
@@ -212,7 +221,7 @@ If any item is missing, the task is not complete: finish it.
 
 ### 4. Complete the task
 
-Run this skill's `scripts/task-done PLAN_FILE N BASE -- <test command>` with the repository's test command, scoped to the task as the brief says.
+Run this skill's `scripts/task-done PLAN_FILE N BASE -- <test command>` with the command that runs this task's own test files; a task whose acceptance lines no test can run takes the repository's check for the files it changed.
 It runs the tests, keeps the full output in the workspace, prints the tail, and, only if they pass, appends the completion line to the ledger:
 
 `<label>: complete (commits <base7>..<head7>, tests: <command> → <result>)`
@@ -298,8 +307,8 @@ Call the Skill tool for `build:finish`.
 | Excuse | Reality |
 | --- | --- |
 | "I remember what the task says" | You remember a summary. The brief has the exact values. Read it. |
-| "The plan's code is right, skip watching the test fail" | A test you never saw fail proves nothing. It is one step. Run it. |
-| "I'll run the full suite at the end instead of per step" | Per-step runs are how you learn which step broke it. The end-of-task run is the contract, not a substitute. |
+| "The acceptance line is obvious, skip watching the test fail" | A test you never saw fail proves nothing. Run it before the code exists. |
+| "I'll run the full suite at the end instead of per test" | Per-test runs are how you learn which change broke it. The end-of-task run is the contract, not a substitute. |
 | "The plan is wrong here, I'll just do the right thing" | Do the right thing and ledger the ruling. Unledgered deviation is a decision made in secret. |
 | "I'll write the ledger lines after a few tasks" | Compaction does not wait for a convenient moment. One line per task, in the same message as the commit. |
 | "Let me check in before the next task" | They chose inline to spend less. Progress prompts spend their time instead. Only owner gates, the five stops among them, stop you. |
@@ -330,22 +339,30 @@ The test command below is an example; the repository's own decides.
 Task 1 `hook-install`: Hook installation script
 
 [task-start plan 1 → brief read; BASE a1b2c3d; label: Task 1 hook-install]
-[Step 1: write failing test]
-[Step 2: run it → FAIL: install_hook not defined. Matches Expected.]
-[Step 3: implement]
-[Step 4: run it → PASS 1/1. Matches Expected.]
-[Step 5: commit → d4e5f6a]
-[Contract: tests ran, output read, no deviations]
-[task-done plan 1 a1b2c3d -- npm test -- hooks → ledger: Task 1 hook-install: complete (commits a1b2c3d..d4e5f6a, tests: npm test -- hooks → 1/1 pass)]
+[Acceptance line 1, the script installs the hook: write the test, run it → FAIL: install_hook not defined. Watched it fail.]
+[Implement install_hook, run it → PASS 1/1]
+[Acceptance line 2, a second run changes nothing: write the test, run it → FAIL: hook written twice. Watched it fail.]
+[Make the install idempotent, run it → PASS 2/2]
+[Commit with the subject the task gives → d4e5f6a]
+[Contract: each acceptance line has a test seen failing then passing, no deviations]
+[task-done plan 1 a1b2c3d -- npm test -- hooks → ledger: Task 1 hook-install: complete (commits a1b2c3d..d4e5f6a, tests: npm test -- hooks → 2/2 pass)]
 
 Task 2 `recovery-modes`: Recovery modes
 
 [task-start plan 2 → brief read; BASE d4e5f6a; label: Task 2 recovery-modes]
-[Step 2: run failing test → FAIL, but on an import error: Task 1 exported installHook, the brief consumes install_hook]
+[Acceptance line 1, verify mode reports a corrupt store: write the test, run it → FAIL, but on an import error: Task 1 exported installHook, the brief consumes install_hook]
 [Ruling: the brief's consumer name misspells Task 1's Produces block; use installHook]
 [Ledger: Task 2 recovery-modes: Ruling: install_hook → installHook; matches Task 1 Produces; cost if wrong: one rename]
-[Steps 2 to 5 as planned; commit b7c8d9e]
+[Run again → FAIL: verify is not defined. Watched it fail. Implement, run → PASS. Acceptance line 2 the same way; commit b7c8d9e]
 [task-done plan 2 d4e5f6a -- npm test -- recovery → ledger: Task 2 recovery-modes: complete (commits d4e5f6a..b7c8d9e, tests: npm test -- recovery → 8/8 pass)]
+
+Task 3 `recovery-notice`: The notice a repair prints
+
+[task-start plan 3 → brief read; BASE b7c8d9e; label: Task 3 recovery-notice; the brief has dictated text and a States block]
+[Acceptance line 1, repair prints the notice: write the test, run it → FAIL: no output. Watched it fail. Place the dictated text word for word → PASS]
+[Walk the States: a repair that changed nothing reads "nothing to repair"; a repair that changed files reads "repaired N files"; the placed text gives both outcomes]
+[Ledger: Task 3 recovery-notice: walked nothing changed: "nothing to repair"; files changed: "repaired N files"]
+[Commit b0c1d2e; task-done plan 3 b7c8d9e -- npm test -- notice → ledger: Task 3 recovery-notice: complete (commits b7c8d9e..b0c1d2e, tests: npm test -- notice → 2/2 pass)]
 
 ...
 

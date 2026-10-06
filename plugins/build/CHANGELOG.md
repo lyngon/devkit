@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.24.0 - 2026-10-06
+
+- `build:execute` works a task as its implementer: for each acceptance line it writes the failing test, watches it fail, then writes the code, places dictated text word for word, and walks a States block, ledgering `<label>: walked <state>: <outcome>; ...`.
+  A task with steps (an owner gate, a mandated check, or a plan written before plans had tasks without steps) is still worked in step order.
+  The completion contract speaks of acceptance lines, `task-done` takes the command that runs the task's own test files, and the skill no longer says the plan did the thinking: it asks for a session model of the mid tier or above.
+
 ## 0.23.1 - 2026-10-06
 
 - `build:delegate` starts a task's ledger line with its label: nothing goes before it, a time included, and a time goes only where a line format has `<time>`.
