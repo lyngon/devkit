@@ -104,3 +104,4 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-23.
 - Verdict: clear with patches, all applied.
 - Noticed while rewriting: `workspace` adopts any marker-less directory under `tmp/build/` whose name matches the plan slug, so a directory created by hand with that name becomes the plan's workspace; harmless in practice, kept as upstream.
 - The scripts have no file extension, so the prerequisite validator does not scan them; they contain no prerequisite terms anyway.
+- Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format, in the owner gate protocol and in the dispatch descriptions of the four templates, which gained a `[LABEL]` placeholder; brief and report names carry the slug and a report is named from its brief with `-report.md` in place of `-brief.md`.

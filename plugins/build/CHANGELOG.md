@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.20.0 - 2026-10-06
+
+- `build:delegate` and `build:execute` name a task by its label (`Task 3 rate-limiter`, or `Task 3` for a heading without a slug) in every ledger line, pause line, `execution-status write` argument, pause commit subject and gate message, and in the dispatch descriptions of the four templates, which take a `[LABEL]` placeholder.
+  Brief and report file names carry the slug, and a report is named from its brief with `-report.md` in place of `-brief.md`.
+  A ledger line whose number and slug do not belong to one heading of the plan is not read as progress until `git log` shows the commits it names.
+
 ## 0.19.0 - 2026-10-06
 
 - `build:plan` writes plans of decisions and facts: an ordinary task has Files, Interfaces, Intent, Acceptance and Commit, with no steps, no test code and no implementation, because the implementer writes the tests and the code.

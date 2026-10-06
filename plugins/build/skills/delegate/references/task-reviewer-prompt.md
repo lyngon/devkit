@@ -7,7 +7,7 @@ The reviewer reads the task's diff once and returns two verdicts: spec complianc
 
 ```text
 Dispatch a subagent with:
-  description: "Review Task N (spec + quality)"
+  description: "Review [LABEL] (spec + quality)"
   model: [MODEL, required: choose per the Model selection section of SKILL.md;
          an omitted model silently inherits the session's most expensive one]
   prompt: |
@@ -199,6 +199,7 @@ Dispatch a subagent with:
 ## Placeholders
 
 - `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md.
+- `[LABEL]`: required, the task's label as `scripts/task-brief PLAN_FILE N --label` prints it (`Task 3 rate-limiter`).
 - `[BRIEF_FILE]`: required, the task brief file (`scripts/task-brief PLAN N` prints the path; the same file the implementer worked from).
 - `[CONSTRAINT_EMPHASIS]` (optional): one sentence naming the global constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break. Never a paste of the constraints; the brief carries them.
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines, the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.

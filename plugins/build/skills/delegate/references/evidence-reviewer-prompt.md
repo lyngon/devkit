@@ -7,7 +7,7 @@ Its change lies partly or wholly outside the repository, so the reviewer reads t
 
 ```text
 Dispatch a subagent with:
-  description: "Evidence review of Task N"
+  description: "Evidence review of [LABEL]"
   model: [MODEL, required: choose per the Model selection section of SKILL.md;
          an omitted model silently inherits the session's most expensive one]
   prompt: |
@@ -174,12 +174,13 @@ Dispatch a subagent with:
 ## Placeholders
 
 - `[MODEL]`: required, at least a mid-tier model, and the most capable when the action was destructive.
+- `[LABEL]`: required, the task's label as `scripts/task-brief PLAN_FILE N --label` prints it (`Task 3 rate-limiter`).
 - `[PRE_GATE_BRIEF]`, `[POST_GATE_BRIEF]`: required, the two briefs `task-brief --part` wrote; for an unforeseen gate, the task's whole brief and `gate-<id>.md` in their place.
 - `[CONSTRAINT_EMPHASIS]` (optional): one sentence naming the global constraint this task is most likely to break.
 - `[GATE_LINES]`: required, the ledger's lines for this gate, verbatim: the pre-gate line with its pins, and every answer line or the pre-approval line.
 - `[PINNED_FILES]`: required, the paths of the pinned files, or "none" for a gate pinned by command text alone.
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines.
-- `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required; the two report files, or under `build:execute` the task's ledger lines and the hash of its record commit; after a lost workspace, the same ledger lines and hash, with the `State: workspace lost before the evidence review of Task N; reports and temporary files gone` line among `[STATE_CHANGES]`.
+- `[PRE_GATE_REPORT]`, `[POST_GATE_REPORT]`: required; the two report files, or under `build:execute` the task's ledger lines and the hash of its record commit; after a lost workspace, the same ledger lines and hash, with the `State: workspace lost before the evidence review of <label>; reports and temporary files gone` line among `[STATE_CHANGES]`.
 - `[BASE_SHA]`, `[HEAD_SHA]`: the commit before the task and the current commit.
 - `[DIFF_FILE]`: required, the path `review-package PLAN_FILE BASE HEAD` printed.
 - `[LIVE_ACCESS]`: required, how to reach the live system read-only (the tool, the profile or context, the calls the briefs' checks use), or "none" when the action changed nothing outside the repository.
