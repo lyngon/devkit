@@ -957,6 +957,9 @@ refused_template "a template without a fenced text block" no-block.md \
 refused_template "a text block without a 'prompt: |' line" no-prompt.md \
   "the text block of no-prompt.md has no 'prompt: |' line" \
   's/^  prompt: |$/  prompt:/'
+refused_template "a text block that never closes" unclosed.md \
+  "the text block of unclosed.md has no closing fence" \
+  $'0,/^````$/{/^````$/d;}'
 
 # The five templates the executors dispatch from. The expected prompt is cut
 # by the line numbers of the template's 'prompt: |' line and closing fence.

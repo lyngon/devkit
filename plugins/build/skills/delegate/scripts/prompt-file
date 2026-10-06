@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Write a prompt template's prompt to a file a subagent reads in one call, so
-# the template reaches the subagent whole and never passes through the
-# controller's context, where a pasted prompt tempts it to shorten the next.
+# the template reaches the subagent whole: the controller does not paste it,
+# because the subagent reads the file, and a pasted prompt tempts the
+# controller to shorten the next.
 #
 # The prompt is the content of the template's first fenced block whose
 # opening fence has the info string `text`: the lines after that block's
@@ -18,7 +19,8 @@
 # again after compaction or in a new session is harmless).
 # Prints the file's path on stdout and a summary on stderr.
 # Exit: 2 on a usage error or a missing file; 3 when the template has no such
-# block or the block has no `prompt: |` line, with nothing written.
+# block, the block has no `prompt: |` line or the block never closes, with
+# nothing written.
 set -euo pipefail
 
 if [ $# -ne 2 ]; then
@@ -82,6 +84,7 @@ extract() {
   END {
     if (failed) exit 3
     if (!inblock) fail(name " has no fenced block with the info string text")
+    if (!done) fail("the text block of " name " has no closing fence")
     if (!inprompt) fail("the text block of " name " has no '\''prompt: |'\'' line")
   }
 ' "$template"
