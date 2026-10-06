@@ -45,7 +45,7 @@ The "Bite-sized granularity" section goes; "Task right-sizing" stays as it is.
 An ordinary task has no steps:
 
 ````markdown
-### Task N: [Component name]
+### Task N `task-slug`: [Component name]
 
 **Files:**
 
@@ -66,6 +66,10 @@ An ordinary task has no steps:
 
 **Commit:** `feat(scope): subject`
 ````
+
+Every task heading carries a slug beside its number, kebab-case and unique in the plan, and so does every step, unique in its task; the step of an owner gate carries the gate's ID and no other slug.
+Whatever refers to a task or a step names both, so that a wrong number shows.
+The scripts and the ledger stay keyed by the number.
 
 A task that dictates text adds two blocks before the commit subject:
 
@@ -184,7 +188,7 @@ Its Review Focus sentence says "no task's acceptance lines cover" where it says 
 - The `docs/TODO.md` entry and `docs/seed-prompts/lighter-plans.md` are removed in the last commit.
 
 No script changes.
-`task-brief` extracts a step-less task whole, including a dictated block that holds headings and nested fences, and `task-start` only wraps it.
+`task-brief` extracts a step-less task whole, including a dictated block that holds headings and nested fences, finds a task by its number whether or not a slug follows it, and splits a gated task whose other steps carry slugs; `task-start` only wraps it.
 
 ### Data flow
 
@@ -214,7 +218,7 @@ A task with steps keeps the `Expected:` comparison whatever its kind, and the pe
 ### Testing
 
 - `devenv test` passes on every commit: the validators, the hooks and the script tests.
-- One regression test in `plugins/build/tests/scripts.sh`: `task-brief` on a step-less task with a dictated block that holds a heading and a nested fence, followed by another task, prints the task whole and nothing after it. The design relies on this behaviour and nothing pins it today.
+- One regression test in `plugins/build/tests/scripts.sh`: `task-brief` on a step-less task with a dictated block that holds a heading and a nested fence, followed by another task, prints the task whole and nothing after it. The same test covers a heading with a slug after the number and a gated task whose other steps carry slugs. The design relies on this behaviour and nothing pins it today.
 - A rehearsal in a throwaway repository under `tmp/`, with nested headless sessions that load this worktree's plugins, as the owner gates work did. It runs right after the plan skill, the delegate skill and its two templates have landed, and before the rest. A small Design with three tasks (one of code, one with a mandated check, one that dictates protocol text with States) goes through `build:plan` and then `build:delegate` on a mid-tier model. It checks that the plan's ordinary tasks have no steps and no test code, that the handoff reports the size, that the implementer's report maps each acceptance line to a test, that the task reviewer returns a verdict per line and per state, and that the ledger shows three completed tasks. A departure is fixed in the file that owns the sentence, one commit per defect, and the rehearsal runs again. Its evidence is the body of a record commit.
 - This work's own plan follows this Design where the installed `build:plan` differs, as the first real plan of the new kind.
 
@@ -257,13 +261,13 @@ None.
 
 ### Review Focus
 
-- A dictated block that holds a fence or a heading, fenced too short: the brief must not end inside it. Pinned in Task 1 (the extraction) and Task 2 (the fencing rule).
-- A plan written before this change, with steps and code and no Acceptance block, run by the new executors: it must still run. Pinned in the States of Tasks 3, 4 and 6.
-- A task whose acceptance lines no test can run, executed inline: `task-done` still needs a command. Pinned in Task 6.
-- A ruling that rewords dictated text: later reviewers must not report the difference as a defect. Pinned in the States of Tasks 3 and 4.
-- The two briefs of a task with an owner gate under the new implementer template: a part without acceptance lines must not make the report incomplete. Pinned in the States of Tasks 3 and 4.
+- A dictated block that holds a fence or a heading, fenced too short: the brief must not end inside it. Pinned in Task 1 (`task-brief-test`), the extraction, and Task 2 (`plan-skill`), the fencing rule.
+- A plan written before this change, with steps and code and no Acceptance block, run by the new executors: it must still run. Pinned in the States of Tasks 3 (`implementer`), 4 (`task-reviewer`) and 6 (`execute-skill`).
+- A task whose acceptance lines no test can run, executed inline: `task-done` still needs a command. Pinned in Task 6 (`execute-skill`).
+- A ruling that rewords dictated text: later reviewers must not report the difference as a defect. Pinned in the States of Tasks 3 (`implementer`) and 4 (`task-reviewer`).
+- The two briefs of a task with an owner gate under the new implementer template: a part without acceptance lines must not make the report incomplete. Pinned in the States of Tasks 3 (`implementer`) and 4 (`task-reviewer`).
 
-### Task 1: Pin `task-brief` on a task without steps
+### Task 1 `task-brief-test`: Pin `task-brief` on tasks without steps and with slugs
 
 **Files:**
 
@@ -276,19 +280,22 @@ None.
 
 **Intent:** Every later task relies on `task-brief` extracting a task that has no `- [ ] **Step` line, and nothing pins that today: the existing fixture's tasks all have steps.
 Add checks to the `task-brief` section of the script tests, in the style of the checks around them (`check`, `equals`, `contains`, `lacks`, the `fixture` and `brief` helpers).
-The fixture task has the blocks a plan now writes (`**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`) and a dictated block fenced with four backticks that holds a `##` heading and a three-backtick fence.
+The fixture task has a heading with a slug (``### Task N `slug`: Title``), the blocks a plan now writes (`**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`) and a dictated block fenced with four backticks that holds a `##` heading and a three-backtick fence.
+A second fixture task has an owner gate between two steps that carry a slug after their number (``- [ ] **Step 1 `slug`: Title**``); the gate's marker is spelled as today.
 
 **Acceptance:**
 
 - For a task with no step line, `task-brief` exits 0 and the brief holds every line of the task, from its heading to its `**Commit:**` line.
+- A task whose heading has a slug after its number is found by that number, and asking for Task 1 never returns Task 12.
+- For the task with an owner gate, `--part pre-gate` ends at the gate block and `--part post-gate` starts at it, with the slugged steps on their own side.
 - The heading and the inner fence inside the dictated block are in the brief, and the brief does not end at that heading.
 - The brief holds no line of the task that follows and no line of a trailing `## Execution status` section, and ends with the Global Constraints section.
 - Each new check was seen failing once, against a fixture or a scratch copy of the script altered so that its property does not hold; the report shows that run, and the alteration is not committed.
 - `bash plugins/build/tests/scripts.sh` exits 0 and prints no `FAIL:` line.
 
-**Commit:** `test(build): pin task-brief on a task without steps`
+**Commit:** `test(build): pin task-brief on tasks without steps and with slugs`
 
-### Task 2: The plan skill writes decisions and facts
+### Task 2 `plan-skill`: The plan skill writes decisions and facts
 
 **Files:**
 
@@ -298,7 +305,7 @@ The fixture task has the blocks a plan now writes (`**Intent:**`, `**Acceptance:
 **Interfaces:**
 
 - Consumes: nothing.
-- Produces: the task blocks that Tasks 3, 4, 6 and 7 read by name: `**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`; a task has `- [ ] **Step N: ...**` lines only with an owner gate or a mandated check; the recommendation rule "about five tasks or fewer, and no owner gate the agent performs", which Task 9 repeats.
+- Produces: the task blocks that Tasks 3 (`implementer`), 4 (`task-reviewer`), 6 (`execute-skill`) and 7 (`final-reviewer`) read by name: `**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`; the heading ``### Task N `slug`: Title``; step lines ``- [ ] **Step N `slug`: Title**``, only in a task with an owner gate or a mandated check, with the owner gate marker spelled as before; the recommendation rule "about five tasks or fewer, and no owner gate the agent performs", which Task 9 (`workflow`) repeats.
 
 **Intent:** The Design's "The plan skill" section, as skill text.
 The dictated blocks below are the whole change to `SKILL.md`; everything they do not name stays, including "Where the plan lives", "Scope check", "File structure", "Task right-sizing" and "Owner gates".
@@ -320,7 +327,9 @@ The dictated blocks below are the whole change to `SKILL.md`; everything they do
 - The planner writes a task that dictates protocol text: a States block as well, and self-review item 8 reads the text in each state.
 - A dictated block holds a fence or a heading: its own fence is longer, so the brief is not cut.
 - The planner writes a task with a mandated check: steps with the failing run, the work and the passing run, every run with its `Expected:` line.
-- The planner writes a task with an owner gate: steps as "Owner gates" says, unchanged, with Intent and Acceptance only for work the steps leave open.
+- The planner writes a task with an owner gate: steps as "Owner gates" says, with Intent and Acceptance only for work the steps leave open; the gate's marker is spelled as before and its ID is its slug, and the other steps carry their own.
+- The planner refers to a task or a step, anywhere in the plan: number and slug together.
+- An executor asks for a task by its number: the heading still begins `### Task N` followed by a space, so the task is found.
 - The handoff with no execution method supplied: the first message, with the size line and a recommendation by the rule.
 - The handoff with a method supplied: the second message, with the size line and no recommendation.
 - A plan with an owner gate the agent performs: `build:delegate` is recommended, and the inline warning is in the first message, and in the second when the method is `build:execute`.
@@ -386,7 +395,7 @@ The section "Task structure" becomes, heading included:
 An ordinary task has no steps:
 
 ```markdown
-### Task N: [Component name]
+### Task N `task-slug`: [Component name]
 
 **Files:**
 
@@ -410,6 +419,8 @@ An ordinary task has no steps:
 
 The paths above are illustrations; the repository's layout decides.
 
+- The heading carries the task's number and its slug: kebab-case, one to three words, unique in the plan.
+  Refer to a task by both, as in "Task 3 (`rate-limiter`)", in the plan and in everything written about it, so that a wrong number shows.
 - **Acceptance** holds one line per behaviour, edge behaviours included.
   Each line can fail on its own: a reviewer can name the test that covers it, or the place in the diff that meets it, without reading another line.
   The implementer writes a failing test for each line and then the code; the plan holds no test code and no list of test cases.
@@ -458,22 +469,23 @@ It keeps its Files and Interfaces blocks, and Intent and Acceptance for the work
 Its steps come after those blocks and hold what must happen in order, in checkbox syntax:
 
 ```markdown
-- [ ] **Step 1: Show the check failing**
+- [ ] **Step 1 `check-fails`: Show the check failing**
 
 Run: `<the check's command>`
 Expected: `<its exact output while the property does not hold>`
 
-- [ ] **Step 2: Do the work**
+- [ ] **Step 2 `work`: Do the work**
 
 Build what the Intent and the acceptance lines require.
 
-- [ ] **Step 3: Show the check passing**
+- [ ] **Step 3 `check-passes`: Show the check passing**
 
 Run: `<the check's command>`
 Expected: `<its exact output once the property holds>`
 ```
 
 Every step that runs a command has an `Expected:` line.
+Every step carries a slug after its number, unique in its task; the step of an owner gate carries the gate's ID in its marker and no other slug.
 The task keeps its commit subject unless a step makes the commit, as the record commit of an owner gate does.
 The steps of a task with an owner gate are in [Owner gates](#owner-gates).
 `````
@@ -521,7 +533,8 @@ In "Self-review", items 3 to 6 of the numbered list are replaced by the six item
    Dictated blocks and tasks with steps get no number; their content is exact by requirement.
    Note the lines of the whole `## Plan` section and the longest task with the reason for its length; the handoff reports them.
 5. **Type consistency.** Do the names, types and signatures in every Consumes line match the Produces line they come from?
-   A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+   A function called `clearLayers()` in Task 3 (`layers`) but `clearFullLayers()` in Task 7 (`render`) is a bug.
+   Does every reference to a task or a step give the number and the slug that its heading has?
 6. **Review focus.** For each input class or failure mode the spec implies, is there a task whose acceptance lines cover it?
    The five uncovered ones most likely to bite a person go in the Review Focus section, and each line there gets its acceptance line added to the owning task.
    An empty section means you checked and found none, not that you skipped the check.
@@ -598,7 +611,7 @@ Self-review item 8 checks dictated ADR text, `CLAUDE.md` lines and `CONCEPTS.md`
 
 **Commit:** `feat(build): write plans of decisions and facts, without steps or code`
 
-### Task 3: The implementer of a plan task writes the tests
+### Task 3 `implementer`: The implementer of a plan task writes the tests
 
 **Files:**
 
@@ -607,8 +620,8 @@ Self-review item 8 checks dictated ADR text, `CLAUDE.md` lines and `CONCEPTS.md`
 
 **Interfaces:**
 
-- Consumes: the task blocks of Task 2.
-- Produces: three items in the implementer's report, read by Task 4: `**Acceptance**`, `**Task test command**` and `**States**`; a BLOCKED report that names a state and a sentence; a `State:` ledger line for a ruling that rewords dictated text.
+- Consumes: the task blocks of Task 2 (`plan-skill`).
+- Produces: three items in the implementer's report, read by Task 4 (`task-reviewer`): `**Acceptance**`, `**Task test command**` and `**States**`; a BLOCKED report that names a state and a sentence; a `State:` ledger line for a ruling that rewords dictated text.
 
 **Intent:** The Design's "The delegate skill and its templates", the implementer's half.
 The controller picks a mid-tier implementer for every plan task, and the implementer template tells it to turn acceptance lines into failing tests, to place dictated text as written and to stop when that text breaks a state.
@@ -729,7 +742,7 @@ In "Report Format", after the item that begins "What you tested and test results
 
 **Commit:** `feat(build): give plan tasks a mid-tier implementer who writes the tests`
 
-### Task 4: The task reviewer gives a verdict per acceptance line and state
+### Task 4 `task-reviewer`: The task reviewer gives a verdict per acceptance line and state
 
 **Files:**
 
@@ -738,8 +751,8 @@ In "Report Format", after the item that begins "What you tested and test results
 
 **Interfaces:**
 
-- Consumes: the report items `**Acceptance**`, `**Task test command**` and `**States**` of Task 3; the task blocks of Task 2.
-- Produces: the verdict words `COVERED`, `MET` and `MISSING` per acceptance line and `HOLDS` and `BROKEN` per state, which Task 5 looks for and Task 7 reuses.
+- Consumes: the report items `**Acceptance**`, `**Task test command**` and `**States**` of Task 3 (`implementer`); the task blocks of Task 2 (`plan-skill`).
+- Produces: the verdict words `COVERED`, `MET` and `MISSING` per acceptance line and `HOLDS` and `BROKEN` per state, which Task 5 (`rehearsal`) looks for and Task 7 (`final-reviewer`) reuses.
 
 **Intent:** The Design's "The delegate skill and its templates", the reviewer's half.
 Spec compliance becomes a verdict per acceptance line, the reviewer runs the task's own tests once where it used to run none, and a task with a States block gets a verdict per state.
@@ -848,7 +861,7 @@ In "Common rationalizations", add this row after the row that begins `| "Close e
 
 **Commit:** `feat(build): review a task by a verdict per acceptance line and state`
 
-### Task 5: Rehearse a plan without steps end to end
+### Task 5 `rehearsal`: Rehearse a plan without steps end to end
 
 **Files:**
 
@@ -856,7 +869,7 @@ In "Common rationalizations", add this row after the row that begins `| "Close e
 
 **Interfaces:**
 
-- Consumes: Tasks 2, 3 and 4, loaded from this worktree's `plugins/build`, `plugins/practice` and `plugins/review`.
+- Consumes: Tasks 2 (`plan-skill`), 3 (`implementer`) and 4 (`task-reviewer`), loaded from this worktree's `plugins/build`, `plugins/practice` and `plugins/review`.
 - Produces: an empty record commit whose body is the evidence, or one fix commit per defect and then the record commit.
 
 **Intent:** No test runs skill text, so nested headless sessions run it: one writes a plan with `build:plan` from a small Design, the next executes that plan with `build:delegate`.
@@ -891,8 +904,8 @@ If a nested run departs from the skills, find the sentence of skill text that le
 **Acceptance:**
 
 - The plan session appended a `## Plan` section to the design file and committed it on `feat/rehearsal`.
-- In that plan, the task for `bin/slug` has no `- [ ] **Step` line and no fenced block of test code or implementation.
-- The task for `VERSION` has steps that run `scripts/check-version` twice, with `Expected:` `version mismatch` before the work and `version ok: 0.1.0` after it.
+- In that plan, every task heading has a slug after its number, and the task for `bin/slug` has no `- [ ] **Step` line and no fenced block of test code or implementation.
+- The task for `VERSION` has steps, each with a slug after its number, that run `scripts/check-version` twice, with `Expected:` `version mismatch` before the work and `version ok: 0.1.0` after it.
 - The task for `RELEASING.md` has a `**States:**` block that names both paths and a fenced `**Dictated text:**` block.
 - The plan session's final message reports the plan's lines, its number of tasks and its longest task.
 - Each task's report in the nested workspace (`tmp/build/<plan>/task-<N>-report.md`) has an Acceptance item that names a test or a place in the diff for every acceptance line.
@@ -903,7 +916,7 @@ If a nested run departs from the skills, find the sentence of skill text that le
 
 **Commit:** `test(build): rehearse a plan without steps end to end` (empty, `git commit --allow-empty`, after any fix commits)
 
-### Task 6: The inline executor writes the tests and the code
+### Task 6 `execute-skill`: The inline executor writes the tests and the code
 
 **Files:**
 
@@ -911,7 +924,7 @@ If a nested run departs from the skills, find the sentence of skill text that le
 
 **Interfaces:**
 
-- Consumes: the task blocks of Task 2.
+- Consumes: the task blocks of Task 2 (`plan-skill`).
 - Produces: the ledger line `Task <N>: walked <state>: <outcome>; ...`, one pair per state.
 
 **Intent:** The Design's "The execute skill".
@@ -1018,7 +1031,7 @@ In "Common rationalizations", the rows that begin `| "The plan's code is right` 
 
 **Commit:** `feat(build): execute a plan whose tests and code are the executor's`
 
-### Task 7: The final reviewer checks acceptance lines and states across the branch
+### Task 7 `final-reviewer`: The final reviewer checks acceptance lines and states across the branch
 
 **Files:**
 
@@ -1026,7 +1039,7 @@ In "Common rationalizations", the rows that begin `| "The plan's code is right` 
 
 **Interfaces:**
 
-- Consumes: the task blocks of Task 2; the words `HOLDS` and `BROKEN` of Task 4.
+- Consumes: the task blocks of Task 2 (`plan-skill`); the words `HOLDS` and `BROKEN` of Task 4 (`task-reviewer`).
 - Produces: the output section "Acceptance lines and states".
 
 **Intent:** The Design's "The reviewer template of the review plugin".
@@ -1081,7 +1094,7 @@ In "Output format", after the "### Strengths" block, add:
 
 **Commit:** `feat(review): check acceptance lines and states across the branch`
 
-### Task 8: A design fixes the values the plan copies
+### Task 8 `approach-check`: A design fixes the values the plan copies
 
 **Files:**
 
@@ -1110,7 +1123,7 @@ In `plugins/discover/skills/approach/SKILL.md`, "Architectural path", step 7, af
 
 **Commit:** `feat(discover): check that a design fixes its values and edge behaviours`
 
-### Task 9: The workflow says what a plan holds
+### Task 9 `workflow`: The workflow says what a plan holds
 
 **Files:**
 
@@ -1118,7 +1131,7 @@ In `plugins/discover/skills/approach/SKILL.md`, "Architectural path", step 7, af
 
 **Interfaces:**
 
-- Consumes: the recommendation rule of Task 2.
+- Consumes: the recommendation rule of Task 2 (`plan-skill`).
 - Produces: nothing.
 
 **Intent:** `shared/WORKFLOW.md` is symlinked into `plugins/build/skills/plan/` and `plugins/discover/skills/approach/`, so this commit is a visible change to both plugins and bumps both.
@@ -1142,7 +1155,7 @@ In `shared/WORKFLOW.md`, section "Architectural change", steps 2 and 4 of the nu
 
 **Commit:** `feat(build,discover): say what a plan holds in the workflow`
 
-### Task 10: Remove the landed seed prompt
+### Task 10 `seed-prompt`: Remove the landed seed prompt
 
 **Files:**
 
