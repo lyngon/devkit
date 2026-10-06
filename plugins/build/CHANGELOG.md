@@ -4,6 +4,10 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.18.1 - 2026-10-06
+
+- `task-done` builds the test log's name from the label alone, so a repository path that holds a space no longer breaks the log's path and keeps the test command from running.
+
 ## 0.18.0 - 2026-10-06
 
 - `task-start` prints a third line, `label: <label>`, with the label `task-brief --label` gives (`Task 3 rate-limiter`, or `Task 3` for a task without a slug), with or without `--part`.

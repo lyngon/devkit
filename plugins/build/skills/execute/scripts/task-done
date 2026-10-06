@@ -29,8 +29,8 @@ git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&
 label=$("${BASH:-bash}" "$delegate/task-brief" "$plan" "$n" --label)
 
 dir=$("${BASH:-bash}" "$delegate/workspace" "$plan")
-log="$dir/task-${label#Task }"
-log="${log// /-}-tests.log"
+name=${label#Task }
+log="$dir/task-${name// /-}-tests.log"
 ledger="$dir/progress.md"
 
 # Render the command the way a person would type it, for the ledger line.

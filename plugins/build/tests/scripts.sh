@@ -858,6 +858,17 @@ refused_done() {
 refused_done "a malformed slug" $'### Task 3 `Rate_Limiter`: Title' 3
 refused_done "a task the plan does not have" $'### Task 3 `rate-limiter`: Title' 9
 
+# A repository path with a space does not change where the log goes.
+repo=$(new_repo "task done spaced")
+plan=$repo/docs/plans/2026-01-01-fixture.md
+fixture >"$plan"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m "docs(plan): fixture"
+base=$(git -C "$repo" rev-parse HEAD)
+done_run "$plan" 1 "$base" -- bash -c 'echo ok'
+check "task-done: a repository path with a space still runs the check and records the task" \
+  equals "$code|$(grep -c '^Task 1: complete (commits' <<<"$(ledger_of)")" "0|1"
+
 # --- Summary -----------------------------------------------------------------
 
 if [ "$failures" -gt 0 ]; then
