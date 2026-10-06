@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.23.0 - 2026-10-06
+
+- `build:delegate` hands a prompt template to a subagent as a file: the new script `prompt-file` writes the template's prompt to the plan's workspace, and the dispatch names that file and fills each placeholder by its name, one line each.
+  The controller never pastes, condenses or rewords a template; under 0.22.1 the rule against condensing held for the first dispatches of a run and not for the later ones.
+  `build:execute` hands the templates of the final reviewer and the evidence reviewer over the same way.
+
 ## 0.22.1 - 2026-10-06
 
 - `build:delegate` sends a prompt template whole: a fresh subagent reads the template's prompt with the placeholders filled, and the controller never condenses or rewords it.

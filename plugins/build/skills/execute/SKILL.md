@@ -244,6 +244,8 @@ The final review stays after the last task, gated or not; the record commits of 
 A finding whose fix needs a live change gets an unforeseen owner gate in the fix pass.
 
 **With a subagent tool.** Call the Skill tool for `review:request`; it holds the reviewer template.
+Hand the reviewer the template's prompt as a file: `<this skill's directory>/../delegate/scripts/prompt-file PLAN_FILE TEMPLATE_FILE` writes it to the workspace and prints the path, and the dispatch names that file as the reviewer's instructions and fills each placeholder by its name.
+Never paste, condense or reword the template; the evidence reviewer's template goes out the same way.
 Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's `Ruling:` lines, so it can weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 A `State:` line is a fact that superseded the plan, the spec or an inventory after they were written (a manual action, a resource removed, a decision the user took in chat); ledger each one as `State: <fact>` when you learn it.
 Specify the model explicitly; an omitted model inherits the session's, which may not be the most capable.

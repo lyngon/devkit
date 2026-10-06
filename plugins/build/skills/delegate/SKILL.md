@@ -250,9 +250,11 @@ Reserve one dispatch per task for work that needs its own judgment, its own test
 Everything you paste into a dispatch prompt, and everything a subagent prints back, stays resident in your context for the rest of the session and is re-read on every later turn.
 Hand artifacts over as files.
 
-**A template goes out whole.**
-A fresh subagent whose dispatch has a prompt template (the four in `references/`, and the reviewer template that `review:request` carries) reads that prompt as the template has it, with the placeholders filled and a section left out only where the template's file or its skill says so.
-Never condense or reword a template to save context: a rule reaches the subagent only if its sentence does, and a paraphrase drops the ones you did not think to keep.
+**A template goes out as a file.**
+A fresh subagent whose dispatch has a prompt template (the four in `references/`, and the reviewer template that `review:request` carries) reads the template's prompt itself, from a file.
+Run this skill's `scripts/prompt-file PLAN_FILE TEMPLATE_FILE`; it writes the template's prompt, without the dispatch lines around it and the notes below it, to the workspace and prints the path (without bash: name the template file and tell the subagent that the prompt in its fenced block is its instructions).
+The dispatch names that file as the subagent's instructions, to be read first and in full, and then fills each placeholder by its name, one line each; where the template's file or its skill says to leave a section out, the dispatch says that the section does not apply.
+Never paste, condense or reword a template: a pasted prompt stays in your context for the rest of the session, which is what tempts a controller to shorten the next one, and a rule reaches the subagent only if its sentence does.
 
 **Waiting on dispatched subagents.**
 Never poll a wait interface with short timeouts, and never sit in one silent, open-ended wait either.
@@ -335,7 +337,7 @@ Implementer self-review never replaces the task review; both are needed.
   The output never enters your own context, and the reviewer sees every commit with its full message, the stat summary and the full diff with context in one read.
   Use the BASE you recorded before dispatching the implementer, never `HEAD~1`, which silently truncates multi-commit tasks.
   Never dispatch a task reviewer without a diff file.
-- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package), at most one sentence of emphasis, and the state changes since the inputs were written, when there are any.
+- **Reviewer inputs:** besides its prompt file, the task reviewer gets three paths (the same brief file, the report file, and the review package), at most one sentence of emphasis, and the state changes since the inputs were written, when there are any.
 - The brief carries the plan's Global Constraints section, so the reviewer reads the binding requirements where the implementer read them; never paste them into the dispatch.
   Your one sentence of emphasis is the attention lens: the constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break.
   The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the emphasis is for what THIS project's spec demands.

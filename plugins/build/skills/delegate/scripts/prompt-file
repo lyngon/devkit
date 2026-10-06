@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Write a prompt template's prompt to a file a subagent reads in one call, so
+# the template reaches the subagent whole and never passes through the
+# controller's context, where a pasted prompt tempts it to shorten the next.
+#
+# The prompt is the content of the template's first fenced block whose
+# opening fence has the info string `text`: the lines after that block's
+# `prompt: |` line, up to the block's closing fence, with the four spaces of
+# indentation the block gives every line removed. A fenced block inside the
+# prompt is indented with it, so it stays in the output and does not end it.
+# Nothing of the template outside the prompt is written: not the dispatch
+# lines above it (`Dispatch a subagent with:`, `description:`, `model:`) and
+# not the notes below the block, which are for the controller.
+#
+# Usage: prompt-file PLAN_FILE TEMPLATE_FILE
+# Output: <repo-root>/tmp/build/<plan-basename>/prompt-<template basename>
+# (one per template and plan; every call writes the same text, so writing it
+# again after compaction or in a new session is harmless).
+# Prints the file's path on stdout and a summary on stderr.
+# Exit: 2 on a usage error or a missing file; 3 when the template has no such
+# block or the block has no `prompt: |` line, with nothing written.
+set -euo pipefail
+
+if [ $# -ne 2 ]; then
+  echo "usage: prompt-file PLAN_FILE TEMPLATE_FILE" >&2
+  exit 2
+fi
+
+plan=$1
+template=$2
+[ -f "$plan" ] || {
+  echo "no such plan file: $plan" >&2
+  exit 2
+}
+[ -f "$template" ] || {
+  echo "no such template file: $template" >&2
+  exit 2
+}
+
+name=$(basename "$template")
+
+# A fence opens with three or more backticks or tildes, indented by at most
+# three spaces, and closes with a run of the same character at least as long,
+# indented the same way. The prompt's own fenced blocks are indented four
+# spaces, so they never close the block that holds them.
+extract() {
+  awk -v name="$name" '
+  function fail(msg) {
+    printf "prompt-file: %s\n", msg | "cat 1>&2"
+    close("cat 1>&2")
+    failed = 1
+    exit 3
+  }
+  done { next }
+  !inblock {
+    if (match($0, /^ ? ? ?(```+|~~~+)text[ \t]*$/)) {
+      run = $0
+      sub(/^ +/, "", run)
+      sub(/text[ \t]*$/, "", run)
+      fch = substr(run, 1, 1)
+      flen = length(run)
+      inblock = 1
+    }
+    next
+  }
+  {
+    if (match($0, /^ ? ? ?(```+|~~~+)[ \t]*$/)) {
+      run = $0
+      gsub(/[ \t]/, "", run)
+      if (substr(run, 1, 1) == fch && length(run) >= flen) {
+        done = 1
+        next
+      }
+    }
+    if (!inprompt) {
+      if ($0 ~ /^[ \t]*prompt:[ \t]*\|[ \t]*$/) inprompt = 1
+      next
+    }
+    sub(/^    /, "")
+    print
+  }
+  END {
+    if (failed) exit 3
+    if (!inblock) fail(name " has no fenced block with the info string text")
+    if (!inprompt) fail("the text block of " name " has no '\''prompt: |'\'' line")
+  }
+' "$template"
+}
+
+# Invoke via bash rather than direct exec: some plugin installers strip Unix
+# exec bits when unpacking.
+dir=$("${BASH:-bash}" "$(cd "$(dirname "$0")" && pwd)/workspace" "$plan")
+out="$dir/prompt-$name"
+
+# Write next to the prompt file and move it into place only on success, so a
+# refusal never leaves a partial file behind.
+tmpout=$(mktemp "${out}.XXXXXX")
+trap 'rm -f "$tmpout"' EXIT
+
+extract >"$tmpout"
+mv "$tmpout" "$out"
+trap - EXIT
+printf '%s\n' "$out"
+echo "prompt-file: $name, $(wc -l <"$out" | tr -d ' ') lines" >&2

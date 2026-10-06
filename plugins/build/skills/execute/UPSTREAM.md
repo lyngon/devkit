@@ -52,6 +52,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Final review: a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is ruled on and ledgered; the fix pass takes the rest.
 - Owner gates, which are not upstream: `../delegate/references/owner-gates.md` is read at setup, and Resuming runs also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before the ledger is read, its other steps once the ledger exists, created first with its identity line when none exists and no Execution status recreates it.
 - State walk, which is not upstream: in the final review's fix pass, a fix to protocol text (text that names states and the events between them, or a rule that holds across steps, recognized by a sentence that is read on more than one path) gets one, with the states and paths listed before the edit, each read again after it, and the walk ledgered as `Final: walked <finding>; ...`; one rationalization row.
+- Final review: the reviewer reads the template's prompt from a file that `../delegate/scripts/prompt-file` writes to the workspace, and the dispatch names that file and fills each placeholder by its name; the template is never pasted, condensed or reworded, and the evidence reviewer's template goes out the same way.
 
 ## Review notes
 

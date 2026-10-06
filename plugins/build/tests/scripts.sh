@@ -757,6 +757,146 @@ status restore "$repo/docs/plans/nowhere.md"
 check "execution-status: a missing plan file exits 2" \
   equals "$code|$err" "2|no such plan file: $repo/docs/plans/nowhere.md"
 
+# --- prompt-file -------------------------------------------------------------
+
+# A template whose outer fence has four backticks: a fenced block inside the
+# prompt, notes for the controller below it, and a later text block.
+template_fixture() {
+  cat <<'EOF'
+# Worker prompt template
+
+Use this template when dispatching a worker.
+
+````text
+Dispatch a subagent with:
+  description: "Do [LABEL]"
+  model: [MODEL, required;
+         a second line]
+  prompt: |
+    You are doing [LABEL].
+
+    ## Commands
+
+    ```bash
+    git log [BASE]..[HEAD]
+    ```
+
+    Report back.
+````
+
+## Placeholders
+
+- `[LABEL]`: for the controller only.
+
+```text
+A later block that is not the prompt.
+```
+EOF
+}
+
+repo=$(new_repo prompt-file)
+plan=$repo/docs/plans/2026-01-01-fixture.md
+printf '# Plan\n' >"$plan"
+mkdir -p "$repo/templates"
+template=$repo/templates/worker-prompt.md
+template_fixture >"$template"
+workspace_of_plan=$(cd "$repo" && bash "$delegate/workspace" "$plan")
+prompt_file() {
+  run bash -c 'cd "$1" && shift && bash "$@"' _ "$repo" "$delegate/prompt-file" "$@"
+  body=$(cat "$out" 2>/dev/null || true)
+}
+
+prompt_file "$plan" "$template"
+check "prompt-file: writes prompt-<template name> to the plan's workspace and prints its path" \
+  equals "$code|$out" "0|$workspace_of_plan/prompt-worker-prompt.md"
+check "prompt-file: prints a one-line summary on stderr" \
+  equals "$err" "prompt-file: worker-prompt.md, 9 lines"
+check "prompt-file: the prompt is the lines after 'prompt: |' up to the closing fence, without the block's indentation" \
+  equals "$body" "$(
+    cat <<'EOF'
+You are doing [LABEL].
+
+## Commands
+
+```bash
+git log [BASE]..[HEAD]
+```
+
+Report back.
+EOF
+  )"
+check "prompt-file: a fenced block inside the prompt stays and does not end it" \
+  equals "$(grep -c -x -e '```bash' -e '```' -e 'Report back.' <<<"$body")" "3"
+outside=0
+for text in "Dispatch a subagent with:" "description:" "model:" "a second line" "prompt: |" \
+  "Placeholders" "for the controller only" "A later block" "Use this template"; do
+  if grep -qF -- "$text" <<<"$body"; then
+    outside=$((outside + 1))
+  fi
+done
+check "prompt-file: nothing of the template outside the prompt is in the output" \
+  equals "$outside|$(head -n 1 <<<"$body")" "0|You are doing [LABEL]."
+
+first=$body
+printf 'stale\n' >"$workspace_of_plan/prompt-worker-prompt.md"
+prompt_file "$plan" "$template"
+check "prompt-file: every call writes the same text for the same template" \
+  equals "$code|$body" "0|$first"
+
+prompt_usage="usage: prompt-file PLAN_FILE TEMPLATE_FILE"
+prompt_file "$plan"
+check "prompt-file: one argument is a usage error" \
+  equals "$code|$out|$err" "2||$prompt_usage"
+prompt_file "$plan" "$template" extra
+check "prompt-file: a third argument is a usage error" \
+  equals "$code|$out|$err" "2||$prompt_usage"
+prompt_file "$repo/docs/plans/nowhere.md" "$template"
+check "prompt-file: a missing plan file exits 2" \
+  equals "$code|$out|$err" "2||no such plan file: $repo/docs/plans/nowhere.md"
+prompt_file "$plan" "$repo/templates/nowhere.md"
+check "prompt-file: a missing template file exits 2" \
+  equals "$code|$out|$err" "2||no such template file: $repo/templates/nowhere.md"
+
+# refused_template <label> <name> <message> <sed script>: the fixture edited
+# by the sed script is refused with exit 3 and that message, and writes nothing.
+refused_template() {
+  local label=$1 name=$2 message=$3 script=$4
+  template_fixture | sed "$script" >"$repo/templates/$name"
+  prompt_file "$plan" "$repo/templates/$name"
+  check "prompt-file: $label exits 3 and writes nothing" \
+    equals "$code|$out|$err|$(compgen -G "$workspace_of_plan/prompt-$name*" || true)" "3||prompt-file: $message|"
+}
+refused_template "a template without a fenced text block" no-block.md \
+  "no-block.md has no fenced block with the info string text" \
+  's/^\(`\{3,\}\)text$/\1markdown/'
+refused_template "a text block without a 'prompt: |' line" no-prompt.md \
+  "the text block of no-prompt.md has no 'prompt: |' line" \
+  's/^  prompt: |$/  prompt:/'
+
+# The five templates the executors dispatch from. The expected prompt is cut
+# by the line numbers of the template's 'prompt: |' line and closing fence.
+real_template() {
+  local path=$1 fence=$2 first_line=$3 start end
+  start=$(grep -n -m 1 -x '  prompt: |' "$path" | cut -d: -f1)
+  end=$(grep -n -m 1 -x -- "$fence" "$path" | cut -d: -f1)
+  prompt_file "$plan" "$path"
+  check "prompt-file: ${path##*/} gives its whole prompt and nothing around it" \
+    equals "$code|${out##*/}|$(head -n 1 <<<"$body")|$body" \
+    "0|prompt-${path##*/}|$first_line|$(sed -n "$((start + 1)),$((end - 1))p" "$path" | sed 's/^    //')"
+}
+references=$build/skills/delegate/references
+real_template "$references/implementer-prompt.md" '```' 'You are implementing [LABEL]: [task name]'
+real_template "$references/task-reviewer-prompt.md" '```' \
+  "You are reviewing one task's implementation: first whether it matches its"
+real_template "$references/re-review-prompt.md" '```' \
+  "You are re-reviewing one task's fix round. A previous review produced"
+real_template "$references/evidence-reviewer-prompt.md" '```' \
+  "You are reviewing one task that passed an owner gate: the owner"
+real_template "$build/../review/skills/request/references/code-reviewer.md" '````' \
+  "You are a senior code reviewer with expertise in software architecture,"
+check "prompt-file: the review plugin's template keeps the fenced commands inside its prompt" \
+  equals "$(grep -c -x -e '```bash' -e '## Review package' <<<"$body")" "2"
+
 # --- task-start --------------------------------------------------------------
 
 execute=$build/skills/execute/scripts
