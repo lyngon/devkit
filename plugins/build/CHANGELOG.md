@@ -4,6 +4,13 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.17.0 - 2026-10-06
+
+- `task-brief` reads a task's slug from its heading, ``### Task N `slug`: Title``, and names the brief by it: `task-N-slug-brief.md`, `task-N-slug-pre-gate-brief.md` and `task-N-slug-post-gate-brief.md`; a heading without a slug gives the names as before.
+  A slug that is not kebab-case, is `pre-gate` or `post-gate`, or is shared by two task headings outside code fences is refused with exit 3 and nothing written.
+  `task-brief PLAN_FILE N --label` prints the label, `Task N slug` or `Task N`, writes no file and does not look at the task's owner gate; it does not combine with `--part` or an OUTFILE.
+  Tests cover a task with no step line and a task with an owner gate whose other steps carry a slug.
+
 ## 0.16.0 - 2026-10-06
 
 - A fix to protocol text gets a state walk before it is made.

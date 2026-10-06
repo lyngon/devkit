@@ -400,6 +400,181 @@ brief "$plan" 7
 check "task-brief: a missing task exits 3" \
   equals "$code|$err" "3|task-brief: task 7 not found (no heading matching Task 7)"
 
+# A task with no step line, holding a heading and a fence inside a fenced
+# block, between a task and a trailing Execution status.
+stepless_fixture() {
+  cat <<'EOF'
+# Stepless
+
+## Plan
+
+### Global Constraints
+
+- Constraint one.
+
+### Task 1 `first`: Before
+
+Before text.
+
+### Task 2 `dictated`: No steps
+
+**Intent:** Place the text.
+
+````markdown
+## Inside heading
+
+```bash
+echo hi
+```
+````
+
+After the block.
+
+**Commit:** `docs: place the text`
+
+### Task 3 `after`: After
+
+After text.
+
+## Execution status
+
+Resume at: Task 3
+EOF
+}
+
+stepless=$repo/docs/plans/2026-01-01-stepless.md
+stepless_fixture >"$stepless"
+brief "$stepless" 2
+stepless_task=$(sed -n '/^### Task 2 /,/^\*\*Commit:\*\*/p' "$stepless")
+check "task-brief: a task with no step line exits 0 and its brief holds every line of the task" \
+  equals "$code|$(head -n "$(wc -l <<<"$stepless_task")" <<<"$body")" "0|$stepless_task"
+check "task-brief: a heading and a three-backtick fence inside a four-backtick block are intact" \
+  equals "$(sed -n $'/^````markdown$/,/^\*\*Commit:\*\*/p' <<<"$body")" $'````markdown\n## Inside heading\n\n```bash\necho hi\n```\n````\n\nAfter the block.\n\n**Commit:** `docs: place the text`'
+check "task-brief: a task with no step line holds nothing of the next task or the Execution status" \
+  equals "$(grep -c -e 'Task 3' -e 'After text' -e 'Resume at' -e 'Execution status' <<<"$body" || true)" "0"
+check "task-brief: a task with no step line ends with the Global Constraints" \
+  equals "$(tail -n 3 <<<"$body")" $'### Global Constraints\n\n- Constraint one.'
+
+# A plan whose task 3 heading and gate steps carry slugs.
+slug_fixture() {
+  cat <<EOF
+# Slugs
+
+## Plan
+
+### Owner Gates
+
+| ID | Task | Performed by | Consequences | Pre-approved |
+| --- | --- | --- | --- | --- |
+| \`apply-thing\` | 4 | agent | creates the thing | no |
+
+### Global Constraints
+
+- Constraint one.
+
+### Task 1: One
+
+- [ ] **Step 1: Do it**
+
+### Task 12: Twelve
+
+- [ ] **Step 1: Do it**
+
+$1
+
+- [ ] **Step 1: Do it**
+
+### Task 4 \`gated\`: Gated
+
+- [ ] **Step 1 \`save-plan\`: Save the plan**
+
+- [ ] **Step 2: Owner gate \`apply-thing\`**
+  - Show: \`thing.plan\`
+  - Ask: "Apply thing.plan?"
+  - Performed by: agent, \`apply thing.plan\`
+  - Consequences: creates the thing; it cannot be removed
+  - On no: record the reason and stop
+
+- [ ] **Step 3 \`apply\`: Apply**
+
+${2:-}
+EOF
+}
+
+slugged=$repo/docs/plans/2026-01-01-slugged.md
+slug_fixture $'### Task 3 `rate-limiter`: Title' >"$slugged"
+brief "$slugged" 3 --label
+check "task-brief: --label prints the number and the slug and writes no brief" \
+  equals "$code|$out|$(compgen -G "$repo/tmp/build/2026-01-01-slugged/task-3*" || true)" "0|Task 3 rate-limiter|"
+unslugged=$repo/docs/plans/2026-01-01-unslugged.md
+slug_fixture '### Task 3: Title' >"$unslugged"
+brief "$unslugged" 3 --label
+check "task-brief: --label prints the number alone for a heading without a slug" \
+  equals "$code|$out" "0|Task 3"
+brief "$slugged" 4 --label
+check "task-brief: --label works for a task with an owner gate without --part" \
+  equals "$code|$out" "0|Task 4 gated"
+brief "$slugged" 9 --label
+check "task-brief: --label exits 3 for a task the plan does not have" \
+  equals "$code|$out" "3|"
+brief "$slugged" 3 --label --part pre-gate
+check "task-brief: --label together with --part is a usage error" \
+  equals "$code|$out" "2|"
+brief "$slugged" 3 --part pre-gate --label
+check "task-brief: --part followed by --label is a usage error and writes no file" \
+  equals "$code|$out|$(compgen -G "$repo/tmp/build/2026-01-01-slugged/*--label*" || true)" "2||"
+brief "$slugged" 3 --label "$tmp/label-out.md"
+check "task-brief: --label together with an OUTFILE is a usage error" \
+  equals "$code|$out|$(compgen -G "$tmp/label-out.md*" || true)" "2||"
+brief "$slugged" 1 --label
+check "task-brief: asking for Task 1 never returns Task 12" \
+  equals "$code|$out" "0|Task 1"
+brief "$slugged" 1
+check "task-brief: the brief of Task 1 holds no line of Task 12" \
+  equals "$code|$(grep -c 'Task 12' <<<"$body")" "0|0"
+
+brief "$slugged" 3
+check "task-brief: the brief of a task with a slug is task-3-rate-limiter-brief.md" \
+  equals "$code|${out##*/}" "0|task-3-rate-limiter-brief.md"
+brief "$slugged" 4 --part pre-gate
+check "task-brief: the pre-gate brief of a task with a slug is task-4-gated-pre-gate-brief.md" \
+  equals "$code|${out##*/}" "0|task-4-gated-pre-gate-brief.md"
+check "task-brief: the pre-gate brief ends at the gate block when the other steps carry a slug" \
+  equals "$(grep -c -e $'Step 1 `save-plan`' -e $'Owner gate `apply-thing`' -e $'Step 3 `apply`' -e '^Stop here' <<<"$body")|$(grep -c $'Step 3 `apply`' <<<"$body")" "3|0"
+brief "$slugged" 4 --part post-gate
+check "task-brief: the post-gate brief of a task with a slug is task-4-gated-post-gate-brief.md" \
+  equals "$code|${out##*/}" "0|task-4-gated-post-gate-brief.md"
+check "task-brief: the post-gate brief starts at the gate block when the other steps carry a slug" \
+  equals "$(grep -c $'Step 1 `save-plan`' <<<"$body")|$(grep -c $'Owner gate `apply-thing`' <<<"$body")|$(grep -c $'Step 3 `apply`' <<<"$body")" "0|1|1"
+brief "$unslugged" 3
+check "task-brief: a task without a slug keeps task-3-brief.md" \
+  equals "$code|${out##*/}" "0|task-3-brief.md"
+
+refused_slug() {
+  local label=$1 heading=$2 extra=$3 slug=$4
+  slug_fixture "$heading" "$extra" >"$repo/docs/plans/2026-01-01-refused.md"
+  rm -rf "$repo/tmp/build/2026-01-01-refused"
+  brief "$repo/docs/plans/2026-01-01-refused.md" 3
+  check "task-brief refuses $label" \
+    equals "$code|$(grep -c -F -- "$slug" <<<"$err")|$(compgen -G "$repo/tmp/build/2026-01-01-refused/task-3*" || true)" "3|1|"
+  rm -f "$tmp/refused-out.md"
+  brief "$repo/docs/plans/2026-01-01-refused.md" 3 "$tmp/refused-out.md"
+  check "task-brief refuses $label with an OUTFILE and writes nothing" \
+    equals "$code|$(compgen -G "$tmp/refused-out.md*" || true)" "3|"
+}
+refused_slug "a slug with an uppercase letter" $'### Task 3 `Rate-Limiter`: Title' "" "Rate-Limiter"
+refused_slug "a slug with an underscore" $'### Task 3 `rate_limiter`: Title' "" "rate_limiter"
+refused_slug "a slug with a doubled hyphen" $'### Task 3 `rate--limiter`: Title' "" "rate--limiter"
+refused_slug "a slug with a trailing hyphen" $'### Task 3 `rate-`: Title' "" "rate-"
+refused_slug "the slug pre-gate" $'### Task 3 `pre-gate`: Title' "" "pre-gate"
+refused_slug "the slug post-gate" $'### Task 3 `post-gate`: Title' "" "post-gate"
+refused_slug "a slug that two task headings share" $'### Task 3 `rate-limiter`: Title' $'### Task 5 `rate-limiter`: Other\n\n- [ ] **Step 1: Do it**' "rate-limiter"
+fenced_duplicate=$'~~~markdown\n### Task 5 `rate-limiter`: In a fence\n~~~'
+slug_fixture $'### Task 3 `rate-limiter`: Title' "$fenced_duplicate" >"$repo/docs/plans/2026-01-01-fenced.md"
+brief "$repo/docs/plans/2026-01-01-fenced.md" 3
+check "task-brief: a heading inside a fence does not count as sharing a slug" \
+  equals "$code|${out##*/}" "0|task-3-rate-limiter-brief.md"
+
 # --- execution-status --------------------------------------------------------
 
 repo=$(new_repo execution-status)
