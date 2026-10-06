@@ -214,7 +214,7 @@ The final whole-branch review is one of these; dispatch it on the most capable a
 
 **Review tasks:** choose the model with the same judgment, scaled to the diff's size, complexity and risk.
 A small mechanical diff does not need the most capable model; a subtle concurrency change does.
-Scoped re-reviews of small fix diffs take a cheap-to-mid tier.
+Scoped re-reviews of small fix diffs take a cheap-to-mid tier; one that carries a walk list takes at least a mid-tier model, because it reasons about states the diff does not show.
 
 **Evidence reviews** of tasks with an owner gate: at least a mid-tier model, and the most capable one when the action was destructive; a wrong verdict leaves an unverified change on a live system.
 
@@ -355,6 +355,14 @@ Everything else enters the loop.
 A fix round is one fix dispatch plus one scoped re-review.
 Five rounds maximum per task.
 
+**A fix to protocol text gets a state walk first.**
+Protocol text names states and the events that move between them, or states a rule that holds across steps: a procedure with gates, pauses and resumes, a ledger's line formats and what reads them, a prompt template with a variant per case.
+The test is whether the sentence a finding wants changed is read on more than one path (a fresh and a resumed run, a first attempt and a retry, an action the agent or the owner performs); a value, a command or a step's wording that is read on one path gets no walk.
+Before the fix dispatch, write the walk list, every state and path that reads the sentence with the outcome it must give there, and check any wording you dictate against each entry and against the sentences it could contradict.
+Send the walk list with the findings, so the implementer checks its fix against the same states, and hand it to the re-review.
+No test runs such text.
+In a real session, three dictated fixes to one protocol each introduced a new Important finding that only the next review cycle found.
+
 **Rounds 1 to 3: resume the original implementer.**
 Send it the open findings verbatim.
 Its context is intact: it knows the task, the code, and its own choices.
@@ -368,9 +376,10 @@ Before re-dispatching the reviewer, confirm the fix report contains the covering
 Name the covering test files in the fix message; a one-line fix does not need the whole suite.
 
 **The re-review is scoped.**
-Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`, where FIX_BASE is the head the previous review saw, and dispatch [re-review-prompt.md](references/re-review-prompt.md) with the findings list, the brief, the report file, the printed diff path, and the ledger's `State:` lines, if any.
-The re-reviewer verdicts each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix diff only.
-New Critical or Important breakage in the fix diff joins the open findings list.
+Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`, where FIX_BASE is the head the previous review saw, and dispatch [re-review-prompt.md](references/re-review-prompt.md) with the findings list, the walk list when the round had one, the brief, the report file, the printed diff path, and the ledger's `State:` lines, if any.
+The re-reviewer verdicts each finding ADDRESSED or NOT ADDRESSED and each entry of a walk list HOLDS or BROKEN, and flags new breakage in the fix diff only.
+The walk is the one check that reads beyond the fix diff, and a BROKEN state is a defect of the fix wherever the sentence it contradicts sits.
+A BROKEN state and new Critical or Important breakage in the fix diff join the open findings list.
 Out-of-scope observations go to the ledger as deferred minors; they never extend the loop.
 
 **After each round,** append to the ledger:
@@ -427,6 +436,7 @@ Dispatch on the most capable available model (see Model selection) and hand it: 
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
 A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the findings that remain after your rulings.
+A finding whose fix changes protocol text gets the fix loop's state walk before that dispatch, and its walk list goes into the dispatch and into the re-review.
 Per-finding fixers each rebuild context and re-run suites; a real session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave (`scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range, with [re-review-prompt.md](references/re-review-prompt.md)).
 Adjudicate any residual findings as in the task loop's breaker: park with rulings, or rule on the load-bearing ones and ledger what you decided.
@@ -456,6 +466,7 @@ Call the Skill tool for `build:finish`.
 | "The reviewer will just find something new anyway" | Scoped re-reviews verify fixes; they cannot wander. New findings on untouched code go to the ledger, not the loop. |
 | "This finding is obviously wrong, I'll drop it" | You adjudicate only at the cap, and every ruling is a ledger entry. Silent discards are forbidden. |
 | "The fix was small, skip the re-review" | Unreviewed fixes are how regressions land. Every round ends with a scoped re-review. |
+| "It is one sentence of the protocol, no walk needed" | That sentence is read in every state that reaches it. The fixes that broke a state nobody listed were that small. |
 | "Reviews slow the loop down" | The loop without reviews is just unverified churn. Reviews are the loop's brakes and steering. |
 | "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
 | "The implementer spawned its own reviewer, free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |

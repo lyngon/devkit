@@ -1,10 +1,10 @@
 # Scoped re-review prompt template
 
 Use this template when dispatching a re-review after a fix round.
-The re-reviewer verifies the findings were addressed and checks the fix diff for new breakage.
+The re-reviewer verifies the findings were addressed, checks the fix diff for new breakage and, after a fix to protocol text, walks the states the controller listed.
 It is not a fresh review; the full review already happened.
 
-**Purpose:** verify each finding from the previous review was addressed, and that the fix itself broke nothing.
+**Purpose:** verify each finding from the previous review was addressed, and that the fix itself broke nothing, in the diff or in a state that reads the fixed text.
 
 ```text
 Dispatch a subagent with:
@@ -14,7 +14,8 @@ Dispatch a subagent with:
   prompt: |
     You are re-reviewing one task's fix round. A previous review produced
     findings; an implementer has attempted to fix them. Your job is to
-    verdict each finding and inspect the fix diff, nothing else.
+    verdict each finding, inspect the fix diff and, when this prompt
+    has a State Walk section, walk its states, nothing else.
 
     ## The Task
 
@@ -31,6 +32,22 @@ Dispatch a subagent with:
     ## The Findings Under Verification
 
     [FINDINGS]
+
+    ## The State Walk
+
+    [WALK_LIST]
+
+    The fix changes text that defines a protocol: states, the events
+    that move between them, or a rule that holds across steps. The list
+    above names the states and paths that read the changed text, each
+    with the outcome it must give there. For each one, read the fixed
+    text as an actor in that state would and follow it to its outcome.
+    For this check, and only for it, read beyond the fix diff: the
+    whole of every file the fix touched and every file the list names.
+    A sentence the fix left alone that now contradicts the fixed text
+    is breakage of the fix, not an out-of-scope observation. If the
+    fixed text is read in a state the list does not name, walk that
+    state too.
 
     ## The Fix
 
@@ -77,7 +94,8 @@ Dispatch a subagent with:
 
     ## Scope
 
-    Your scope is the findings list and the fix diff. Verdict every finding.
+    Your scope is the findings list, the fix diff and, when this prompt
+    has a State Walk section, that walk. Verdict every finding.
     Inspect the fix diff for new problems the fix itself introduced. Do NOT
     re-review code the fix did not touch: if you notice an issue entirely
     outside the fix diff, report it under Out-of-Scope Observations; it
@@ -107,6 +125,14 @@ Dispatch a subagent with:
       evidence. "Attempted" is not addressed: the specific defect must no
       longer exist.
 
+    ### State Walk
+
+    Only when this prompt has a State Walk section. For each state or
+    path in its list, in order, and then for any you added:
+    - **[state or path]**: HOLDS | BROKEN, with file:line evidence: the
+      outcome the fixed text gives there and, when BROKEN, the sentence
+      that gives the wrong outcome or the two sentences that contradict.
+
     ### New Breakage in the Fix Diff
 
     Anything the fix itself broke or introduced, with severity
@@ -119,16 +145,18 @@ Dispatch a subagent with:
 
     ### Verdict
 
-    **Fix round:** [All findings addressed, no new Critical/Important
-    breakage | Findings remain open], listing the open ones.
+    **Fix round:** [All findings addressed, no walked state BROKEN, no
+    new Critical/Important breakage | Findings or states remain open],
+    listing the open findings and the BROKEN states.
 ```
 
 ## Placeholders
 
-- `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md; scoped re-reviews of small fix diffs take a cheap-to-mid tier.
+- `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md; scoped re-reviews of small fix diffs take a cheap-to-mid tier, and one that carries a walk list at least a mid-tier model.
 - `[BRIEF_FILE]`: the task brief file (the same file the implementer worked from).
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines, the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.
 - `[FINDINGS]`: the Critical and Important findings and spec gaps from the previous review, copied verbatim, one per bullet.
+- `[WALK_LIST]` (only after a fix round or fix wave that had a state walk; leave out the whole "The State Walk" section otherwise): the walk list as the fix dispatch carried it, one state or path per bullet, each with the outcome the fixed text must give there.
 - `[REPORT_FILE]`: the implementer's report file (fix reports appended).
 - `[FIX_BASE_SHA]`: the head the previous review saw.
 - `[HEAD_SHA]`: the current commit.
@@ -139,4 +167,4 @@ Dispatch a subagent with:
 
 Leave out the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 
-**The re-reviewer returns:** per-finding verdicts (ADDRESSED or NOT ADDRESSED), new breakage in the fix diff, out-of-scope observations, and a round verdict.
+**The re-reviewer returns:** per-finding verdicts (ADDRESSED or NOT ADDRESSED), per-state verdicts (HOLDS or BROKEN) after a state walk, new breakage in the fix diff, out-of-scope observations, and a round verdict.

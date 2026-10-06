@@ -264,6 +264,12 @@ Record each in the ledger as `Final: fixed <finding>; <test name> RED→GREEN, s
 A fix without a test that failed first is not verified; a suite that is not green after the pass means the pass is not over.
 Do not dispatch a re-review: it would re-read a diff whose covering tests already answer "addressed" and whose suite run already answers "broke nothing".
 
+A fix to protocol text also gets a state walk, because no test reads such text the way an executor in each state does.
+Protocol text names states and the events that move between them, or states a rule that holds across steps: a procedure with gates, pauses and resumes, a ledger's line formats and what reads them, a prompt template with a variant per case.
+The test is whether the sentence to change is read on more than one path (a fresh and a resumed run, a first attempt and a retry, an action the agent or the owner performs); a value, a command or a step's wording that is read on one path gets no walk.
+Before the edit, list every state and path that reads the sentence, each with the outcome it must give there; after it, read the fixed text in each one and check that it gives that outcome and contradicts no sentence around it.
+Ledger the walk as `Final: walked <finding>; <state or path>: <outcome>; ...`, one pair per state.
+
 A finding you decide not to fix is a ruling, `Final: Ruling: <finding>; <why the code stands>; <cost if wrong>`, and reaches the user in the rulings list.
 There is no second fix pass.
 
@@ -298,6 +304,7 @@ Call the Skill tool for `build:finish`.
 | "Subagents are slow and expensive, I'll skip the final review too" | Inline already removed the per-task reviewers. One review of the whole branch is the floor, not the ceiling. |
 | "The reviewer said Minor, so it's Minor" | The label graded the spec's silence. Grade what the person gets. Re-grade, then gate. |
 | "The fix is obvious, no need for a failing test first" | The failing test is the only proof the finding was real and is now gone. Without it you have a diff and a hope. |
+| "It is one sentence of the protocol, I can see it is right" | That sentence is read in every state that reaches it. List them and read each; the fixes that broke a state nobody listed were that small. |
 | "I'll fix the minors too while I'm in there" | Every minor you fix is a test, a fix, and a suite run the user did not ask for. Ledger them; the user decides. |
 | "The review is clean, delete the workspace now" | `build:finish` reads the ledger's deferred minors before the plan goes, and removes the workspace when the work lands. Deleted first, they survive only as chat. |
 

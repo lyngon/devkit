@@ -51,6 +51,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Owner gates, which are not upstream: after `task-done` records a gated task's completion, the task's temporary files are removed, as the protocol's step 8 says.
 - Final review: a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is ruled on and ledgered; the fix pass takes the rest.
 - Owner gates, which are not upstream: `../delegate/references/owner-gates.md` is read at setup, and Resuming runs also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before the ledger is read, its other steps once the ledger exists, created first with its identity line when none exists and no Execution status recreates it.
+- State walk, which is not upstream: in the final review's fix pass, a fix to protocol text (text that names states and the events between them, or a rule that holds across steps, recognized by a sentence that is read on more than one path) gets one, with the states and paths listed before the edit, each read again after it, and the walk ledgered as `Final: walked <finding>; ...`; one rationalization row.
 
 ## Review notes
 
