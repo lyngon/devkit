@@ -68,8 +68,7 @@ An ordinary task has no steps:
 ````
 
 Every task heading carries a slug beside its number, kebab-case and unique in the plan, and so does every step, unique in its task; the step of an owner gate carries the gate's ID and no other slug.
-Whatever refers to a task or a step names both, so that a wrong number shows.
-The scripts and the ledger stay keyed by the number.
+Number and slug together are the task's label, and whatever refers to a task or a step names both, so that a wrong number shows.
 
 A task that dictates text adds two blocks before the commit subject:
 
@@ -150,6 +149,21 @@ The task reviewer template (`references/task-reviewer-prompt.md`) says:
 
 The skill's own text about reviewer inputs, the example workflow and the rationalizations follow these changes.
 
+#### Labels in the scripts and the protocol
+
+The executors name a task by its label everywhere: `Task 3 implementer: complete (...)` in the ledger, `task-3-implementer-brief.md` for its brief, and the same for its report, its test log, a pause line, a pause commit and a dispatch description.
+The slug is in backticks in Markdown, as the heading has it, and bare in the ledger, in a shell argument, in a commit message and in a file name.
+A backtick inside a double-quoted shell argument is a command substitution, which would drop the slug or be refused in a session isolated in a worktree; gate IDs are bare in the ledger for the same reason.
+
+- `task-brief` reads the slug from the heading ``### Task N `slug`: Title``, names the brief after it, and prints the label with `--label`. It refuses a slug that is not kebab-case, the slugs `pre-gate` and `post-gate` (they would read as a part), and a slug two tasks share.
+- `task-start` prints the label, and `task-done` writes the completion line and names its test log under it. Both take it from `task-brief --label`, so one parser decides what a task is called.
+- The delegate skill, the execute skill, the owner gate protocol and the four prompt templates write `<label>` (the templates `[LABEL]`) wherever they wrote `Task <N>` or `Task N`, and derive a report's name from its brief's.
+- The number identifies the task and the slug catches a wrong number. A ledger line whose number and slug do not belong to one heading is not read as progress until `git log` shows the commits it names.
+- A plan whose headings have no slug keeps `Task N` and today's file names, so a plan written before this change, or a run in flight, reads as before.
+
+`execution-status`, `workspace`, `review-package` and `pin` do not change: they treat the ledger and the resume point as text.
+The owner gate protocol changes only in how it names a task and a step.
+
 #### The execute skill
 
 In `plugins/build/skills/execute/SKILL.md`, "the plan already did the thinking, execute it exactly" becomes "the plan carries the decisions; the tests and the code are yours".
@@ -166,7 +180,7 @@ The completion contract for a step-less task:
 - every deviation has a `Ruling:` line.
 
 There is no ledger line per acceptance line.
-For a task with States the executor walks them after writing the text and ledgers the walk as `Task <N>: walked <state>: <outcome>; ...`, the form its fix pass already uses.
+For a task with States the executor walks them after writing the text and ledgers the walk as `<label>: walked <state>: <outcome>; ...`, the form its fix pass already uses.
 When the text and a state disagree, the state wins, and the smallest rewording that satisfies it is a ruling.
 
 #### The reviewer template of the review plugin
@@ -187,8 +201,8 @@ Its Review Focus sentence says "no task's acceptance lines cover" where it says 
 - Each plugin's `CHANGELOG.md` and version follow the repository rule of one bump and one entry per commit with a visible change, so `build` rises by one minor version per such commit, and `review` and `discover` by one each.
 - The `docs/TODO.md` entry and `docs/seed-prompts/lighter-plans.md` are removed in the last commit.
 
-No script changes.
-`task-brief` extracts a step-less task whole, including a dictated block that holds headings and nested fences, finds a task by its number whether or not a slug follows it, and splits a gated task whose other steps carry slugs; `task-start` only wraps it.
+Three scripts change, as "Labels in the scripts and the protocol" says.
+What `task-brief` already does is kept and pinned: it extracts a step-less task whole, including a dictated block that holds headings and nested fences, finds a task by its number whether or not a slug follows it, and splits a gated task whose other steps carry slugs.
 
 ### Data flow
 
@@ -218,7 +232,8 @@ A task with steps keeps the `Expected:` comparison whatever its kind, and the pe
 ### Testing
 
 - `devenv test` passes on every commit: the validators, the hooks and the script tests.
-- One regression test in `plugins/build/tests/scripts.sh`: `task-brief` on a step-less task with a dictated block that holds a heading and a nested fence, followed by another task, prints the task whole and nothing after it. The same test covers a heading with a slug after the number and a gated task whose other steps carry slugs. The design relies on this behaviour and nothing pins it today.
+- Script tests in `plugins/build/tests/scripts.sh`, written first: the slug, the label, the file names and the refusals of `task-brief`, and the label in `task-start` and `task-done`. They also pin what the design relies on and nothing tests today: `task-brief` on a step-less task with a dictated block that holds a heading and a nested fence, and on a gated task whose other steps carry slugs.
+- One mandated check, a count of the places where the executors' text still names a task by its number alone: 37 before the change, 0 after it.
 - A rehearsal in a throwaway repository under `tmp/`, with nested headless sessions that load this worktree's plugins, as the owner gates work did. It runs right after the plan skill, the delegate skill and its two templates have landed, and before the rest. A small Design with three tasks (one of code, one with a mandated check, one that dictates protocol text with States) goes through `build:plan` and then `build:delegate` on a mid-tier model. It checks that the plan's ordinary tasks have no steps and no test code, that the handoff reports the size, that the implementer's report maps each acceptance line to a test, that the task reviewer returns a verdict per line and per state, and that the ledger shows three completed tasks. A departure is fixed in the file that owns the sentence, one commit per defect, and the rehearsal runs again. Its evidence is the body of a record commit.
 - This work's own plan follows this Design where the installed `build:plan` differs, as the first real plan of the new kind.
 
@@ -228,7 +243,7 @@ A task with steps keeps the `Expected:` comparison whatever its kind, and the pe
 - A script that measures a plan's size; the planner counts lines in its self-review.
 - A task review that scales or is skipped per task, and a review before each gate under inline execution. The executor choice is the only lever.
 - A field in the plan for the model tier or the executor.
-- Any change to the owner gate protocol or to the scripts.
+- Any change to the owner gate protocol beyond how it names a task and a step, and any change to `execution-status`, `workspace`, `review-package` or `pin`.
 
 ## Plan
 
@@ -236,7 +251,7 @@ A task with steps keeps the `Expected:` comparison whatever its kind, and the pe
 
 **Goal:** `build:plan` writes plans that hold only what an implementer cannot know or must not decide, and the executors, the reviewers and the workflow document work from such plans.
 
-**Architecture:** The plan skill defines the task shape (Files, Interfaces, Intent, Acceptance, and States with Dictated text where wording is the decision); the implementer template turns acceptance lines into tests, and the task reviewer and the final reviewer give verdicts per line and per state. No script changes; a rehearsal in a throwaway repository proves the skill text once the plan and delegate skills have landed.
+**Architecture:** The plan skill defines the task shape (Files, Interfaces, Intent, Acceptance, and States with Dictated text where wording is the decision); the implementer template turns acceptance lines into tests, and the task reviewer and the final reviewer give verdicts per line and per state. Three scripts learn a task's label (its number and slug), and the executors' text names a task by it in the ledger, the briefs and the dispatches. A rehearsal in a throwaway repository proves the skill text once the plan and delegate skills have landed.
 
 **Tech stack:** Markdown skill text and prompt templates, the bash script tests in `plugins/build/tests/scripts.sh`, devenv with prek hooks, nested headless `claude -p` sessions for the rehearsal.
 
@@ -255,47 +270,88 @@ None.
 - Markdown: one sentence per line, no em or en dashes, no curly quotes, every fenced block names its language. Template files keep the heading case and the four-space indentation of the lines around an edit.
 - Dictated text is placed word for word. Where it replaces text, the section and the anchor name what goes; nothing else in the file changes unless an acceptance line says so.
 - `shared/WORKFLOW.md` is edited in `shared/`, never through a symlink in a plugin.
-- No file under `plugins/build/skills/*/scripts/` changes.
+- Among the scripts, only `task-brief`, `task-start` and `task-done` change; `execution-status`, `workspace`, `review-package` and `pin` do not.
+- A task's label is the word `Task`, its number and its slug: in backticks in Markdown (``Task 4 `task-labels` ``), bare in the ledger, in a shell argument, in a commit message and in a file name (`Task 4 task-labels`).
+- The run of this plan writes its own ledger lines under the label from the first line on (`Task 1 brief-slugs: complete ...`), whichever version of the skill text it has loaded, so that its ledger has one format.
 - Hook evidence is the output of `prek run --files <the files the task changed>`, run after the last change. `bash plugins/build/tests/scripts.sh` runs the script tests on their own; `devenv test` is the full check.
 - Commits are Conventional Commits with the subject the task gives, on `feat/lighter-plans`, and never mention an agent.
 
 ### Review Focus
 
-- A dictated block that holds a fence or a heading, fenced too short: the brief must not end inside it. Pinned in Task 1 (`task-brief-test`), the extraction, and Task 2 (`plan-skill`), the fencing rule.
-- A plan written before this change, with steps and code and no Acceptance block, run by the new executors: it must still run. Pinned in the States of Tasks 3 (`implementer`), 4 (`task-reviewer`) and 6 (`execute-skill`).
-- A task whose acceptance lines no test can run, executed inline: `task-done` still needs a command. Pinned in Task 6 (`execute-skill`).
-- A ruling that rewords dictated text: later reviewers must not report the difference as a defect. Pinned in the States of Tasks 3 (`implementer`) and 4 (`task-reviewer`).
-- The two briefs of a task with an owner gate under the new implementer template: a part without acceptance lines must not make the report incomplete. Pinned in the States of Tasks 3 (`implementer`) and 4 (`task-reviewer`).
+- A dictated block that holds a fence or a heading, fenced too short: the brief must not end inside it. Pinned in Task 1 `brief-slugs`, the extraction, and Task 3 `plan-skill`, the fencing rule.
+- A plan written before this change, with steps and code, no Acceptance block and no slugs, run by the new scripts and executors: it must still run, under `Task N` and today's file names. Pinned in Tasks 1 `brief-slugs` and 2 `label-scripts` and in the States of Tasks 4 `task-labels`, 5 `implementer`, 6 `task-reviewer` and 8 `execute-skill`.
+- A label that passes through a shell (a ledger append, `execution-status write`, `git commit -m`): a backtick there is a command substitution, so the slug is bare. Pinned in the States of Task 4 `task-labels`.
+- A ledger line whose number and slug do not belong to one heading, after a heading changed in the middle of a run: it must not be read as progress, nor the task run twice. Pinned in the States of Task 4 `task-labels`.
+- A task whose acceptance lines no test can run, executed inline: `task-done` still needs a command. Pinned in Task 8 `execute-skill`.
 
-### Task 1 `task-brief-test`: Pin `task-brief` on tasks without steps and with slugs
+### Task 1 `brief-slugs`: `task-brief` names a brief by its slug and prints the label
 
 **Files:**
 
+- Modify: `plugins/build/skills/delegate/scripts/task-brief`
 - Modify: `plugins/build/tests/scripts.sh`
 
 **Interfaces:**
 
-- Consumes: `plugins/build/skills/delegate/scripts/task-brief PLAN_FILE N [OUTFILE]`, unchanged.
-- Produces: nothing later tasks call.
+- Consumes: nothing.
+- Produces: a task heading ``### Task N `slug`: Title`` gives the task the slug `slug`, and any other task heading gives it none; `task-brief PLAN_FILE N --label` prints the label on stdout, `Task N slug`, or `Task N` without a slug, and writes no file; the default brief names are `task-N-slug-brief.md`, `task-N-slug-pre-gate-brief.md` and `task-N-slug-post-gate-brief.md`, and without a slug they are as today.
 
-**Intent:** Every later task relies on `task-brief` extracting a task that has no `- [ ] **Step` line, and nothing pins that today: the existing fixture's tasks all have steps.
-Add checks to the `task-brief` section of the script tests, in the style of the checks around them (`check`, `equals`, `contains`, `lacks`, the `fixture` and `brief` helpers).
-The fixture task has a heading with a slug (``### Task N `slug`: Title``), the blocks a plan now writes (`**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`) and a dictated block fenced with four backticks that holds a `##` heading and a three-backtick fence.
-A second fixture task has an owner gate between two steps that carry a slug after their number (``- [ ] **Step 1 `slug`: Title**``); the gate's marker is spelled as today.
+**Intent:** Every later task relies on two things that `task-brief` does not do or does not pin today.
+It must extract a task that has no `- [ ] **Step` line, which nothing tests: the existing fixture's tasks all have steps.
+And it must read the slug from a task heading, so that the brief's file name and the ledger carry it; `--label` is how `task-done` and the executors learn the label without parsing the plan a second way.
+The script's awk pass already tracks fences and finds the heading; the slug comes from the same pass.
+The tests go in the `task-brief` section of the script tests, in the style of the checks around them (`check`, `equals`, `contains`, `lacks`, the `fixture` and `brief` helpers).
 
 **Acceptance:**
 
 - For a task with no step line, `task-brief` exits 0 and the brief holds every line of the task, from its heading to its `**Commit:**` line.
-- A task whose heading has a slug after its number is found by that number, and asking for Task 1 never returns Task 12.
-- For the task with an owner gate, `--part pre-gate` ends at the gate block and `--part post-gate` starts at it, with the slugged steps on their own side.
-- The heading and the inner fence inside the dictated block are in the brief, and the brief does not end at that heading.
-- The brief holds no line of the task that follows and no line of a trailing `## Execution status` section, and ends with the Global Constraints section.
-- Each new check was seen failing once, against a fixture or a scratch copy of the script altered so that its property does not hold; the report shows that run, and the alteration is not committed.
+- In that brief, a `##` heading and a three-backtick fence inside a dictated block fenced with four backticks are intact, and the brief does not end at that heading.
+- That brief holds no line of the task that follows and no line of a trailing `## Execution status` section, and ends with the Global Constraints section.
+- `--label` prints exactly `Task 3 rate-limiter` for the heading ``### Task 3 `rate-limiter`: Title`` and `Task 3` for `### Task 3: Title`, exits 0, and leaves the workspace without a brief.
+- `--label` works for a task with an owner gate without `--part`, and exits 3 for a task the plan does not have.
+- `--label` together with `--part` or an OUTFILE is a usage error, exit 2.
+- Without an OUTFILE, the brief of a task with the slug `rate-limiter` is `task-3-rate-limiter-brief.md`, and its parts are `task-3-rate-limiter-pre-gate-brief.md` and `task-3-rate-limiter-post-gate-brief.md`.
+- A task without a slug keeps `task-3-brief.md` and the part names of today.
+- A slug that does not match `^[a-z0-9]+(-[a-z0-9]+)*$` is refused: exit 3, a message on stderr that names the slug, nothing written.
+- The slugs `pre-gate` and `post-gate` are refused in the same way.
+- A slug that two task headings of the plan share is refused in the same way, and a heading inside a fence does not count as one of them.
+- A task is found by its number whether or not a slug follows it, and asking for Task 1 never returns Task 12.
+- For a task with an owner gate whose other steps carry a slug after their number (``- [ ] **Step 1 `save-plan`: Title**``), `--part pre-gate` ends at the gate block and `--part post-gate` starts at it.
+- The script's header comment documents the slug, `--label` and the file names.
+- Each new check was seen failing: before the script changed, or, for behaviour the script already has, against a fixture altered so that the property does not hold. The report shows those runs.
 - `bash plugins/build/tests/scripts.sh` exits 0 and prints no `FAIL:` line.
 
-**Commit:** `test(build): pin task-brief on tasks without steps and with slugs`
+**Commit:** `feat(build): name a task's brief by its slug and print its label`
 
-### Task 2 `plan-skill`: The plan skill writes decisions and facts
+### Task 2 `label-scripts`: `task-start` prints the label and `task-done` ledgers under it
+
+**Files:**
+
+- Modify: `plugins/build/skills/execute/scripts/task-start`
+- Modify: `plugins/build/skills/execute/scripts/task-done`
+- Modify: `plugins/build/tests/scripts.sh`
+
+**Interfaces:**
+
+- Consumes: `task-brief PLAN_FILE N --label` of Task 1 `brief-slugs`.
+- Produces: `task-start` prints a third line, `label: <label>`; `task-done` appends `<label>: complete (commits <base7>..<head7>, tests: <command> → <result>)` to the ledger and keeps the test output in `task-N-slug-tests.log`.
+
+**Intent:** The inline executor's two scripts call a task `Task N` today.
+They take the label from `task-brief --label`, so that one parser decides what a task is called.
+Both call `task-brief` through `bash`, as they call the other delegate scripts.
+
+**Acceptance:**
+
+- `task-start PLAN_FILE N` prints `brief:`, `base:` and `label:` in that order; the label line is `label: Task 3 rate-limiter` for a task with that slug and `label: Task 3` for one without, and it is the same with `--part`.
+- For a task with a slug, `task-done` appends a line that starts with `Task 3 rate-limiter: complete (commits` and writes the test output to `task-3-rate-limiter-tests.log`.
+- For a task without a slug, the ledger line and the log name are exactly what they are today.
+- A failing test command still records nothing, and its message on stderr names the task by its label.
+- When `task-brief` refuses the task (a malformed slug, a task the plan does not have), `task-done` exits non-zero before it runs the test command and records nothing.
+- `bash plugins/build/tests/scripts.sh` exits 0 and prints no `FAIL:` line.
+
+**Commit:** `feat(build): start and complete a task under its label`
+
+### Task 3 `plan-skill`: The plan skill writes decisions and facts
 
 **Files:**
 
@@ -304,8 +360,8 @@ A second fixture task has an owner gate between two steps that carry a slug afte
 
 **Interfaces:**
 
-- Consumes: nothing.
-- Produces: the task blocks that Tasks 3 (`implementer`), 4 (`task-reviewer`), 6 (`execute-skill`) and 7 (`final-reviewer`) read by name: `**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`; the heading ``### Task N `slug`: Title``; step lines ``- [ ] **Step N `slug`: Title**``, only in a task with an owner gate or a mandated check, with the owner gate marker spelled as before; the recommendation rule "about five tasks or fewer, and no owner gate the agent performs", which Task 9 (`workflow`) repeats.
+- Consumes: the slug rules of Task 1 `brief-slugs` (kebab-case, unique among the plan's tasks, never `pre-gate` or `post-gate`).
+- Produces: the task blocks that Tasks 5 `implementer`, 6 `task-reviewer`, 8 `execute-skill` and 9 `final-reviewer` read by name: `**Intent:**`, `**Acceptance:**`, `**States:**`, `**Dictated text:**`, `**Commit:**`; the heading ``### Task N `slug`: Title``; step lines ``- [ ] **Step N `slug`: Title**``, only in a task with an owner gate or a mandated check, with the owner gate marker spelled as before; the recommendation rule "about five tasks or fewer, and no owner gate the agent performs", which Task 11 `workflow` repeats.
 
 **Intent:** The Design's "The plan skill" section, as skill text.
 The dictated blocks below are the whole change to `SKILL.md`; everything they do not name stays, including "Where the plan lives", "Scope check", "File structure", "Task right-sizing" and "Owner gates".
@@ -328,7 +384,7 @@ The dictated blocks below are the whole change to `SKILL.md`; everything they do
 - A dictated block holds a fence or a heading: its own fence is longer, so the brief is not cut.
 - The planner writes a task with a mandated check: steps with the failing run, the work and the passing run, every run with its `Expected:` line.
 - The planner writes a task with an owner gate: steps as "Owner gates" says, with Intent and Acceptance only for work the steps leave open; the gate's marker is spelled as before and its ID is its slug, and the other steps carry their own.
-- The planner refers to a task or a step, anywhere in the plan: number and slug together.
+- The planner refers to a task or a step, anywhere in the plan: by its label, number and slug together.
 - An executor asks for a task by its number: the heading still begins `### Task N` followed by a space, so the task is found.
 - The handoff with no execution method supplied: the first message, with the size line and a recommendation by the rule.
 - The handoff with a method supplied: the second message, with the size line and no recommendation.
@@ -419,8 +475,10 @@ An ordinary task has no steps:
 
 The paths above are illustrations; the repository's layout decides.
 
-- The heading carries the task's number and its slug: kebab-case, one to three words, unique in the plan.
-  Refer to a task by both, as in "Task 3 (`rate-limiter`)", in the plan and in everything written about it, so that a wrong number shows.
+- The heading carries the task's number and its slug: kebab-case, one to three words, unique in the plan, and never `pre-gate` or `post-gate`.
+  Number and slug together are the task's label.
+  Refer to a task by its label, as in ``Task 3 `rate-limiter` ``, in the plan and in everything written about it, so that a wrong number shows.
+  The executors name the task's brief and its ledger lines by the label.
 - **Acceptance** holds one line per behaviour, edge behaviours included.
   Each line can fail on its own: a reviewer can name the test that covers it, or the place in the diff that meets it, without reading another line.
   The implementer writes a failing test for each line and then the code; the plan holds no test code and no list of test cases.
@@ -533,7 +591,7 @@ In "Self-review", items 3 to 6 of the numbered list are replaced by the six item
    Dictated blocks and tasks with steps get no number; their content is exact by requirement.
    Note the lines of the whole `## Plan` section and the longest task with the reason for its length; the handoff reports them.
 5. **Type consistency.** Do the names, types and signatures in every Consumes line match the Produces line they come from?
-   A function called `clearLayers()` in Task 3 (`layers`) but `clearFullLayers()` in Task 7 (`render`) is a bug.
+   A function called `clearLayers()` in Task 3 `layers` but `clearFullLayers()` in Task 7 `render` is a bug.
    Does every reference to a task or a step give the number and the slug that its heading has?
 6. **Review focus.** For each input class or failure mode the spec implies, is there a task whose acceptance lines cover it?
    The five uncovered ones most likely to bite a person go in the Review Focus section, and each line there gets its acceptance line added to the owning task.
@@ -611,7 +669,153 @@ Self-review item 8 checks dictated ADR text, `CLAUDE.md` lines and `CONCEPTS.md`
 
 **Commit:** `feat(build): write plans of decisions and facts, without steps or code`
 
-### Task 3 `implementer`: The implementer of a plan task writes the tests
+### Task 4 `task-labels`: The executors name a task by its label
+
+**Files:**
+
+- Modify: `plugins/build/skills/delegate/SKILL.md`
+- Modify: `plugins/build/skills/delegate/references/owner-gates.md`
+- Modify: `plugins/build/skills/delegate/references/implementer-prompt.md`
+- Modify: `plugins/build/skills/delegate/references/task-reviewer-prompt.md`
+- Modify: `plugins/build/skills/delegate/references/re-review-prompt.md`
+- Modify: `plugins/build/skills/delegate/references/evidence-reviewer-prompt.md`
+- Modify: `plugins/build/skills/execute/SKILL.md`
+
+**Interfaces:**
+
+- Consumes: `task-brief --label` and the brief names of Task 1 `brief-slugs`; the `label:` line and the completion line of Task 2 `label-scripts`.
+- Produces: `<label>` at the start of every ledger line format of both executors and of the owner gate protocol; `[LABEL]` in the four templates.
+
+**Intent:** Both executors and the owner gate protocol write `Task <N>` or `Task N` wherever they name a task: in ledger line formats, in pause lines, in the argument of `execution-status write`, in the subject of a pause commit, in the gate message and in dispatch descriptions.
+Each of those becomes the task's label, written `<label>` in the two skills and the protocol and `[LABEL]` in the four templates.
+Each file name spelled `task-N-...` becomes a name derived from the brief path that `task-brief` printed.
+Nothing else in the owner gate protocol changes.
+The mandated check counts the old spellings in the seven files; it does not count the examples that use real numbers (`Task 6 pre-gate: ...`), which the acceptance lines cover.
+
+**Acceptance:**
+
+- Every example ledger line and every example task heading in the example workflows of `delegate/SKILL.md` and `execute/SKILL.md` names its task by number and slug, and the brief and report names there carry the slug.
+- In every ledger line format, the words `minor (deferred)`, `parked`, `Ruling:`, `complete`, `fix round`, `evidence review`, `pre-gate` and `post-gate` keep their place after the label, so that `build:finish` and the resume checks find them as before.
+- No shell command in the seven files holds a label with a backtick in it.
+- `UPSTREAM.md` of `delegate` and of `execute` list the patch.
+
+**States:**
+
+- A plan whose headings carry slugs, a fresh run under `build:delegate`: the brief is `task-3-rate-limiter-brief.md`, the report is named after it, and every ledger line for the task starts `Task 3 rate-limiter`.
+- The same plan under `build:execute`: `task-start` prints the label, the executor starts its own lines with it, and `task-done` writes the completion line under it.
+- A plan whose headings carry no slug: the label is the word `Task` and the number, and every line and file name is what it was before this change.
+- A task with an owner gate: `Task 6 state-bucket pre-gate: complete` and `Task 6 state-bucket post-gate: dispatched` are never read as `Task 6 state-bucket: complete`; the pause line, the argument of `execution-status write`, the pause commit's subject and the gate message carry the label bare.
+- A run resumed in another checkout from the plan's Execution status: the ledger is restored verbatim, and its labels match the plan's headings.
+- A lost workspace, reconciled from `git log`: the recovered completion lines are written under the label the plan's heading gives.
+- A heading that gained, lost or changed its slug in the middle of a run: the old lines no longer match a heading, so they are not read as progress until `git log` shows the commits they name; then the task counts as done and a `State:` line says so.
+- An unforeseen gate in a task the plan did not gate: its lines start with the label, and the start-step line names the step by number and slug when it has one.
+- A label in a shell command (`execution-status write`, `git commit -m`, an append to the ledger): no backtick, so nothing is substituted.
+- A dispatch description: `[LABEL]`, filled with the label.
+
+**Dictated text:**
+
+In `plugins/build/skills/delegate/SKILL.md`, section "Workspace and ledger", after the bullet that begins "Create the ledger with its identity", add this bullet:
+
+```markdown
+- Name a task by its label wherever you write about it: the word `Task`, its number and, when the plan's heading for it has a slug, the slug, as in `Task 3 rate-limiter`.
+  `scripts/task-brief PLAN_FILE N --label` prints it.
+  In the ledger, in a shell argument, in a commit message and in a file name the slug is bare; in Markdown it is in backticks, as the heading has it.
+  `<label>` stands for it in every ledger line format below and in the owner gate protocol, and a task's brief and report carry the slug in their file names.
+  The number identifies the task, and the slug is there to catch a wrong number: when a ledger line's number and slug do not belong to one heading of the plan, do not read the line as progress until you have checked `git log` for the commits it names.
+  When they are there, the task is done, and you ledger `State: "<the line>" is <label>`; when they are not, it is not done.
+```
+
+In "1. Dispatch the implementer", the first sentence of the bullet "**Task brief.**" becomes:
+
+```markdown
+- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to a brief in the workspace named after the task's number and slug (`task-3-rate-limiter-brief.md`) and prints the path.
+```
+
+and the first sentence of the bullet "**Report file.**" becomes:
+
+```markdown
+- **Report file.** Name the implementer's report file after the brief, with `-report.md` in place of `-brief.md` (brief `task-3-rate-limiter-brief.md`, report `task-3-rate-limiter-report.md`, same workspace), and put it in the dispatch prompt.
+```
+
+In `plugins/build/skills/delegate/references/owner-gates.md`, section "Ledger lines", after the sentence that begins "Every `<time>` in a line", add:
+
+```markdown
+A line that names a task names it by its label: the word `Task`, its number and, when the plan's heading for it has a slug, the slug, bare (`task-brief PLAN_FILE N --label` prints it).
+`<label>` stands for it throughout this file, also in a pause line, in the argument of `execution-status write`, in the subject of a pause commit and in the gate message.
+Where a line, a gate message or a dispatch names a step that has a slug, it gives the step's number and slug, as in `Step 3 save-plan`.
+```
+
+The fenced block of example lines in that section becomes:
+
+```text
+Task 6 state-bucket pre-gate: complete (no commits; pins bootstrap.tfplan sha256:<64 hex digits>)
+Gate apply-state-bucket: waiting for owner
+Gate apply-state-bucket: owner 2026-09-27T14:51:55+0800: "Go ahead and apply!"
+Gate apply-state-bucket: pre-approved (plan index); Expected lines matched
+Gate apply-state-bucket: pre-approval void (Step 3 save-plan expected 6 to add, got 7 to add); asking
+Task 6 state-bucket post-gate: dispatched
+Gate apply-state-bucket: approval void (pin check: bootstrap.tfplan changed)
+Pause 2026-09-27T14:11:02+0800: resume at Task 6 state-bucket pre-gate; removed backend_override.tf, bootstrap.tfplan
+Resume 2026-09-27T14:39:40+0800: recreated the ledger from the plan's Execution status
+Task 6 state-bucket: evidence review clean
+Task 6 state-bucket: complete (commits 6033d2e..a1b2c3d, evidence review clean)
+Reconcile 2026-09-27T14:39:41+0800: 3f2e1d0..HEAD; Task 7 smoke-test complete, recovered from b4c5d6e
+Task 7 smoke-test: complete (recovered from git log: b4c5d6e)
+```
+
+and the sentence after that block becomes:
+
+```markdown
+`Task 6 state-bucket pre-gate:` never matches the resume check for `Task 6 state-bucket: complete`, so a finished pre-gate part never reads as a finished task.
+```
+
+In each of the four templates (`implementer-prompt.md`, `task-reviewer-prompt.md`, `re-review-prompt.md`, `evidence-reviewer-prompt.md`), section "Placeholders", after the `[MODEL]` item, add:
+
+```markdown
+- `[LABEL]`: required, the task's label as `scripts/task-brief PLAN_FILE N --label` prints it (`Task 3 rate-limiter`).
+```
+
+In `implementer-prompt.md`, the `[REPORT_FILE]` item, with its second line, becomes:
+
+```markdown
+- `[REPORT_FILE]`: required, named after the brief with `-report.md` in place of `-brief.md`, in the same workspace; one per task, and a prior attempt's file is kept and appended to.
+  A gated task has two reports, one per part, each named after its brief in the same way.
+```
+
+In `plugins/build/skills/execute/SKILL.md`, section "Workspace and ledger", after the bullet that begins "Create the ledger with its identity", add this bullet:
+
+```markdown
+- Name a task by its label wherever you write about it: the word `Task`, its number and, when the plan's heading for it has a slug, the slug, as in `Task 3 rate-limiter`.
+  `scripts/task-start` prints it, and `scripts/task-done` writes the completion line under it.
+  In the ledger, in a shell argument, in a commit message and in a file name the slug is bare; in Markdown it is in backticks, as the heading has it.
+  `<label>` stands for it in every ledger line format below and in the owner gate protocol.
+  The number identifies the task, and the slug is there to catch a wrong number: when a ledger line's number and slug do not belong to one heading of the plan, do not read the line as progress until you have checked `git log` for the commits it names.
+  When they are there, the task is done, and you ledger `State: "<the line>" is <label>`; when they are not, it is not done.
+```
+
+In "1. Take the task", the sentence that begins "It prints the brief path" becomes:
+
+```markdown
+  It prints the brief path, BASE (the commit the task's range is cut from) and the task's label in one call; the brief holds the task's text followed by the plan's Global Constraints, and the label starts every ledger line you write for the task.
+```
+
+**Commit:** `feat(build): name a task by its label in the ledger, the briefs and the dispatches`
+
+- [ ] **Step 1 `check-fails`: Count the places that name a task by its number alone**
+
+Run: `cat plugins/build/skills/delegate/SKILL.md plugins/build/skills/delegate/references/owner-gates.md plugins/build/skills/delegate/references/implementer-prompt.md plugins/build/skills/delegate/references/task-reviewer-prompt.md plugins/build/skills/delegate/references/re-review-prompt.md plugins/build/skills/delegate/references/evidence-reviewer-prompt.md plugins/build/skills/execute/SKILL.md | grep -cE 'Task (<N>|N\b)|task-N-|task-<N>'`
+Expected: `37`
+
+- [ ] **Step 2 `work`: Name every task by its label**
+
+Place the dictated text, then make the replacements the Intent describes until the acceptance lines hold.
+
+- [ ] **Step 3 `check-passes`: Show that none is left**
+
+Run: `cat plugins/build/skills/delegate/SKILL.md plugins/build/skills/delegate/references/owner-gates.md plugins/build/skills/delegate/references/implementer-prompt.md plugins/build/skills/delegate/references/task-reviewer-prompt.md plugins/build/skills/delegate/references/re-review-prompt.md plugins/build/skills/delegate/references/evidence-reviewer-prompt.md plugins/build/skills/execute/SKILL.md | grep -cE 'Task (<N>|N\b)|task-N-|task-<N>'`
+Expected: `0`
+
+### Task 5 `implementer`: The implementer of a plan task writes the tests
 
 **Files:**
 
@@ -620,8 +824,8 @@ Self-review item 8 checks dictated ADR text, `CLAUDE.md` lines and `CONCEPTS.md`
 
 **Interfaces:**
 
-- Consumes: the task blocks of Task 2 (`plan-skill`).
-- Produces: three items in the implementer's report, read by Task 4 (`task-reviewer`): `**Acceptance**`, `**Task test command**` and `**States**`; a BLOCKED report that names a state and a sentence; a `State:` ledger line for a ruling that rewords dictated text.
+- Consumes: the task blocks of Task 3 `plan-skill`.
+- Produces: three items in the implementer's report, read by Task 6 `task-reviewer`: `**Acceptance**`, `**Task test command**` and `**States**`; a BLOCKED report that names a state and a sentence; a `State:` ledger line for a ruling that rewords dictated text.
 
 **Intent:** The Design's "The delegate skill and its templates", the implementer's half.
 The controller picks a mid-tier implementer for every plan task, and the implementer template tells it to turn acceptance lines into failing tests, to place dictated text as written and to stop when that text breaks a state.
@@ -742,7 +946,7 @@ In "Report Format", after the item that begins "What you tested and test results
 
 **Commit:** `feat(build): give plan tasks a mid-tier implementer who writes the tests`
 
-### Task 4 `task-reviewer`: The task reviewer gives a verdict per acceptance line and state
+### Task 6 `task-reviewer`: The task reviewer gives a verdict per acceptance line and state
 
 **Files:**
 
@@ -751,8 +955,8 @@ In "Report Format", after the item that begins "What you tested and test results
 
 **Interfaces:**
 
-- Consumes: the report items `**Acceptance**`, `**Task test command**` and `**States**` of Task 3 (`implementer`); the task blocks of Task 2 (`plan-skill`).
-- Produces: the verdict words `COVERED`, `MET` and `MISSING` per acceptance line and `HOLDS` and `BROKEN` per state, which Task 5 (`rehearsal`) looks for and Task 7 (`final-reviewer`) reuses.
+- Consumes: the report items `**Acceptance**`, `**Task test command**` and `**States**` of Task 5 `implementer`; the task blocks of Task 3 `plan-skill`.
+- Produces: the verdict words `COVERED`, `MET` and `MISSING` per acceptance line and `HOLDS` and `BROKEN` per state, which Task 7 `rehearsal` looks for and Task 9 `final-reviewer` reuses.
 
 **Intent:** The Design's "The delegate skill and its templates", the reviewer's half.
 Spec compliance becomes a verdict per acceptance line, the reviewer runs the task's own tests once where it used to run none, and a task with a States block gets a verdict per state.
@@ -861,7 +1065,7 @@ In "Common rationalizations", add this row after the row that begins `| "Close e
 
 **Commit:** `feat(build): review a task by a verdict per acceptance line and state`
 
-### Task 5 `rehearsal`: Rehearse a plan without steps end to end
+### Task 7 `rehearsal`: Rehearse a plan without steps end to end
 
 **Files:**
 
@@ -869,7 +1073,7 @@ In "Common rationalizations", add this row after the row that begins `| "Close e
 
 **Interfaces:**
 
-- Consumes: Tasks 2 (`plan-skill`), 3 (`implementer`) and 4 (`task-reviewer`), loaded from this worktree's `plugins/build`, `plugins/practice` and `plugins/review`.
+- Consumes: Tasks 1 `brief-slugs`, 3 `plan-skill`, 4 `task-labels`, 5 `implementer` and 6 `task-reviewer`, loaded from this worktree's `plugins/build`, `plugins/practice` and `plugins/review`.
 - Produces: an empty record commit whose body is the evidence, or one fix commit per defect and then the record commit.
 
 **Intent:** No test runs skill text, so nested headless sessions run it: one writes a plan with `build:plan` from a small Design, the next executes that plan with `build:delegate`.
@@ -908,15 +1112,16 @@ If a nested run departs from the skills, find the sentence of skill text that le
 - The task for `VERSION` has steps, each with a slug after its number, that run `scripts/check-version` twice, with `Expected:` `version mismatch` before the work and `version ok: 0.1.0` after it.
 - The task for `RELEASING.md` has a `**States:**` block that names both paths and a fenced `**Dictated text:**` block.
 - The plan session's final message reports the plan's lines, its number of tasks and its longest task.
-- Each task's report in the nested workspace (`tmp/build/<plan>/task-<N>-report.md`) has an Acceptance item that names a test or a place in the diff for every acceptance line.
+- The briefs and reports in the nested workspace (`tmp/build/<plan>/`) carry each task's slug in their names, and every `complete` line of the nested ledger starts with the task's number and slug.
+- Each task's report there has an Acceptance item that names a test or a place in the diff for every acceptance line.
 - The stream of the delegate session holds a task review with a `COVERED`, `MET` or `MISSING` verdict for every acceptance line of the `bin/slug` task, and a `HOLDS` or `BROKEN` verdict for both states of the `RELEASING.md` task.
-- The nested ledger has a `Task <N>: complete` line for every task, and the session stopped after the final review.
+- The nested ledger has a completion line for every task, and the session stopped after the final review.
 - In the throwaway repository, `bash tests/slug.sh` exits 0 and `scripts/check-version` prints `version ok: 0.1.0`.
 - The record commit's body lists the `claude --version` output and the nested model, each session's id, every line above with its result, and the defects found with their fix commits, or "none".
 
 **Commit:** `test(build): rehearse a plan without steps end to end` (empty, `git commit --allow-empty`, after any fix commits)
 
-### Task 6 `execute-skill`: The inline executor writes the tests and the code
+### Task 8 `execute-skill`: The inline executor writes the tests and the code
 
 **Files:**
 
@@ -924,8 +1129,8 @@ If a nested run departs from the skills, find the sentence of skill text that le
 
 **Interfaces:**
 
-- Consumes: the task blocks of Task 2 (`plan-skill`).
-- Produces: the ledger line `Task <N>: walked <state>: <outcome>; ...`, one pair per state.
+- Consumes: the task blocks of Task 3 `plan-skill`; `<label>` as Task 4 `task-labels` defines it.
+- Produces: the ledger line `<label>: walked <state>: <outcome>; ...`, one pair per state.
 
 **Intent:** The Design's "The execute skill".
 The inline executor is the implementer, so the skill tells it what the implementer template tells a subagent, and its completion contract speaks of acceptance lines.
@@ -986,7 +1191,7 @@ Where the repository has no test surface for a line (descriptive prose, a config
 The choices the task leaves open are yours; the exact values, names and signatures it gives are not.
 
 Place dictated text word for word.
-When the task has a States block, read the placed text in each state as an actor in that state would, with the sentences around it, and ledger the walk as `Task <N>: walked <state>: <outcome>; ...`, one pair per state.
+When the task has a States block, read the placed text in each state as an actor in that state would, with the sentences around it, and ledger the walk as `<label>: walked <state>: <outcome>; ...`, one pair per state.
 When the text and a state disagree, the state wins: rule on the smallest rewording that gives the state its outcome, and ledger it as a ruling.
 
 A task with steps is worked in step order: it holds an owner gate or a mandated check, or its plan was written before plans had tasks without steps.
@@ -998,7 +1203,7 @@ Whatever the task's kind, a test or a step that does not come out as the task sa
 - **The code is wrong.** Call the Skill tool for `practice:debug`.
   Find the cause; never patch the symptom to make the output match.
 - **The plan is wrong.** An acceptance line contradicts the spec, an interface from an earlier task does not match what this task consumes, a command cannot work.
-  Rule on the smallest change that satisfies the spec, ledger it as `Task <N>: Ruling: <finding>; <what you decided and why>`, and continue.
+  Rule on the smallest change that satisfies the spec, ledger it as `<label>: Ruling: <finding>; <what you decided and why>`, and continue.
   The ruling is carried, not remembered: later tasks that touch the same interface read it from the ledger.
 
 Commit with the subject the task gives: one commit per task on the feature branch, Conventional Commits, one concern per commit.
@@ -1031,7 +1236,7 @@ In "Common rationalizations", the rows that begin `| "The plan's code is right` 
 
 **Commit:** `feat(build): execute a plan whose tests and code are the executor's`
 
-### Task 7 `final-reviewer`: The final reviewer checks acceptance lines and states across the branch
+### Task 9 `final-reviewer`: The final reviewer checks acceptance lines and states across the branch
 
 **Files:**
 
@@ -1039,7 +1244,7 @@ In "Common rationalizations", the rows that begin `| "The plan's code is right` 
 
 **Interfaces:**
 
-- Consumes: the task blocks of Task 2 (`plan-skill`); the words `HOLDS` and `BROKEN` of Task 4 (`task-reviewer`).
+- Consumes: the task blocks of Task 3 `plan-skill`; the words `HOLDS` and `BROKEN` of Task 6 `task-reviewer`.
 - Produces: the output section "Acceptance lines and states".
 
 **Intent:** The Design's "The reviewer template of the review plugin".
@@ -1094,7 +1299,7 @@ In "Output format", after the "### Strengths" block, add:
 
 **Commit:** `feat(review): check acceptance lines and states across the branch`
 
-### Task 8 `approach-check`: A design fixes the values the plan copies
+### Task 10 `approach-check`: A design fixes the values the plan copies
 
 **Files:**
 
@@ -1123,7 +1328,7 @@ In `plugins/discover/skills/approach/SKILL.md`, "Architectural path", step 7, af
 
 **Commit:** `feat(discover): check that a design fixes its values and edge behaviours`
 
-### Task 9 `workflow`: The workflow says what a plan holds
+### Task 11 `workflow`: The workflow says what a plan holds
 
 **Files:**
 
@@ -1131,7 +1336,7 @@ In `plugins/discover/skills/approach/SKILL.md`, "Architectural path", step 7, af
 
 **Interfaces:**
 
-- Consumes: the recommendation rule of Task 2 (`plan-skill`).
+- Consumes: the recommendation rule of Task 3 `plan-skill`.
 - Produces: nothing.
 
 **Intent:** `shared/WORKFLOW.md` is symlinked into `plugins/build/skills/plan/` and `plugins/discover/skills/approach/`, so this commit is a visible change to both plugins and bumps both.
@@ -1155,7 +1360,7 @@ In `shared/WORKFLOW.md`, section "Architectural change", steps 2 and 4 of the nu
 
 **Commit:** `feat(build,discover): say what a plan holds in the workflow`
 
-### Task 10 `seed-prompt`: Remove the landed seed prompt
+### Task 12 `seed-prompt`: Remove the landed seed prompt
 
 **Files:**
 
