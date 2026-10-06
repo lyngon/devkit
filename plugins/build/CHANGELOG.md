@@ -4,6 +4,12 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.22.0 - 2026-10-06
+
+- `build:delegate` reviews a task by a verdict per acceptance line (COVERED, MET or MISSING) and per state of a States block (HOLDS or BROKEN), and the task reviewer runs the task's own test files once with the command the implementer reported.
+  A report without its Acceptance item or task test command is sent back to the implementer before the review.
+  The re-review and evidence review templates do not change.
+
 ## 0.21.0 - 2026-10-06
 
 - `build:delegate` picks a mid-tier implementer for every plan task, and keeps the cheapest tier for a batch of same-shape edits and a single-file mechanical fix; the plan scan checks acceptance lines against Interfaces and dictated text against States.

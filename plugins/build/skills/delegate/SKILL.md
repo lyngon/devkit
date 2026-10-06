@@ -293,6 +293,8 @@ Handle each appropriately.
 
 **DONE:** generate the review package (this skill's `scripts/review-package PLAN_FILE BASE HEAD`, run from the repository root; it prints the path of the file it wrote, one per range; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
 
+A report without its Acceptance item, or without the task test command when the task has tests, for a brief that has acceptance lines, is incomplete: resume the implementer for the missing part before you dispatch the review.
+
 **DONE_WITH_CONCERNS:** the implementer completed the work but flagged doubts.
 Read the concerns before proceeding.
 If the concerns are about correctness or scope, address them before review.
@@ -337,7 +339,8 @@ Implementer self-review never replaces the task review; both are needed.
   Ledger each one as `State: <fact>` when you learn it, and hand the ledger's `State:` lines to every reviewer from then on, task, re-review and final alike.
   A reviewer that sees only the plan reports findings against a world that no longer exists.
 - Do not add open-ended directives like "check all uses" or "run race tests if useful" without a concrete, task-specific reason.
-- Do not ask a reviewer to re-run tests the implementer already ran on the same code; the implementer's report carries the test evidence.
+- The task reviewer runs the task's own test files once, with the command the report names; its template says so.
+  Do not ask any reviewer for more (the whole suite, a race run, a repeat); a re-reviewer follows its own template, and the fix report carries its test evidence.
 - Do not pre-judge findings for the reviewer: never instruct a reviewer to ignore or not flag a specific issue.
   If you believe a finding would be a false positive, let the reviewer raise it and adjudicate it in the review loop.
   If the prompt you are writing contains "do not flag", "don't treat X as a defect", "at most Minor" or "the plan chose", stop: you are pre-judging, usually to spare yourself a review loop.
@@ -470,6 +473,7 @@ Call the Skill tool for `build:finish`.
 | Excuse | Reality |
 | --- | --- |
 | "Close enough on spec compliance" | Reviewer found spec gaps = not done. Fix or hit the cap and adjudicate; those are the only exits. |
+| "The report shows RED and GREEN, the reviewer need not run anything" | The report is a claim. One run of the task's own test files is the check, and a line without a test that would fail is Missing. |
 | "I'll fix it myself, dispatching is overhead" | Controller fixes pollute your context and skip review. Resume the implementer. |
 | "One more round will converge" | Past the cap, rounds don't converge; the failure is structural. Adjudicate and route. |
 | "The reviewer will just find something new anyway" | Scoped re-reviews verify fixes; they cannot wander. New findings on untouched code go to the ledger, not the loop. |
@@ -509,12 +513,16 @@ You: "User level, under the user's configuration directory; the path is in the b
 
 Implementer: [Later]
   - Implemented install-hook command
-  - Added tests, 5/5 passing
+  - Added tests, 5/5 passing; Acceptance: one covering test per line
+  - Task test command: node --test test/install-hook.test.js
   - Self-review: found I missed the --force flag, added it
   - Committed
 
 [Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
 Task reviewer: Spec ✅, all requirements met, nothing extra.
+  Acceptance: line 1 COVERED by test/install-hook.test.js "installs at user level";
+  line 2 COVERED by "--force overwrites an existing hook".
+  Tests run: node --test test/install-hook.test.js, 5/5 passing, as reported.
   Strengths: good test coverage, clean. Issues: none. Task quality: Approved.
 
 [Ledger: Task 1 hook-install: complete (commits a1b2c3d..d4e5f6a, review clean)]
@@ -525,11 +533,14 @@ Task 2 `recovery-modes`: Recovery modes
 
 Implementer: [No questions]
   - Added verify/repair modes
-  - 8/8 tests passing
+  - 8/8 tests passing; Acceptance: a covering test per line
+  - Task test command: node --test test/recovery.test.js
   - Committed
 
 [Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
 Task reviewer: Spec ❌:
+  Acceptance: line 1 COVERED by test/recovery.test.js "verify reports drift";
+  line 2 MISSING (its only test, "repair reports progress", passes with no 100-item interval)
   - Missing: progress reporting (spec says "report every 100 items")
   Issues (Important): magic number (100)
 

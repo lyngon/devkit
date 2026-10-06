@@ -81,17 +81,19 @@ Dispatch a subagent with:
 
     ## Tests
 
-    The implementer already ran the tests and reported results with TDD
-    evidence for exactly this code. Do not re-run the suite to confirm their
-    report. Run a test only when reading the code raises a specific doubt
-    that no existing run answers, and then a focused test, never a
-    package-wide suite, race detector run, or repeated/high-count loop. If
-    heavy validation seems warranted, recommend it in your report instead of
-    running it. If you cannot run commands in this environment, name the
-    test you would run.
+    The implementer's report names the test that covers each acceptance
+    line and shows RED and GREEN output. Treat both as claims. Run the
+    task's own test files once, with the task test command the report
+    names, and compare the result with the report; never run the whole
+    suite, a race detector or a repeated loop. Running that command is
+    the one exception to the read-only rule above, and it must leave the
+    working tree as it was. If the report names no command, or you
+    cannot run commands in this environment, say so and name the command
+    you would run. If heavy validation seems warranted, recommend it in
+    your report instead of running it.
 
-    Warnings or other noise in the implementer's reported test output are
-    findings; test output should be pristine.
+    Warnings or other noise in the test output are findings; test output
+    should be pristine.
 
     Evidence you cannot see is not evidence that doesn't exist. If the
     report or its test evidence looks truncated, or you cannot locate the
@@ -110,6 +112,33 @@ Dispatch a subagent with:
       "nice to haves"
     - **Misunderstood:** right feature built the wrong way, wrong problem
       solved
+
+    When the brief has an Acceptance block, give a verdict on every
+    acceptance line, in the brief's order:
+
+    - COVERED: name the test, and say why it would fail if the line were
+      violated. Read the test to judge this; a test that would still
+      pass is not coverage.
+    - MET: the line is met at a place in the diff that you name, and the
+      repository has no test surface that could have covered it.
+    - MISSING: no test covers the line and nothing in the diff meets it;
+      or its only test would pass with the line violated; or it is met
+      in the diff alone where a test could have covered it.
+
+    Every MISSING line is a Missing finding. A choice the brief leaves
+    open (a name, a structure, the design of a test) is the
+    implementer's and is not a finding, unless Part 2 calls the result a
+    defect. A brief without an Acceptance block is compared with its
+    text as a whole.
+
+    When the brief has a States block, read the dictated text in each
+    state as an actor in that state would, follow it to its outcome, and
+    give each state HOLDS or BROKEN. For this check, and only for it,
+    read the whole of every file the dictated text sits in: a sentence
+    the task left alone that now contradicts the dictated text breaks
+    the state. A BROKEN state is an Important finding. Dictated text
+    that differs from the brief's wording is a Misunderstood finding,
+    unless a state change listed above supersedes that wording.
 
     If the brief lists several files each with its own change (a batched
     dispatch), check the diff against that list file by file: every listed
@@ -176,6 +205,11 @@ Dispatch a subagent with:
     - ⚠️ Cannot verify from diff: [requirements you could not verify from the
       diff alone, and what the controller should check; report alongside the
       ✅/❌ verdict for everything you could verify]
+    - Acceptance (when the brief has an Acceptance block): one line per
+      acceptance line, COVERED by [test] | MET at [file:line] | MISSING
+    - States (when the brief has a States block): one line per state,
+      HOLDS | BROKEN, with the sentence that breaks it
+    - Tests run: [the command and its result, or why none was run]
 
     ### Strengths
     [What's well done? Be specific.]
@@ -210,4 +244,4 @@ Dispatch a subagent with:
 
 Leave out the emphasis sentence when nothing stands out, and the "State Changes Since the Inputs Were Written" section when there is nothing to fill it with.
 
-**The reviewer returns:** the spec compliance verdict (✅, ❌ or ⚠️), strengths, issues (Critical, Important, Minor) and the task quality verdict.
+**The reviewer returns:** the spec compliance verdict (✅, ❌ or ⚠️) with a verdict per acceptance line (COVERED, MET or MISSING) and per state (HOLDS or BROKEN), the test command it ran and its result, strengths, issues (Critical, Important, Minor) and the task quality verdict.
