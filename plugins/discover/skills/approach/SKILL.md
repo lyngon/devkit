@@ -66,6 +66,8 @@ Resume at the earliest incomplete stage; never turn one approval into permission
    - Internal consistency: sections that contradict each other, an approach that does not match the components.
    - Scope: focused enough for a single plan, or in need of decomposition.
    - Ambiguity: a requirement that can be read two ways; pick one and make it explicit.
+   - Fixed values: every value an implementer must use exactly (a name, a format, a limit, a message) is stated, and every edge behaviour is named with its outcome.
+     The plan copies them and decides none, so one that is missing here is decided by whoever writes the plan.
 
    When the writing plugin is installed, pass the design through `writing:unslop` before the user sees it.
 8. Ask the user to review the file and stop: "Design written to `<path>`. Please review it and tell me what to change before the plan is written."
