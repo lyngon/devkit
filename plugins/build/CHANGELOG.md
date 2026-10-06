@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.5 - 2026-10-06
+
+- The task reviewer gives COVERED, naming the step, for an acceptance line that a mandated check of the brief pins, and the implementer's Acceptance item names that step; a reviewer had chosen MET against a template that knew only tests.
+- The implementer template places a sentence that a ruling reworded in place of the brief's, and `build:delegate` says the dispatch carries it as the one exception to exact values appearing only in the brief.
+
 ## 0.25.4 - 2026-10-06
 
 - `build:delegate` and `build:execute` resume a task without steps after an unforeseen gate: the post-gate part carries the line `Done: <what the report shows done, by acceptance line>; continue with: <the acceptance lines that remain>.` in place of "Steps 1 to K are done; start at Step K+1.", which named a step the task does not have.

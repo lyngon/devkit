@@ -118,7 +118,9 @@ Dispatch a subagent with:
 
     - COVERED: name the test, and say why it would fail if the line were
       violated. Read the test to judge this; a test that would still
-      pass is not coverage.
+      pass is not coverage. A line that a mandated check in the brief's
+      steps pins, with the expected output of its failing and of its
+      passing run, is covered by that check: name the step.
     - MET: the line is met at a place in the diff that you name, and the
       repository has no test surface that could have covered it.
     - MISSING: no test covers the line and nothing in the diff meets it;

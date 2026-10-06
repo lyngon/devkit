@@ -272,7 +272,7 @@ Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fi
   There is one brief per task, and every call writes the same plan text, so regenerating it after compaction or in a new session is harmless.
   Compose the dispatch so the brief stays the single source of requirements.
   Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
-  Exact values (numbers, magic strings, signatures, acceptance lines, dictated text) appear only in the brief.
+  Exact values (numbers, magic strings, signatures, acceptance lines, dictated text) appear only in the brief; the one exception is a sentence of dictated text that a ruling reworded, which the dispatch carries.
   Never make a subagent read the whole plan file.
   A task with an owner gate gets two briefs, one per part, as [Owner gates](#owner-gates) says.
 - **Report file.** Name the implementer's report file after the brief, with `-report.md` in place of `-brief.md` (brief `task-3-rate-limiter-brief.md`, report `task-3-rate-limiter-report.md`, same workspace), and put it in the dispatch prompt.

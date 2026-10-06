@@ -105,6 +105,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `task-brief` refuses, with the line's number, a line that would open a fence while a fence of the same character and at most that length is open; upstream tracked fences without checking for it.
 - `scripts/prompt-file` refuses a template whose `text` block never closes, and its header says that the controller does not paste the template because the subagent reads the file.
 - `references/owner-gates.md` and the implementer template say how an unforeseen gate in a task without steps resumes: a `Done: ...; continue with: ...` line in place of the start-step line, and "the work that remains" in place of "the steps after the gate".
+- Task reviewer template: COVERED also covers a line pinned by a mandated check of the brief, naming the step. Implementer template: the Acceptance item may name the step of a mandated check, and a "Dictated Text and States" paragraph says a sentence reworded by a ruling replaces the brief's. SKILL.md: that reworded sentence is the one exception to exact values appearing only in the brief.
 
 ## Review notes
 

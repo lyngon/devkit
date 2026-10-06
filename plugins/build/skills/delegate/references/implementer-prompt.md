@@ -85,6 +85,10 @@ Dispatch a subagent with:
     not yours to change: stop and report BLOCKED with the state, the
     sentence and the outcome it gives instead.
 
+    When your dispatch carries a sentence that a ruling reworded, that
+    wording replaces the brief's for that sentence: place it, and read
+    the states against it.
+
     ## You Do Not Dispatch Subagents
 
     Do all of this task's work yourself. Never spawn a subagent to
@@ -171,9 +175,10 @@ Dispatch a subagent with:
     - What you implemented (or what you attempted, if blocked)
     - What you tested and test results
     - **Acceptance**: every acceptance line of the brief, in its order,
-      each with the test that covers it (file and test name), or the
-      place in the diff that meets it and why no test could; "none" when
-      the brief has no acceptance lines
+      each with the test that covers it (file and test name), the step
+      of the brief whose mandated check pins it, or the place in the
+      diff that meets it and why no test could; "none" when the brief
+      has no acceptance lines
     - **Task test command**: the one command that runs this task's own
       test files and nothing else, when the task has tests
     - **States** (when the brief has a States block): each state with
