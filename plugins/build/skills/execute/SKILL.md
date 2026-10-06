@@ -234,7 +234,7 @@ When it records, mark the todo complete and take the next task.
 A task with an owner gate (a step `` - [ ] **Step N: Owner gate `<id>`** ``) runs in two parts around the gate.
 Read [owner-gates.md](../delegate/references/owner-gates.md) at setup, where its Resuming runs, and follow it step by step, with these differences:
 
-- Each part starts with `scripts/task-start PLAN_FILE N --part pre-gate` or `--part post-gate`, and you run its steps yourself; the post-gate part of an unforeseen gate starts with `scripts/task-start PLAN_FILE N` at the step after the stop, as the protocol's Unforeseen stops say.
+- Each part starts with `scripts/task-start PLAN_FILE N --part pre-gate` or `--part post-gate`, and you run its steps yourself; the post-gate part of an unforeseen gate starts with `scripts/task-start PLAN_FILE N` at the step after the stop, or, in a task without steps, at the acceptance lines that remain, as the protocol's Unforeseen stops say.
   That part keeps the task's original BASE for the evidence-review package and for `task-done`, not the BASE a new `task-start` prints.
   In the pre-gate part you never perform the gated action; its brief ends at the gate with "Stop here".
 - The record commit's body starts with the line `Owner gate: <id>`, followed by the evidence, as the protocol's step 6 says.

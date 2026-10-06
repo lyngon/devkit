@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.4 - 2026-10-06
+
+- `build:delegate` and `build:execute` resume a task without steps after an unforeseen gate: the post-gate part carries the line `Done: <what the report shows done, by acceptance line>; continue with: <the acceptance lines that remain>.` in place of "Steps 1 to K are done; start at Step K+1.", which named a step the task does not have.
+  A hook that cannot pass in the middle of an ordinary task is the most common unforeseen stop.
+
 ## 0.25.3 - 2026-10-06
 
 - `prompt-file` refuses a template whose `text` block has no closing fence (exit 3, nothing written); it printed to the end of the file, notes for the controller included, and exited 0.

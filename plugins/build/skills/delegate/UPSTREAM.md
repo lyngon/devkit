@@ -104,6 +104,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `task-brief` reads an Owner Gates index Task cell as the task's number, with or without `Task` before it and a slug after it, and refuses a cell whose slug differs from the slug of the task's heading or that has one where the heading has none (the former line reading "6" or "Task 6" alike is superseded).
 - `task-brief` refuses, with the line's number, a line that would open a fence while a fence of the same character and at most that length is open; upstream tracked fences without checking for it.
 - `scripts/prompt-file` refuses a template whose `text` block never closes, and its header says that the controller does not paste the template because the subagent reads the file.
+- `references/owner-gates.md` and the implementer template say how an unforeseen gate in a task without steps resumes: a `Done: ...; continue with: ...` line in place of the start-step line, and "the work that remains" in place of "the steps after the gate".
 
 ## Review notes
 

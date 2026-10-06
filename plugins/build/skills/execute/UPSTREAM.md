@@ -57,6 +57,7 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - `task-done`: the log name is built from the label only, so a space in the workspace path stays as it is.
 - Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format; `task-start` prints the label and `task-done` writes the completion line under it.
 - The inline executor is the implementer: the core principle says the plan carries the decisions and the tests and the code are the executor's; "Work the steps" became "Work the task" (a failing test per acceptance line, then the code; dictated text placed word for word; a States block walked and ledgered as `<label>: walked <state>: <outcome>; ...`; steps only for a task with an owner gate or a mandated check, or from a plan written before plans had tasks without steps); the completion contract speaks of acceptance lines, `task-done` takes the command that runs the task's own test files, and the process graph, two rationalization rows and the example workflow follow. "A fully specified plan makes inline execution transcription plus testing" became a statement that the plan is written for a skilled developer, so inline execution needs a session model of the mid tier or above.
+- The post-gate part of an unforeseen gate in a task without steps starts at the acceptance lines that remain, where it would start at the step after the stop.
 
 ## Review notes
 
