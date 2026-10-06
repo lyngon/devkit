@@ -102,6 +102,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - Workspace and ledger, which is not upstream: a ledger line whose format starts with `<label>` starts with the label, with nothing before it, a time included; a time goes only where a format has `<time>`.
 - Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format, in the owner gate protocol and in the dispatch descriptions of the four templates, which gained a `[LABEL]` placeholder; brief and report names carry the slug and a report is named from its brief with `-report.md` in place of `-brief.md`.
 - `task-brief` reads an Owner Gates index Task cell as the task's number, with or without `Task` before it and a slug after it, and refuses a cell whose slug differs from the slug of the task's heading or that has one where the heading has none (the former line reading "6" or "Task 6" alike is superseded).
+- `task-brief` refuses, with the line's number, a line that would open a fence while a fence of the same character and at most that length is open; upstream tracked fences without checking for it.
 
 ## Review notes
 

@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.2 - 2026-10-06
+
+- `task-brief` refuses a plan in which a fence opens inside a fence of the same length (exit 3, the line's number, nothing written), for a brief and for `--label`; the brief would otherwise end inside the dictated text and the next task would be "not found".
+  The plan skill's self-review checks that a dictated block's fence is longer than any fence inside it.
+
 ## 0.25.1 - 2026-10-06
 
 - `task-brief` reads an Owner Gates index Task cell that holds a task's label (``6 `state-bucket` ``, ``Task 6 `state-bucket` ``, `Task 6 state-bucket`) as well as `6` and `Task 6`, so a task the index names is still refused without its marker, and refuses a cell whose slug is not the slug of that task's heading.

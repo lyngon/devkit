@@ -43,6 +43,7 @@ This skill's task shape (files, interfaces, no placeholders) is what lets a fres
 - Self-review rewritten to nine items: the line test, a size check and a check of dictated text against its states were added, and the type-consistency check also covers references to tasks and steps.
 - Execution handoff: a recommendation rule (`build:execute` for about five tasks or fewer without an owner gate the agent performs, `build:delegate` otherwise), the plan's size and longest task in both messages, and an inline-review warning for an owner gate the agent performs.
 - The Owner Gates index example row names its task by its label (``Task 6 `state-bucket` ``).
+- Self-review item 8 (dictated text) also checks that every dictated block's fence is longer than any fence inside it.
 
 ## Review notes
 

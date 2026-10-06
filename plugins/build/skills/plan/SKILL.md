@@ -294,6 +294,7 @@ This is a checklist you run yourself, not a subagent dispatch.
 8. **Dictated text.** Check every block of dictated text against the repository's recorded decisions, the gates and rules in its agent instructions, and the findings recorded earlier in this design and plan.
    The implementer places it as written, so a contradiction the plan carries ships.
    For protocol text, read the text in each state of its States block, with the sentences around the place it goes, and check that it gives the outcome named there and contradicts none of them.
+   Check, too, that every dictated block's fence is longer than any fence inside it; the executors refuse a plan in which a fence opens inside a fence of the same length.
 9. **Owner gates.** Every task that performs an action an executor must stop for (an irreversible or destructive operation, a security-sensitive action, a side effect outside the worktree) has a gate, and no step before a gate performs such an action.
    Every gate has all its fields, and the index has exactly one row per gate, or "None." when there is none.
    Every gate the agent performs has an action its approval pins, and every dry run a post-gate step compares is deterministic.

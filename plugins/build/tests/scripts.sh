@@ -427,6 +427,54 @@ check "task-brief: an index Task cell with a slug for a heading without one is r
 check "task-brief: a refused cell writes no brief" \
   equals "$(compgen -G "$repo/tmp/build/2026-01-01-cells/task-6*" || true)" ""
 
+# A fence that opens inside a fence of the same length is refused for every
+# task of the plan, the label included, with the line's number.
+nested_fixture() {
+  cat <<'EOF'
+# Nested
+
+## Plan
+
+### Task 1 `outer`: Holds a fence
+
+```markdown
+Dictated text.
+
+```bash
+echo hi
+```
+```
+
+### Task 2 `later`: Comes after
+
+Later text.
+
+~~~~markdown
+~~~bash
+a shorter fence of the same character
+~~~
+```bash
+a fence of the other character
+```
+~~~~
+EOF
+}
+nested=$repo/docs/plans/2026-01-01-nested.md
+nested_fixture >"$nested"
+nested_message="task-brief: line 10: a fence opens inside a fence of the same length; lengthen the outer fence"
+for task in 1 2; do
+  brief "$nested" "$task"
+  check "task-brief: a fence opened inside a fence of the same length is refused for task $task, with nothing written" \
+    equals "$code|$err|$out|$(compgen -G "$repo/tmp/build/2026-01-01-nested/task-*" || true)" "3|$nested_message||"
+  brief "$nested" "$task" --label
+  check "task-brief: --label refuses it for task $task too" \
+    equals "$code|$err|$out" "3|$nested_message|"
+done
+nested_fixture | sed $'s/^```markdown$/````markdown/; 13s/^```$/````/' >"$nested"
+brief "$nested" 2
+check "task-brief: a longer outer fence leaves the inner fence as text, and a shorter fence of the same character and one of the other character in a longer fence too" \
+  equals "$code|$(grep -c '^~~~bash$' <<<"$body")" "0|1"
+
 fixture | sed 's/^- \[ \] \*\*Step 2: Commit\*\*$/- [ ] **Step 2: Owner gateway setup**/' >"$plan"
 brief "$plan" 1
 check "task-brief: a step titled with \"Owner gateway\" is no gate marker, and the task extracts ungated" \
