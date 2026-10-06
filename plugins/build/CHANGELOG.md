@@ -4,6 +4,15 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.16.0 - 2026-10-06
+
+- A fix to protocol text gets a state walk before it is made.
+  Protocol text names states and the events that move between them, or states a rule that holds across steps, and is recognized by a sentence that is read on more than one path (a fresh and a resumed run, a first attempt and a retry, an action the agent or the owner performs); a value, a command or a step's wording that is read on one path gets no walk.
+  In the delegate skill's fix loop and final fix wave, the controller writes a walk list of the states and paths that read the sentence, each with the outcome it must give, checks any wording it dictates against each entry, and sends the list with the findings.
+  The re-review template has an optional "The State Walk" section (`[WALK_LIST]`): the re-reviewer verdicts each entry HOLDS or BROKEN, reads the whole of the files the fix touched for it, and a BROKEN state joins the open findings; such a re-review takes at least a mid-tier model.
+  In the execute skill's fix pass after the final review, the executor lists the states before the edit, reads the fixed text in each after it, and ledgers the walk as `Final: walked <finding>; ...`.
+  Three dictated fixes to the owner gate protocol each introduced a new Important finding that only the next review cycle found.
+
 ## 0.15.50 - 2026-10-04
 
 - The finish skill's commands run in a session that its harness isolates in a worktree: each is a plain command with its values written out, where Steps 2, 3, 6 and 7 captured output in shell variables and wrapped git in command substitution, which Claude Code refuses there as "too complex to verify that it stays inside the worktree".
