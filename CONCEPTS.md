@@ -79,6 +79,10 @@ _Avoid_: monorepo, package layout
 The way of working an owner adopts for a Lyngon repository: the agent follows the Lyngon conventions, commits each concern on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge.
 _Avoid_: process, flow (a flow is one path through the skills)
 
+**Plan**:
+The ordered tasks that turn an approved design into a finished branch, written for an implementer who knows the craft but not this repository.
+_Avoid_: light plan, complete plan (there is one kind), spec
+
 **Review gate**:
 One of the two points where the owner reviews planned work: the design and the plan before execution, and the pull request after it.
 _Avoid_: gate on its own, checkpoint
@@ -90,6 +94,18 @@ _Avoid_: gate on its own, approval step, hold point
 **Pre-approval**:
 The owner's explicit approval of one named owner gate, given when approving the plan, so that the executor passes that gate without stopping.
 _Avoid_: blanket approval, standing approval
+
+**Acceptance line**:
+One behaviour a task must produce, stated in one line that can be checked on its own, with exact values where the design fixes them.
+_Avoid_: requirement, test case, acceptance criteria for a single line
+
+**Dictated text**:
+Text a plan gives word for word because its wording is the decision: a decision record, a working rule, a term's definition, or text an agent follows as a procedure.
+_Avoid_: verbatim block, copy text, boilerplate
+
+**Mandated check**:
+A command whose exact output a plan pins, shown failing when its property does not hold and passing when it does.
+_Avoid_: verification step, smoke test
 
 **Prerequisite**:
 Something a repository must have for a plugin to apply: the documents, the workflow, the baseline, or the structure. Declared per plugin; independent of each other. Using devenv at all is a condition a plugin may write for, not a prerequisite.
@@ -105,5 +121,6 @@ _Avoid_: assumption, tier, requirement
 - The **Structure** is one of the shared convention documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - Every **Plugin** declares its **Prerequisites**; a bundle's are the union of its members'.
-- A plan's execution lies between its two **Review gates**; its **Owner gates** lie inside it.
+- A **Plan**'s execution lies between its two **Review gates**; its **Owner gates** lie inside it.
+- Every task of a **Plan** has **Acceptance lines**; it has **Dictated text** only where the wording is the decision, and a **Mandated check** only where a command's exact output is the behaviour.
 - An **Owner gate** has at most one **Pre-approval**, and only a gate whose action the executor performs can have one.
