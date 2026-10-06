@@ -155,7 +155,7 @@ The spec is the authority the plan argues from, and conflicts inside the plan re
 A plan with no reachable spec gets a ledger note saying so; rulings made without one are provisional.
 
 **Required sub-skill:** call the Skill tool for `practice:tdd` now, before Task 1.
-It governs every step of every task below; a plan whose steps already say "write the failing test first" does not exempt you from reading it.
+It governs every task below; a plan that already says to write the failing test first does not exempt you from reading it.
 
 Before Task 1, scan the plan for conflicts between tasks.
 The plan's Interfaces blocks tell you where to look: for every task that consumes what an earlier task produces, one ledger row with the two tasks, what one produces against what the other consumes, and what you found.
@@ -240,6 +240,7 @@ Read [owner-gates.md](../delegate/references/owner-gates.md) at setup, where its
 - The record commit's body starts with the line `Owner gate: <id>`, followed by the evidence, as the protocol's step 6 says.
 - Ledger `<label> post-gate: started` where the protocol says `dispatched`, before any post-gate step runs.
 - The evidence review is a subagent dispatch here too, with [evidence-reviewer-prompt.md](../delegate/references/evidence-reviewer-prompt.md) on at least a mid-tier model, because the final review reads a diff and cannot see live state.
+  Its template goes out as a file, as "Final review" says.
   Having no report files, it passes the task's ledger lines and the hash of its record commit in place of `[PRE_GATE_REPORT]` and `[POST_GATE_REPORT]`.
   Screen its findings before you fix any: one whose fix needs another live action becomes an unforeseen gate, never part of the fix pass.
   Fix its Critical and Important findings in one pass, each verified by a test or a re-run check that failed first, and ledger `<label>: evidence review clean` or `<label>: evidence review: <K> fixed`.
@@ -255,7 +256,7 @@ A finding whose fix needs a live change gets an unforeseen owner gate in the fix
 **With a subagent tool.** Call the Skill tool for `review:request`; it holds the reviewer template.
 Hand the reviewer the template's prompt as a file: `<this skill's directory>/../delegate/scripts/prompt-file PLAN_FILE TEMPLATE_FILE` writes it to the workspace and prints the path, and the dispatch names that file as the reviewer's instructions and fills each placeholder by its name.
 Never paste, condense or reword the template; the evidence reviewer's template goes out the same way.
-Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's `Ruling:` lines, so it can weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
+Dispatch the reviewer on the most capable available model, since the whole-branch review is a judgment task, and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes that no task's acceptance lines cover, which the reviewer checks deliberately); the ledger's `Ruling:` lines, so it can weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 A `State:` line is a fact that superseded the plan, the spec or an inventory after they were written (a manual action, a resource removed, a decision the user took in chat); ledger each one as `State: <fact>` when you learn it.
 Specify the model explicitly; an omitted model inherits the session's, which may not be the most capable.
 This is the one fresh context the whole run buys.
@@ -351,8 +352,8 @@ Task 2 `recovery-modes`: Recovery modes
 
 [task-start plan 2 → brief read; BASE d4e5f6a; label: Task 2 recovery-modes]
 [Acceptance line 1, verify mode reports a corrupt store: write the test, run it → FAIL, but on an import error: Task 1 exported installHook, the brief consumes install_hook]
-[Ruling: the brief's consumer name misspells Task 1's Produces block; use installHook]
-[Ledger: Task 2 recovery-modes: Ruling: install_hook → installHook; matches Task 1 Produces; cost if wrong: one rename]
+[Ruling: the brief's consumer name misspells Task 1 hook-install's Produces block; use installHook]
+[Ledger: Task 2 recovery-modes: Ruling: install_hook → installHook; matches Task 1 hook-install Produces; cost if wrong: one rename]
 [Run again → FAIL: verify is not defined. Watched it fail. Implement, run → PASS. Acceptance line 2 the same way; commit b7c8d9e]
 [task-done plan 2 d4e5f6a -- npm test -- recovery → ledger: Task 2 recovery-modes: complete (commits d4e5f6a..b7c8d9e, tests: npm test -- recovery → 8/8 pass)]
 

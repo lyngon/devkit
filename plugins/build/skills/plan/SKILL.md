@@ -323,7 +323,8 @@ When no execution method has been supplied (leave out ", except at the owner gat
 
 ```text
 Plan complete and committed as docs/plans/<filename>.md: <N> lines over
-<M> tasks; the longest is Task <K> at <L> lines, because <reason>.
+<M> tasks; the longest is Task <K> `<slug>` at <L> lines, because
+<reason>.
 Please review it. Which execution approach would you prefer?
 
 - Delegate (build:delegate): a fresh subagent implements each task and a
@@ -355,7 +356,8 @@ When an execution method has already been supplied:
 
 ```text
 Plan complete and committed as docs/plans/<filename>.md: <N> lines over
-<M> tasks; the longest is Task <K> at <L> lines, because <reason>.
+<M> tasks; the longest is Task <K> `<slug>` at <L> lines, because
+<reason>.
 Please review it.
 [Only when the plan has an owner gate the agent performs and the method
 is build:execute:]

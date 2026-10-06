@@ -271,7 +271,7 @@ Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fi
 - **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to a brief in the workspace named after the task's number and slug (`task-3-rate-limiter-brief.md`) and prints the path.
   There is one brief per task, and every call writes the same plan text, so regenerating it after compaction or in a new session is harmless.
   Compose the dispatch so the brief stays the single source of requirements.
-  Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
+  Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
   Exact values (numbers, magic strings, signatures, acceptance lines, dictated text) appear only in the brief; the one exception is a sentence of dictated text that a ruling reworded, which the dispatch carries.
   Never make a subagent read the whole plan file.
   A task with an owner gate gets two briefs, one per part, as [Owner gates](#owner-gates) says.
@@ -452,7 +452,8 @@ The final review stays after the last task, gated or not; the record commits of 
 A finding whose fix needs a live change gets an unforeseen owner gate in the fix wave.
 
 Call the Skill tool for `review:request`; it carries the reviewer template.
-Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
+Its template goes out as a file, like the four in `references/`: the dispatch names the prompt file and fills each placeholder by its name.
+Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes that no task's acceptance lines cover, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
 A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the findings that remain after your rulings.
@@ -513,7 +514,7 @@ The test output below is an example; the repository's own test command decides.
 
 Task 1 `hook-install`: Hook installation script
 
-[Run task-brief for Task 1 hook-install; dispatch implementer with brief + report paths + context]
+[Run prompt-file for the implementer template and task-brief for Task 1 hook-install; dispatch implementer with prompt file + brief + report paths + context]
 
 Implementer: "Before I begin: should the hook be installed at user or system level?"
 
@@ -526,7 +527,7 @@ Implementer: [Later]
   - Self-review: found I missed the --force flag, added it
   - Committed
 
-[Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
+[Run prompt-file for the task reviewer template and review-package PLAN_FILE BASE HEAD; dispatch task reviewer with prompt file + the printed path]
 Task reviewer: Spec ✅, all requirements met, nothing extra.
   Acceptance: line 1 COVERED by test/install-hook.test.js "installs at user level";
   line 2 COVERED by "--force overwrites an existing hook".
@@ -537,7 +538,7 @@ Task reviewer: Spec ✅, all requirements met, nothing extra.
 
 Task 2 `recovery-modes`: Recovery modes
 
-[Run task-brief for Task 2 recovery-modes; dispatch implementer with brief + report paths + context]
+[Run prompt-file for the implementer template and task-brief for Task 2 recovery-modes; dispatch implementer with prompt file + brief + report paths + context]
 
 Implementer: [No questions]
   - Added verify/repair modes
@@ -545,7 +546,7 @@ Implementer: [No questions]
   - Task test command: node --test test/recovery.test.js
   - Committed
 
-[Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
+[Run prompt-file for the task reviewer template and review-package PLAN_FILE BASE HEAD; dispatch task reviewer with prompt file + the printed path]
 Task reviewer: Spec ❌:
   Acceptance: line 1 COVERED by test/recovery.test.js "verify reports drift";
   line 2 MISSING (its only test, "repair reports progress", passes with no 100-item interval)
@@ -556,7 +557,7 @@ Task reviewer: Spec ❌:
 Implementer: added progress reporting, extracted PROGRESS_INTERVAL constant.
   Re-ran test/recovery.test.js, 10/10 passing. Fix report appended.
 
-[Run review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review]
+[Run prompt-file for the re-review template and review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review with prompt file + the printed path]
 Re-reviewer: Missing progress reporting: ADDRESSED (src/recovery.js:41).
   Magic number: ADDRESSED (src/recovery.js:7). New breakage: none.
   Verdict: all findings addressed.
@@ -568,7 +569,7 @@ Re-reviewer: Missing progress reporting: ADDRESSED (src/recovery.js:41).
 
 Task 3 `apply-saved-plan`: Apply the saved plan (owner gate apply-bucket)
 
-[Run task-brief PLAN_FILE 3 --part pre-gate; dispatch implementer with the pre-gate brief and the [OWNER_GATE] stop text]
+[Run task-brief PLAN_FILE 3 --part pre-gate; dispatch implementer with prompt file + the pre-gate brief and the [OWNER_GATE] stop text]
 Implementer: plan saved, 6 to add; show output in bucket.plan.txt; no commits
 [Pre-gate Expected lines match; pin bucket.tfplan]
 [Ledger: Task 3 apply-saved-plan pre-gate: complete (no commits; pins bucket.tfplan sha256:5891b5b5...)]
@@ -579,16 +580,16 @@ User: "Yes."
 
 [Ledger: Gate apply-bucket: owner 2026-09-23T14:02:11+0800: "Yes."]
 [Run task-brief PLAN_FILE 3 --part post-gate; ledger: Task 3 apply-saved-plan post-gate: dispatched]
-[Dispatch a fresh implementer with the approval in [OWNER_GATE]]
+[Dispatch a fresh implementer with prompt file + the post-gate brief and the approval in [OWNER_GATE]]
 Implementer: pin matches; apply: 6 added; checks 9 PASS; empty record commit e1f2a3b with the evidence
-[Run review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer]
+[Run prompt-file for the evidence reviewer template and review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer with prompt file + the printed path]
 Evidence reviewer: approval matched; live state verified; record commit accurate. Approved.
 [Ledger: Task 3 apply-saved-plan: evidence review clean]
 [Ledger: Task 3 apply-saved-plan: complete (commits b7c8d9e..e1f2a3b, evidence review clean)]
 [Remove the task's temporary files: bucket.tfplan, bucket.plan.txt]
 
 [After all tasks]
-[Run review-package PLAN_FILE MERGE_BASE HEAD; review:request on the most capable model]
+[Run prompt-file for review:request's template and review-package PLAN_FILE MERGE_BASE HEAD; dispatch the final reviewer with prompt file + the printed path, on the most capable model]
 Final reviewer: all requirements met. Deferred minors triaged: none block the pull request.
 
 Rulings I made:

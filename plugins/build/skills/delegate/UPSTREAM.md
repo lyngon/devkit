@@ -106,6 +106,7 @@ With the user reviewing only the plan and the finished branch, this per-task rev
 - `scripts/prompt-file` refuses a template whose `text` block never closes, and its header says that the controller does not paste the template because the subagent reads the file.
 - `references/owner-gates.md` and the implementer template say how an unforeseen gate in a task without steps resumes: a `Done: ...; continue with: ...` line in place of the start-step line, and "the work that remains" in place of "the steps after the gate".
 - Task reviewer template: COVERED also covers a line pinned by a mandated check of the brief, naming the step. Implementer template: the Acceptance item may name the step of a mandated check, and a "Dictated Text and States" paragraph says a sentence reworded by a ruling replaces the brief's. SKILL.md: that reworded sentence is the one exception to exact values appearing only in the brief.
+- SKILL.md: the dispatch's requirement line introduces the brief as "your requirements, with the exact values to use verbatim" (the prompt file is the one read first), the final review's template goes out as a file, the Review Focus parenthesis speaks of what no task's acceptance lines cover, and each dispatch of the example workflow names its prompt file. `references/owner-gates.md`: the pre-gate step names the report by the brief, and a task without a gate is recovered from `git log` by the subject or the commit steps its plan gives.
 
 ## Review notes
 

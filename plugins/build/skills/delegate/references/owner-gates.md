@@ -39,7 +39,7 @@ A gate whose `Performed by` names the agent for an action the approval cannot pi
 
 ## The protocol
 
-1. **Pre-gate part.** Record BASE, extract the brief with `task-brief PLAN_FILE N --part pre-gate` (`task-start PLAN_FILE N --part pre-gate` in `build:execute`), and run the part: in `build:delegate` a dispatch from the implementer template whose `[OWNER_GATE]` block holds the template's pre-gate text verbatim, with the report named after the brief, `-report.md` in place of `-brief.md`, in `build:execute` your own steps.
+1. **Pre-gate part.** Record BASE, extract the brief with `task-brief PLAN_FILE N --part pre-gate` (`task-start PLAN_FILE N --part pre-gate` in `build:execute`), and run the part: in `build:delegate` a dispatch from the implementer template whose `[OWNER_GATE]` block holds the template's pre-gate text verbatim, with the report named after the brief (`-report.md` in place of `-brief.md`); in `build:execute`, your own steps.
    Nobody performs the gated action here.
    `task-brief` refuses a malformed gate, and a task the index names without its marker, before anything runs; rule on the plan defect, or stop when every path forward is a guess.
 2. **Compare and pin.** Compare every `Expected:` line of the pre-gate steps with the real output; a mismatch is handled as in any task, with a ruling or the fix loop, before the gate.
@@ -133,7 +133,7 @@ When there is none and no Execution status will recreate it, create it with its 
 2. Reconcile the ledger with `git log`, which outlives the workspace.
    Read `git log --format='%h %s%n%b' <since>..HEAD`, where `<since>` is the merge base with the default branch.
    For each task the ledger does not already show complete:
-   - A task without a gate whose commit steps all appear in the log is complete: ledger `<label>: complete (recovered from git log: <commits>)`.
+   - A task without a gate whose commits all appear in the log, by the subject or the commit steps its plan gives, is complete: ledger `<label>: complete (recovered from git log: <commits>)`.
    - A gated task whose record commit appears in the log (the commit whose body has the line `Owner gate: <id>`, found with `git log --grep='^Owner gate: <id>$' <since>..HEAD`, never without the range, since an earlier plan's record commit for the same gate ID may sit on the default branch) has acted: never re-run its post-gate part.
      Ledger the answer or pre-approval the record commit's body holds, as the gate's usual `Gate <id>` line, only when the ledger lacks one.
      When the ledger shows its evidence review or an evidence-review fix round in progress, resume that loop at its next round; otherwise resume the task at step 7, the evidence review, which then completes it.

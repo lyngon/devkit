@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.6 - 2026-10-06
+
+- `build:delegate` and `build:execute` carry the final review's small corrections: the final reviewer's template, and the evidence reviewer's under `build:execute`, goes out as a prompt file; the implementer dispatch no longer introduces the brief as "read this first" beside the prompt file; the Review Focus is described as what no task's acceptance lines cover; every dispatch in the example workflow names its prompt file; a task without steps is recovered from `git log` by the subject its plan gives.
+- `build:plan`'s handoff message names the longest task by its label.
+
 ## 0.25.5 - 2026-10-06
 
 - The task reviewer gives COVERED, naming the step, for an acceptance line that a mandated check of the brief pins, and the implementer's Acceptance item names that step; a reviewer had chosen MET against a template that knew only tests.
