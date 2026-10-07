@@ -89,6 +89,19 @@ The person who started the session an agent is working in.
 An operator answers for the task at hand, and for the product only when they are also an owner.
 _Avoid_: user, driver
 
+**Principle**:
+A named, binding statement that takes judgment to apply.
+_Avoid_: guideline, best practice, convention
+
+**Rule**:
+A named, binding statement that a tool can decide.
+Its name is the identifier its check reports.
+_Avoid_: convention, hard rule, working rule
+
+**Change**:
+One concern, delivered as one pull request and landing on the default branch as one commit.
+_Avoid_: task (that is an issue type), commit, PR
+
 **Workflow**:
 The way of working an owner adopts for a Lyngon repository: the agent follows the Lyngon conventions, commits each concern on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge.
 _Avoid_: process, flow (a flow is one path through the skills)
