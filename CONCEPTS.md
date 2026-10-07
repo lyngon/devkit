@@ -79,6 +79,10 @@ _Avoid_: monorepo, package layout
 A document in the tree that states what the code cannot show and that an agent must follow: a repository's intent, working rules, terms and decision records, and the organization's principles.
 _Avoid_: standard document (that names the file set), governing document
 
+**Decision record**:
+A steering document stating one decision the code cannot show, named after the decision and kept only while the decision holds.
+_Avoid_: ADR, architecture decision record
+
 **Owner**:
 A person accountable for a repository, who decides its direction, approves changes to its steering documents and decides what merges.
 A repository may have several.
