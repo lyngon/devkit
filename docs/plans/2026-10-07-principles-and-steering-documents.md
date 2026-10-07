@@ -1,6 +1,7 @@
 # Principles and steering documents
 
 The first of six pieces that replace the devkit's gated workflow with principles, steering documents and checks.
+The pieces, their order and what is settled for each are in [the roadmap](2026-10-07-philosophy-overhaul-roadmap.md).
 This file is transient and is removed by the change that finishes the piece.
 
 ## Design
@@ -18,7 +19,7 @@ After this piece:
 - Agents can ask why code is the way it is and get an answer from git, pull requests, decision records and issues.
 
 The workflow itself does not change in this piece.
-The review gates, plans and the nine superpowers skills stay until piece 2.
+The review gates, plans and the nine superpowers skills stay until the workflow piece.
 
 ### Approach
 
@@ -152,9 +153,9 @@ The rest become files under `.claude/rules/`, all scoped by path:
 | `readme-tree-mirrors-the-init-file-set` | `README.md`, `plugins/repo/skills/init/**` | The example tree in `README.md` shows exactly the files `repo:init` writes. |
 | `long-skill-content-goes-to-references` | `plugins/**/SKILL.md` | What every invocation needs stays in `SKILL.md`; the rest goes to `references/`. |
 | `sandbox-is-the-owners` | `sandbox/**` | Write there only when asked. |
-| `work-in-progress-files` | `docs/TODO.md`, `docs/seed-prompts/**`, `docs/plans/**` | The current rules for deferred work, seed prompts and plan files, until pieces 2 and 4 replace them. |
+| `work-in-progress-files` | `docs/TODO.md`, `docs/seed-prompts/**`, `docs/plans/**` | The current rules for deferred work, seed prompts and plan files, until the workflow and issue-pipeline pieces replace them. |
 
-`readme-tree-mirrors-the-init-file-set` is a rule a tool could decide, so it is debt for piece 5.
+`readme-tree-mirrors-the-init-file-set` is a rule a tool could decide, so it is debt for the rules-as-checks piece.
 
 The 19 records move to `docs/decisions/` as follows.
 
@@ -175,10 +176,10 @@ The 19 records move to `docs/decisions/` as follows.
 | 0013 one workspace per language | Delete | `shared/STRUCTURE.md` |
 | 0014 plugins declare prerequisites | Delete | `validate-prerequisites` and `docs/conventions/prerequisites.md` |
 | 0015 baseline is the prerequisite | Delete | The same |
-| 0016 two review gates | Keep as `planned-work-is-reviewed-at-two-gates` until piece 2 | Judgment |
+| 0016 two review gates | Keep as `planned-work-is-reviewed-at-two-gates` until the workflow piece | Judgment |
 | 0017 the workflow is a prerequisite | Delete | `validate-prerequisites` and `validate-marketplace` |
-| 0018 owner gates | Keep as `owner-gates-are-declared-in-the-plan-and-pre-approved-by-name` until piece 2 | Judgment |
-| 0019 plans carry decisions and facts | Keep as `plans-carry-decisions-and-facts-the-implementer-writes-the-tests-and-the-code` until piece 2 | Judgment |
+| 0018 owner gates | Keep as `owner-gates-are-declared-in-the-plan-and-pre-approved-by-name` until the workflow piece | Judgment |
+| 0019 plans carry decisions and facts | Keep as `plans-carry-decisions-and-facts-the-implementer-writes-the-tests-and-the-code` until the workflow piece | Judgment |
 
 0007 loses its first consequence (byte-identical copies, undone by 0008) and its mention of `packages/`, and keeps the other two.
 0010 stays although a check exists, because an agent could satisfy the check by writing a license file the upstream never published.
@@ -202,7 +203,7 @@ Local patches to the vendored files:
 - `encode-lessons-in-structure`: the "brain note" route is removed. A first occurrence is noted in the pull request, a repeat gets the strongest check that works, and a repeat no tool can decide becomes a principle. It gains the sentence "A rule without a check is debt."
 - `outcome-oriented-execution`: breakage stays inside a branch; the default branch and every pull request head pass the full check.
 - `sequence-verifiable-units`: the change is the unit that lands; inside it, commits may tell the story.
-- `explain-the-number` and `prove-it-works`: the sentences pointing at `benchmark-checklist` and `show-me-your-work` are left out until piece 2 brings those skills.
+- `explain-the-number` and `prove-it-works`: the sentences pointing at `benchmark-checklist` and `show-me-your-work` are left out until the workflow piece brings those skills.
 
 `never-block-on-the-human` will state the gate as follows.
 Ask only before an irreversible action, or for a product or preference call that no run can settle.
@@ -222,7 +223,7 @@ The seven Lyngon principles, each written in upstream's shape (statement, why, p
 | `prescribe-proof-not-steps` | Anything written for an agent to follow states what must hold and what proof is owed, and gives steps only where they are facts the reader cannot derive. |
 
 `review-results-not-plans` describes where the devkit is heading.
-Until piece 2 lands, the gated skills still ask for approval, and the principle's file says so in one sentence that piece 2 removes.
+Until the workflow piece lands, the gated skills still ask for approval, and the principle's file says so in one sentence that the workflow piece removes.
 
 The `conventions` session hook gains one line: "principles:index before work that takes judgment; then read the file of each principle that applies."
 
@@ -276,10 +277,10 @@ On commit, `validate-documents` and `validate-structure` fail on anything the ru
 
 ### Out of scope
 
-- Everything in piece 2: the mode, the playbooks, the other pstack skills, `correct` and the mistake ledger, the pull request sections, squash merging, the change as a unit, and question names in the interview skill.
-- Pieces 3 to 5: the agent identity, the issue pipeline, the GitHub setup that `repo:init` emits, and rules as checks, including the five structure checks.
-- Deleting the three records about gates and plans, which goes with piece 2.
-- Renaming the `conventions` plugin and `docs/conventions/`, which goes with piece 5.
+- Everything in the workflow piece: the mode, the playbooks, the other pstack skills, `correct` and the mistake ledger, the pull request sections, squash merging, the change as a unit, and question names in the interview skill.
+- The later pieces: the agent identity, the issue pipeline, the GitHub setup that `repo:init` emits, and rules as checks, including the five structure checks.
+- Deleting the three records about gates and plans, which goes with the workflow piece.
+- Renaming the `conventions` plugin and `docs/conventions/`, which goes with the rules-as-checks piece.
 - Migrating `lyngon.com`. It keeps working until it updates its devkit input, and migrates in a change of its own.
 
 ### Decisions for the owner to check

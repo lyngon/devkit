@@ -7,6 +7,15 @@ Queued items are listed in the order to implement them; a new one is placed by i
 
 ## Queued
 
+The first seven are the pieces of the philosophy overhaul, in order; what is settled for each is in [the roadmap](plans/2026-10-07-philosophy-overhaul-roadmap.md).
+
+- 2026-10-07: [Steering documents](seed-prompts/steering-documents.md), implemented from the approved design without a plan file. The document rules, the `validate-documents` hook, the templates and the devkit's own migration.
+- 2026-10-07: [Principles and why](seed-prompts/principles-and-why.md), implemented from the same design without a plan file. The `principles` plugin with 24 vendored and 7 Lyngon principles, and the `why` skill.
+- 2026-10-07: [Workflow](seed-prompts/workflow.md), a design through `discover:approach`. The gated workflow and the nine superpowers skills are replaced by skills vendored from pstack.
+- 2026-10-07: [Agent identity](seed-prompts/agent-identity.md), a design through `discover:approach`. Agents act as an organization-owned GitHub App.
+- 2026-10-07: [Issue pipeline](seed-prompts/issue-pipeline.md), a design through `discover:approach`. Filing, triage and picking on GitHub Issues, replacing this file.
+- 2026-10-07: [GitHub repository setup](seed-prompts/github-repository-setup.md), a design through `discover:approach`. `repo:init` emits the ruleset, CODEOWNERS, labels, issue forms and merge settings.
+- 2026-10-07: [Rules as checks](seed-prompts/rules-as-checks.md), a design through `discover:approach`, then one bounded change per check. Every rule a tool can decide moves from prose into a check.
 - 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when `discover:approach` decomposes work, kept by `build:finish` until the last piece lands.
 - 2026-09-26: [Session wrap-up skill](seed-prompts/conclude-skill.md), a design through `discover:approach`. Documents up to date and a clean branch, prompts for continuing, process improvements as a paste-ready devkit prompt that extends this file, and feedback on the session; run by hand at the end of a lyngon.com session on 2026-09-27, which settled where it sits (after the integration choice, before the push).
 
