@@ -4,6 +4,110 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.25.7 - 2026-10-06
+
+- `references/owner-gates.md` names the start-step line for an unforeseen gate raised by a partial apply inside a gated task; "the same line" could be read as the `Done: ...; continue with: ...` line of the bullet before it.
+
+## 0.25.6 - 2026-10-06
+
+- `build:delegate` and `build:execute` carry the final review's small corrections: the final reviewer's template, and the evidence reviewer's under `build:execute`, goes out as a prompt file; the implementer dispatch no longer introduces the brief as "read this first" beside the prompt file; the Review Focus is described as what no task's acceptance lines cover; every dispatch in the example workflow names its prompt file; a task without steps is recovered from `git log` by the subject its plan gives.
+- `build:plan`'s handoff message names the longest task by its label.
+
+## 0.25.5 - 2026-10-06
+
+- The task reviewer gives COVERED, naming the step, for an acceptance line that a mandated check of the brief pins, and the implementer's Acceptance item names that step; a reviewer had chosen MET against a template that knew only tests.
+- The implementer template places a sentence that a ruling reworded in place of the brief's, and `build:delegate` says the dispatch carries it as the one exception to exact values appearing only in the brief.
+
+## 0.25.4 - 2026-10-06
+
+- `build:delegate` and `build:execute` resume a task without steps after an unforeseen gate: the post-gate part carries the line `Done: <what the report shows done, by acceptance line>; continue with: <the acceptance lines that remain>.` in place of "Steps 1 to K are done; start at Step K+1.", which named a step the task does not have.
+  A hook that cannot pass in the middle of an ordinary task is the most common unforeseen stop.
+
+## 0.25.3 - 2026-10-06
+
+- `prompt-file` refuses a template whose `text` block has no closing fence (exit 3, nothing written); it printed to the end of the file, notes for the controller included, and exited 0.
+  Its header no longer says the template never passes through the controller's context; it says the controller does not paste it, because the subagent reads the file.
+
+## 0.25.2 - 2026-10-06
+
+- `task-brief` refuses a plan in which a fence opens inside a fence of the same length (exit 3, the line's number, nothing written), for a brief and for `--label`; the brief would otherwise end inside the dictated text and the next task would be "not found".
+  The plan skill's self-review checks that a dictated block's fence is longer than any fence inside it.
+
+## 0.25.1 - 2026-10-06
+
+- `task-brief` reads an Owner Gates index Task cell that holds a task's label (``6 `state-bucket` ``, ``Task 6 `state-bucket` ``, `Task 6 state-bucket`) as well as `6` and `Task 6`, so a task the index names is still refused without its marker, and refuses a cell whose slug is not the slug of that task's heading.
+  The plan skill's example row now names the task by its label.
+
+## 0.25.0 - 2026-10-06
+
+- `WORKFLOW.md`, symlinked into `plan`, says what a plan holds (interfaces, acceptance lines, dictated text, owner gates and mandated checks, with the implementer writing the tests and the code), that the task reviewer gives a verdict on every acceptance line, and which plans suit `/build:execute`.
+
+## 0.24.0 - 2026-10-06
+
+- `build:execute` works a task as its implementer: for each acceptance line it writes the failing test, watches it fail, then writes the code, places dictated text word for word, and walks a States block, ledgering `<label>: walked <state>: <outcome>; ...`.
+  A task with steps (an owner gate, a mandated check, or a plan written before plans had tasks without steps) is still worked in step order.
+  The completion contract speaks of acceptance lines, `task-done` takes the command that runs the task's own test files, and the skill no longer says the plan did the thinking: it asks for a session model of the mid tier or above.
+
+## 0.23.1 - 2026-10-06
+
+- `build:delegate` starts a task's ledger line with its label: nothing goes before it, a time included, and a time goes only where a line format has `<time>`.
+  A controller had put a time before the label on every line, so no line matched `<label>: complete` at its start.
+
+## 0.23.0 - 2026-10-06
+
+- `build:delegate` hands a prompt template to a subagent as a file: the new script `prompt-file` writes the template's prompt to the plan's workspace, and the dispatch names that file and fills each placeholder by its name, one line each.
+  The controller never pastes, condenses or rewords a template; under 0.22.1 the rule against condensing held for the first dispatches of a run and not for the later ones.
+  `build:execute` hands the templates of the final reviewer and the evidence reviewer over the same way.
+
+## 0.22.1 - 2026-10-06
+
+- `build:delegate` sends a prompt template whole: a fresh subagent reads the template's prompt with the placeholders filled, and the controller never condenses or rewords it.
+  A controller that wrote its own shorter version of the task reviewer template left out the rule that an acceptance line met only in the diff, where a test could have covered it, is MISSING, and its reviewers passed such lines as MET.
+
+## 0.22.0 - 2026-10-06
+
+- `build:delegate` reviews a task by a verdict per acceptance line (COVERED, MET or MISSING) and per state of a States block (HOLDS or BROKEN), and the task reviewer runs the task's own test files once with the command the implementer reported.
+  A report without its Acceptance item or task test command is sent back to the implementer before the review.
+  The re-review and evidence review templates do not change.
+
+## 0.21.0 - 2026-10-06
+
+- `build:delegate` picks a mid-tier implementer for every plan task, and keeps the cheapest tier for a batch of same-shape edits and a single-file mechanical fix; the plan scan checks acceptance lines against Interfaces and dictated text against States.
+  The implementer template has the implementer write a failing test per acceptance line, place dictated text word for word, read it in each state of a States block and report BLOCKED when a state disagrees.
+  Its report gained the Acceptance, Task test command and States items.
+  A BLOCKED report on dictated text is ruled on by the controller, who ledgers the new wording as a `State:` line.
+
+## 0.20.0 - 2026-10-06
+
+- `build:delegate` and `build:execute` name a task by its label (`Task 3 rate-limiter`, or `Task 3` for a heading without a slug) in every ledger line, pause line, `execution-status write` argument, pause commit subject and gate message, and in the dispatch descriptions of the four templates, which take a `[LABEL]` placeholder.
+  Brief and report file names carry the slug, and a report is named from its brief with `-report.md` in place of `-brief.md`.
+  A ledger line whose number and slug do not belong to one heading of the plan is not read as progress until `git log` shows the commits it names.
+
+## 0.19.0 - 2026-10-06
+
+- `build:plan` writes plans of decisions and facts: an ordinary task has Files, Interfaces, Intent, Acceptance and Commit, with no steps, no test code and no implementation, because the implementer writes the tests and the code.
+  A task with an owner gate or a mandated check keeps steps, each with a slug after its number; tasks and steps are referred to by label, number and slug together.
+  Text whose wording is the decision goes in a task as dictated text, located by file, section and anchor, with a States block when it is protocol text.
+  Self-review gained the line test, a size check and a check of dictated text against its states; the handoff reports the plan's size and longest task, and recommends `build:execute` for about five tasks or fewer without an owner gate the agent performs.
+
+## 0.18.1 - 2026-10-06
+
+- `task-done` builds the test log's name from the label alone, so a repository path that holds a space no longer breaks the log's path and keeps the test command from running.
+
+## 0.18.0 - 2026-10-06
+
+- `task-start` prints a third line, `label: <label>`, with the label `task-brief --label` gives (`Task 3 rate-limiter`, or `Task 3` for a task without a slug), with or without `--part`.
+  `task-done` takes the label from `task-brief --label` too: it ledgers `<label>: complete (commits ...)`, keeps the test output in `task-N-slug-tests.log` and names the task by its label when the test command fails.
+  A task `task-brief` refuses (a malformed slug, a task the plan does not have) stops `task-done` before it runs the test command, and nothing is recorded.
+  A task without a slug keeps its ledger line and log name.
+
+## 0.17.0 - 2026-10-06
+
+- `task-brief` reads a task's slug from its heading, ``### Task N `slug`: Title``, and names the brief by it: `task-N-slug-brief.md`, `task-N-slug-pre-gate-brief.md` and `task-N-slug-post-gate-brief.md`; a heading without a slug gives the names as before.
+  A slug that is not kebab-case, is `pre-gate` or `post-gate`, or is shared by two task headings outside code fences is refused with exit 3 and nothing written.
+  `task-brief PLAN_FILE N --label` prints the label, `Task N slug` or `Task N`, writes no file and does not look at the task's owner gate; it does not combine with `--part` or an OUTFILE.
+  Tests cover a task with no step line and a task with an owner gate whose other steps carry a slug.
+
 ## 0.16.0 - 2026-10-06
 
 - A fix to protocol text gets a state walk before it is made.

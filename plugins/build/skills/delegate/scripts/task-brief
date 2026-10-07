@@ -5,6 +5,11 @@
 # task's requirements implicitly include the Global Constraints; a plan
 # without that section yields a brief without it.
 #
+# While a fence is open, a line with an info string and a run of the same
+# character at least as long as the open fence's would open a fence inside it;
+# it is refused with its line number, since the plan's author meant it as text
+# and the brief would end inside it: lengthen the outer fence.
+#
 # A task runs from its heading to the next heading of the same or a higher
 # level outside a code fence, so a section after the last task (such as an
 # Execution status) never leaks into its brief.
@@ -17,20 +22,38 @@
 # anything is written, so it fails before a dispatch rather than at the gate.
 # So is a step whose title mentions an owner gate without being a well-formed
 # marker, and a task that a row of the Owner Gates index names but whose
-# steps hold no marker with that row's ID, so a gate is never missed.
+# steps hold no marker with that row's ID, so a gate is never missed. The
+# Task cell of that index holds the task's number, with or without the word
+# Task before it and the task's slug after it (`6`, `Task 6`, ``6 `slug` ``,
+# `Task 6 slug`); a slug that is not the heading's is refused.
+#
+# A task heading ``### Task N `slug`: Title`` gives the task the slug `slug`;
+# any other task heading gives it none. A slug is kebab-case (lowercase
+# letters and digits in groups joined by single hyphens), is not `pre-gate`
+# or `post-gate`, and is unique among the plan's task headings outside code
+# fences; a slug that breaks one of these is refused. A task is found by its
+# number whether or not a slug follows it. A step may carry a slug after its
+# number (`- [ ] **Step 1 `save-plan`: Title**`); the script does not read it.
 #
 # Usage: task-brief PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate] [OUTFILE]
-# Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-brief.md, or
-# task-<N>-pre-gate-brief.md and task-<N>-post-gate-brief.md for the parts
-# (one per task and part, per plan and per worktree; every call writes the
-# same plan text, so regenerating it is harmless).
+#        task-brief PLAN_FILE TASK_NUMBER --label
+# Default OUTFILE: <repo-root>/tmp/build/<plan-basename>/task-<N>-<slug>-brief.md,
+# or task-<N>-<slug>-pre-gate-brief.md and task-<N>-<slug>-post-gate-brief.md
+# for the parts; without a slug the names are task-<N>-brief.md,
+# task-<N>-pre-gate-brief.md and task-<N>-post-gate-brief.md (one per task and
+# part, per plan and per worktree; every call writes the same plan text, so
+# regenerating it is harmless).
 # Prints the brief's path on stdout and a summary on stderr.
-# Exit: 2 on a usage error; 3 when the task is missing, its gate is
-# malformed or unmarked, or the part does not fit the task.
+# --label prints the task's label, `Task <N> <slug>` or `Task <N>` without a
+# slug, on stdout and writes no file; it does not combine with --part or
+# OUTFILE and does not look at the task's owner gate.
+# Exit: 2 on a usage error; 3 when the task is missing, its slug is refused,
+# its gate is malformed or unmarked, or the part does not fit the task.
 set -euo pipefail
 
 usage() {
   echo "usage: task-brief PLAN_FILE TASK_NUMBER [--part pre-gate|post-gate] [OUTFILE]" >&2
+  echo "       task-brief PLAN_FILE TASK_NUMBER --label" >&2
   exit 2
 }
 
@@ -39,6 +62,7 @@ plan=$1
 n=$2
 shift 2
 part=""
+label=""
 if [ $# -ge 1 ] && [ "$1" = "--part" ]; then
   [ $# -ge 2 ] || usage
   part=$2
@@ -47,8 +71,14 @@ if [ $# -ge 1 ] && [ "$1" = "--part" ]; then
     pre-gate | post-gate) ;;
     *) usage ;;
   esac
+elif [ $# -ge 1 ] && [ "$1" = "--label" ]; then
+  label=1
+  shift
+  [ $# -eq 0 ] || usage
 fi
 [ $# -le 1 ] || usage
+# --label after --part would otherwise be taken for an OUTFILE.
+[ "${1:-}" != "--label" ] || usage
 [ -f "$plan" ] || {
   echo "no such plan file: $plan" >&2
   exit 2
@@ -60,27 +90,12 @@ case "$n" in
     ;;
 esac
 
-name="task-${n}-brief.md"
-[ -z "$part" ] || name="task-${n}-${part}-brief.md"
-if [ $# -eq 1 ]; then
-  out=$1
-else
-  # Invoke via bash rather than direct exec: some plugin installers strip
-  # Unix exec bits when unpacking.
-  dir=$("${BASH:-bash}" "$(cd "$(dirname "$0")" && pwd)/workspace" "$plan")
-  out="$dir/$name"
-fi
-
-# Write next to the brief and move it into place only on success, so a
-# refusal never leaves a partial brief behind.
-tmpout=$(mktemp "${out}.XXXXXX")
-trap 'rm -f "$tmpout"' EXIT
-
 # One fence-aware pass collects the task, the Global Constraints, the IDs in
 # the Owner Gates index and every gate marker in the plan. A fence opens with
 # three or more backticks or tildes and closes with a run of the same
 # character at least as long, so a fence inside a longer fence stays text.
-awk -v n="$n" -v part="$part" '
+scan() {
+  awk -v n="$n" -v part="$part" -v label="${1:-}" '
   function fail(msg) {
     printf "task-brief: %s\n", msg | "cat 1>&2"
     close("cat 1>&2")
@@ -105,9 +120,13 @@ awk -v n="$n" -v part="$part" '
         fch = substr(run, 1, 1)
         flen = length(run)
         fenceline = 1
-      } else if (substr(run, 1, 1) == fch && length(run) >= flen && $0 ~ /^[ \t]*[`~]+[ \t]*$/) {
-        infence = 0
-        fenceline = 1
+      } else if (substr(run, 1, 1) == fch && length(run) >= flen) {
+        if ($0 ~ /^[ \t]*[`~]+[ \t]*$/) {
+          infence = 0
+          fenceline = 1
+        } else {
+          fail("line " NR ": a fence opens inside a fence of the same length; lengthen the outer fence")
+        }
       }
     }
     text = !infence && !fenceline
@@ -119,7 +138,17 @@ awk -v n="$n" -v part="$part" '
     if (intask && level <= tasklevel) intask = 0
     if ($0 ~ /^#+[ \t]+Global Constraints[ \t]*$/) { ingc = 1; gclevel = level }
     if ($0 ~ /^#+[ \t]+Owner Gates[ \t]*$/) { inidx = 1; idxlevel = level }
-    if ($0 ~ ("^#+[ \t]+Task[ \t]+" n "([^0-9]|$)")) { intask = 1; tasklevel = level }
+    if ($0 ~ /^#+[ \t]+Task[ \t]+[0-9]+[ \t]+`[^`]*`:/) {
+      hslug = $0
+      sub(/^[^`]*`/, "", hslug)
+      sub(/`.*$/, "", hslug)
+      nslug[hslug]++
+    } else hslug = ""
+    if ($0 ~ ("^#+[ \t]+Task[ \t]+" n "([^0-9]|$)")) {
+      intask = 1
+      tasklevel = level
+      if (!found) { found = 1; slug = hslug }
+    }
   }
   text && inidx && /^\|/ && $0 !~ /^\|[ \t:|-]+$/ {
     split($0, cells, "|")
@@ -127,10 +156,18 @@ awk -v n="$n" -v part="$part" '
     gsub(/`/, "", id)
     if (id != "ID") {
       indexed[id] = 1
-      # The Task cell reads "6" or "Task 6" alike.
+      # The Task cell is the label of a task: its number, with or without the
+      # word Task before it and a slug after it.
       tn = trim(cells[3])
       sub(/^Task[ \t]*/, "", tn)
-      if (tn == n) gated[id] = 1
+      if (match(tn, /^[0-9]+/) && substr(tn, 1, RLENGTH) == n) {
+        rest = substr(tn, RLENGTH + 1)
+        if (rest == "" || rest ~ /^[ \t`]/) {
+          gsub(/`/, "", rest)
+          gated[id] = 1
+          cslug[id] = trim(rest)
+        }
+      }
     }
   }
   text && /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/ {
@@ -145,7 +182,7 @@ awk -v n="$n" -v part="$part" '
       if (!firststep) firststep = nt
       # Every mention of an owner gate in a step title must be a well-formed
       # marker; "gateway" and "gates" are other words.
-      if (tolower($0) ~ /owner gate([^a-z]|$)/) {
+      if (label == "" && tolower($0) ~ /owner gate([^a-z]|$)/) {
         if ($0 !~ /^- \[[ xX]\] \*\*Step [0-9]+: Owner gate `[^`]+`\*\*[ \t]*$/)
           fail("task " n ": malformed owner gate marker: " $0)
         ngates++
@@ -160,7 +197,20 @@ awk -v n="$n" -v part="$part" '
   END {
     if (failed) exit 3
     if (nt == 0) fail("task " n " not found (no heading matching Task " n ")")
+    if (slug != "") {
+      if (slug !~ /^[a-z0-9]+(-[a-z0-9]+)*$/) fail("task " n ": the slug `" slug "` must be kebab-case")
+      if (slug == "pre-gate" || slug == "post-gate") fail("task " n ": the slug `" slug "` is reserved for the brief parts")
+      if (nslug[slug] > 1) fail("task " n ": the slug `" slug "` is used by " nslug[slug] " task headings; a slug is unique")
+    }
+    if (label != "") {
+      print "Task " n (slug != "" ? " " slug : "")
+      exit 0
+    }
     while (nt > 0 && task[nt] ~ /^[ \t]*$/) nt--
+    for (id in gated) {
+      if (cslug[id] == "" || cslug[id] == slug) continue
+      fail("owner gate `" id "`: the index names task " n " as `" cslug[id] "`, but its heading " (slug == "" ? "has no slug" : "has the slug `" slug "`"))
+    }
     if (ngates > 1) fail("task " n " has " ngates " owner gates; a task has at most one")
     if (ngates == 0) {
       for (id in gated) fail(unmarked(id))
@@ -205,8 +255,34 @@ awk -v n="$n" -v part="$part" '
       for (i = 1; i <= ng; i++) print gc[i]
     }
   }
-' "$plan" >"$tmpout"
+' "$plan"
+}
 
+if [ -n "$label" ]; then
+  scan 1
+  exit 0
+fi
+
+if [ $# -eq 1 ]; then
+  out=$1
+else
+  # The label pass reads and checks the slug; the pass below checks the rest.
+  slug=$(scan 1)
+  slug=${slug#Task "$n"}
+  slug=${slug# }
+  name="task-${n}${slug:+-$slug}${part:+-$part}-brief.md"
+  # Invoke via bash rather than direct exec: some plugin installers strip
+  # Unix exec bits when unpacking.
+  dir=$("${BASH:-bash}" "$(cd "$(dirname "$0")" && pwd)/workspace" "$plan")
+  out="$dir/$name"
+fi
+
+# Write next to the brief and move it into place only on success, so a
+# refusal never leaves a partial brief behind.
+tmpout=$(mktemp "${out}.XXXXXX")
+trap 'rm -f "$tmpout"' EXIT
+
+scan >"$tmpout"
 mv "$tmpout" "$out"
 trap - EXIT
 printf '%s\n' "$out"

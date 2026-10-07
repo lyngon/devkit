@@ -4,11 +4,11 @@ Use this template when dispatching an implementer subagent.
 
 ```text
 Dispatch a subagent with:
-  description: "Implement Task N: [task name]"
+  description: "Implement [LABEL]: [task name]"
   model: [MODEL, required: choose per the Model selection section of SKILL.md;
          an omitted model silently inherits the session's most expensive one]
   prompt: |
-    You are implementing Task N: [task name]
+    You are implementing [LABEL]: [task name]
 
     ## Task Description
 
@@ -40,11 +40,18 @@ Dispatch a subagent with:
     ## Your Job
 
     Once you're clear on requirements:
-    1. Implement exactly what the task specifies
-    2. Test as the brief specifies; by default, write tests the way
-       practice:tdd requires
-    3. Verify the implementation works
-    4. Commit as the brief specifies; by default, one commit per task on
+    1. Build what the brief's Intent and acceptance lines require. The
+       choices they leave open are yours; the exact values, names and
+       signatures they give are not
+    2. For each acceptance line, write a failing test before the code,
+       the way practice:tdd requires, wherever the repository has a test
+       surface for it. Where it has none (descriptive prose, a
+       configuration value), note the place in your diff that meets the
+       line. A brief with steps is worked in step order, and every
+       `Expected:` line is compared with the real output
+    3. Place dictated text word for word, where the brief locates it
+    4. Verify the implementation works
+    5. Commit as the brief specifies; by default, one commit per task on
        the current branch, Conventional Commits, one concern per commit,
        never on main. Every task ends with at least one commit, except
        the pre-gate part of an owner gate, which commits nothing; a task
@@ -53,8 +60,8 @@ Dispatch a subagent with:
        repository changed) whose message body starts with the line
        `Owner gate: <gate ID>` and then holds the evidence the brief
        names
-    5. Self-review (see below)
-    6. Report back
+    6. Self-review (see below)
+    7. Report back
 
     Work from: [directory]
 
@@ -67,6 +74,20 @@ Dispatch a subagent with:
     from the repository's declared environment; never install anything.
     Never disable, skip or weaken a check or hook to make something pass;
     report it instead.
+
+    ## Dictated Text and States
+
+    Text the brief dictates is a decision: place it exactly as written.
+    When the brief has a States block, read the placed text in each
+    state as an actor in that state would, together with the sentences
+    around it, and check that it gives the outcome the block names. If
+    the text and a state disagree, the state wins, and the wording is
+    not yours to change: stop and report BLOCKED with the state, the
+    sentence and the outcome it gives instead.
+
+    When your dispatch carries a sentence that a ruling reworded, that
+    wording replaces the brief's for that sentence: place it, and read
+    the states against it.
 
     ## You Do Not Dispatch Subagents
 
@@ -153,6 +174,15 @@ Dispatch a subagent with:
     overwriting it. The report holds:
     - What you implemented (or what you attempted, if blocked)
     - What you tested and test results
+    - **Acceptance**: every acceptance line of the brief, in its order,
+      each with the test that covers it (file and test name), the step
+      of the brief whose mandated check pins it, or the place in the
+      diff that meets it and why no test could; "none" when the brief
+      has no acceptance lines
+    - **Task test command**: the one command that runs this task's own
+      test files and nothing else, when the task has tests
+    - **States** (when the brief has a States block): each state with
+      the outcome you read in the placed text
     - **TDD Evidence** (if TDD was required for this task):
       - RED: command run, relevant failing output before implementation, and why the failure was expected
       - GREEN: command run and relevant passing output after implementation
@@ -184,10 +214,11 @@ Dispatch a subagent with:
 ## Placeholders
 
 - `[MODEL]`: required, the implementer model per the Model selection section of SKILL.md.
+- `[LABEL]`: required, the task's label as `scripts/task-brief PLAN_FILE N --label` prints it (`Task 3 rate-limiter`).
 - `[BRIEF_FILE]`: required, the task brief file that `scripts/task-brief PLAN N` printed.
-- `[OWNER_GATE]` (only for a task with an owner gate; leave out the whole `## Owner Gate` section otherwise): for the pre-gate part, "Your brief ends at an owner gate, and you run only the steps before it. Never perform the gated action, nor anything its `Performed by` line names; commit nothing; leave every file the gate shows or acts on in place, because the controller shows them to the owner. When the steps before the gate are done, report DONE." For the post-gate part of a gate the agent performs, "The owner has approved this gate, and the approval covers exactly this: \<the answer verbatim with its time, or `pre-approved in the plan's Owner Gates index`\>; pins: \<each file with its full sha256\>; commands: \<the exact commands approved\>. The approval covers one run of these commands. In a fix round, never run them again and take no other effect outside the repository: report BLOCKED instead. Before anything else, check every pin with `bash \<build:delegate's scripts directory\>/pin --check sha256:\<hex\> \<file\>`; for an action whose effect depends on live state, re-run the dry run the brief names and compare its output byte for byte with the approved one. On any mismatch, stop without acting and report BLOCKED with both values. Then run the steps after the gate, and end with the record commit the brief describes." For the post-gate part of a gate the owner performed, "The owner performed this gate's action and answered: \<the answer verbatim with its time\>. Never perform it again, and in a fix round take no effect outside the repository: report BLOCKED instead. Run the steps after the gate, which verify the result, and end with the record commit the brief describes." For a fix round after the post-gate part has acted, resumed or fresh, and for the final review's fix wave when it touches the task, "The owner's approval of gate \<id\> covered one run of these commands, and that run is done: \<the answer verbatim with its time, or `pre-approved in the plan's Owner Gates index`\>; commands: \<the exact commands approved\>; record commit: \<its hash\>. Never run them again and take no other effect outside the repository: when a finding needs one, report BLOCKED instead. Do not re-check the pins or re-run the dry run, since the action has changed what they compare. Fix only what the findings name, inside the repository, and make no second record commit." For a gate the owner performed, the fix-round text opens with "The owner performed gate \<id\>'s action and answered: \<the answer verbatim with its time\>; record commit: \<its hash\>. Never perform it again and take no other effect outside the repository: when a finding needs one, report BLOCKED instead." in place of its first two sentences, leaves out the sentence about pins and the dry run, and ends with its last sentence. For the post-gate part of an unforeseen gate, whose brief is the whole task and holds no gate (in a task the plan gated, its post-gate brief), start the block with "Steps 1 to K are done; start at Step K+1.", write "the steps from Step K+1" in place of "the steps after the gate", and "a record commit whose body starts with the line `Owner gate: <id>` and holds the answer, the pins, the commands run with their results and the results of the checks" in place of "the record commit the brief describes". When the owner performed an unforeseen gate's action, the steps to run start at the first step after that action, not at Step K+1 when Step K+1 is the action. For an unforeseen gate raised by an evidence-review finding, after every step of the brief ran, start the block with "Every step of the brief is done, its gated action included; never run them again." in place of the start-step line, and write "only the commands approved at this gate, in this block and `gate-\<id\>.md`" (or, when the owner performed the fix, "only the checks that verify the owner's action") in place of "the steps after the gate".
-- `[REPORT_FILE]`: required, named after the brief (`task-N-brief.md` becomes `task-N-report.md`) in the same workspace; one per task, and a prior attempt's file is kept and appended to.
-  A gated task has two reports, one per part, named after their briefs (`task-N-pre-gate-report.md`, `task-N-post-gate-report.md`).
+- `[OWNER_GATE]` (only for a task with an owner gate; leave out the whole `## Owner Gate` section otherwise): for the pre-gate part, "Your brief ends at an owner gate, and you run only the steps before it. Never perform the gated action, nor anything its `Performed by` line names; commit nothing; leave every file the gate shows or acts on in place, because the controller shows them to the owner. When the steps before the gate are done, report DONE." For the post-gate part of a gate the agent performs, "The owner has approved this gate, and the approval covers exactly this: \<the answer verbatim with its time, or `pre-approved in the plan's Owner Gates index`\>; pins: \<each file with its full sha256\>; commands: \<the exact commands approved\>. The approval covers one run of these commands. In a fix round, never run them again and take no other effect outside the repository: report BLOCKED instead. Before anything else, check every pin with `bash \<build:delegate's scripts directory\>/pin --check sha256:\<hex\> \<file\>`; for an action whose effect depends on live state, re-run the dry run the brief names and compare its output byte for byte with the approved one. On any mismatch, stop without acting and report BLOCKED with both values. Then run the steps after the gate, and end with the record commit the brief describes." For the post-gate part of a gate the owner performed, "The owner performed this gate's action and answered: \<the answer verbatim with its time\>. Never perform it again, and in a fix round take no effect outside the repository: report BLOCKED instead. Run the steps after the gate, which verify the result, and end with the record commit the brief describes." For a fix round after the post-gate part has acted, resumed or fresh, and for the final review's fix wave when it touches the task, "The owner's approval of gate \<id\> covered one run of these commands, and that run is done: \<the answer verbatim with its time, or `pre-approved in the plan's Owner Gates index`\>; commands: \<the exact commands approved\>; record commit: \<its hash\>. Never run them again and take no other effect outside the repository: when a finding needs one, report BLOCKED instead. Do not re-check the pins or re-run the dry run, since the action has changed what they compare. Fix only what the findings name, inside the repository, and make no second record commit." For a gate the owner performed, the fix-round text opens with "The owner performed gate \<id\>'s action and answered: \<the answer verbatim with its time\>; record commit: \<its hash\>. Never perform it again and take no other effect outside the repository: when a finding needs one, report BLOCKED instead." in place of its first two sentences, leaves out the sentence about pins and the dry run, and ends with its last sentence. For the post-gate part of an unforeseen gate, whose brief is the whole task and holds no gate (in a task the plan gated, its post-gate brief), start the block with "Steps 1 to K are done; start at Step K+1.", naming Step K+1 by its number and slug when it has one, write "the steps from Step K+1" in place of "the steps after the gate", and "a record commit whose body starts with the line `Owner gate: <id>` and holds the answer, the pins, the commands run with their results and the results of the checks" in place of "the record commit the brief describes". When the owner performed an unforeseen gate's action, the steps to run start at the first step after that action, not at Step K+1 when Step K+1 is the action. For an unforeseen gate in a task without steps, start the block with "Done: \<what the report shows done, by acceptance line\>; continue with: \<the acceptance lines that remain\>." in place of the start-step line, and write "the work that remains" in place of "the steps after the gate". For an unforeseen gate raised by an evidence-review finding, after every step of the brief ran, start the block with "Every step of the brief is done, its gated action included; never run them again." in place of the start-step line, and write "only the commands approved at this gate, in this block and `gate-\<id\>.md`" (or, when the owner performed the fix, "only the checks that verify the owner's action") in place of "the steps after the gate".
+- `[REPORT_FILE]`: required, named after the brief with `-report.md` in place of `-brief.md`, in the same workspace; one per task, and a prior attempt's file is kept and appended to.
+  A gated task has two reports, one per part, each named after its brief in the same way.
 - `[HOOK_COMMAND]`: the command that runs the repository's git hooks on demand and prints each hook's result, as the repository's instructions name it. Leave out the hook-evidence item when the repository has no git hooks.
 - `[directory]`: the worktree the implementer works in.
 

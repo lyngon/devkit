@@ -4,6 +4,10 @@ All notable changes to the `review` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.4.0 - 2026-10-06
+
+- The whole-branch reviewer checks every task's acceptance lines and states against the branch as it stands, and reports each state as HOLDS or BROKEN in a new output section, "Acceptance lines and states".
+
 ## 0.3.1 - 2026-09-29
 
 - The README names the architectural flow next to the bounded one for the review before a pull request, as `request` does.

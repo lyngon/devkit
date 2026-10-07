@@ -8,7 +8,7 @@ It is not a fresh review; the full review already happened.
 
 ```text
 Dispatch a subagent with:
-  description: "Re-review Task N fix round R"
+  description: "Re-review [LABEL] fix round R"
   model: [MODEL, required: choose per the Model selection section of SKILL.md;
          an omitted model silently inherits the session's most expensive one]
   prompt: |
@@ -153,6 +153,7 @@ Dispatch a subagent with:
 ## Placeholders
 
 - `[MODEL]`: required, the reviewer model per the Model selection section of SKILL.md; scoped re-reviews of small fix diffs take a cheap-to-mid tier, and one that carries a walk list at least a mid-tier model.
+- `[LABEL]`: required, the task's label as `scripts/task-brief PLAN_FILE N --label` prints it (`Task 3 rate-limiter`).
 - `[BRIEF_FILE]`: the task brief file (the same file the implementer worked from).
 - `[STATE_CHANGES]` (optional): the ledger's `State:` lines, the facts that superseded the plan, the spec or an inventory after they were written: manual actions, resources removed, decisions the user took in chat.
 - `[FINDINGS]`: the Critical and Important findings and spec gaps from the previous review, copied verbatim, one per bullet.

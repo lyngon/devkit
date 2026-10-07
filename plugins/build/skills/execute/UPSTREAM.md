@@ -10,7 +10,7 @@
 
 ## Why it is here
 
-The inline executor: one context does every task from a fully specified plan, with a ledger that survives compaction so a resumed session never redoes a finished task, and one fresh reviewer at the end.
+The inline executor: one context does every task of a plan, writing the tests and the code the plan leaves to its implementer, with a ledger that survives compaction so a resumed session never redoes a finished task, and one fresh reviewer at the end.
 It is the cheap execution mode; `build:delegate` is the thorough one, and both share a workspace so a plan can switch executor mid-flight.
 
 ## Local patches
@@ -52,6 +52,13 @@ It is the cheap execution mode; `build:delegate` is the thorough one, and both s
 - Final review: a final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is ruled on and ledgered; the fix pass takes the rest.
 - Owner gates, which are not upstream: `../delegate/references/owner-gates.md` is read at setup, and Resuming runs also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before the ledger is read, its other steps once the ledger exists, created first with its identity line when none exists and no Execution status recreates it.
 - State walk, which is not upstream: in the final review's fix pass, a fix to protocol text (text that names states and the events between them, or a rule that holds across steps, recognized by a sentence that is read on more than one path) gets one, with the states and paths listed before the edit, each read again after it, and the walk ledgered as `Final: walked <finding>; ...`; one rationalization row.
+- Final review: the reviewer reads the template's prompt from a file that `../delegate/scripts/prompt-file` writes to the workspace, and the dispatch names that file and fills each placeholder by its name; the template is never pasted, condensed or reworded, and the evidence reviewer's template goes out the same way.
+- Scripts `task-start` and `task-done`: take the task's label from `../../delegate/scripts/task-brief --label`; `task-start` prints it as a third line, `label: <label>`; `task-done` ledgers `<label>: complete (...)`, names the log `task-N-slug-tests.log` and its failure message by the label, and stops before the test command when `task-brief` refuses the task.
+- `task-done`: the log name is built from the label only, so a space in the workspace path stays as it is.
+- Tasks are named by their label (`Task 3 rate-limiter`, or `Task 3` without a slug) in every ledger line format; `task-start` prints the label and `task-done` writes the completion line under it.
+- The inline executor is the implementer: the core principle says the plan carries the decisions and the tests and the code are the executor's; "Work the steps" became "Work the task" (a failing test per acceptance line, then the code; dictated text placed word for word; a States block walked and ledgered as `<label>: walked <state>: <outcome>; ...`; steps only for a task with an owner gate or a mandated check, or from a plan written before plans had tasks without steps); the completion contract speaks of acceptance lines, `task-done` takes the command that runs the task's own test files, and the process graph, two rationalization rows and the example workflow follow. "A fully specified plan makes inline execution transcription plus testing" became a statement that the plan is written for a skilled developer, so inline execution needs a session model of the mid tier or above.
+- The post-gate part of an unforeseen gate in a task without steps starts at the acceptance lines that remain, where it would start at the step after the stop.
+- The evidence review's template goes out as a file, as "Final review" says; the Review Focus parenthesis speaks of what no task's acceptance lines cover; the TDD sentence speaks of tasks, not steps; the example workflow names Task 1 by its label.
 
 ## Review notes
 

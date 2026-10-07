@@ -168,12 +168,20 @@ Track progress in a ledger file, not only in todos.
   It prints the plan's git-ignored directory, `<repo-root>/tmp/build/<plan-slug>/`, home to every artifact for this plan: ledger, briefs, reports, review packages.
   Another plan's directory is never yours to read or write.
 - Check for this plan's ledger at `<workspace>/progress.md`.
-  If its first line names your plan file, tasks with a `Task <N>: complete` line are done: do not re-dispatch them; resume at the first task without one, as Resuming in [owner-gates.md](references/owner-gates.md) says when that task has a `Task <N> pre-gate:` line and so is at its gate.
+  If its first line names your plan file, tasks with a `<label>: complete` line are done: do not re-dispatch them; resume at the first task without one, as Resuming in [owner-gates.md](references/owner-gates.md) says when that task has a `<label> pre-gate:` line and so is at its gate.
   A task whose last line is a fix round is mid-loop: resume the loop at the next round.
   A ledger whose first line names a different plan file is another plan's progress: leave it in place and start your own, fresh.
 - For a plan that declares owner gates or ends with an `## Execution status` section, read [owner-gates.md](references/owner-gates.md) and follow its Resuming, whether or not the run paused, and also on a fresh start with no ledger, because a lost workspace looks like one: its restore runs before you read the ledger, and its other steps once the ledger exists, so create the ledger with its identity line first when none exists and no Execution status will recreate it; it restores a paused run's ledger with `scripts/execution-status restore PLAN_FILE` and reconciles the ledger with `git log` from the merge base with the default branch, where a gated task that has acted shows as its record commit.
 - Create the ledger with its identity as the first line: `# build ledger: plan <PLAN_FILE>`.
   `PLAN_FILE` is the plan's path relative to the repository root, in this line and in every script call, so a ledger restored in another checkout still names its plan.
+- Name a task by its label wherever you write about it: the word `Task`, its number and, when the plan's heading for it has a slug, the slug, as in `Task 3 rate-limiter`.
+  `scripts/task-brief PLAN_FILE N --label` prints it.
+  In the ledger, in a shell argument, in a commit message and in a file name the slug is bare; in Markdown it is in backticks, as the heading has it.
+  `<label>` stands for it in every ledger line format below and in the owner gate protocol, and a task's brief and report carry the slug in their file names.
+  A ledger line whose format starts with `<label>` starts with the label: nothing goes before it, a time included.
+  A time goes only where a format has `<time>`.
+  The number identifies the task, and the slug is there to catch a wrong number: when a ledger line's number and slug do not belong to one heading of the plan, do not read the line as progress until you have checked `git log` for the commits it names.
+  When they are there, the task is done, and you ledger `State: "<the line>" is <label>`; when they are not, it is not done.
 - The ledger is your recovery map: the commits it names exist in git even when your context no longer remembers creating them.
   After compaction, trust the ledger and `git log` over your own recollection.
 - `git clean -fdx` will destroy the workspace (it is git-ignored scratch), and `tmp/` may be emptied at any time; if that happens, recover from the plan's Execution status when it has one, and from `git log` otherwise; for a plan with owner gates, Resuming in [owner-gates.md](references/owner-gates.md) says how.
@@ -192,7 +200,7 @@ Before dispatching Task 1, scan the plan once for conflicts, writing down what y
 
 The scan's output is a table, not a verdict.
 One row for every pair of tasks that share a file or an interface: the two tasks, what one produces against what the other consumes, and what you found.
-One row for every task: whether its own text agrees with itself, the tests it specifies against the code it specifies, the files it creates against the files it later touches.
+One row for every task: whether its own text agrees with itself, its acceptance lines against its Interfaces block, its dictated text against its States, the files it creates against the files it later touches.
 "The scan is clean" without those rows is not a scan you ran.
 
 Write the table to the ledger.
@@ -204,13 +212,13 @@ The review loop remains the net for conflicts that only emerge from implementati
 
 Use the least powerful model that can handle each role, to conserve cost and increase speed.
 
-**Mechanical implementation tasks** (isolated functions, clear specs, one or two files): use a fast, cheap model.
-Most implementation tasks are mechanical when the plan is well-specified.
+**Plan tasks:** use a mid-tier model for the implementer of every plan task.
+The plan is written for a skilled developer: it gives the interfaces, the acceptance lines and the facts of the repository, and the implementer writes the tests and the code, which the cheapest tier does poorly from prose.
 
-**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a mid-tier model.
-
-**Architecture and design tasks:** use the most capable available model.
+**Tasks that need broad judgment** (the task judges other work, or its Intent says it needs an understanding of the whole codebase): use the most capable available model.
 The final whole-branch review is one of these; dispatch it on the most capable available model, not the session default.
+
+**Mechanical work:** the cheapest tier keeps the batch of small same-shape edits and the single-file mechanical fix, where the dispatch lists every file with its change.
 
 **Review tasks:** choose the model with the same judgment, scaled to the diff's size, complexity and risk.
 A small mechanical diff does not need the most capable model; a subtle concurrency change does.
@@ -225,15 +233,14 @@ An omitted model inherits your session's model, often the most capable and most 
 
 **Turn count beats token price.**
 Wall-clock and context cost scale with how many turns a subagent takes, and the cheapest models routinely take two to three times the turns on multi-step work, costing more overall.
-Use a mid-tier model as the floor for reviewers and for implementers working from prose descriptions.
-When the task's plan text contains the complete code to write, the implementation is transcription plus testing: use the cheapest tier for that implementer.
-Single-file mechanical fixes also take the cheapest tier.
+Use a mid-tier model as the floor for task reviewers and for the implementers of plan tasks.
+The reviewer of a task with a States block reasons about states the diff does not show, as a re-review with a walk list does.
 
-Task complexity signals for implementation tasks:
+Signals for an implementation dispatch:
 
-- Touches one or two files with a complete spec: cheap model.
-- Touches multiple files with integration concerns: mid-tier model.
-- Requires design judgment or broad codebase understanding: most capable model.
+- A plan task: mid-tier model.
+- A batch of same-shape edits, or a single-file mechanical fix: cheap model.
+- A task that judges other work or needs broad codebase understanding: most capable model.
 
 ## The task loop
 
@@ -245,6 +252,12 @@ Reserve one dispatch per task for work that needs its own judgment, its own test
 Everything you paste into a dispatch prompt, and everything a subagent prints back, stays resident in your context for the rest of the session and is re-read on every later turn.
 Hand artifacts over as files.
 
+**A template goes out as a file.**
+A fresh subagent whose dispatch has a prompt template (the four in `references/`, and the reviewer template that `review:request` carries) reads the template's prompt itself, from a file.
+Run this skill's `scripts/prompt-file PLAN_FILE TEMPLATE_FILE`; it writes the template's prompt, without the dispatch lines around it and the notes below it, to the workspace and prints the path (without bash: name the template file and tell the subagent that the prompt in its fenced block is its instructions).
+The dispatch names that file as the subagent's instructions, to be read first and in full, and then fills each placeholder by its name, one line each; where the template's file or its skill says to leave a section out, the dispatch says that the section does not apply.
+Never paste, condense or reword a template: a pasted prompt stays in your context for the rest of the session, which is what tempts a controller to shorten the next one, and a rule reaches the subagent only if its sentence does.
+
 **Waiting on dispatched subagents.**
 Never poll a wait interface with short timeouts, and never sit in one silent, open-ended wait either.
 While you have local work (ledger updates, packaging the next review, reading reports), keep working; child results arrive on their own.
@@ -255,14 +268,14 @@ A bounded stretch keeps nearly all of a long wait's efficiency while guaranteein
 
 Record BASE (`git rev-parse HEAD`) before dispatching; the review package and fix-round diffs need it.
 
-- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to `task-N-brief.md` in the workspace and prints the path.
+- **Task brief.** Before dispatching an implementer, run this skill's `scripts/task-brief PLAN_FILE N`; it extracts the task's full text, followed by the plan's Global Constraints section, to a brief in the workspace named after the task's number and slug (`task-3-rate-limiter-brief.md`) and prints the path.
   There is one brief per task, and every call writes the same plan text, so regenerating it after compaction or in a new session is harmless.
   Compose the dispatch so the brief stays the single source of requirements.
-  Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "read this first; it is your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
-  Exact values (numbers, magic strings, signatures, test cases) appear only in the brief.
+  Your dispatch contains: (1) one line on where this task fits in the project; (2) the brief path, introduced as "your requirements, with the exact values to use verbatim"; (3) interfaces and decisions from earlier tasks that the brief cannot know; (4) your resolution of any ambiguity you noticed in the brief; (5) the report-file path and report contract.
+  Exact values (numbers, magic strings, signatures, acceptance lines, dictated text) appear only in the brief; the one exception is a sentence of dictated text that a ruling reworded, which the dispatch carries.
   Never make a subagent read the whole plan file.
   A task with an owner gate gets two briefs, one per part, as [Owner gates](#owner-gates) says.
-- **Report file.** Name the implementer's report file after the brief (brief `task-N-brief.md`, report `task-N-report.md`, same workspace) and put it in the dispatch prompt.
+- **Report file.** Name the implementer's report file after the brief, with `-report.md` in place of `-brief.md` (brief `task-3-rate-limiter-brief.md`, report `task-3-rate-limiter-report.md`, same workspace), and put it in the dispatch prompt.
   The implementer writes the full report there and returns only status, commits, a one-line test summary, and concerns.
   There is one report per task, and two for a task with an owner gate, one per part, as with its briefs.
   A report file that already exists is a prior attempt's memory (a dispatch before compaction, or an earlier session): never delete or rename it.
@@ -288,6 +301,8 @@ Handle each appropriately.
 
 **DONE:** generate the review package (this skill's `scripts/review-package PLAN_FILE BASE HEAD`, run from the repository root; it prints the path of the file it wrote, one per range; BASE is the commit you recorded before dispatching the implementer, never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
 
+A report without its Acceptance item, or without the task test command when the task has tests, for a brief that has acceptance lines, is incomplete: resume the implementer for the missing part before you dispatch the review.
+
 **DONE_WITH_CONCERNS:** the implementer completed the work but flagged doubts.
 Read the concerns before proceeding.
 If the concerns are about correctness or scope, address them before review.
@@ -303,6 +318,10 @@ Assess the blocker:
 2. If the task requires more reasoning, re-dispatch with a more capable model.
 3. If the task is too large, break it into smaller pieces.
 4. If the plan itself is wrong, rule on the correction, ledger it, and re-dispatch with the ruling carried in the dispatch.
+
+A BLOCKED report that names a state and a sentence of dictated text is the fourth case, and the state wins.
+Rule on the smallest rewording that gives the state its outcome, ledger the ruling, and ledger the new wording as a `State:` line too, because it supersedes the plan's text for every reviewer from then on.
+Re-dispatch with the reworded sentence carried in the dispatch.
 
 Never ignore an escalation or force the same model to retry without changes.
 If the implementer said it is stuck, something needs to change.
@@ -320,7 +339,7 @@ Implementer self-review never replaces the task review; both are needed.
   The output never enters your own context, and the reviewer sees every commit with its full message, the stat summary and the full diff with context in one read.
   Use the BASE you recorded before dispatching the implementer, never `HEAD~1`, which silently truncates multi-commit tasks.
   Never dispatch a task reviewer without a diff file.
-- **Reviewer inputs:** the task reviewer gets three paths (the same brief file, the report file, and the review package), at most one sentence of emphasis, and the state changes since the inputs were written, when there are any.
+- **Reviewer inputs:** besides its prompt file, the task reviewer gets three paths (the same brief file, the report file, and the review package), at most one sentence of emphasis, and the state changes since the inputs were written, when there are any.
 - The brief carries the plan's Global Constraints section, so the reviewer reads the binding requirements where the implementer read them; never paste them into the dispatch.
   Your one sentence of emphasis is the attention lens: the constraint, or the relationship the spec states between components ("same layout as X", "matches Y"), that this task is most likely to break.
   The reviewer's template already carries the process rules (YAGNI, test hygiene, review method); the emphasis is for what THIS project's spec demands.
@@ -328,7 +347,8 @@ Implementer self-review never replaces the task review; both are needed.
   Ledger each one as `State: <fact>` when you learn it, and hand the ledger's `State:` lines to every reviewer from then on, task, re-review and final alike.
   A reviewer that sees only the plan reports findings against a world that no longer exists.
 - Do not add open-ended directives like "check all uses" or "run race tests if useful" without a concrete, task-specific reason.
-- Do not ask a reviewer to re-run tests the implementer already ran on the same code; the implementer's report carries the test evidence.
+- The task reviewer runs the task's own test files once, with the command the report names; its template says so.
+  Do not ask any reviewer for more (the whole suite, a race run, a repeat); a re-reviewer follows its own template, and the fix report carries its test evidence.
 - Do not pre-judge findings for the reviewer: never instruct a reviewer to ignore or not flag a specific issue.
   If you believe a finding would be a false positive, let the reviewer raise it and adjudicate it in the review loop.
   If the prompt you are writing contains "do not flag", "don't treat X as a defect", "at most Minor" or "the plan chose", stop: you are pre-judging, usually to spare yourself a review loop.
@@ -345,7 +365,7 @@ The loop triggers when the review reports spec ❌, any Critical or Important fi
 
 Before the loop starts, two routes leave it immediately:
 
-- Record Minor findings in the progress ledger as you go (`Task <N>: minor (deferred): <one-liner>`), and point the final whole-branch review at that list so it can triage which must be fixed before the pull request.
+- Record Minor findings in the progress ledger as you go (`<label>: minor (deferred): <one-liner>`), and point the final whole-branch review at that list so it can triage which must be fixed before the pull request.
   A roll-up nobody reads is a silent discard.
   Minor findings never enter the loop.
 - A finding labeled plan-mandated, or any finding that conflicts with what the plan's text requires, is yours to rule on: weigh the finding against the plan text, decide with the spec as the binding authority, and ledger the ruling before you act on it.
@@ -383,7 +403,7 @@ A BROKEN state and new Critical or Important breakage in the fix diff join the o
 Out-of-scope observations go to the ledger as deferred minors; they never extend the loop.
 
 **After each round,** append to the ledger:
-`Task <N>: fix round <R>/5 (<X> addressed, <Y> open; <finding one-liners>; commits <a7>..<b7>)`
+`<label>: fix round <R>/5 (<X> addressed, <Y> open; <finding one-liners>; commits <a7>..<b7>)`
 
 Never fix findings yourself in the controller session: your context stays clean for coordination, and controller fixes skip review.
 
@@ -391,10 +411,10 @@ Never fix findings yourself in the controller session: your context stays clean 
 When round 5's re-review still leaves findings open, stop dispatching.
 Adjudicate each open finding yourself; you hold the plan and the cross-task context the reviewer lacks:
 
-- **The reviewer is wrong, or the point is contestable:** park it as `Task <N>: parked; <finding>; Ruling: <why the code stands>`.
+- **The reviewer is wrong, or the point is contestable:** park it as `<label>: parked; <finding>; Ruling: <why the code stands>`.
   The final review sees both sides.
 - **Real, but nothing downstream builds on it:** park it the same way, with a ruling that says it is real and deferred.
-- **Real and load-bearing** (a later task builds on it, or it reveals a plan defect): rule on the smallest change that unblocks the dependent work, ledger it as `Task <N>: Ruling: <finding>; <what you decided and why>`, and carry it into the next task's dispatch.
+- **Real and load-bearing** (a later task builds on it, or it reveals a plan defect): rule on the smallest change that unblocks the dependent work, ledger it as `<label>: Ruling: <finding>; <what you decided and why>`, and carry it into the next task's dispatch.
   Parking a structural failure silently lets every dependent task build on it.
   Stop only when the defect leaves every path forward a guess.
 
@@ -406,8 +426,8 @@ Every adjudication is a ledger entry; a silent discard is forbidden.
 
 When the review comes back clean, or every open finding is parked with a ruling at the cap, append the completion line to the ledger in the same message as your other bookkeeping:
 
-- `Task <N>: complete (commits <base7>..<head7>, review clean)`
-- `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a tripped breaker
+- `<label>: complete (commits <base7>..<head7>, review clean)`
+- `<label>: complete (commits <base7>..<head7>, <K> parked)` after a tripped breaker
 
 Then mark the todo complete and move on.
 A task with an owner gate completes as step 8 of [owner-gates.md](references/owner-gates.md) says: its line reads `evidence review clean`, or `<K> parked` after a tripped breaker, and then you remove its temporary files, the `Temporary:` entries of its Files block.
@@ -432,7 +452,8 @@ The final review stays after the last task, gated or not; the record commits of 
 A finding whose fix needs a live change gets an unforeseen owner gate in the fix wave.
 
 Call the Skill tool for `review:request`; it carries the reviewer template.
-Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes the plan's tests do not exercise, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
+Its template goes out as a file, like the four in `references/`: the dispatch names the prompt file and fills each placeholder by its name.
+Dispatch on the most capable available model (see Model selection) and hand it: the review package path; the plan and its Design section (or the external spec); the plan's Review Focus section verbatim, if it has one (the input classes and failure modes that no task's acceptance lines cover, which the reviewer checks deliberately); the ledger's deferred-minor, parked and `Ruling:` lines, so it can triage which must be fixed before the pull request and weigh the calls you made; and the ledger's `State:` lines, so it judges the branch against the world as it is now, not as the plan found it.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent with the complete findings list, not one fixer per finding.
 A final finding that conflicts with the plan or the owner gate protocol, or that needs no change to the branch, is yours to rule on and ledger, as in the task loop; the fix dispatch takes the findings that remain after your rulings.
@@ -461,6 +482,7 @@ Call the Skill tool for `build:finish`.
 | Excuse | Reality |
 | --- | --- |
 | "Close enough on spec compliance" | Reviewer found spec gaps = not done. Fix or hit the cap and adjudicate; those are the only exits. |
+| "The report shows RED and GREEN, the reviewer need not run anything" | The report is a claim. One run of the task's own test files is the check, and a line without a test that would fail is Missing. |
 | "I'll fix it myself, dispatching is overhead" | Controller fixes pollute your context and skip review. Resume the implementer. |
 | "One more round will converge" | Past the cap, rounds don't converge; the failure is structural. Adjudicate and route. |
 | "The reviewer will just find something new anyway" | Scoped re-reviews verify fixes; they cannot wander. New findings on untouched code go to the ledger, not the loop. |
@@ -486,13 +508,13 @@ The test output below is an example; the repository's own test command decides.
 [Setup: worktree confirmed with the user; on branch feature/recovery]
 [Read plan file once: docs/plans/2026-09-23-recovery.md; Design section read]
 [Resolve workspace: scripts/workspace docs/plans/2026-09-23-recovery.md; no ledger inside]
-[Task 3 has an owner gate, so follow Resuming: no Execution status, so create the ledger with its identity line; git log from the merge base shows only the plan commit; fresh start]
+[Task 3 apply-saved-plan has an owner gate, so follow Resuming: no Execution status, so create the ledger with its identity line; git log from the merge base shows only the plan commit; fresh start]
 [Ledger: Reconcile 2026-09-23T13:10:05+0800: 9f8e7d6..HEAD; nothing to recover]
 [Create todos for all tasks]
 
-Task 1: Hook installation script
+Task 1 `hook-install`: Hook installation script
 
-[Run task-brief for Task 1; dispatch implementer with brief + report paths + context]
+[Run prompt-file for the implementer template and task-brief for Task 1 hook-install; dispatch implementer with prompt file + brief + report paths + context]
 
 Implementer: "Before I begin: should the hook be installed at user or system level?"
 
@@ -500,27 +522,34 @@ You: "User level, under the user's configuration directory; the path is in the b
 
 Implementer: [Later]
   - Implemented install-hook command
-  - Added tests, 5/5 passing
+  - Added tests, 5/5 passing; Acceptance: one covering test per line
+  - Task test command: node --test test/install-hook.test.js
   - Self-review: found I missed the --force flag, added it
   - Committed
 
-[Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
+[Run prompt-file for the task reviewer template and review-package PLAN_FILE BASE HEAD; dispatch task reviewer with prompt file + the printed path]
 Task reviewer: Spec ✅, all requirements met, nothing extra.
+  Acceptance: line 1 COVERED by test/install-hook.test.js "installs at user level";
+  line 2 COVERED by "--force overwrites an existing hook".
+  Tests run: node --test test/install-hook.test.js, 5/5 passing, as reported.
   Strengths: good test coverage, clean. Issues: none. Task quality: Approved.
 
-[Ledger: Task 1: complete (commits a1b2c3d..d4e5f6a, review clean)]
+[Ledger: Task 1 hook-install: complete (commits a1b2c3d..d4e5f6a, review clean)]
 
-Task 2: Recovery modes
+Task 2 `recovery-modes`: Recovery modes
 
-[Run task-brief for Task 2; dispatch implementer with brief + report paths + context]
+[Run prompt-file for the implementer template and task-brief for Task 2 recovery-modes; dispatch implementer with prompt file + brief + report paths + context]
 
 Implementer: [No questions]
   - Added verify/repair modes
-  - 8/8 tests passing
+  - 8/8 tests passing; Acceptance: a covering test per line
+  - Task test command: node --test test/recovery.test.js
   - Committed
 
-[Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
+[Run prompt-file for the task reviewer template and review-package PLAN_FILE BASE HEAD; dispatch task reviewer with prompt file + the printed path]
 Task reviewer: Spec ❌:
+  Acceptance: line 1 COVERED by test/recovery.test.js "verify reports drift";
+  line 2 MISSING (its only test, "repair reports progress", passes with no 100-item interval)
   - Missing: progress reporting (spec says "report every 100 items")
   Issues (Important): magic number (100)
 
@@ -528,39 +557,39 @@ Task reviewer: Spec ❌:
 Implementer: added progress reporting, extracted PROGRESS_INTERVAL constant.
   Re-ran test/recovery.test.js, 10/10 passing. Fix report appended.
 
-[Run review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review]
+[Run prompt-file for the re-review template and review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review with prompt file + the printed path]
 Re-reviewer: Missing progress reporting: ADDRESSED (src/recovery.js:41).
   Magic number: ADDRESSED (src/recovery.js:7). New breakage: none.
   Verdict: all findings addressed.
 
-[Ledger: Task 2: fix round 1/5 (2 addressed, 0 open; commits d4e5f6a..b7c8d9e)]
-[Ledger: Task 2: complete (commits d4e5f6a..b7c8d9e, review clean)]
+[Ledger: Task 2 recovery-modes: fix round 1/5 (2 addressed, 0 open; commits d4e5f6a..b7c8d9e)]
+[Ledger: Task 2 recovery-modes: complete (commits d4e5f6a..b7c8d9e, review clean)]
 
 ...
 
-Task 3: Apply the saved plan (owner gate apply-bucket)
+Task 3 `apply-saved-plan`: Apply the saved plan (owner gate apply-bucket)
 
-[Run task-brief PLAN_FILE 3 --part pre-gate; dispatch implementer with the pre-gate brief and the [OWNER_GATE] stop text]
+[Run task-brief PLAN_FILE 3 --part pre-gate; dispatch implementer with prompt file + the pre-gate brief and the [OWNER_GATE] stop text]
 Implementer: plan saved, 6 to add; show output in bucket.plan.txt; no commits
 [Pre-gate Expected lines match; pin bucket.tfplan]
-[Ledger: Task 3 pre-gate: complete (no commits; pins bucket.tfplan sha256:5891b5b5...)]
+[Ledger: Task 3 apply-saved-plan pre-gate: complete (no commits; pins bucket.tfplan sha256:5891b5b5...)]
 [Index: apply-bucket is not pre-approved; send the gate message]
 [Ledger: Gate apply-bucket: waiting for owner]
 
 User: "Yes."
 
 [Ledger: Gate apply-bucket: owner 2026-09-23T14:02:11+0800: "Yes."]
-[Run task-brief PLAN_FILE 3 --part post-gate; ledger: Task 3 post-gate: dispatched]
-[Dispatch a fresh implementer with the approval in [OWNER_GATE]]
+[Run task-brief PLAN_FILE 3 --part post-gate; ledger: Task 3 apply-saved-plan post-gate: dispatched]
+[Dispatch a fresh implementer with prompt file + the post-gate brief and the approval in [OWNER_GATE]]
 Implementer: pin matches; apply: 6 added; checks 9 PASS; empty record commit e1f2a3b with the evidence
-[Run review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer]
+[Run prompt-file for the evidence reviewer template and review-package PLAN_FILE BASE HEAD; dispatch the evidence reviewer with prompt file + the printed path]
 Evidence reviewer: approval matched; live state verified; record commit accurate. Approved.
-[Ledger: Task 3: evidence review clean]
-[Ledger: Task 3: complete (commits b7c8d9e..e1f2a3b, evidence review clean)]
+[Ledger: Task 3 apply-saved-plan: evidence review clean]
+[Ledger: Task 3 apply-saved-plan: complete (commits b7c8d9e..e1f2a3b, evidence review clean)]
 [Remove the task's temporary files: bucket.tfplan, bucket.plan.txt]
 
 [After all tasks]
-[Run review-package PLAN_FILE MERGE_BASE HEAD; review:request on the most capable model]
+[Run prompt-file for review:request's template and review-package PLAN_FILE MERGE_BASE HEAD; dispatch the final reviewer with prompt file + the printed path, on the most capable model]
 Final reviewer: all requirements met. Deferred minors triaged: none block the pull request.
 
 Rulings I made:
