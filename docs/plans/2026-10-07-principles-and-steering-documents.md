@@ -9,13 +9,13 @@ This file is transient and is removed by the change that finishes the piece.
 ### Goal
 
 An agent in a Lyngon repository is steered by a small set of documents that state only what the code cannot show, and by named principles it applies with judgment.
-The owner reads those documents and the pull request, and nothing else has to be approved before work starts.
+The owner reads those documents and the pull request, and nothing else has to be approved before work starts unless the owner asks for a gate.
 
 After this piece:
 
 - Every Lyngon repository has one definition of a steering document, and a check for each of its rules that a tool can decide.
 - A decision is recorded only when it passes the admission test, under its own name, and is deleted when it stops being true.
-- Agents can read 31 named principles, 24 vendored from pstack and 7 written by Lyngon.
+- Agents can read 32 named principles, 24 vendored from pstack and 8 written by Lyngon.
 - Agents can ask why code is the way it is and get an answer from git, pull requests, decision records and issues.
 
 The workflow itself does not change in this piece.
@@ -124,9 +124,20 @@ The `repo` plugin's session hook, `add-package`, `docs/conventions/prerequisites
 - Every other mention of `docs/adr`, of a record by number, or of `AGENTS.md` in the plugins, `shared/`, `scripts/`, `devenv/` and the root documents (34 numbered references in 19 files today).
 - `docs/conventions/prerequisites.md` and `validate-prerequisites`: the `documents` terms become `CONCEPTS.md`, `docs/decisions`, `INTENT.md`, `CLAUDE.md`, `.claude/rules`, `docs/TODO.md`, `docs/conventions`.
 
-#### Claude Code is the only harness
+#### What the devkit assumes
 
-- `INTENT.md`, non-goals: "Supporting agents other than Claude Code, until a second agent is in use at Lyngon." becomes "Supporting any agent harness other than Claude Code. A second harness would be a port."
+Three assumptions, each stated as a non-goal in `INTENT.md`:
+
+- "Supporting agents other than Claude Code, until a second agent is in use at Lyngon." becomes "Supporting any agent harness other than Claude Code. A second harness would be a port."
+- Added: "Supporting macOS or Windows. Lyngon machines run Linux."
+- Added: "Supporting a development repository without Nix and devenv."
+
+A plugin for development may assume Nix and devenv.
+A plugin that is not for development, such as `writing`, assumes neither.
+This piece states the assumptions and nothing more; shrinking the prerequisite system to match goes with the workflow piece.
+
+What follows from the first assumption:
+
 - The rule "Skill bodies stay agent-neutral" is removed from the devkit's agent file.
 - The bullet "No agent lock-in beyond what the feature needs" is removed from `shared/SKILL-REVIEW.md`.
 - The item on an agent-agnostic marketplace is removed from `docs/TODO.md`.
@@ -210,17 +221,18 @@ Ask only before an irreversible action, or for a product or preference call that
 Product direction is the owner's.
 Always ask before a merge, a push to the default branch, a force-push, a tag, a release, a publish, a deploy, deleting data or a remote branch, any message outside GitHub, and spending money.
 
-The seven Lyngon principles, each written in upstream's shape (statement, why, pattern, test):
+The eight Lyngon principles, each written in upstream's shape (statement, why, pattern, test):
 
 | Name | Statement |
 | --- | --- |
 | `record-what-the-code-cannot-show` | Prose enters the tree only through the admission test, and a decision that passes it is recorded in the same change. |
 | `the-tree-is-current` | The tree holds what is true now. Superseded text is deleted, and git and `why` hold the past. |
-| `review-results-not-plans` | The owner steers through steering documents and reviews results. No design or plan waits for approval unless the owner asked for a checkpoint. |
+| `review-results-not-plans` | The owner steers through steering documents and reviews results. Nothing waits for approval by default. A gate on requirements, a specification, a plan or tasks exists if and only if the owner asked for it explicitly, and then the agent stops there. |
 | `fix-debt-in-its-own-change` | Debt found is fixed in the same session in its own change when the fix can be proven, and otherwise becomes an issue with the evidence. |
 | `reshape-instead-of-commenting` | A comment explaining a surprise in your own code is fixed in the code. |
-| `name-things` | Refer to things by name, and keep a number only where a tool assigns it. |
+| `name-things` | Give everything a name and refer to it by that name. An ordered item also carries a three-digit prefix, as in `001-steering-documents`, so that it sorts in order. Keep a bare number only where a tool assigns it. |
 | `prescribe-proof-not-steps` | Anything written for an agent to follow states what must hold and what proof is owed, and gives steps only where they are facts the reader cannot derive. |
+| `use-purpose-built-tools` | A script or check uses the tool built for the task, such as jq for JSON, declared through Nix and pinned, and takes nothing from the ambient PATH. Highly custom logic is a Python program shipped as source next to what uses it. |
 
 `review-results-not-plans` describes where the devkit is heading.
 Until the workflow piece lands, the gated skills still ask for approval, and the principle's file says so in one sentence that the workflow piece removes.
@@ -281,6 +293,7 @@ On commit, `validate-documents` and `validate-structure` fail on anything the ru
 - The later pieces: the agent identity, the issue pipeline, the GitHub setup that `repo:init` emits, and rules as checks, including the five structure checks.
 - Deleting the three records about gates and plans, which goes with the workflow piece.
 - Renaming the `conventions` plugin and `docs/conventions/`, which goes with the rules-as-checks piece.
+- Shrinking the prerequisite system now that every development repository is assumed to have Nix and devenv, which goes with the workflow piece.
 - Migrating `lyngon.com`. It keeps working until it updates its devkit input, and migrates in a change of its own.
 
 ### Decisions for the owner to check
@@ -289,7 +302,8 @@ Each of these is a choice made while writing the design, not one settled in the 
 
 - `.claude/CLAUDE.md` holds only the import of `INTENT.md`. The full-check command and the pointers come from the session hook and `conventions:engineering`, as they do today.
 - The piece lands as two pull requests, and this file stays on the default branch between them.
-- The new wording of the non-goal in `INTENT.md`.
+- The wording of the three non-goals in `INTENT.md`.
+- The name `use-purpose-built-tools` for the principle on tools.
 - The skill names `principles:index`, `conventions:decision-record` and `discover:why`.
 - A new baseline hook, `validate-documents`, with the six checks listed.
 - The verdict on each of the 19 records, and the ten rule files that replace the devkit's agent file.

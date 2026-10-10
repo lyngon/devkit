@@ -14,13 +14,13 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `steering-documents` | Designed, awaiting the owner's review | [seed prompt](../seed-prompts/steering-documents.md), [design](2026-10-07-principles-and-steering-documents.md) |
-| `principles-and-why` | Designed in the same file | [seed prompt](../seed-prompts/principles-and-why.md) |
-| `workflow` | Inputs settled, no design | [seed prompt](../seed-prompts/workflow.md) |
-| `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/agent-identity.md) |
-| `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/issue-pipeline.md) |
-| `github-repository-setup` | Inputs settled, no design | [seed prompt](../seed-prompts/github-repository-setup.md) |
-| `rules-as-checks` | Inputs settled, no design | [seed prompt](../seed-prompts/rules-as-checks.md) |
+| `steering-documents` | Designed, awaiting the owner's review | [seed prompt](../seed-prompts/001-steering-documents.md), [design](2026-10-07-principles-and-steering-documents.md) |
+| `principles-and-why` | Designed in the same file | [seed prompt](../seed-prompts/002-principles-and-why.md) |
+| `workflow` | Inputs settled, no design | [seed prompt](../seed-prompts/003-workflow.md) |
+| `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/004-agent-identity.md) |
+| `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/005-issue-pipeline.md) |
+| `github-repository-setup` | Inputs settled, no design | [seed prompt](../seed-prompts/006-github-repository-setup.md) |
+| `rules-as-checks` | Inputs settled, no design | [seed prompt](../seed-prompts/007-rules-as-checks.md) |
 
 The order is the order of the table.
 `agent-identity` depends on nothing and may move earlier.
@@ -39,11 +39,11 @@ The owner's ten points, as amended in the interview.
 3. The tree holds what is true now, and git holds the past.
 4. Agents decide and act, and record a decision the code cannot show in the same change.
 5. An agent asks only before an irreversible action, or for a product or preference call that no run can settle.
-6. The owner steers through steering documents and reviews results. No design or plan waits for approval unless the owner asked for a checkpoint.
+6. The owner steers through steering documents and reviews results. Nothing waits for approval by default. A gate on requirements, a specification, a plan or tasks exists if and only if the owner asked for it explicitly.
 7. Process is spent on proof, not on permission. A skill states what must hold and what proof is owed.
 8. Debt is fixed when found, in its own change. Structure makes the right decision easy and the wrong one fail.
 9. Whatever a tool can decide is checked by a tool. A rule without a check is debt.
-10. Agents write the scripts and checks that do or prove the work. Every tool comes from the repository's Nix environment.
+10. Agents write the scripts and checks that do or prove the work, with the tool built for the task, such as jq for JSON, and never with logic hand-rolled in shell. Every tool is declared through Nix, pinned, and nothing comes from the ambient PATH. Highly custom logic is a Python program shipped as source next to the skill or check that uses it.
 
 The inspiration is pstack by poteto.
 The owner departs from it in one place: pstack keeps no intent or decisions in the tree and relies on an operator present for every task and on a searchable company record, and Lyngon has neither.
@@ -54,8 +54,14 @@ The owner departs from it in one place: pstack keeps no intent or decisions in t
 
 - In this repository, piece by piece. Each piece is designed from an empty page, and existing text must earn its way back in.
 - Each piece gets a design file through `/discover:approach`, which the owner reviews. For `steering-documents`, `principles-and-why` and `workflow` the implementation then happens in the session without a plan file, and the owner reviews the pull request. The pieces after `workflow` are built with the new workflow.
-- Claude Code is the only harness. Nothing is written to stay agent-neutral.
 - Questions in an interview carry short names, not numbers.
+
+### Assumptions
+
+- Claude Code is the only harness. Nothing is written to stay agent-neutral.
+- Every development repository uses Nix and devenv, so a plugin for development may assume both.
+- Only Linux is supported, most likely NixOS. Not macOS and not Windows.
+- A plugin that is not for development, such as `writing`, must not assume Nix.
 
 ### Terms
 
@@ -69,9 +75,11 @@ Steering document, owner, operator, principle, rule, change and decision record 
 
 ### Names
 
-- Principles: the name is the file name.
+- Everything gets a name and is referred to by it, never by a bare number.
+- An ordered item also carries a three-digit prefix before its name, as in `001-steering-documents.md`, so that it sorts in order. This covers sequential tasks, steps and queued seed prompts.
+- Principles: the name is the file name. They are not ordered, so they carry no prefix.
 - Rules: the name is the identifier the check reports.
-- Decision records: the file is named after the decision, with no number. "The next number" is shared state that two branches both take.
+- Decision records: the file is named after the decision. They are not ordered, so they carry no prefix, and "the next number" would be shared state that two branches both take.
 - Issues and pull requests keep the forge's number. Inside the tree they are linked with the title as link text.
 
 ### The gate
@@ -132,6 +140,8 @@ Settled:
 
 - The nine superpowers skills go: `build:plan`, `build:delegate`, `build:execute`, `build:finish`, `practice:tdd`, `practice:debug`, `practice:verify`, `review:request`, `review:receive`. The pstack skills above replace them by job: route (`poteto-mode`, `figure-it-out`, `feature`, `refactoring`, `autonomous-run`), understand (`how`, `teach`), design (`architect`, `arena`, `prototype`), prove (`tdd`, `show-me-your-work`, `benchmark-checklist`, `bug-fix`), review (`interrogate`, `no-comments`), learn (`correct`), write (`technical-writing`, `bro`), hand over (`opening-a-pr`).
 - `poteto-mode` is patched heavily into Lyngon's own mode. Its autonomy section becomes the gate above. Every step in a vendored playbook must pass `prescribe-proof-not-steps`.
+- The flow has no approval gate by default. It supports a gate on requirements, a specification, a plan or tasks when the owner asks for one explicitly, and only then.
+- Scripts in skills and checks follow `use-purpose-built-tools`: the tool built for the task, declared through Nix and pinned, nothing from the ambient PATH, and Python shipped as source for highly custom logic.
 - Test-first follows pstack's `tdd`: a failing test first for a bug when a cheap test path exists, and no test rather than a bad one. The rule "no production code without a failing test" goes.
 - The mistake ledger. One file per mistake in a directory, named, holding the date, what happened and the pull request where it was caught. `correct` is its skill, patched from pstack's rule table to this ledger, and the agent invokes it itself on a correction from the operator, an accepted review finding or a revert. A failing check does not trigger it. On a repeat the check is written and the ledger file deleted. A repeat that no tool can decide becomes a file under `.claude/rules/`. A script prunes entries older than a limit that lives in the baseline module, 365 days by default.
 - The pull request body has the sections Why, Decisions, What changed, Scope, Blast radius and Verification, in that order, and stays near 40 lines because it becomes the commit body. A Decisions entry names what was decided, the alternatives and how they were compared, the trade-off accepted and the steering document changed. "None" is written out. An entry that replaces a decision record says `replaces <name>`. pstack's Tradeoffs section folds into Decisions, and the "Rulings I made" list goes.
@@ -148,6 +158,8 @@ Open, for the design to settle:
 - Which plugin holds which vendored skill, and how the mode gets into every session.
 - What becomes of `discover:approach`, `discover:interview`, `discover:domain-model` and `discover:brainstorm`. `architect` replaces the design half of `approach`. The owner asked only for the superpowers skills to go.
 - How a change to a skill is proven. The `eval` playbook is on the shelf for this.
+- How a script shipped inside a plugin declares its tools through Nix, pinned: through the baseline module, whose pin is the consumer's `devenv.lock`, or in the script itself.
+- What remains of the prerequisite system. Every development repository is now assumed to have Nix and devenv, so the `With devenv` sections lose their purpose for development plugins, while `writing` must still assume nothing.
 
 ## agent-identity
 

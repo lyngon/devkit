@@ -24,9 +24,9 @@ Read every file you vendor in full before you patch it; nobody has read the refe
 
 ## What must hold when you are done
 
-- `principles:index` lists 31 principles, 24 from pstack and 7 from Lyngon, each with a file under 100 lines, and the validator fails when the index and the files disagree.
+- `principles:index` lists 32 principles, 24 from pstack and 8 from Lyngon, each with a file under 100 lines, and the validator fails when the index and the files disagree.
 - Every local patch the design names is applied and listed in the provenance record, and no other change to upstream text is unlisted.
-- The seven Lyngon principles are written in upstream's shape (statement, why, pattern, test), from the statements in the design.
+- The eight Lyngon principles are written in upstream's shape (statement, why, pattern, test), from the statements in the design.
 - `discover:why` answers from the decision records, git, pull request bodies and issues, in one pass when no other source exists, and keeps upstream's split between found, inferred and unknown.
 - A session in a Lyngon repository is told about `principles:index` by the session hook.
 
