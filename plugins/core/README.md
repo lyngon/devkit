@@ -10,7 +10,7 @@ claude plugin install core@lyngon --scope project
 ```
 
 This plugin has no skills of its own.
-It exists for repositories that want discovery, planning and execution, the engineering practices, review and writing without adopting the baseline or the Lyngon structure.
+It exists for repositories that want discovery, planning and execution, the engineering practices, review, writing and the principles without adopting the baseline or the Lyngon structure.
 The validator checks that no member declares a prerequisite above `documents`, so installing `core` never imposes the layout, the toolchain or the Lyngon workflow.
 A repository that adopts the workflow installs `conventions` next to it:
 
@@ -29,6 +29,7 @@ claude plugin install build@lyngon --scope user
 claude plugin install practice@lyngon --scope user
 claude plugin install review@lyngon --scope user
 claude plugin install writing@lyngon --scope user
+claude plugin install principles@lyngon --scope user
 ```
 
 A repository that adopts everything installs `all` instead.

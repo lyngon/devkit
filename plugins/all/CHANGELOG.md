@@ -3,6 +3,10 @@
 All notable changes to the `all` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.0 - 2026-10-11
+
+- Added `principles` to the bundle.
+
 ## 0.4.0 - 2026-09-29
 
 - Declares the `workflow` prerequisite, which its member `conventions` now declares.

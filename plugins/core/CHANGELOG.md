@@ -3,6 +3,10 @@
 All notable changes to the `core` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.0 - 2026-10-11
+
+- Added `principles` to the bundle; it declares `documents`.
+
 ## 0.4.0 - 2026-10-11
 
 - The README says decision records where it said ADRs, following its members `discover` and `build`.

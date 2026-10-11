@@ -1,0 +1,11 @@
+# Changelog
+
+All notable changes to the `principles` plugin.
+Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
+The vendored principles record their upstream commit in the skill's `UPSTREAM.md`.
+
+## 0.1.0 - 2026-10-11
+
+- Added `index` with 32 principles, one line each in `SKILL.md` and one file each under `references/`.
+- 24 are vendored from pstack 0.15.15 at commit `9f451cf`: `never-block-on-the-human` states the Lyngon gate, `encode-lessons-in-structure` routes a lesson to the pull request, a check or a principle, `outcome-oriented-execution` keeps breakage inside a branch, and `sequence-verifiable-units` makes the change the unit that lands.
+- 8 are written by Lyngon: `record-what-the-code-cannot-show`, `the-tree-is-current`, `review-results-not-plans`, `fix-debt-in-its-own-change`, `reshape-instead-of-commenting`, `name-things`, `prescribe-proof-not-steps` and `use-purpose-built-tools`.
