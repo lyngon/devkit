@@ -241,7 +241,8 @@ def main() -> int:
     for line in errors:
         print(line, file=sys.stderr)
     if errors:
-        print(f"validate-prerequisites: {len(errors)} error(s)", file=sys.stderr)
+        print(f"validate-prerequisites: {len(errors)} error(s); the rules are in docs/conventions/prerequisites.md",
+              file=sys.stderr)
         return 1
     print("validate-prerequisites: ok")
     return 0

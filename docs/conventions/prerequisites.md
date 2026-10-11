@@ -31,7 +31,7 @@ The devkit README table shows the line.
 A bundle declares the union of its members' prerequisites, and the validator checks that it does.
 
 Bundle membership follows from the declaration and is never decided by hand: every local plugin outside the marketplace categories `devkit` and `bundle` is in `all`, and every such plugin declaring at most `documents` is in `core`, and no other. The validator checks both.
-So `core` never assumes the workflow, and may be enabled at user scope (ADR 0017).
+So `core` never assumes the workflow, and may be enabled at user scope.
 
 ## The rule
 

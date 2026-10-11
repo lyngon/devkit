@@ -2,7 +2,9 @@
 # Validate the marketplace manifest, every plugin directory, every SKILL.md,
 # every vendored skill's provenance, every catalog record and the plugins
 # enabled by the settings template of /repo:init.
-# Encodes the rules from CLAUDE.md and ADRs 0006 to 0008.
+# These checks carry the devkit's rules on plugins: the file set of a plugin,
+# pinning per plugin and vendoring per skill, the bundles, and documents shared
+# through symlinks into shared/.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -87,7 +89,7 @@ check_local_plugin() {
   for sub in skills commands agents hooks; do
     [[ -e "$dir/$sub" ]] && content=1
   done
-  # A plugin with dependencies and no components is a bundle (ADR 0011).
+  # A plugin with dependencies and no components is a bundle.
   if [[ "$content" == 0 && "$(jq -r '.dependencies // [] | length' "$pj")" == 0 ]]; then
     fail "$entry_name: plugin has no skills, commands, agents, hooks or dependencies"
   fi

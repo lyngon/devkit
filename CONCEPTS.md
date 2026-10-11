@@ -17,7 +17,7 @@ _Avoid_: skill pack, extension, bundle
 The activity a plugin serves, such as setting up repositories or discovery before building. One plugin per concern.
 
 **Devkit**:
-This repository: the reusable pieces a Lyngon repository needs, today the marketplace, the baseline module and the convention documents.
+This repository: the reusable pieces a Lyngon repository needs, today the marketplace, the baseline module and the shared documents.
 
 **Marketplace**:
 The part of the devkit described by `.claude-plugin/marketplace.json`, listing every plugin that can be installed from it.
@@ -76,7 +76,7 @@ The layout, vocabulary and dependency rules a Lyngon repository follows when it 
 _Avoid_: monorepo, package layout
 
 **Steering document**:
-A document in the tree that states what the code cannot show and that an agent must follow: a repository's intent, working rules, terms and decision records, and the organization's principles.
+A document in the tree that states what the code cannot show and that an agent must follow: a repository's intent, principles, terms and decision records, and the organization's principles.
 _Avoid_: standard document (that names the file set), governing document
 
 **Decision record**:
@@ -144,12 +144,12 @@ _Avoid_: assumption, tier, requirement
 
 ## Relationships
 
-- The **Devkit** holds the **Marketplace**, the **Baseline** and the shared convention documents.
+- The **Devkit** holds the **Marketplace**, the **Baseline** and the shared documents.
 - The **Marketplace** lists many **Plugins**; each **Plugin** serves one **Concern**.
 - A **Plugin** holds one or more **Skills**, each either **In-house** or **Vendored**.
 - Every **Vendored skill** and every **Pinned plugin** has exactly one **Provenance record**.
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
-- The **Structure** is one of the shared convention documents; the **Baseline** enforces its dependency rules.
+- The **Structure** is one of the shared documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - Every **Plugin** declares its **Prerequisites**; a bundle's are the union of its members'.
 - An **Owner** approves every change to a **Steering document** of their repository.

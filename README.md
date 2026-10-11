@@ -18,7 +18,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 
 - A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
 - A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file and languages.
-- A set of shared convention documents behind both, in `shared/`.
+- A set of shared documents behind both, in `shared/`.
 
 Other kinds of reusable pieces may join; the test is that they are used by more than one repository.
 
@@ -42,14 +42,16 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │       └── skills/<name>/  a skill; vendored ones carry UPSTREAM.md and the upstream LICENSE
 ├── catalog/
 │   └── <plugin>.md         provenance record for every pinned third-party plugin
-├── shared/                 convention documents, symlinked into the plugins that use them
+├── shared/                 shared documents, symlinked into the plugins that use them
 ├── devenv/                 the shared devenv module every Lyngon repository imports
 ├── scripts/                validation and generation run by git hooks and CI
+├── .claude/
+│   ├── CLAUDE.md           imports INTENT.md into every agent session
+│   └── rules/              this repository's principles, one per file, loaded by path
 ├── docs/
-│   ├── adr/                decisions about this repository
+│   ├── decisions/          decisions about this repository that the code cannot show
 │   └── TODO.md             deferred work
 ├── INTENT.md               what the repository is for, for whom, and what done means
-├── CLAUDE.md               how to work here, for agents (AGENTS.md is a symlink to it)
 └── CONCEPTS.md             the terms used in this repository
 ```
 
@@ -233,7 +235,7 @@ This repository registers itself as the marketplace `lyngon` from the working tr
 ## Adding third-party work
 
 Run `/devkit:add-skill <name, URL or description>` from a Claude Code session in this repository; it finds, vets and installs, and refuses upstreams without a license.
-By hand, the same policy: read every skill, command, agent and hook you are about to take, then pick one of two kinds, see [ADR 0006](docs/adr/0006-plugins-by-concern-pin-per-plugin-vendor-per-skill.md):
+By hand, the same policy: read every skill, command, agent and hook you are about to take, then pick one of two kinds:
 
 - **Pin the plugin** when the upstream plugin is used whole and unmodified: add a marketplace entry with a 40-character `sha` and a `version`, and a record in `catalog/<name>.md`.
 - **Vendor the skill** when only some skills are wanted or they must be rewritten to Lyngon vocabulary: copy the skill into the plugin for its concern, with the upstream `LICENSE` and an `UPSTREAM.md` beside `SKILL.md`.

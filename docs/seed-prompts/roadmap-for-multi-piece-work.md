@@ -14,9 +14,9 @@ In lyngon.com (2026-09-27) the first session needed a hand-made overview file an
 
 ## Constraints
 
-- ADR 0016: plans are transient, live on the branch and are removed when the work lands; a fact that outlives the work belongs in `CONCEPTS.md`, an ADR or `CLAUDE.md`, never in a plan.
+- The decision record `planned-work-is-reviewed-at-two-gates`: plans are transient, live on the branch and are removed when the work lands; a fact that outlives the work belongs in a steering document, never in a plan.
 - `docs/TODO.md` holds only work the owner explicitly deferred.
-- A roadmap is work in progress for as long as any piece is unbuilt, so keeping it until the last piece lands is consistent with the ADR.
+- A roadmap is work in progress for as long as any piece is unbuilt, so keeping it until the last piece lands is consistent with that record.
 
 ## Decisions to settle
 
@@ -24,4 +24,4 @@ In lyngon.com (2026-09-27) the first session needed a hand-made overview file an
 2. Content: the pieces, their order, the status of each, the transient facts the later pieces need, and a pointer to each piece's plan; nothing that belongs in the Lyngon documents.
 3. Who writes and updates it: `discover:approach` at decomposition, `build:finish` when a piece lands (status) and when the last piece lands (removal).
 4. How a fresh session finds it: the session-start hook, a link from each piece's plan, or a convention in the plan header.
-5. Its relation to the `## Execution status` section a paused run writes into its plan (ADR 0018), so the two do not become two files for one purpose.
+5. Its relation to the `## Execution status` section a paused run writes into its plan (the decision record `owner-gates-are-declared-in-the-plan-and-pre-approved-by-name`), so the two do not become two files for one purpose.

@@ -6,7 +6,7 @@ It changes when the purpose changes, not when the plan changes.
 ## Product
 
 **Lyngon devkit** is the shared foundation for software development at Lyngon: the reusable pieces a repository needs to work the Lyngon way.
-Today that is a Claude Code plugin marketplace (in-house skills, vendored third-party skills, pinned third-party plugins), the shared devenv module every repository imports, and the convention documents behind both.
+Today that is a Claude Code plugin marketplace (in-house skills, vendored third-party skills, pinned third-party plugins), the shared devenv module every repository imports, and the shared documents behind both.
 
 ## For whom
 

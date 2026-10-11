@@ -5,7 +5,6 @@ A pinned plugin has no directory in this repository, so its provenance record li
 Without a record, the validator rejects the marketplace entry.
 
 **Vendored** skills are different: their provenance record is the `UPSTREAM.md` next to their `SKILL.md`, with the upstream license file beside it.
-See [ADR 0006](../docs/adr/0006-plugins-by-concern-pin-per-plugin-vendor-per-skill.md).
 
 ## Adding a pinned plugin
 
