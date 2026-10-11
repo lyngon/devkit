@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Validate the marketplace manifest, every plugin directory, every SKILL.md,
-# every vendored skill's provenance, every catalog record and the plugins
-# enabled by the settings template of /repo:init.
+# every vendored skill's provenance, every catalog record, the plugins enabled
+# by the settings template of /repo:init and the principles index.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
-# pinning per plugin and vendoring per skill, the bundles, and documents shared
-# through symlinks into shared/.
+# pinning per plugin and vendoring per skill, the bundles, documents shared
+# through symlinks into shared/, and one line and one file per principle.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -179,6 +179,41 @@ if [[ -f plugins/all/.claude-plugin/plugin.json && -f "$settings_template" ]]; t
   else
     fail "$settings_template: the .claude/settings.json section needs a JSON block with an enabledPlugins object"
   fi
+fi
+
+# The principles index and the principle files name the same principles. An
+# agent picks a principle by its line in the index and then reads its file, so
+# a line without a file, or a file without a line, is a principle nobody can
+# apply. A file holds at most 100 lines, so that an agent that reads only the
+# start of a reference still reads the whole principle.
+principles=plugins/principles/skills/index
+if [[ -d plugins/principles && ! -f "$principles/SKILL.md" ]]; then
+  fail "$principles/SKILL.md is missing: the principles plugin holds its index there, one line for each file under $principles/references/"
+elif [[ -d plugins/principles ]]; then
+  principle_line='^- \*\*([a-z0-9]+(-[a-z0-9]+)*)\*\* \((pstack|Lyngon)\)\. .+\. .+\.$'
+  declare -A indexed=()
+  number=0
+  # The second test reads a last line that has no newline.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    number=$((number + 1))
+    [[ "$line" == "- **"* ]] || continue
+    if [[ ! "$line" =~ $principle_line ]]; then
+      fail "$principles/SKILL.md:$number: a principle's line has the form '- **<name>** (<origin>). <When it applies>. <The rule in one sentence>.', with the name in kebab-case and pstack or Lyngon as the origin"
+      continue
+    fi
+    name=${BASH_REMATCH[1]}
+    [[ -z "${indexed[$name]:-}" ]] || fail "$principles/SKILL.md:$number: principle '$name' is listed twice"
+    indexed[$name]=1
+    [[ -f "$principles/references/$name.md" ]] || fail "$principles/SKILL.md:$number: principle '$name' has no file $principles/references/$name.md"
+  done <"$principles/SKILL.md"
+  for file in "$principles"/references/*.md; do
+    [[ -f "$file" ]] || continue
+    name=$(basename "$file" .md)
+    [[ -n "${indexed[$name]:-}" ]] || fail "$file: $principles/SKILL.md has no line for '$name'"
+    # Counts a last line without a newline too, which wc -l does not.
+    length=$(grep -c '' "$file" || true)
+    ((length <= 100)) || fail "$file: is $length lines long, and a principle file holds at most 100"
+  done
 fi
 
 # Every plugin directory must be listed.
