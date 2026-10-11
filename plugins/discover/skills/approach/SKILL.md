@@ -3,7 +3,7 @@ name: approach
 description: >-
   Settle a design before building. Classifies the work as a spike, a bounded change or an
   architectural change, interviews the user relentlessly on the architectural path, writes
-  CONCEPTS.md terms and ADRs as they settle, and gates implementation on the user's approval
+  CONCEPTS.md terms and decision records as they settle, and gates implementation on the user's approval
   of the design. Use before building anything with more than one reasonable design, and when
   the user asks to design something, plan an approach, think something through, or says
   "grill me". Not for tossing ideas around without commitment; that is discover:brainstorm.
@@ -48,19 +48,19 @@ Resume at the earliest incomplete stage; never turn one approval into permission
 ## Architectural path
 
 1. Call the Skill tool for `discover:interview` and `discover:domain-model`.
-   With `--no-docs`, call only `discover:interview`: sharpen the design without writing `CONCEPTS.md` entries or ADRs.
+   With `--no-docs`, call only `discover:interview`: sharpen the design without writing `CONCEPTS.md` entries or decision records.
 2. Explore the repository first: files, documents, recent commits.
 3. Before asking detailed questions, check whether the request spans several independent subsystems.
    If it does, decompose first: name the pieces, how they relate and in which order to build them, then take the first piece through the rest of this path.
    Each piece gets its own design, plan and implementation cycle.
 4. Run the interview rounds until the frontier is empty.
    When the choice between approaches decides everything downstream (it is the root of the design tree), the first round opens with it, proposed as in step 5, and step 5 then confirms the choice with the trade-offs stated.
-   Terms and decisions go into `CONCEPTS.md` and `docs/adr/` as they settle, through `discover:domain-model`.
+   Terms and decisions go into `CONCEPTS.md` and `docs/decisions/` as they settle, through `discover:domain-model`.
 5. Propose two or three approaches with trade-offs, lead with your recommendation and say why, and settle on one with the user.
    Remove every feature the goal does not need from every approach.
 6. Write the settled design to `docs/plans/YYYY-MM-DD-<slug>.md` under a `## Design` heading with the sections goal, approach, components, data flow, error handling, testing and out of scope.
    Scale each section to its complexity: a few sentences when it is straightforward, a few paragraphs when it is not.
-   The file is transient: purpose, working rules, terms and decisions belong in the Lyngon documents, and the build plugin removes the file when the work is finished.
+   The file is transient: purpose, principles, terms and decisions belong in the steering documents, and the build plugin removes the file when the work is finished.
 7. Self-review the file with fresh eyes and fix what you find inline, without another round of review:
    - Placeholders: "TBD", "TODO", empty sections, vague requirements.
    - Internal consistency: sections that contradict each other, an approach that does not match the components.

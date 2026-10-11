@@ -2,7 +2,7 @@
 name: brainstorm
 description: >-
   Toss ideas around in conversation without writing anything: no interview rounds, no
-  approval gate, no CONCEPTS.md entries, no ADRs, no plan file. Use when the user says
+  approval gate, no CONCEPTS.md entries, no decision records, no plan file. Use when the user says
   brainstorm, toss ideas around, think out loud, just ideas or no docs, or wants to explore
   an idea without committing to it. Not when they ask for a design, a plan or a decision to
   record.
@@ -32,7 +32,7 @@ The only output is the conversation itself and, at the end, a short summary the 
    Name the strongest objection to each idea.
    No recommendation is required, but give one when asked.
 3. Keep a running list of ideas in chat, marking kept and dropped ones as the conversation moves.
-4. Write no files: no `CONCEPTS.md` entry, no ADR, no plan, and no `docs/TODO.md` entry unless the user says "defer that" in so many words.
+4. Write no files: no `CONCEPTS.md` entry, no decision record, no plan, and no `docs/TODO.md` entry unless the user says "defer that" in so many words.
    A deferred entry carries enough context to be picked up cold.
 5. When an idea firms up and the user wants to pursue it, offer once to hand over to `discover:approach`.
    Do not invoke it on your own.

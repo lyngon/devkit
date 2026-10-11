@@ -8,7 +8,7 @@ Every plugin is usable in every repository that meets its declared prerequisites
 | Prerequisite | The repository has | Test |
 | --- | --- | --- |
 | `git` | A git repository with Markdown in it. Every plugin may assume this; it is never declared. | Always true. |
-| `documents` | The Lyngon document set, existing or created lazily: `CONCEPTS.md`, `docs/adr/`, `INTENT.md`, `CLAUDE.md` with `AGENTS.md` symlinked to it, `docs/TODO.md`, `docs/conventions/`. | The files may be created; they need not exist. |
+| `documents` | The Lyngon document set, existing or created lazily: `INTENT.md`, `.claude/CLAUDE.md`, `.claude/rules/`, `CONCEPTS.md`, `docs/decisions/`, `docs/TODO.md`, `docs/conventions/`. | The files may be created; they need not exist. |
 | `workflow` | The Lyngon workflow, adopted by the owner: the agent follows the Lyngon conventions, commits on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge. | The `conventions` plugin is enabled for the repository; its session hook says "This is a Lyngon repository". |
 | `baseline` | The repository imports `lyngon/devenv`, the Baseline: the named hooks, `lyngon.*` options and the MCP file. | `lyngon.enable = true` in `devenv.nix`. |
 | `structure` | The repository follows `shared/STRUCTURE.md`. | The root `CLAUDE.md` says "This repository follows the Lyngon structure", and `lyngon.structure.enable = true` in `devenv.nix`. |
@@ -61,7 +61,7 @@ The validator (`scripts/validate-prerequisites.py`) matches these terms, case-se
 
 | Prerequisite | Terms |
 | --- | --- |
-| `documents` | `CONCEPTS.md`, `docs/adr`, `INTENT.md`, `CLAUDE.md`, `AGENTS.md`, `docs/TODO.md`, `docs/conventions` |
+| `documents` | `CONCEPTS.md`, `docs/decisions`, `INTENT.md`, `CLAUDE.md`, `.claude/rules`, `docs/TODO.md`, `docs/conventions` |
 | `workflow` | `conventions:engineering`, `This is a Lyngon repository` |
 | `devenv` (condition) | `devenv`, `secretspec`, `git-hooks`, `enterTest`, `.pre-commit-config` |
 | `baseline` | `lyngon.enable`, `lyngon.structure`, `lyngon.mcp`, `lyngon/devenv`, and the hook names `prose-lint`, `markdownlint`, `nixfmt`, `shellcheck`, `ruff`, `prettier`, `commitizen`, `typos`, `ripsecrets`, `actionlint`, `yamllint`, `deadnix`, `statix`, `golangci-lint` |

@@ -10,7 +10,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 - A repository that adopts the structure is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand. See [STRUCTURE.md](shared/STRUCTURE.md)
 - A workflow, primarily inspired by [Superpowers](https://github.com/obra/superpowers) and [Matt Pocock's skills](https://github.com/mattpocock/skills).
 - The same set of git hooks run everywhere and are never disabled to make a commit pass.
-- `INTENT.md`, `CLAUDE.md`, `CONCEPTS.md` and ADRs carry purpose, working rules, terms and decisions, in that division and no other.
+- `INTENT.md`, the rule files under `.claude/rules/`, `CONCEPTS.md` and decision records carry purpose, principles, terms and decisions, in that division and no other.
 - Work is reviewed on its pull request, which the agent opens without asking; planned work is also reviewed at the plan. Not commit by commit.
 - A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
@@ -69,13 +69,13 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents, workflow, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `core` | bundle of `discover`, `build`, `practice`, `review`, `writing` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review and writing. A bundle: it has no skills of its own. |
 | `repo` | `/repo:add-package`, `/repo:init` | documents, workflow, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
-| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and ADRs as they crystallise and gates implementation on approval. |
+| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval. |
 | `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | git | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
 | `review` | `/review:receive`, `/review:request` | git | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
 | `devkit` | `/devkit:add-skill` | documents, baseline, structure | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
 | `writing` | `/writing:unslop` | git | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
-| `conventions` | `adr` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | documents, workflow | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, ADRs and the standard documents. |
+| `conventions` | `decision-record` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | documents, workflow | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. |
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | git | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
@@ -126,9 +126,9 @@ And the way of working in it, in the order things happen:
 
 - `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those, and always adopts the Lyngon workflow.
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
-- `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in ADRs as they settle.
-- An ADR only for a decision that is hard to reverse, surprising without context, and the result of a real trade-off.
-- Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, ADRs and the standard documents. Nothing is copied into the repository.
+- `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in decision records as they settle.
+- A decision record only for a decision that passes the admission test in [DECISION-RECORD-FORMAT.md](shared/DECISION-RECORD-FORMAT.md), and only while the decision holds; a decision a check can carry becomes the check.
+- Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
 - `/writing:unslop` before any prose is handed over.
 - `devenv test` before every push; it runs every git hook on every file, and no hook is ever disabled to make it pass.
 
@@ -153,7 +153,7 @@ claude plugin install conventions@lyngon --scope project
 
 `core` alone assumes only the Lyngon documents, so it may also be enabled at user scope, for every repository.
 Without `conventions`, `/build:finish` asks before it pushes, and nothing announces a Lyngon repository.
-Its executors still commit each task on a feature branch, and its skills still write the Lyngon documents where they run, such as a plan in `docs/plans/`, `CONCEPTS.md` and ADRs.
+Its executors still commit each task on a feature branch, and its skills still write the Lyngon documents where they run, such as a plan in `docs/plans/`, `CONCEPTS.md` and decision records.
 Install the members by name too: Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies, and `build` needs `practice` and `review`.
 
 ```sh

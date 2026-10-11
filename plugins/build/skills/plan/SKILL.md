@@ -381,7 +381,7 @@ If inline execution is chosen, call the Skill tool for `build:execute`.
 
 ## With the Lyngon documents
 
-A decision made while planning that is hard to reverse, surprising without context and the result of a real trade-off is recorded as an ADR in `docs/adr/`: call the Skill tool for `discover:domain-model`.
+A decision made while planning that passes the admission test in `discover:domain-model` is recorded as a decision record in `docs/decisions/`: call the Skill tool for `discover:domain-model`.
 A term settled while planning goes into `CONCEPTS.md` the same way.
-Self-review item 8 checks dictated ADR text, `CLAUDE.md` lines and `CONCEPTS.md` entries against the existing ADRs and the gates and rules in `CLAUDE.md`.
-The plan itself is none of the four documents (`INTENT.md`, `CLAUDE.md`, `CONCEPTS.md`, the ADRs); it carries no purpose, working rule, term or decision that has to outlive the branch.
+Self-review item 8 checks dictated decision records, rule files and `CONCEPTS.md` entries against the existing decision records and the rule files under `.claude/rules/`.
+The plan itself is not a steering document; it carries no purpose, principle, term or decision that has to outlive the branch.

@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.26.0 - 2026-10-11
+
+- `plan` and `finish` record a decision as a decision record in `docs/decisions/` when it passes the admission test in `discover:domain-model`, where they named the ADR bar and `docs/adr/`. `plan` checks dictated text against the decision records and the rule files under `.claude/rules/`, and calls the plan "not a steering document".
+- `WORKFLOW.md`, symlinked into `plan`, says decision records and `docs/decisions/`.
+
 ## 0.25.7 - 2026-10-06
 
 - `references/owner-gates.md` names the start-step line for an unforeseen gate raised by a partial apply inside a gated task; "the same line" could be read as the `Done: ...; continue with: ...` line of the bullet before it.

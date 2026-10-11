@@ -18,7 +18,7 @@ ORDER = ["documents", "workflow", "baseline", "structure"]
 # "With devenv" heading, and wherever baseline terms are allowed.
 TERMS = {
     "documents": [
-        "CONCEPTS.md", "docs/adr", "INTENT.md", "CLAUDE.md", "AGENTS.md",
+        "CONCEPTS.md", "docs/decisions", "INTENT.md", "CLAUDE.md", ".claude/rules",
         "docs/TODO.md", "docs/conventions",
     ],
     "workflow": [

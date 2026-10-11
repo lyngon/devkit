@@ -35,7 +35,7 @@ _Avoid_: Client, buyer, account
 - Be opinionated. When several words exist for one concept, pick the best and list the rest under `_Avoid_`.
 - Keep definitions to one or two sentences. Define what it is, not what it does.
 - Only terms specific to this repository's domain belong. General programming concepts (timeouts, error types, utility patterns) do not, even when used heavily. Before adding a term, ask: is this unique to this context, or a general programming concept?
-- No implementation details. `CONCEPTS.md` is not a spec, a scratchpad, or a place for decisions. Decisions go in ADRs.
+- No implementation details. `CONCEPTS.md` is not a spec, a scratchpad, or a place for decisions. Decisions go in decision records.
 - Group terms under subheadings only when natural clusters emerge. A flat list is fine.
 - Add a `## Relationships` section when the relationships between terms are not obvious from the definitions.
 

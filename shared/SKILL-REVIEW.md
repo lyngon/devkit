@@ -25,11 +25,11 @@ Read every file in the skill directory, not only `SKILL.md`: scripts, references
 
 ## Fit with the devkit
 
-- Glossary and decision files: uses `CONCEPTS.md` and `docs/adr/`, or is patched to.
+- Glossary and decision files: uses `CONCEPTS.md` and decision records in `docs/decisions/`, or is patched to.
 - Layout: does not assume `src/` or a flat `packages/`; uses or tolerates the kind-first layout in `STRUCTURE.md` (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`).
 - Tools: never installs imperatively; anything it needs can come from `devenv.nix`.
 - Writing: no em or en dashes; one sentence per line is a nice-to-have, not a blocker.
-- Does not write `CLAUDE.md`, `AGENTS.md`, `.claude/settings.json` or `.mcp.json`, which the devkit owns.
+- Does not write `AGENTS.md` or `CLAUDE.md`, which the document rules forbid, nor a file under `.claude/` or `.mcp.json`, which are the repository owner's or the devkit's.
 - Does not duplicate an existing devkit skill; if it overlaps, say which and why both should exist.
 
 ## License

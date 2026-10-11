@@ -19,7 +19,7 @@ claude plugin install conventions@lyngon --scope project
 ```
 
 Without `conventions`, `core` may also be enabled at user scope, for every repository: `/build:finish` then asks before it pushes, and nothing announces a Lyngon repository.
-Its executors still commit each task on a feature branch, and its skills still write the Lyngon documents where they run, such as a plan in `docs/plans/`, `CONCEPTS.md` and ADRs.
+Its executors still commit each task on a feature branch, and its skills still write the Lyngon documents where they run, such as a plan in `docs/plans/`, `CONCEPTS.md` and decision records.
 Install the members by name too: Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies, and `build` needs `practice` and `review`.
 
 ```sh

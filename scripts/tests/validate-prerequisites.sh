@@ -98,6 +98,16 @@ expect_ok "declared documents term" "$repo"
 
 repo=$(new_repo)
 plugin "$repo" plain git
+echo "Decisions are in docs/decisions/." >>"$(skill "$repo" plain)"
+expect_error "undeclared decision records directory" "$repo" "SKILL.md:7: names 'docs/decisions' but the plugin declares prerequisites: none"
+
+repo=$(new_repo)
+plugin "$repo" plain git
+echo "Principles are in .claude/rules/." >>"$(skill "$repo" plain)"
+expect_error "undeclared rule files directory" "$repo" "SKILL.md:7: names '.claude/rules' but the plugin declares prerequisites: none"
+
+repo=$(new_repo)
+plugin "$repo" plain git
 echo "Put it under apps/." >>"$(skill "$repo" plain)"
 expect_error "undeclared structure term" "$repo" "plugins/plain/skills/main/SKILL.md:7: names 'apps/' but the plugin declares prerequisites: none"
 
