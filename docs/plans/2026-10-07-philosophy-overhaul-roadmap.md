@@ -28,7 +28,7 @@ The order is the order of the table.
 `github-repository-setup` needs `steering-documents`, `agent-identity` and `issue-pipeline`.
 `rules-as-checks` is a long tail and may interleave.
 
-Two things were parked as issues and are not pieces: review level B is `lyngon/devkit#13`, and proving the structure on a first real context is `lyngon/devkit#14`.
+Three things were parked as issues and are not pieces: review level B is `lyngon/devkit#13`, proving the structure on a first real context is `lyngon/devkit#14`, and the review of `steering-documents` added [Load a package's INTENT.md into context when an agent works on the package](https://github.com/lyngon/devkit/issues/16).
 
 ## The philosophy
 
