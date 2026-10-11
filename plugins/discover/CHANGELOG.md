@@ -4,6 +4,12 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.9.0 - 2026-10-11
+
+- `domain-model` records decisions as decision records: in `docs/decisions/`, named after the decision without a number, and offered by the admission test, which replaces the three criteria. Its format document is now `DECISION-RECORD-FORMAT.md`, and a repository's override moves to `docs/conventions/decision-record.md`.
+- `approach` and `brainstorm` say decision records and `docs/decisions/` where they said ADRs and `docs/adr/`.
+- `WORKFLOW.md`, symlinked into `approach`, says the same.
+
 ## 0.8.0 - 2026-10-06
 
 - `WORKFLOW.md`, symlinked into `approach`, says what a plan holds (interfaces, acceptance lines, dictated text, owner gates and mandated checks, with the implementer writing the tests and the code), that the task reviewer gives a verdict on every acceptance line, and which plans suit `/build:execute`.

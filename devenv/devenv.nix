@@ -55,6 +55,18 @@ let
     ];
     text = ''exec python3 ${./validate-structure.py} "$@"'';
   };
+
+  # The document rules: an agent file that imports INTENT.md, no AGENTS.md, no
+  # CLAUDE.md outside .claude/, no docs/adr/, and the shape of decision
+  # records, INTENT.md and rule files.
+  validateDocuments = pkgs.writeShellApplication {
+    name = "validate-documents";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+    ];
+    text = ''exec python3 ${./validate-documents.py} "$@"'';
+  };
 in
 {
   options.lyngon = {
@@ -93,6 +105,8 @@ in
       shellcheck.enable = lib.mkDefault true;
       markdownlint = {
         enable = lib.mkDefault true;
+        # The agent file opens with the import of INTENT.md, not with a heading.
+        excludes = lib.mkDefault [ "^\\.claude/CLAUDE\\.md$" ];
         settings.configuration = lib.mkDefault {
           default = true;
           # Semantic line breaks: one sentence per line, no length limit.
@@ -120,6 +134,19 @@ in
         name = lib.mkDefault "prose lint (commit message)";
         entry = lib.mkDefault "${lib.getExe proseLint} --commit-msg";
         stages = lib.mkDefault [ "commit-msg" ];
+      };
+      validate-documents = {
+        enable = lib.mkDefault true;
+        name = lib.mkDefault "validate documents";
+        entry = lib.mkDefault (lib.getExe validateDocuments);
+        # Every tracked path, symbolic links included: a hook sees only
+        # regular files by default, and an AGENTS.md is usually a link.
+        types = lib.mkDefault [ ];
+        # One run over all files, so a docs/adr/ directory is reported once.
+        require_serial = lib.mkDefault true;
+        # Also on a commit that only deletes files: a deleted agent file is
+        # never among the names a hook is handed.
+        always_run = lib.mkDefault true;
       };
       validate-structure = {
         enable = lib.mkDefault cfg.structure.enable;

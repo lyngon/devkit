@@ -1,1 +1,0 @@
-../../../../shared/ADR-FORMAT.md

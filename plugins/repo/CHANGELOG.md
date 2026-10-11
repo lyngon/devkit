@@ -3,6 +3,18 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.13.1 - 2026-10-11
+
+- `init` says that the import line of `.claude/CLAUDE.md` stays whatever the authors add below it, and in adopt mode puts what the owner wants kept from an old agent file there.
+
+## 0.13.0 - 2026-10-11
+
+- Breaking: `init` writes `.claude/CLAUDE.md` holding the one line `@../INTENT.md`, and no root `CLAUDE.md` and no `AGENTS.md`. A repository principle from the interview becomes a file under `.claude/rules/`, and a decision becomes a record under `docs/decisions/`, named after the decision and admitted by the admission test. In adopt mode an existing `CLAUDE.md`, `AGENTS.md` and `docs/adr/` are sorted by that test and deleted.
+- Breaking: `add-package` writes `README.md` and no `CLAUDE.md` or `AGENTS.md`. It asks once whether the package has its own audience or non-goals and writes an `INTENT.md` only on a yes. It no longer adds a line for the package to a root agent file.
+- Breaking: the marker of a repository that follows the structure is `lyngon.structure.enable = true;` in the root `devenv.nix`, and nothing else. The `SessionStart` hook and `add-package` read that line; the sentence in a root `CLAUDE.md` no longer counts.
+- `STRUCTURE.md`, symlinked into both skills, requires only `README.md` of an app or library, places a context's decision records in `docs/decisions/` of its core library, and has an app state its deployable kind in its `README.md`.
+- `init`'s devenv notes list the `validate-documents` hook and say that a `markdownlint.excludes` list must repeat the baseline's entry for `.claude/CLAUDE.md`.
+
 ## 0.12.0 - 2026-09-30
 
 - The `.claude/settings.json` that `init` writes sets `attribution.commit` to an empty string, so Claude Code no longer tells sessions and subagents to add a `Co-Authored-By` trailer that the Lyngon conventions forbid.

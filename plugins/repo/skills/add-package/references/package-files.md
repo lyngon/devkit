@@ -1,50 +1,16 @@
 # Package files
 
-Templates for the files every app and library carries.
+Templates for the files of an app or library.
 Replace every `{placeholder}` and leave no template comments behind.
-
-## INTENT.md
-
-Same shape as the repository's, under thirty lines.
-
-```md
-# Intent
-
-Why this package exists and for whom.
-
-## Product
-
-**{name}** {one or two sentences: what it is and what it does for the context}.
-{For an app: the deployable kind (image, web bundle, binary, function package) and the runtime units it backs.}
-
-## For whom
-
-- Package: {who changes it}.
-- Artifact: {who imports or runs it}.
-
-## Done means
-
-- {Two or three observable outcomes.}
-
-## Failure means
-
-- {Two or three observable outcomes.}
-
-## Non-goals
-
-- {Each one, one line. For a library: the layers it must never contain. For an app: the logic it must never hold.}
-
-## Horizon
-
-{Throwaway, months, or years}. {One sentence.}
-```
 
 ## README.md
 
 ```md
 # {name}
 
-{One paragraph: what it is. Link to INTENT.md.}
+{One paragraph: what it is and what it does for the context.}
+{For an app: the deployable kind (image, web bundle, binary, function package) and the runtime units it backs.}
+{When the package has an `INTENT.md`: a link to it.}
 
 ## Run
 
@@ -55,37 +21,23 @@ Why this package exists and for whom.
 {The test command.}
 ```
 
-## CLAUDE.md
+## INTENT.md
 
-Only what differs from the root; the root file is loaded in every session already.
+Written only on a yes to the question in step 5 of the skill, with the sections that differ from the root `INTENT.md` and no others, for example:
 
-````md
-# {name}
+```md
+# Intent
 
-{One sentence.} Part of the `{ctx}` context; terms are in [{relative path}/CONCEPTS.md]({relative path}/CONCEPTS.md).
-Why it exists is in [INTENT.md](INTENT.md).
+Why this package exists and for whom, where that differs from the repository's [INTENT.md]({relative path}/INTENT.md).
 
-## Checks
+## For whom
 
-```sh
-{package test command, e.g. cd libs/orders && uv run pytest}
-```
+- Package: {who changes it}.
+- Artifact: {who imports or runs it}.
 
-## Layout
+## Non-goals
 
-{For a core library: `domain/` holds the model and its rules and imports no other layer; `application/` holds use cases and ports and imports domain only. Neither imports a contract, an adapter or an app; the lint enforces it.}
-{For an adapter: which port it implements and against which technology.}
-{For an app: what it wires together; no logic lives here.}
-
-## Conventions
-
-{Only conventions specific to this package. Omit the section when there are none.}
-````
-
-Then:
-
-```sh
-ln -sfn CLAUDE.md AGENTS.md
+- {Each one, one line. For a library: the layers it must never contain. For an app: the logic it must never hold.}
 ```
 
 ## devenv.nix

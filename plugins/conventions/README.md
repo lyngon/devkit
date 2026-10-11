@@ -9,7 +9,7 @@ A skill's body reaches the agent only when the agent invokes it; `paths` does no
 The plugin's `SessionStart` hook says so at the start of every session, together with which devkit skills to invoke and when.
 The bodies are short on purpose, because agents invoke them in almost every session.
 Every rule a linter can check lives in the linter, not here; each skill ends with the hooks that check its deterministic half.
-The `adr` and `documents` skills carry format documents adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); the license is `LICENSE-mattpocock` in this plugin.
+The `decision-record` and `documents` skills carry format documents adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); the license is `LICENSE-mattpocock` in this plugin.
 
 ## Skills
 
@@ -21,8 +21,8 @@ The `adr` and `documents` skills carry format documents adapted from [mattpocock
 | `nix` | `*.nix`, `devenv.yaml` |
 | `shell` | `*.sh`, `*.bash`, files under a `scripts/` directory |
 | `markdown` | `*.md` |
-| `documents` | `CLAUDE.md`, `AGENTS.md`, `CONCEPTS.md`, `INTENT.md`, `README.md` |
-| `adr` | `docs/adr/*.md` |
+| `documents` | `INTENT.md`, `CONCEPTS.md`, `README.md`, `.claude/CLAUDE.md`, `.claude/rules/*.md` |
+| `decision-record` | `docs/decisions/*.md` |
 
 ## Hooks
 

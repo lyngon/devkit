@@ -17,7 +17,7 @@ _Avoid_: skill pack, extension, bundle
 The activity a plugin serves, such as setting up repositories or discovery before building. One plugin per concern.
 
 **Devkit**:
-This repository: the reusable pieces a Lyngon repository needs, today the marketplace, the baseline module and the convention documents.
+This repository: the reusable pieces a Lyngon repository needs, today the marketplace, the baseline module and the shared documents.
 
 **Marketplace**:
 The part of the devkit described by `.claude-plugin/marketplace.json`, listing every plugin that can be installed from it.
@@ -75,6 +75,37 @@ An immutable build output of a package. A distributable when published under coo
 The layout, vocabulary and dependency rules a Lyngon repository follows when it has adopted them, defined in `shared/STRUCTURE.md`.
 _Avoid_: monorepo, package layout
 
+**Steering document**:
+A document in the tree that states what the code cannot show and that an agent must follow: a repository's intent, principles, terms and decision records, and the organization's principles.
+_Avoid_: standard document (that names the file set), governing document
+
+**Decision record**:
+A steering document stating one decision the code cannot show, named after the decision and kept only while the decision holds.
+_Avoid_: ADR, architecture decision record
+
+**Owner**:
+A person accountable for a repository, who decides its direction, approves changes to its steering documents and decides what merges.
+A repository may have several.
+_Avoid_: maintainer, user
+
+**Operator**:
+The person who started the session an agent is working in.
+An operator answers for the task at hand, and for the product only when they are also an owner.
+_Avoid_: user, driver
+
+**Principle**:
+A named, binding statement that takes judgment to apply.
+_Avoid_: guideline, best practice, convention
+
+**Rule**:
+A named, binding statement that a tool can decide.
+Its name is the identifier its check reports.
+_Avoid_: convention, hard rule, working rule
+
+**Change**:
+One concern, delivered as one pull request and landing on the default branch as one commit.
+_Avoid_: task (that is an issue type), commit, PR
+
 **Workflow**:
 The way of working an owner adopts for a Lyngon repository: the agent follows the Lyngon conventions, commits each concern on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge.
 _Avoid_: process, flow (a flow is one path through the skills)
@@ -113,14 +144,16 @@ _Avoid_: assumption, tier, requirement
 
 ## Relationships
 
-- The **Devkit** holds the **Marketplace**, the **Baseline** and the shared convention documents.
+- The **Devkit** holds the **Marketplace**, the **Baseline** and the shared documents.
 - The **Marketplace** lists many **Plugins**; each **Plugin** serves one **Concern**.
 - A **Plugin** holds one or more **Skills**, each either **In-house** or **Vendored**.
 - Every **Vendored skill** and every **Pinned plugin** has exactly one **Provenance record**.
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
-- The **Structure** is one of the shared convention documents; the **Baseline** enforces its dependency rules.
+- The **Structure** is one of the shared documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - Every **Plugin** declares its **Prerequisites**; a bundle's are the union of its members'.
+- An **Owner** approves every change to a **Steering document** of their repository.
+- An **Owner** may act as an **Operator**; an **Operator** need not be an **Owner**.
 - A **Plan**'s execution lies between its two **Review gates**; its **Owner gates** lie inside it.
 - A task of a **Plan** states the behaviour it leaves to its implementer as **Acceptance lines**; it has **Dictated text** only where the wording is the decision, and a **Mandated check** only where a command's exact output is the behaviour.
 - An **Owner gate** has at most one **Pre-approval**, and only a gate whose action the executor performs can have one.

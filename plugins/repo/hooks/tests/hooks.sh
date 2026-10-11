@@ -254,10 +254,20 @@ run_session_start "$(mktemp -d "$tmp/plain.XXXXXX")"
 check "not a git repository: nothing" equals "$code|$out|$err" "0||"
 
 clone=$(upstream_clone 3)
-echo "This repository follows the Lyngon structure. Packages are laid out by kind." >"$clone/CLAUDE.md"
+printf '{\n  lyngon.enable = true;\n  lyngon.structure.enable = true;\n}\n' >"$clone/devenv.nix"
 run_session_start "$clone"
 check "structure marker and behind: the structure text, then the line" \
   equals "$out" "$(cat "$hooks/session-start-structure.txt")"$'\n'"The current branch is 3 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."
+
+dir=$(mktemp -d "$tmp/plain.XXXXXX")
+echo "This repository follows the Lyngon structure. Packages are laid out by kind." >"$dir/CLAUDE.md"
+run_session_start "$dir"
+check "the sentence in an agent file is no marker: nothing" equals "$code|$out|$err" "0||"
+
+dir=$(mktemp -d "$tmp/plain.XXXXXX")
+printf '{\n  # lyngon.structure.enable = true;\n  lyngon.structure.enable = false;\n}\n' >"$dir/devenv.nix"
+run_session_start "$dir"
+check "the option commented out or false: nothing" equals "$code|$out|$err" "0||"
 
 if ((failures > 0)); then
   echo "repo hooks tests: $failures failure(s)" >&2

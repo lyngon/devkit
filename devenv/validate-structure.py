@@ -2,8 +2,8 @@
 # Check a repository against the layout rules in shared/STRUCTURE.md section
 # 4.4: nothing depends on an app, apps, libs and contracts never depend on
 # tools or infra, every language workspace lists its members explicitly and
-# completely, every app and library carries its four documents, and no path
-# segment under apps/, libs/ or tools/ names a language. Runs at pre-commit
+# completely, every app and library carries a README.md, and no path segment
+# under apps/, libs/ or tools/ names a language. Runs at pre-commit
 # with no arguments from anywhere inside the repository. A repository without
 # any of the package directories (the devkit itself) passes.
 import json
@@ -26,7 +26,7 @@ LANGUAGE_NAMES = {
     "python", "typescript", "javascript", "rust", "go", "golang", "haskell",
     "java", "csharp", "dotnet", "c", "cpp", "nix", "shell", "terraform",
 }
-PACKAGE_DOCS = ["README.md", "INTENT.md", "CLAUDE.md"]
+PACKAGE_DOCS = ["README.md"]
 
 errors: list[str] = []
 
@@ -286,9 +286,6 @@ def check_package_docs(root: Path, packages: list[Package]) -> None:
         for doc in PACKAGE_DOCS:
             if not (directory / doc).is_file():
                 fail(path, f"missing {doc}")
-        agents = directory / "AGENTS.md"
-        if not (agents.is_symlink() and agents.resolve() == (directory / "CLAUDE.md").resolve()):
-            fail(path, "AGENTS.md must be a symlink to CLAUDE.md")
 
 
 def check_language_segments(root: Path) -> None:

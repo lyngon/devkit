@@ -20,9 +20,8 @@ plugins/<concern>/skills/<name>/
 
 `SKILL.md` sections: a one-paragraph overview, "When to use", "When not to use", the workflow as numbered steps, and links to references.
 `disable-model-invocation: true` for skills that write many files or ask many questions; model-invocable only when the trigger is unambiguous.
-Agent-neutral wording unless the feature is Claude-only.
 No dashes, one sentence per line.
-Every line about a prerequisite the plugin does not declare goes under a conditional heading (`With the Lyngon documents`, `With devenv`, `With the Lyngon structure`); `validate-prerequisites` checks it.
+Every line about a prerequisite the plugin does not declare goes under a conditional heading (`With the Lyngon documents`, `With the Lyngon workflow`, `With devenv`, `With the Lyngon baseline`, `With the Lyngon structure`); `validate-prerequisites` checks it.
 
 ## Evals
 

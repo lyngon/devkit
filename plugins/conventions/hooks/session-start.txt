@@ -6,4 +6,4 @@ This is a Lyngon repository. The devkit plugins provide skills; invoke them inst
 - practice:tdd, practice:debug, practice:verify and review:receive whenever their description matches; process skills come before implementation.
 - /writing:unslop before handing over prose.
 The flow between these skills, and where the user decides, is WORKFLOW.md next to the approach and plan skills.
-Terms are in CONCEPTS.md, decisions in docs/adr/, working rules in CLAUDE.md.
+Terms are in CONCEPTS.md, decisions in docs/decisions/, this repository's principles in .claude/rules/.

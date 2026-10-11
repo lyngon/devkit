@@ -1,7 +1,6 @@
-# Plans carry decisions and facts, and the implementer writes the tests and the code
+# Plans carry decisions and facts; the implementer writes the tests and the code
 
-The vendored plan skill spelled out complete code, every test and every command in every task, so that an implementer with no judgment could transcribe it.
-The owner gates plan ran to 3,430 lines for 13 tasks, more than the owner could review, and its 13 task reviews found one real issue while the design-level holes surfaced only in the whole-branch review.
+The vendored plan skill spelled out complete code, every test and every command in every task, so that an implementer with no judgment could transcribe it, and the owner gates plan ran to 3,430 lines for 13 tasks, more than the owner could review, while its 13 task reviews found one real issue and the design-level holes surfaced only in the whole-branch review.
 A plan now holds only what its implementer cannot know or must not decide: the order of the tasks, the interfaces between them, the values the design fixes, one acceptance line per behaviour, dictated text where the wording is the decision, owner gates and mandated checks.
 The implementer is assumed to be a skilled developer who knows nothing of the repository, and writes the tests and the code; there is one standard for every plan, which names no model tier and prefers no executor.
 
@@ -19,3 +18,5 @@ The implementer is assumed to be a skilled developer who knows nothing of the re
 - The task review does real work: a verdict per acceptance line, where it used to compare a transcription with its source. `/build:execute` has no such review, so a plan with an owner gate the agent performs recommends `/build:delegate`.
 - Dictated text that an agent follows as a procedure lists the states it is read in, and the planner, the implementer and the reviewers check it against each one, because no test runs such text.
 - This departs from the upstream skill's central rule (complete code in every step, no step without a code block). When the vendored skill is compared with upstream, that rule is not carried back.
+
+Enforced by: judgment

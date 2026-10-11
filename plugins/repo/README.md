@@ -6,7 +6,7 @@ Prerequisites: documents, workflow, baseline, structure
 
 ## Skills
 
-- `/repo:init`: interview the owner about purpose, audiences, stack and constraints, then create or adopt the standard repository files.
+- `/repo:init`: interview the owner about purpose, audiences, stack and constraints, then create or adopt the steering documents and the other standard repository files.
   Works on empty repositories and on existing ones.
   User-invoked only.
 - `/repo:add-package`: create a package in the directory its kind decides (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), with its files, and register it in its workspace and devenv.
@@ -14,7 +14,7 @@ Prerequisites: documents, workflow, baseline, structure
 
 ## Hooks
 
-- `SessionStart` (`hooks/session-start.sh`): in a repository whose root `CLAUDE.md` says it follows the Lyngon structure, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`.
+- `SessionStart` (`hooks/session-start.sh`): in a repository whose root `devenv.nix` sets `lyngon.structure.enable = true`, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`.
   When the current branch is behind its upstream, it adds a line with the count and `git pull --ff-only`; it counts what the last fetch saw and never fetches.
   Otherwise it prints nothing.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.

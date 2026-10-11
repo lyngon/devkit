@@ -1,8 +1,7 @@
-# Owner gates are declared in the plan, pre-approved only by name, and every stop runs the same protocol
+# Owner gates are declared in the plan and pre-approved by name
 
-Some planned tasks exist to perform an action only the owner may approve or perform, such as an apply, a deletion, a deploy or a publish; ADR 0016 listed when an executor stops but not how the run continues, and three lyngon.com sessions improvised it.
-A plan now declares each such action as an owner gate inside the task that performs it.
-The steps before the gate do only reversible work and write what the owner must see; the executor asks one question and records the answer; the steps after the gate do exactly what was approved and nothing else.
+Some planned tasks exist to perform an action only the owner may approve or perform, such as an apply, a deletion, a deploy or a publish; the two review gates say when an executor stops but not how the run continues, and three lyngon.com sessions improvised it.
+A plan declares each such action as an owner gate inside the task that performs it: the steps before the gate do only reversible work and write what the owner must see, the executor asks one question and records the answer, and the steps after the gate do exactly what was approved and nothing else.
 The owner may pre-approve a gate by name when approving the plan, and every stop the plan did not foresee runs the same protocol, so one mechanism answers how every stop resumes.
 
 ## Considered options
@@ -18,6 +17,8 @@ The owner may pre-approve a gate by name when approving the plan, and every stop
 - A run-time approval pins the action: the hash of the artifact it acts on, or the command with its inputs pinned by hash or immutable identifier. It lapses when the run pauses before the action. The executor performs only actions whose effect the approval pins; the owner performs the rest, and the executor verifies them.
 - A pre-approval is recorded in the plan's index of owner gates on the branch. It holds only for a gate the executor performs, only while every expected output before the gate matched, and never where the repository's instructions require approval at run time.
 - Every task that passes an owner gate ends with a record commit, empty when the repository did not change, whose message holds the evidence: the answer or the pre-approval, the pins, the commands in order and the results of the checks. Every task ends with at least one commit.
-- When a run pauses, the ledger is copied verbatim into an `## Execution status` section of the plan and committed on the branch, so a later session in any checkout resumes from it. This narrows ADR 0016: the ledger enters git only as that copy, which `/build:finish` removes with the plan.
+- When a run pauses, the ledger is copied verbatim into an `## Execution status` section of the plan and committed on the branch, so a later session in any checkout resumes from it. This narrows [Planned work is reviewed at two gates](planned-work-is-reviewed-at-two-gates.md): the ledger enters git only as that copy, which `/build:finish` removes with the plan.
 - The final whole-branch review stays after the last task, gated or not; an owner action is never placed after the executor hands over.
 - `conventions:engineering` counts a pre-approved owner gate as asking before an effect outside the branch.
+
+Enforced by: judgment

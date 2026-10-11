@@ -73,8 +73,8 @@ The plan was transient: the work is in the git history, and what mattered beyond
 
 ### With the Lyngon documents
 
-Before deleting, read the plan's `## Design` section for a decision that meets the ADR bar (hard to reverse, surprising without context, the result of a real trade-off) and is not yet in `docs/adr/`.
-Record it first: call the Skill tool for `discover:domain-model`, commit the ADR, then remove the plan.
+Before deleting, read the plan's `## Design` section for a decision that passes the admission test in `discover:domain-model` and is not yet in `docs/decisions/`.
+Record it first: call the Skill tool for `discover:domain-model`, commit the decision record, then remove the plan.
 
 Before deleting, also collect the findings nobody acted on: the executor's "Deferred minors" and the ledger's `minor (deferred)` and parked lines, each finding once:
 
@@ -124,7 +124,7 @@ Full check green. Push <feature-branch> and open a pull request against <base-br
 (Or merge locally, or keep the branch as it is: Step 6.)
 ```
 
-When Step 2 added commits after Step 1's full check (an ADR, the plan removal), run the full check again first: the push carries them.
+When Step 2 added commits after Step 1's full check (a decision record, the plan removal), run the full check again first: the push carries them.
 The user reviews the pull request and decides the merge.
 Merge locally or keep the branch instead only when the user asked for that (Step 6).
 
@@ -318,7 +318,7 @@ If your platform provides a workspace-exit tool, use it.
 | Excuse | Reality |
 | --- | --- |
 | "The check passed earlier this session" | Run the full check on the tree you are about to integrate. A green run only proves the tree it ran on. |
-| "The plan file is harmless, leave it" | The plan was transient. Its decisions belong in the ADRs and its work in the history; the branch is not finished while it carries one. |
+| "The plan file is harmless, leave it" | The plan was transient. Its decisions belong in the decision records and its work in the history; the branch is not finished while it carries one. |
 | "They obviously want it merged" | Merging is the user's decision. Open the pull request; merge locally only when they ask. |
 | "Let me ask before pushing" | Where the user's standing instructions cover the push, asking puts it back in series with the work. Without them, ask once, right before the push. |
 | "The pull request is up, I'll amend the commit to fix a typo" | Pushed history is not rewritten without asking. Fix it in a new commit and push after the full check. |

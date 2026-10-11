@@ -2,7 +2,7 @@
 name: unslop
 description: >-
   Remove AI writing patterns from prose and give it a voice. Use whenever writing or
-  editing non-code text (docs, READMEs, ADRs, posts, commit messages, PR descriptions),
+  editing non-code text (docs, READMEs, decision records, posts, commit messages, PR descriptions),
   before handing it over, and on request: "unslop", "humanize", "make this sound human",
   "clean up this writing", "edit for voice", "de-AI this text".
 paths:
@@ -32,7 +32,7 @@ Sterile, voiceless writing is just as obvious.
 - **Let some mess in.** Perfect structure feels algorithmic.
 - **Be specific.** Not "this is concerning" but "there's something unsettling about agents churning away at 3am."
 
-Reference documents want tight, impersonal prose: READMEs, agent instruction files, glossaries, intent statements, ADRs and API docs.
+Reference documents want tight, impersonal prose: READMEs, agent instruction files, glossaries, intent statements, decision records and API docs.
 For those, apply every pattern below but skip "Use I" and "Let some mess in".
 
 ## Patterns to detect and fix

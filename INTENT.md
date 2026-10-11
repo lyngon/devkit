@@ -6,7 +6,7 @@ It changes when the purpose changes, not when the plan changes.
 ## Product
 
 **Lyngon devkit** is the shared foundation for software development at Lyngon: the reusable pieces a repository needs to work the Lyngon way.
-Today that is a Claude Code plugin marketplace (in-house skills, vendored third-party skills, pinned third-party plugins), the shared devenv module every repository imports, and the convention documents behind both.
+Today that is a Claude Code plugin marketplace (in-house skills, vendored third-party skills, pinned third-party plugins), the shared devenv module every repository imports, and the shared documents behind both.
 
 ## For whom
 
@@ -28,7 +28,9 @@ Today that is a Claude Code plugin marketplace (in-house skills, vendored third-
 ## Non-goals
 
 - Distributing personal or machine-level preferences. Those live in each person's global `CLAUDE.md`.
-- Supporting agents other than Claude Code, until a second agent is in use at Lyngon.
+- Supporting any agent harness other than Claude Code. A second harness would be a port.
+- Supporting macOS or Windows. Lyngon machines run Linux.
+- Supporting a development repository without Nix and devenv.
 - Hosting application code or anything that is not reusable across repositories.
 
 ## Horizon

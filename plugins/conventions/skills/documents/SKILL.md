@@ -1,43 +1,53 @@
 ---
 name: documents
-description: Lyngon conventions for the standard repository documents CLAUDE.md, AGENTS.md, CONCEPTS.md, INTENT.md and README.md, at the root and in packages. Invoke before writing or editing one of them.
+description: Lyngon conventions for a repository's steering documents (INTENT.md, .claude/CLAUDE.md, the rule files under .claude/rules/, CONCEPTS.md) and for README.md, at the root and in packages. Invoke before writing or editing one of them.
 user-invocable: false
 paths:
-  - "**/CLAUDE.md"
-  - "**/AGENTS.md"
-  - "**/CONCEPTS.md"
   - "**/INTENT.md"
+  - "**/CONCEPTS.md"
   - "**/README.md"
+  - ".claude/CLAUDE.md"
+  - ".claude/rules/*.md"
 ---
 
-# Standard documents
+# Steering documents
 
-Each file has one job.
-Anything that fits two goes in the one whose audience needs it first, and the other links to it.
+A steering document states what the code cannot show, and an agent must follow it.
+One test decides whether any text enters one:
 
-| File | Audience | Holds |
+> Write it down only when a competent agent, seeing just the files it opened, would plausibly contradict it, wrongly, with nothing failing.
+> When a check can fail instead, write the check.
+
+| Path | Holds | Loaded |
 | --- | --- | --- |
-| `INTENT.md` | Both | Why and for whom: product, audiences, done, failure, non-goals, horizon. Changes only when the purpose changes. |
-| `README.md` | Humans | How to use: getting started, layout, contributing, license. |
-| `CLAUDE.md` | Agents | How to work: checks, layout, conventions, where documents go, what not to touch. |
-| `CONCEPTS.md` | Both | Terms only. What a thing is, never how it is implemented. |
+| `INTENT.md` at the root | Product, audiences, done, failure, non-goals, priorities, horizon | Every session, through the agent file |
+| `.claude/CLAUDE.md` | The line `@../INTENT.md`, and what the repository's authors add for the project | Every session |
+| `.claude/rules/<name>.md` | One repository principle, or one rule that has no check yet | At launch without `paths:`, otherwise when a matching file is read or edited |
+| `CONCEPTS.md` | Terms | On demand |
+| `docs/decisions/<name>.md` | One decision record | On demand |
 
 ## Rules
 
-- `CLAUDE.md` is the source; `AGENTS.md` is a symlink to it. Never edit `AGENTS.md`, never turn it into a file.
-- `CLAUDE.md` holds only what is specific to this repository or package. Organization-wide conventions come from the devkit plugins and are never copied in.
-- A package's `CLAUDE.md`, `INTENT.md` and `README.md` hold only what differs from the root.
-- `INTENT.md` stays under fifty lines and carries no stories, acceptance criteria or release plans; those go to the issue tracker.
-- `CONCEPTS.md` follows [CONCEPTS-FORMAT.md](CONCEPTS-FORMAT.md): opinionated definitions, `_Avoid_` lists, no implementation details, no decisions. A repository with several contexts keeps the root file as a map and each context's glossary with the package that owns the context.
-- `README.md` and `CLAUDE.md` link to `INTENT.md` and `CONCEPTS.md` in their first lines rather than repeating them.
-- Decisions go to `docs/adr/`, deferred work to `docs/TODO.md`, and a repository-specific convention longer than a line to `docs/conventions/<topic>.md` with a one-line pointer in `CLAUDE.md`.
-- The `README.md` layout tree shows only files that exist.
+- No `AGENTS.md` exists anywhere, and no `CLAUDE.md` exists outside `.claude/` at the repository root.
+- `.claude/CLAUDE.md` always holds the line `@../INTENT.md`. What else it holds is the choice of the repository's authors.
+- The organization's principles are in no repository. They come from the devkit plugins and are never copied in.
+- `README.md` is not a steering document. It says how to use the repository and links to `INTENT.md` instead of repeating it.
+- A rule file is named after its principle in kebab-case. It holds that name as its heading, the statement in one or two sentences, then one sentence starting `Why:`. It carries a `paths:` field whenever the principle concerns part of the tree, such as one package.
+- `INTENT.md` has the sections Product, For whom, Done means, Failure means, Non-goals and Horizon, stays within 50 lines, and changes only when the purpose changes.
+- `INTENT.md` may have one more section, `## Priorities`, between `## Non-goals` and `## Horizon`, with each line of the form "X over Y". A line enters only after an owner answered a real question from an agent, so the section starts absent.
+- `CONCEPTS.md` follows [CONCEPTS-FORMAT.md](CONCEPTS-FORMAT.md), and a decision record follows the `decision-record` conventions.
+- A repository-specific convention too long for a rule file goes to `docs/conventions/<topic>.md`, and the message of its check or a rule file points there.
+
+## Package documents
+
+A package gets an `INTENT.md` only when it has its own audience, its own done or failure, or its own non-goals that the root does not state.
+That file uses the root's section names and holds only the sections that differ.
+No session loads it: it is read on demand, and the package's `README.md` links to it.
 
 ## With the Lyngon baseline
 
-Checked by the `markdownlint` and `prose-lint` hooks.
+Checked by the `validate-documents`, `markdownlint` and `prose-lint` hooks.
 
 ## With the Lyngon structure
 
-- The root `CLAUDE.md` names every package in one line each and says that the repository follows the Lyngon structure.
-- Every app and library carries its own `CLAUDE.md`, `AGENTS.md`, `INTENT.md` and `README.md`; `validate-structure` checks the set.
+`validate-structure` checks that every app and library has a `README.md`.

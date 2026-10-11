@@ -6,7 +6,7 @@ Section 2 defines terms, which describe.
 Sections 3 and 4 state policies, which constrain.
 The two are kept apart on purpose: "a package builds one artifact" is a policy, and false as a definition.
 
-The devkit itself is the one repository that does not follow this layout: it ships plugins, a devenv module and convention documents, not packages.
+The devkit itself is the one repository that does not follow this layout: it ships plugins, a devenv module and shared documents, not packages.
 
 ## 1. When a rule earns a place in the tree
 
@@ -23,7 +23,7 @@ Kind (run or import) passes all three.
 Everything in section 4 was admitted by this test, and anything proposed later must pass it too.
 
 Agents differ from people in three ways that matter here.
-An agent pays the learning cost of the layout every session, so legibility from the tree and one `CLAUDE.md` is worth more than it is for people.
+An agent pays the learning cost of the layout every session, so legibility from the tree is worth more than it is for people.
 An agent drifts the way a junior does, and only a mechanical check reaches it, so every rule below is also a check.
 An agent does mechanical multi-file work cheaply, so finer packages than a human team would choose are affordable, as long as each package has a reason to exist.
 
@@ -131,7 +131,7 @@ Neither domain nor application ever imports a contract, a generated client, an a
 
 A context is by default three package shapes:
 
-- `libs/<ctx>/`: the core library. Domain and application as modules, with a per-language lint enforcing the direction between them. Holds the context's `CONCEPTS.md` and `docs/adr/`.
+- `libs/<ctx>/`: the core library. Domain and application as modules, with a per-language lint enforcing the direction between them. Holds the context's `CONCEPTS.md` and its decision records, in `docs/decisions/`.
 - `libs/<ctx>-<tech>/`: one adapter per package (`orders-postgres`, `orders-sqs`).
 - `apps/<ctx>-<name>/`: one entrypoint per deployable.
 
@@ -225,13 +225,14 @@ Size is handled by the layout, never by splitting the repository.
 │   ├── modules/<name>/          how one deployable is instantiated; mirrors apps/
 │   └── environments/<env>/      one root per environment, never a branch
 ├── scripts/                     files run by devenv tasks and hooks, no manifest
-├── docs/adr/                    decisions about the whole repository
+├── docs/decisions/              decisions about the whole repository
 ├── pyproject.toml  uv.lock      Python workspace, explicit members
 ├── pnpm-workspace.yaml  pnpm-lock.yaml
 ├── Cargo.toml  Cargo.lock
 ├── go.work
 ├── devenv.yaml  devenv.nix      imports lyngon/devenv and every package's devenv.nix
-├── INTENT.md  CLAUDE.md  CONCEPTS.md  README.md
+├── .claude/                     the agent file and the repository's principles
+├── INTENT.md  CONCEPTS.md  README.md
 ```
 
 Directories appear when their first package does.
@@ -255,7 +256,7 @@ The one exception is `contracts/<name>/<language>/`, because one contract genuin
 
 - Every package name is kebab-case and starts with its context prefix: `orders`, `orders-postgres`, `orders-api`.
 - An app's name after the prefix says what it is for a person: `orders-api`, `orders-worker`, `orders-web`, `orders-cli`. An app backing several runtime units takes a name that covers them: `orders-backend`.
-- The deployable kind is not in the name; it is evident from the build files and stated in the app's `INTENT.md`.
+- The deployable kind is not in the name; it is evident from the build files and stated in the app's `README.md`.
 - A directory named `generated/` holds generated code and `vendor/` holds copied third-party code, so linters, coverage and agents skip them.
 
 ### 4.3 Package files
@@ -265,23 +266,20 @@ Every app and library holds:
 - the language manifest, created with the stack's own initializer;
 - `devenv.nix`, with the package's tasks, hooks and processes, imported from the root `devenv.yaml`;
 - `README.md`: what it is and how to run it;
-- `INTENT.md`: why it exists and for whom, in the same shape as the repository's;
-- `CLAUDE.md`, with `AGENTS.md` symlinked to it, holding only what differs from the root;
-- `docs/adr/`, created lazily;
 - `scripts/`, optional, run through the package's devenv tasks.
 
-The core library of a context also holds `CONCEPTS.md`.
-The root `CLAUDE.md` names every package in one line each and points at the `repo:add-package` skill for creating one.
+The core library of a context also holds `CONCEPTS.md` and, from its first record, `docs/decisions/`.
+A package holds no agent file, and an `INTENT.md` only when its intent differs from the root's; the document conventions state both rules.
 
 ### 4.4 What is enforced
 
-A repository that has adopted the structure says "This repository follows the Lyngon structure" in its root `CLAUDE.md` and sets `lyngon.structure.enable = true` in `devenv.nix`; the sentence is what agents and the session hook look for, the option is what enables the hook.
+A repository that has adopted the structure sets `lyngon.structure.enable = true;` on a line of its own in its root `devenv.nix`: that line is the one marker agents and the session hook look for, and the option enables the hook.
 The baseline validator (`validate-structure` in the Lyngon devenv module) then fails the commit when:
 
 1. anything depends on an app;
 2. anything under `apps/`, `libs/` or `contracts/` depends on anything under `tools/` or `infra/`;
 3. a package directory is missing from its language's workspace member list, a member is listed that does not exist, or a member list uses a glob;
-4. an app or library lacks `README.md`, `INTENT.md`, `CLAUDE.md` or the `AGENTS.md` symlink;
+4. an app or library lacks `README.md`;
 5. a path segment under `apps/`, `libs/` or `tools/` is a language name.
 
 The per-language lint in a core library (import-linter for Python, dependency-cruiser for TypeScript, crate boundaries for Rust) fails when domain imports another layer, application imports anything but domain, or either imports a contract, an adapter or an app.
@@ -338,6 +336,6 @@ For DNS, say "domain name", "zone" or "hostname".
 
 Usage:
 
-- Architecture documents, ADRs and diagrams use only section 2 terms.
+- Architecture documents, decision records and diagrams use only section 2 terms.
 - When a language-specific term is unavoidable, prefix it with the ecosystem name.
 - Agents conflate "package" and "module" the same ways people do; the `repo:add-package` skill and the validator are the correction, not more prose.

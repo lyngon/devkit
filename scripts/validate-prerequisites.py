@@ -18,7 +18,7 @@ ORDER = ["documents", "workflow", "baseline", "structure"]
 # "With devenv" heading, and wherever baseline terms are allowed.
 TERMS = {
     "documents": [
-        "CONCEPTS.md", "docs/adr", "INTENT.md", "CLAUDE.md", "AGENTS.md",
+        "CONCEPTS.md", "docs/decisions", "INTENT.md", "CLAUDE.md", ".claude/rules",
         "docs/TODO.md", "docs/conventions",
     ],
     "workflow": [
@@ -29,7 +29,7 @@ TERMS = {
     ],
     "baseline": [
         "lyngon.enable", "lyngon.structure", "lyngon.mcp", "lyngon/devenv",
-        "prose-lint", "markdownlint", "nixfmt", "shellcheck", "ruff", "prettier",
+        "validate-documents", "prose-lint", "markdownlint", "nixfmt", "shellcheck", "ruff", "prettier",
         "commitizen", "typos", "ripsecrets", "actionlint", "yamllint", "deadnix",
         "statix", "golangci-lint", "ruff.toml", "tsconfig.base.json",
         "eslint.config.js", "basedpyright",
@@ -241,7 +241,8 @@ def main() -> int:
     for line in errors:
         print(line, file=sys.stderr)
     if errors:
-        print(f"validate-prerequisites: {len(errors)} error(s)", file=sys.stderr)
+        print(f"validate-prerequisites: {len(errors)} error(s); the rules are in docs/conventions/prerequisites.md",
+              file=sys.stderr)
         return 1
     print("validate-prerequisites: ok")
     return 0

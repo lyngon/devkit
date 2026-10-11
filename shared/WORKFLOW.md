@@ -32,7 +32,7 @@ A well-scoped change to a flow that already exists in the repository.
 
 A new subsystem, a restructuring, or an interface others depend on.
 
-1. `/discover:approach` runs the interview; `CONCEPTS.md` terms and ADRs are written as they settle, and the design goes to `docs/plans/YYYY-MM-DD-<slug>.md`.
+1. `/discover:approach` runs the interview; `CONCEPTS.md` terms and decision records are written as they settle, and the design goes to `docs/plans/YYYY-MM-DD-<slug>.md`.
 2. `/build:plan` appends the plan to that file (the tasks in order, with their interfaces, acceptance lines, dictated text, owner gates and mandated checks; the implementer writes the tests and the code) and commits it on the feature branch.
 3. **Review gate 1**: the user reviews the design and the plan, picks the executor, and pre-approves by ID the owner gates they want passed without a stop.
 4. `/build:delegate` (a fresh implementer per task, and a reviewer after each task who gives a verdict on every acceptance line; the default) or `/build:execute` (inline, one review at the end; for a plan of about five tasks or fewer with no owner gate the agent performs) builds it, one commit per task, without asking, and stops only at owner gates.
@@ -63,7 +63,7 @@ No flow has a per-commit or per-file human review: the agent commits on a featur
 ## What gets written where
 
 - Nothing, in `/discover:brainstorm`.
-- Terms in `CONCEPTS.md` and decisions in `docs/adr/`, as they settle in `/discover:approach` and `discover:domain-model`, and again in `/build:finish` when the design still holds an unrecorded decision.
+- Terms in `CONCEPTS.md` and decisions in `docs/decisions/`, as they settle in `/discover:approach` and `discover:domain-model`, and again in `/build:finish` when the design still holds an unrecorded decision.
 - The design and the plan in `docs/plans/YYYY-MM-DD-<slug>.md`, with the index of owner gates and the user's pre-approvals, committed on the branch and removed by `/build:finish`.
 - The execution ledger, briefs and review packages in `tmp/build/<slug>/`, scratch that enters git only as the verbatim copy of the ledger in the plan's `## Execution status` section when a run pauses, removed with the plan.
 - The evidence of every owner gate in the record commit that ends its task, empty when the repository did not change.

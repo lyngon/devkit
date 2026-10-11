@@ -21,7 +21,7 @@ Since 2026-09-23 it also carries the classification and approval gate from super
 - 2026-09-23: the classification into spike, bounded and architectural work with its one-way ratchet, the approval gate, the design file with its self-review and user review, the "Design for isolation and clarity" and "Working in existing codebases" lists and the red-flags table are adapted from obra/superpowers `skills/brainstorming` at commit `5bf4e78011075bcfc0dc295f0724994cd123ee71` (MIT, see [LICENSE-superpowers](LICENSE-superpowers)).
 - Removed `disable-model-invocation: true`.
   The repo plugin's session hook tells the agent to invoke this skill before building anything with more than one reasonable design, which the flag made impossible.
-- Rewrote the description to say what the skill does (classify, interview, write terms and ADRs, gate implementation) and when to use it, keeping the upstream "grill me" trigger and pointing tossing ideas around to `discover:brainstorm`.
+- Rewrote the description to say what the skill does (classify, interview, write terms and decision records, gate implementation) and when to use it, keeping the upstream "grill me" trigger and pointing tossing ideas around to `discover:brainstorm`.
 - The two skill calls moved into step 1 of the architectural path; a spike or a bounded change does not run the full interview.
 - Clarifying questions are asked in whole rounds in the `discover:interview` format, replacing superpowers' one question per message; a bounded change gets one round.
 - The design goes to `docs/plans/YYYY-MM-DD-<slug>.md` under a `## Design` heading with fixed sections (goal, approach, components, data flow, error handling, testing, out of scope), replacing superpowers' `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`; the skill does not commit it, and the text says the file is transient and that purpose, rules, terms and decisions belong in the Lyngon documents.
@@ -36,6 +36,7 @@ Since 2026-09-23 it also carries the classification and approval gate from super
 - Step 4 of the architectural path lets the first interview round open with the choice between approaches when that choice is the root of the design tree; step 5 then confirms the choice with the trade-offs stated. Superpowers always proposes approaches after the questions.
 - The bounded path runs `review:request` before the pull request and `build:finish` to push the branch and open it, where it said "before merging" and "to integrate the branch".
 - The self-review of the design file also checks that every value an implementer must use exactly is stated and every edge behaviour is named with its outcome, because a plan now copies them from the design and decides none.
+- 2026-10-11: decisions go to `docs/decisions/` as decision records, where the text said ADRs and `docs/adr/`, and what outlives the design file belongs in the steering documents, where it said the Lyngon documents.
 
 ## Review notes
 
