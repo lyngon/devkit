@@ -69,7 +69,7 @@ Derive the kind, do not ask for it:
 
 Then propose the concern: an existing plugin under `plugins/` whose concern the skill serves, or a new one. Give a recommendation, list the alternatives, and wait.
 
-Then settle the prerequisites (`docs/conventions/prerequisites.md`): which of `documents`, `devenv` and `structure` the skill's text needs.
+Then settle the prerequisites (`docs/conventions/prerequisites.md`): which of `documents`, `workflow`, `baseline` and `structure` the skill's text needs.
 Derive the recommendation from the text, the way the validator does: name every line that carries a term of an undeclared prerequisite, and say for each whether it belongs under a conditional heading or raises the plugin's declaration.
 When the skill would raise an existing plugin's declaration, say so explicitly; a repository that installed the plugin for less would then get more than it asked for, and a conditional section is usually the better answer.
 Wait for the decision.

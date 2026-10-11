@@ -3,6 +3,10 @@
 All notable changes to the `devkit` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.4.1 - 2026-10-11
+
+- `add-skill` names the four prerequisites a plugin can declare (`documents`, `workflow`, `baseline`, `structure`) and all five conditional headings. It still listed the three from before `baseline` replaced `devenv` and `workflow` was added.
+
 ## 0.4.0 - 2026-10-11
 
 - The review checklist of `add-skill` asks that a skill uses decision records in `docs/decisions/`, and that it writes no `CLAUDE.md`, no `AGENTS.md` and no file under `.claude/rules/`.
