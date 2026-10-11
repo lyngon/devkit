@@ -14,7 +14,7 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `steering-documents` | Designed, awaiting the owner's review | [seed prompt](../seed-prompts/001-steering-documents.md), [design](2026-10-07-principles-and-steering-documents.md) |
+| `steering-documents` | Landed | [design](2026-10-07-principles-and-steering-documents.md) |
 | `principles-and-why` | Designed in the same file | [seed prompt](../seed-prompts/002-principles-and-why.md) |
 | `workflow` | Inputs settled, no design | [seed prompt](../seed-prompts/003-workflow.md) |
 | `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/004-agent-identity.md) |
@@ -130,7 +130,10 @@ What the design does not say:
 
 - pstack was cloned into a session scratch directory that no longer exists. Clone it again and check out the commit above.
 - Nobody has read the reference files of `why` in full. Read each one before patching it.
-- Three things are unverified and are checked during implementation: whether `validate-marketplace` fails when the `all` plugin is missing, whether it checks a skill's frontmatter and name, and whether a compaction re-reads the import in the agent file.
+- The three unverified points were checked in `steering-documents`. `validate-marketplace` did not fail when the `all` plugin was missing and accepted a skill without a `name`; it now fails on both. A manual compaction reads `.claude/CLAUDE.md` and its import again from disk (Claude Code 2.1.283).
+- `validate-marketplace` has fixture tests since `steering-documents`, in `scripts/tests/validate-marketplace.sh`; the fixture for the index check goes there.
+- `conventions:documents` says that the organization's principles come from the devkit plugins and that a decision record loads on demand. Name the `principles` plugin and `discover:why` there once they exist.
+- A rule file opens with a heading that holds its principle's name, because markdownlint demands a heading; the baseline excludes only `.claude/CLAUDE.md` from that rule.
 
 ## workflow
 
