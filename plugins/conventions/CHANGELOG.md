@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.14.0 - 2026-10-11
+
+- `engineering` says to fix an unrelated problem in a change of its own, with its own branch and pull request, when the fix can be proven, and otherwise to file an issue with the evidence. It said to fix a small one in a separate commit, which contradicted the principle `fix-debt-in-its-own-change`.
+
 ## 0.13.1 - 2026-10-11
 
 - `CONCEPTS-FORMAT.md` and `DECISION-RECORD-FORMAT.md`, symlinked into `documents` and `decision-record`, no longer name the license file and the provenance record of the format they were adapted from. The README does.

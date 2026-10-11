@@ -23,7 +23,7 @@ Language and document rules are separate skills: invoke the one for a file's kin
 - Never edit a generated file; change its source or generator. `generated/` and `vendor/` directories are not yours.
 - Never write a secret (key, token, password) into code, configuration or a commit. Secrets are supplied out of band.
 - Every tool comes from the repository's declared environment. When one is missing, add it there; never install imperatively.
-- Flag an unrelated problem when you meet one. Fix it too when the fix is small, in a separate commit.
+- Fix an unrelated problem you meet in the same session, in a change of its own with its own branch and pull request, when the fix can be proven. Otherwise file an issue with the evidence.
 
 ## Testing
 
