@@ -10,18 +10,27 @@ let
   validateMarketplace = pkgs.writeShellApplication {
     name = "validate-marketplace";
     runtimeInputs = [
-      pkgs.jq
-      pkgs.git
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.findutils
       pkgs.gawk
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.jq
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-marketplace.sh" "$@"'';
   };
   renderPluginList = pkgs.writeShellApplication {
     name = "render-plugin-list";
     runtimeInputs = [
-      pkgs.jq
-      pkgs.git
+      pkgs.bash
+      pkgs.coreutils
       pkgs.gawk
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.jq
     ];
     text = ''exec "${config.devenv.root}/scripts/render-plugin-list.sh" "$@"'';
   };
@@ -52,6 +61,7 @@ let
   testValidateDocuments = pkgs.writeShellApplication {
     name = "test-validate-documents";
     runtimeInputs = [
+      pkgs.bash
       pkgs.python3
       pkgs.git
       pkgs.coreutils
@@ -86,6 +96,7 @@ let
   testValidateStructure = pkgs.writeShellApplication {
     name = "test-validate-structure";
     runtimeInputs = [
+      pkgs.bash
       pkgs.python3
       pkgs.git
       pkgs.coreutils
@@ -96,6 +107,7 @@ let
   testValidatePrerequisites = pkgs.writeShellApplication {
     name = "test-validate-prerequisites";
     runtimeInputs = [
+      pkgs.bash
       pkgs.python3
       pkgs.git
       pkgs.coreutils
@@ -178,17 +190,22 @@ in
     pass_filenames = false;
   };
 
-  # `devenv test` runs every git hook on every file first, then these.
+  # `devenv test` runs every git hook on every file first, then these. Each
+  # runs with an empty PATH, so a tool that a wrapper does not declare fails
+  # here and not for whoever commits from a shell that lacks it.
   enterTest = ''
-    validate-marketplace
-    render-plugin-list
-    validate-prerequisites
-    ${lib.getExe testValidateMarketplace}
-    ${lib.getExe testValidateDocuments}
-    ${lib.getExe testDocumentsHookWiring}
-    ${lib.getExe testValidateStructure}
-    ${lib.getExe testValidatePrerequisites}
-    ${lib.getExe testRepoHooks}
-    ${lib.getExe testBuildScripts}
+    declared_tools_only() {
+      env -i HOME="$HOME" "$@"
+    }
+    declared_tools_only ${lib.getExe validateMarketplace}
+    declared_tools_only ${lib.getExe renderPluginList}
+    declared_tools_only ${lib.getExe validatePrerequisites}
+    declared_tools_only ${lib.getExe testValidateMarketplace}
+    declared_tools_only ${lib.getExe testValidateDocuments}
+    declared_tools_only ${lib.getExe testDocumentsHookWiring}
+    declared_tools_only ${lib.getExe testValidateStructure}
+    declared_tools_only ${lib.getExe testValidatePrerequisites}
+    declared_tools_only ${lib.getExe testRepoHooks}
+    declared_tools_only ${lib.getExe testBuildScripts}
   '';
 }
