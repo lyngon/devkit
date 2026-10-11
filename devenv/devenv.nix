@@ -93,6 +93,8 @@ in
       shellcheck.enable = lib.mkDefault true;
       markdownlint = {
         enable = lib.mkDefault true;
+        # The agent file is one import line, so it has no heading to open with.
+        excludes = lib.mkDefault [ "^\\.claude/CLAUDE\\.md$" ];
         settings.configuration = lib.mkDefault {
           default = true;
           # Semantic line breaks: one sentence per line, no length limit.

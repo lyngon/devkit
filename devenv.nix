@@ -114,8 +114,12 @@ in
   ];
 
   # Eval prompts and graders have a fixed shape (frontmatter, then the prompt
-  # or rubric as the body) that cannot start with a heading.
-  git-hooks.hooks.markdownlint.excludes = [ "^plugins/[^/]+/evals/" ];
+  # or rubric as the body) that cannot start with a heading. The first entry
+  # repeats the baseline's, which a list set here replaces.
+  git-hooks.hooks.markdownlint.excludes = [
+    "^\\.claude/CLAUDE\\.md$"
+    "^plugins/[^/]+/evals/"
+  ];
 
   # Repository-specific hooks.
   git-hooks.hooks.validate-marketplace = {
