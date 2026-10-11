@@ -10,7 +10,7 @@ Each line below names one principle, says when it applies and gives its rule.
 The line tells you that a principle applies, and only its file tells you how to apply it.
 Read `references/<name>.md`, next to this file, in full for every principle you apply.
 
-The origin in parentheses says who wrote the principle: pstack, vendored with the patches in `UPSTREAM.md`, or Lyngon.
+The origin in parentheses says who wrote the principle, pstack or Lyngon.
 A repository's own principles are not here.
 They are its rule files under `.claude/rules/`.
 

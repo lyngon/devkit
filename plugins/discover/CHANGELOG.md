@@ -4,6 +4,10 @@ All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.10.1 - 2026-10-11
+
+- `CONCEPTS-FORMAT.md` and `DECISION-RECORD-FORMAT.md`, symlinked into `domain-model`, no longer name the license file and the provenance record of the format they were adapted from. The README does.
+
 ## 0.10.0 - 2026-10-11
 
 - Added `why`, vendored from pstack 0.15.15 at commit `9f451cf`: it answers why code, a design or a decision is the way it is from the decision records (the deleted ones included), git, pull request bodies and issues, and marks every claim as found, inferred or unknown. With git and GitHub as the only sources it runs in one pass; with another source behind an MCP it spawns one investigator per source and a synthesizer. The playbook for GitHub Issues is adapted from upstream's playbook for Linear, and upstream's playbooks for Slack, Notion, Datadog, Sentry and Databricks are left out.

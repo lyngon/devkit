@@ -4,7 +4,6 @@ Single source in `shared/` of the Lyngon devkit marketplace; plugins symlink it.
 A repository may override it with `docs/conventions/decision-record.md`.
 
 Format adapted from Matt Pocock's `domain-modeling` skill (<https://github.com/mattpocock/skills>, MIT).
-The MIT license text is `shared/LICENSE-mattpocock`; the provenance record is `plugins/discover/skills/domain-model/UPSTREAM.md`.
 
 A decision record states one decision the code cannot show, and exists only while the decision holds.
 The term is decision record. "ADR" names a numbered file that carries a status and is never deleted, and a decision record is none of the three.

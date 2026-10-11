@@ -4,6 +4,10 @@ All notable changes to the `principles` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 The vendored principles record their upstream commit in the skill's `UPSTREAM.md`.
 
+## 0.1.1 - 2026-10-11
+
+- The index no longer names the provenance record, which an agent reading the index has no use for.
+
 ## 0.1.0 - 2026-10-11
 
 - Added `index` with 32 principles, one line each in `SKILL.md` and one file each under `references/`.

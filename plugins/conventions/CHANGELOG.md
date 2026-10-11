@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.13.1 - 2026-10-11
+
+- `CONCEPTS-FORMAT.md` and `DECISION-RECORD-FORMAT.md`, symlinked into `documents` and `decision-record`, no longer name the license file and the provenance record of the format they were adapted from. The README does.
+
 ## 0.13.0 - 2026-10-11
 
 - The `SessionStart` hook tells the agent to invoke `principles:index` before work that takes judgment and then to read the file of each principle that applies.
