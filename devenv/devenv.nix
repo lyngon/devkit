@@ -56,8 +56,9 @@ let
     text = ''exec python3 ${./validate-structure.py} "$@"'';
   };
 
-  # The document rules: no AGENTS.md, no CLAUDE.md outside .claude/, no
-  # docs/adr/, and the shape of decision records, INTENT.md and rule files.
+  # The document rules: an agent file that imports INTENT.md, no AGENTS.md, no
+  # CLAUDE.md outside .claude/, no docs/adr/, and the shape of decision
+  # records, INTENT.md and rule files.
   validateDocuments = pkgs.writeShellApplication {
     name = "validate-documents";
     runtimeInputs = [
@@ -143,6 +144,9 @@ in
         types = lib.mkDefault [ ];
         # One run over all files, so a docs/adr/ directory is reported once.
         require_serial = lib.mkDefault true;
+        # Also on a commit that only deletes files: a deleted agent file is
+        # never among the names a hook is handed.
+        always_run = lib.mkDefault true;
       };
       validate-structure = {
         enable = lib.mkDefault cfg.structure.enable;

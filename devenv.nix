@@ -60,8 +60,10 @@ let
     text = ''exec "${config.devenv.root}/devenv/tests/validate-documents.sh" "$@"'';
   };
   # The validate-documents hook must be handed file names, symbolic links
-  # included, in one run: an AGENTS.md is usually a link, which a hook does
-  # not see by default, and nothing else fails when that wiring is lost.
+  # included, in one run, and must run on a commit that only deletes files:
+  # an AGENTS.md is usually a link, which a hook does not see by default, a
+  # deleted agent file is never among the names, and nothing else fails when
+  # that wiring is lost.
   testDocumentsHookWiring = pkgs.writeShellApplication {
     name = "test-documents-hook-wiring";
     runtimeInputs = [
@@ -71,10 +73,11 @@ let
     text = ''
       if grep -v '^#' "${config.devenv.root}/.pre-commit-config.yaml" |
         jq -e '[.repos[].hooks[] | select(.id == "validate-documents")]
-          | length == 1 and .[0].types == [] and .[0].pass_filenames and .[0].require_serial' >/dev/null; then
+          | length == 1 and .[0].types == [] and .[0].pass_filenames and .[0].require_serial
+            and .[0].always_run' >/dev/null; then
         echo "test-documents-hook-wiring: ok"
       else
-        echo "test-documents-hook-wiring: the validate-documents hook needs types = [ ], pass_filenames and require_serial" >&2
+        echo "test-documents-hook-wiring: the validate-documents hook needs types = [ ], pass_filenames, require_serial and always_run" >&2
         exit 1
       fi
     '';

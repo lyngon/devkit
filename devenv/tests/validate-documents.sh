@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Exercise validate-documents.py against throwaway fixture repositories: for
-# each of its six rules a tree that fails and one that passes, plus the paths
+# each of its seven rules a tree that fails and one that passes, plus the paths
 # it skips and the two ways it is run. Run through `devenv test`.
 set -euo pipefail
 
@@ -101,8 +101,36 @@ expect_error() {
 
 # --- Cases -------------------------------------------------------------------
 
-expect_ok "empty repository" "$(new_repo)"
 expect_ok "every steering document in its allowed shape" "$(clean_repo)"
+
+# agent-file-imports-intent
+expect_error "agent-file-imports-intent: an empty repository has no agent file" "$(new_repo)" 1 \
+  "error: .claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md, so that every session starts from the intent"
+
+repo=$(clean_repo)
+rm "$repo/.claude/CLAUDE.md"
+expect_error "agent-file-imports-intent: the agent file is missing, whatever paths are given" "$repo" 1 \
+  "error: .claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md" README.md
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "# Tidewatch" "" "See INTENT.md for the purpose."
+expect_error "agent-file-imports-intent: the agent file lacks the import" "$repo" 1 \
+  "error: .claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md; what else the file holds is the authors' choice"
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "# Tidewatch" "" "Run the tide simulator before changing the table." "" "@../INTENT.md"
+expect_ok "agent-file-imports-intent: the import may stand anywhere in the file" "$repo"
+
+repo=$(clean_repo)
+git -C "$repo" add -A
+git -C "$repo" rm -q --cached .claude/CLAUDE.md
+output=$( (cd "$repo" && python3 "$validator" 2>&1) || true)
+if grep -qF "error: .claude/CLAUDE.md: agent-file-imports-intent: create it" <<<"$output"; then
+  echo "ok: agent-file-imports-intent: an untracked agent file does not count"
+else
+  echo "FAIL: agent-file-imports-intent: an untracked agent file does not count, got:" && echo "  ${output//$'\n'/$'\n'  }"
+  failures=$((failures + 1))
+fi
 
 # no-agents-md
 repo=$(clean_repo)

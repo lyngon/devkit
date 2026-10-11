@@ -2,6 +2,8 @@
 # Check a repository's steering documents against the Lyngon document rules.
 # Each message names its rule and the fix:
 #
+#   agent-file-imports-intent        .claude/CLAUDE.md is tracked and holds the
+#                                    line @../INTENT.md, whatever else it holds
 #   no-agents-md                     no file is named AGENTS.md
 #   no-claude-md-outside-dot-claude  the only CLAUDE.md is .claude/CLAUDE.md
 #   no-docs-adr                      no docs/adr/ directory, in the root or a package
@@ -15,9 +17,11 @@
 #
 # Runs at pre-commit from the repository root with the files to check as
 # arguments, so a hook's `excludes` keeps a fixture tree out. Without arguments
-# it checks every tracked file. A path inside a vendor/ or generated/ directory
-# is skipped, and so is one that is gone from the working tree. It exits 1 on a
-# violation and 2 when it cannot check what it was asked to.
+# it checks every tracked file. The agent file is checked on every run, since a
+# missing file is never among the arguments. A path inside a vendor/ or
+# generated/ directory is skipped, and so is one that is gone from the working
+# tree. It exits 1 on a violation and 2 when it cannot check what it was asked
+# to.
 import os
 import pathlib
 import re
@@ -35,8 +39,9 @@ INTENT_MAX_LINES: t.Final = 50
 RULE_MAX_LINES: t.Final = 100
 SKIPPED_DIRECTORIES: t.Final = frozenset({"vendor", "generated"})
 AGENT_FILE: t.Final = pathlib.PurePosixPath(".claude/CLAUDE.md")
+IMPORT_LINE: t.Final = "@../INTENT.md"
 MOVE_LINES: t.Final = (
-    f"move what must stay to {AGENT_FILE}, below the line @../INTENT.md, or to "
+    f"move what must stay to {AGENT_FILE}, below the line {IMPORT_LINE}, or to "
     ".claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file"
 )
 
@@ -84,6 +89,23 @@ def read_lines(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str] | N
         return (root / path).read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return None
+
+
+def check_agent_file(root: pathlib.Path) -> list[str]:
+    """The agent file must be tracked and import the intent, whatever else it holds."""
+    rule = "agent-file-imports-intent"
+    untracked = git("-C", str(root), "ls-files", "--", str(AGENT_FILE)) == ""
+    lines = read_lines(root, AGENT_FILE)
+    if untracked or lines is None:
+        return [error(
+            AGENT_FILE, rule,
+            f"create it with the line {IMPORT_LINE}, so that every session starts from the intent",
+        )]
+    if not any(line.strip() == IMPORT_LINE for line in lines):
+        return [error(
+            AGENT_FILE, rule, f"add the line {IMPORT_LINE}; what else the file holds is the authors' choice",
+        )]
+    return []
 
 
 def adr_directory(path: pathlib.PurePosixPath) -> pathlib.PurePosixPath | None:
@@ -213,7 +235,7 @@ def main(arguments: list[str]) -> int:
     except Refusal as refusal:
         print(f"validate-documents: {refusal}", file=sys.stderr)
         return 2
-    found = check(root, paths)
+    found = check_agent_file(root) + check(root, paths)
     for line in found:
         print(line, file=sys.stderr)
     if found:

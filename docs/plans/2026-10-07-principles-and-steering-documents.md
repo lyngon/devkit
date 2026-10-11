@@ -102,6 +102,7 @@ It fails when:
 4. A file in a `docs/decisions/` directory has a name that is not kebab-case or that starts with digits and a hyphen, lacks a last line starting `Enforced by:`, has a line starting `Status:`, or has a heading `## Change log`.
 5. An `INTENT.md` is longer than 50 lines, or has a `##` heading outside Product, For whom, Done means, Failure means, Non-goals, Priorities, Horizon.
 6. A file under `.claude/rules/` has a name that is not kebab-case, or is longer than 100 lines.
+7. `.claude/CLAUDE.md` is missing or lacks the line `@../INTENT.md`, whatever else it holds. The owner added this check on the first pull request.
 
 `validate-structure` changes with it: `PACKAGE_DOCS` becomes `README.md` alone, and its `AGENTS.md` check is removed.
 
@@ -305,6 +306,6 @@ Each of these is a choice made while writing the design, not one settled in the 
 - The wording of the three non-goals in `INTENT.md`.
 - The name `use-purpose-built-tools` for the principle on tools.
 - The skill names `principles:index`, `conventions:decision-record` and `discover:why`.
-- A new baseline hook, `validate-documents`, with the six checks listed.
+- A new baseline hook, `validate-documents`, with the seven checks listed.
 - The verdict on each of the 19 records, and the ten rule files that replace the devkit's agent file.
 - `review-results-not-plans` ships before the workflow that honours it.
