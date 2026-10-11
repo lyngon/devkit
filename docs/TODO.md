@@ -7,9 +7,8 @@ Queued items are listed in the order to implement them; a new one is placed by i
 
 ## Queued
 
-The first six are the remaining pieces of the philosophy overhaul, in order; what is settled for each is in [the roadmap](plans/2026-10-07-philosophy-overhaul-roadmap.md).
+The first five are the remaining pieces of the philosophy overhaul, in order; what is settled for each is in [the roadmap](plans/2026-10-07-philosophy-overhaul-roadmap.md).
 
-- 2026-10-07: [Principles and why](seed-prompts/002-principles-and-why.md), implemented from the same design without a plan file. The `principles` plugin with 24 vendored and 8 Lyngon principles, and the `why` skill.
 - 2026-10-07: [Workflow](seed-prompts/003-workflow.md), a design through `discover:approach`. The gated workflow and the nine superpowers skills are replaced by skills vendored from pstack.
 - 2026-10-07: [Agent identity](seed-prompts/004-agent-identity.md), a design through `discover:approach`. Agents act as an organization-owned GitHub App.
 - 2026-10-07: [Issue pipeline](seed-prompts/005-issue-pipeline.md), a design through `discover:approach`. Filing, triage and picking on GitHub Issues, replacing this file.
