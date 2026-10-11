@@ -48,6 +48,37 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/tests/validate-marketplace.sh" "$@"'';
   };
+  # Fixture tests for the baseline module's validate-documents hook.
+  testValidateDocuments = pkgs.writeShellApplication {
+    name = "test-validate-documents";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+      pkgs.coreutils
+      pkgs.gnugrep
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/validate-documents.sh" "$@"'';
+  };
+  # The validate-documents hook must be handed file names, symbolic links
+  # included, in one run: an AGENTS.md is usually a link, which a hook does
+  # not see by default, and nothing else fails when that wiring is lost.
+  testDocumentsHookWiring = pkgs.writeShellApplication {
+    name = "test-documents-hook-wiring";
+    runtimeInputs = [
+      pkgs.gnugrep
+      pkgs.jq
+    ];
+    text = ''
+      if grep -v '^#' "${config.devenv.root}/.pre-commit-config.yaml" |
+        jq -e '[.repos[].hooks[] | select(.id == "validate-documents")]
+          | length == 1 and .[0].types == [] and .[0].pass_filenames and .[0].require_serial' >/dev/null; then
+        echo "test-documents-hook-wiring: ok"
+      else
+        echo "test-documents-hook-wiring: the validate-documents hook needs types = [ ], pass_filenames and require_serial" >&2
+        exit 1
+      fi
+    '';
+  };
   # Fixture tests for the baseline module's validate-structure hook.
   testValidateStructure = pkgs.writeShellApplication {
     name = "test-validate-structure";
@@ -150,6 +181,8 @@ in
     render-plugin-list
     validate-prerequisites
     ${lib.getExe testValidateMarketplace}
+    ${lib.getExe testValidateDocuments}
+    ${lib.getExe testDocumentsHookWiring}
     ${lib.getExe testValidateStructure}
     ${lib.getExe testValidatePrerequisites}
     ${lib.getExe testRepoHooks}

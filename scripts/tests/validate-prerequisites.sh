@@ -142,6 +142,11 @@ printf -- '\n## With the Lyngon baseline\n\nSet lyngon.enable in devenv.nix; the
 expect_ok "baseline and devenv terms under a baseline heading" "$repo"
 
 repo=$(new_repo)
+plugin "$repo" docs documents
+echo "The validate-documents hook checks the name." >>"$(skill "$repo" docs)"
+expect_error "undeclared baseline hook for documents" "$repo" "SKILL.md:7: names 'validate-documents' but the plugin declares prerequisites: documents"
+
+repo=$(new_repo)
 plugin "$repo" base baseline
 printf -- '\nTools come from devenv.nix and the ruff hook runs.\n' >>"$(skill "$repo" base)"
 expect_ok "devenv term with baseline declared" "$repo"

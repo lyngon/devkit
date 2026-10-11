@@ -64,7 +64,7 @@ The validator (`scripts/validate-prerequisites.py`) matches these terms, case-se
 | `documents` | `CONCEPTS.md`, `docs/decisions`, `INTENT.md`, `CLAUDE.md`, `.claude/rules`, `docs/TODO.md`, `docs/conventions` |
 | `workflow` | `conventions:engineering`, `This is a Lyngon repository` |
 | `devenv` (condition) | `devenv`, `secretspec`, `git-hooks`, `enterTest`, `.pre-commit-config` |
-| `baseline` | `lyngon.enable`, `lyngon.structure`, `lyngon.mcp`, `lyngon/devenv`, and the hook names `prose-lint`, `markdownlint`, `nixfmt`, `shellcheck`, `ruff`, `prettier`, `commitizen`, `typos`, `ripsecrets`, `actionlint`, `yamllint`, `deadnix`, `statix`, `golangci-lint` |
+| `baseline` | `lyngon.enable`, `lyngon.structure`, `lyngon.mcp`, `lyngon/devenv`, and the hook names `validate-documents`, `prose-lint`, `markdownlint`, `nixfmt`, `shellcheck`, `ruff`, `prettier`, `commitizen`, `typos`, `ripsecrets`, `actionlint`, `yamllint`, `deadnix`, `statix`, `golangci-lint` |
 | `structure` | `apps/`, `libs/`, `contracts/`, `tools/`, `infra/`, `STRUCTURE.md`, `add-package`, `validate-structure` |
 
 A term of a prerequisite the plugin has not declared, outside the matching conditional section, fails `devenv test`.

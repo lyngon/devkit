@@ -29,7 +29,7 @@ TERMS = {
     ],
     "baseline": [
         "lyngon.enable", "lyngon.structure", "lyngon.mcp", "lyngon/devenv",
-        "prose-lint", "markdownlint", "nixfmt", "shellcheck", "ruff", "prettier",
+        "validate-documents", "prose-lint", "markdownlint", "nixfmt", "shellcheck", "ruff", "prettier",
         "commitizen", "typos", "ripsecrets", "actionlint", "yamllint", "deadnix",
         "statix", "golangci-lint", "ruff.toml", "tsconfig.base.json",
         "eslint.config.js", "basedpyright",

@@ -55,6 +55,17 @@ let
     ];
     text = ''exec python3 ${./validate-structure.py} "$@"'';
   };
+
+  # The document rules: no AGENTS.md, no CLAUDE.md outside .claude/, no
+  # docs/adr/, and the shape of decision records, INTENT.md and rule files.
+  validateDocuments = pkgs.writeShellApplication {
+    name = "validate-documents";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+    ];
+    text = ''exec python3 ${./validate-documents.py} "$@"'';
+  };
 in
 {
   options.lyngon = {
@@ -122,6 +133,16 @@ in
         name = lib.mkDefault "prose lint (commit message)";
         entry = lib.mkDefault "${lib.getExe proseLint} --commit-msg";
         stages = lib.mkDefault [ "commit-msg" ];
+      };
+      validate-documents = {
+        enable = lib.mkDefault true;
+        name = lib.mkDefault "validate documents";
+        entry = lib.mkDefault (lib.getExe validateDocuments);
+        # Every tracked path, symbolic links included: a hook sees only
+        # regular files by default, and an AGENTS.md is usually a link.
+        types = lib.mkDefault [ ];
+        # One run over all files, so a docs/adr/ directory is reported once.
+        require_serial = lib.mkDefault true;
       };
       validate-structure = {
         enable = lib.mkDefault cfg.structure.enable;
