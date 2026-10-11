@@ -4,6 +4,10 @@ All notable changes to the `principles` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 The vendored principles record their upstream commit in the skill's `UPSTREAM.md`.
 
+## 0.2.0 - 2026-10-11
+
+- `record-what-the-code-cannot-show` covers steering documents and code comments, where it covered all prose in the tree. A README, a changelog, a provenance record and user documentation are outside it, and it says when a comment passes the admission test.
+
 ## 0.1.1 - 2026-10-11
 
 - The index no longer names the provenance record, which an agent reading the index has no use for.

@@ -55,7 +55,7 @@ They are its rule files under `.claude/rules/`.
 
 ## Steering
 
-- **record-what-the-code-cannot-show** (Lyngon). About to write prose into the tree, or making a decision the code cannot show. Prose enters only through the admission test, and a decision that passes it is recorded in the same change.
+- **record-what-the-code-cannot-show** (Lyngon). About to write into a steering document or a code comment, or making a decision the code cannot show. Text enters either only through the admission test, and a decision that passes it is recorded in the same change.
 - **the-tree-is-current** (Lyngon). A decision, a plan or a text is superseded, or you are tempted to keep history in a file. The tree holds what is true now, so superseded text is deleted, and git and `discover:why` hold the past.
 - **review-results-not-plans** (Lyngon). Tempted to wait for approval of requirements, a specification, a plan or tasks. Nothing waits for approval by default, and a gate exists if and only if the owner asked for it explicitly, where the agent then stops.
 - **fix-debt-in-its-own-change** (Lyngon). You find debt while doing other work. Fix it in the same session in its own change when the fix can be proven, and otherwise file an issue with the evidence.
