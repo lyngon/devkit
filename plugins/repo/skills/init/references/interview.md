@@ -38,7 +38,7 @@ Adapt wording to the repository.
 - **14. Secrets.** (Scope includes the baseline.) Does anything in the repository need secrets (API keys, tokens, credentials)? If yes, `secretspec` is wired; ask which secrets by name and which provider (keyring, dotenv, env, onepassword, lastpass) per profile. Do not ask which mechanism; it is always `secretspec`.
 - **15. Services.** (Scope includes the baseline.) Does local development need a database, cache, queue or similar? Name each one. Wire a devenv `services.*` entry only for services the user confirms by name.
 - **16. Test strategy.** What counts as "tests pass": unit only, integration against services, end-to-end? What should `devenv test` run beyond the hooks?
-- **17. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `all` when the scope includes the structure, otherwise `core` (`discover`, `build`, `practice`, `review`, `writing`) and `conventions`. A subset is named plugin by plugin, always with `conventions`; `repo` brings `discover` with it.
+- **17. Lyngon plugins.** Which plugins from the `lyngon` marketplace does this repository use? `all` when the scope includes the structure, otherwise `core` (`discover`, `build`, `practice`, `review`, `writing`, `principles`) and `conventions`. A subset is named plugin by plugin, always with `conventions`; `repo` brings `discover` with it.
 
 ### Round 3 and later, as unblocked
 

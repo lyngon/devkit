@@ -23,7 +23,7 @@
     {
       "name": "core",
       "source": "./plugins/core",
-      "description": "The plugins that work in any repository with the Lyngon documents: discover, build, practice, review and writing. A bundle: it has no skills of its own.",
+      "description": "The plugins that work in any repository with the Lyngon documents: discover, build, practice, review, writing and principles. A bundle: it has no skills of its own.",
       "category": "bundle",
       "keywords": [
         "bundle",
@@ -48,7 +48,7 @@
     {
       "name": "discover",
       "source": "./plugins/discover",
-      "description": "Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval.",
+      "description": "Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues.",
       "category": "engineering",
       "keywords": [
         "discovery",
@@ -56,7 +56,9 @@
         "grilling",
         "domain-model",
         "decision-records",
-        "concepts"
+        "concepts",
+        "why",
+        "history"
       ],
       "license": "Apache-2.0"
     },
@@ -142,6 +144,19 @@
         "nix",
         "markdown",
         "decision-records"
+      ],
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "principles",
+      "source": "./plugins/principles",
+      "description": "The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon.",
+      "category": "engineering",
+      "keywords": [
+        "principles",
+        "judgment",
+        "engineering",
+        "steering"
       ],
       "license": "Apache-2.0"
     },

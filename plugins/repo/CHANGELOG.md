@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.14.0 - 2026-10-11
+
+- `init` enables `principles@lyngon` in the settings it writes, as a member of `all` and of `core`, and its templates name the `principles` plugin as the source of the organization's principles.
+
 ## 0.13.1 - 2026-10-11
 
 - `init` says that the import line of `.claude/CLAUDE.md` stays whatever the authors add below it, and in adopt mode puts what the owner wants kept from an old agent file there.

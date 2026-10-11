@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
-# one, one without the `all` bundle, and skills whose frontmatter breaks a
-# rule. Run through `devenv test`.
+# one, one without the `all` bundle, skills whose frontmatter breaks a rule,
+# and a principles index that disagrees with its files. Run through
+# `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-marketplace.sh
@@ -61,6 +62,39 @@ skill() {
   echo "$1/plugins/one/skills/main/SKILL.md"
 }
 
+# A clean marketplace that also holds the principles plugin: an index of two
+# principles, one of each origin, with their files. The second file is 100
+# lines long, the longest a principle file may be.
+principles_marketplace() {
+  local repo index
+  repo=$(clean_marketplace)
+  plugin "$repo" principles
+  plugin "$repo" all one principles
+  index=$(principles "$repo")
+  mkdir -p "$index/references"
+  {
+    printf -- '---\nname: index\ndescription: Test index.\n---\n\n# Principles\n\n'
+    echo '- **first-principle** (pstack). When the first applies. The first rule.'
+    echo '- **second-principle** (Lyngon). When the second applies. The second rule.'
+  } >"$index/SKILL.md"
+  echo "# First principle" >"$index/references/first-principle.md"
+  lines 100 >"$index/references/second-principle.md"
+  echo "$repo"
+}
+
+principles() {
+  echo "$1/plugins/principles/skills/index"
+}
+
+# lines <count>: a Markdown file of that many lines.
+lines() {
+  local count
+  echo "# Second principle"
+  for ((count = 1; count < $1; count++)); do
+    echo "A line."
+  done
+}
+
 # --- Assertions --------------------------------------------------------------
 
 run_validator() {
@@ -118,6 +152,50 @@ expect_error "frontmatter below line 1" "$repo" "plugins/one/skills/main/SKILL.m
 repo=$(clean_marketplace)
 printf -- '---\nname: main\n---\n\n# Main\n' >"$(skill "$repo")"
 expect_error "skill without a description" "$repo" "plugins/one/skills/main/SKILL.md: frontmatter needs a non-empty description"
+
+expect_ok "principles index and files agree" "$(principles_marketplace)"
+
+repo=$(principles_marketplace)
+rm "$(principles "$repo")/references/first-principle.md"
+expect_error "principle in the index without a file" "$repo" "plugins/principles/skills/index/SKILL.md:8: principle 'first-principle' has no file plugins/principles/skills/index/references/first-principle.md"
+
+repo=$(principles_marketplace)
+echo "# Third principle" >"$(principles "$repo")/references/third-principle.md"
+expect_error "principle file without an index line" "$repo" "plugins/principles/skills/index/references/third-principle.md: plugins/principles/skills/index/SKILL.md has no line for 'third-principle'"
+
+repo=$(principles_marketplace)
+lines 101 >"$(principles "$repo")/references/second-principle.md"
+expect_error "principle file longer than 100 lines" "$repo" "plugins/principles/skills/index/references/second-principle.md: is 101 lines long, and a principle file holds at most 100"
+
+repo=$(principles_marketplace)
+echo '- **first-principle** (pstack). When the first applies again. The first rule again.' >>"$(principles "$repo")/SKILL.md"
+expect_error "principle listed twice" "$repo" "plugins/principles/skills/index/SKILL.md:10: principle 'first-principle' is listed twice"
+
+form="a principle's line has the form '- **<name>** (<origin>). <When it applies>. <The rule in one sentence>.', with the name in kebab-case and pstack or Lyngon as the origin"
+
+repo=$(principles_marketplace)
+echo '- **Third Principle** (pstack). When the third applies. The third rule.' >>"$(principles "$repo")/SKILL.md"
+expect_error "index line with a name that is not kebab-case" "$repo" "plugins/principles/skills/index/SKILL.md:10: $form"
+
+repo=$(principles_marketplace)
+echo '- **third-principle** (superpowers). When the third applies. The third rule.' >>"$(principles "$repo")/SKILL.md"
+expect_error "index line with another origin" "$repo" "plugins/principles/skills/index/SKILL.md:10: $form"
+
+repo=$(principles_marketplace)
+echo '- **third-principle** (Lyngon). The third rule alone.' >>"$(principles "$repo")/SKILL.md"
+expect_error "index line of one sentence" "$repo" "plugins/principles/skills/index/SKILL.md:10: $form"
+
+repo=$(principles_marketplace)
+printf '%s' '- **third-principle** (Lyngon). When the third applies. The third rule.' >>"$(principles "$repo")/SKILL.md"
+expect_error "last index line without a newline" "$repo" "plugins/principles/skills/index/SKILL.md:10: principle 'third-principle' has no file plugins/principles/skills/index/references/third-principle.md"
+
+repo=$(principles_marketplace)
+printf '%s' "$(lines 101)" >"$(principles "$repo")/references/second-principle.md"
+expect_error "principle file of 101 lines without a final newline" "$repo" "plugins/principles/skills/index/references/second-principle.md: is 101 lines long, and a principle file holds at most 100"
+
+repo=$(principles_marketplace)
+rm "$(principles "$repo")/SKILL.md"
+expect_error "principles plugin without its index" "$repo" "plugins/principles/skills/index/SKILL.md is missing: the principles plugin holds its index there, one line for each file under plugins/principles/skills/index/references/"
 
 if ((failures > 0)); then
   echo "test-validate-marketplace: $failures failure(s)" >&2

@@ -14,8 +14,6 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `steering-documents` | Landed | [design](2026-10-07-principles-and-steering-documents.md) |
-| `principles-and-why` | Designed in the same file | [seed prompt](../seed-prompts/002-principles-and-why.md) |
 | `workflow` | Inputs settled, no design | [seed prompt](../seed-prompts/003-workflow.md) |
 | `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/004-agent-identity.md) |
 | `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/005-issue-pipeline.md) |
@@ -123,18 +121,6 @@ An agent that decides alone lists the decision in the pull request.
 - Twenty-four separate principle skills.
 - The name `whoopsie`.
 
-## steering-documents and principles-and-why
-
-Both are specified in [the design](2026-10-07-principles-and-steering-documents.md).
-What the design does not say:
-
-- pstack was cloned into a session scratch directory that no longer exists. Clone it again and check out the commit above.
-- Nobody has read the reference files of `why` in full. Read each one before patching it.
-- The three unverified points were checked in `steering-documents`. `validate-marketplace` did not fail when the `all` plugin was missing and accepted a skill without a `name`; it now fails on both. A manual compaction reads `.claude/CLAUDE.md` and its import again from disk (Claude Code 2.1.283).
-- `validate-marketplace` has fixture tests since `steering-documents`, in `scripts/tests/validate-marketplace.sh`; the fixture for the index check goes there.
-- `conventions:documents` says that the organization's principles come from the devkit plugins and that a decision record loads on demand. Name the `principles` plugin and `discover:why` there once they exist.
-- A rule file opens with a heading that holds its principle's name, because markdownlint demands a heading; the baseline excludes only `.claude/CLAUDE.md` from that rule.
-
 ## workflow
 
 Replace the two review gates, plans, owner gates and the ledger with a thin flow: a prompt or an issue in, proof and a pull request out.
@@ -150,7 +136,7 @@ Settled:
 - The pull request body has the sections Why, Decisions, What changed, Scope, Blast radius and Verification, in that order, and stays near 40 lines because it becomes the commit body. A Decisions entry names what was decided, the alternatives and how they were compared, the trade-off accepted and the steering document changed. "None" is written out. An entry that replaces a decision record says `replaces <name>`. pstack's Tradeoffs section folds into Decisions, and the "Rulings I made" list goes.
 - The change is the unit. Squash is the only merge method, the pull request title is the commit subject in Conventional Commits form checked in CI, branch commits are free-form, and the commit-message hooks go.
 - The interview skill's template gives each question a name.
-- `encode-lessons-in-structure` is patched again to route a first occurrence to the ledger. `explain-the-number` and `prove-it-works` get back their pointers to `benchmark-checklist` and `show-me-your-work`. The sentence in `review-results-not-plans` about the gated skills is removed.
+- `encode-lessons-in-structure` is patched again to route a first occurrence to the ledger. `explain-the-number` and `prove-it-works` get back their pointers to `benchmark-checklist` and `show-me-your-work`, and `discover:why` its pointer to `how`. The sentence in `review-results-not-plans` about the gated skills is removed.
 - These go with the piece: the three decision records about gates and plans, the terms Plan, Review gate, Owner gate, Pre-approval, Acceptance line, Dictated text and Mandated check, a new definition of Workflow, and `shared/WORKFLOW.md`. The lines of `conventions:engineering` are sorted into principles, rules and text a vendored skill already carries.
 - These `docs/TODO.md` items become moot: the adversarial design review before planning, rehearsing a protocol early, one mechanism per plan, rehearsing `build:execute`, and the session hold in the build ledger.
 

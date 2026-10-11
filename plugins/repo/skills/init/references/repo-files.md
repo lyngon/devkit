@@ -61,7 +61,7 @@ Write no `CLAUDE.md` at the root and no `AGENTS.md`.
 ## .claude/rules/
 
 One file per repository principle that the interview settled.
-Most repositories start with none: the organization's principles come from the plugins, and whatever a tool can decide becomes a hook in `devenv.nix` instead.
+Most repositories start with none: the organization's principles come from the `principles` plugin, and whatever a tool can decide becomes a hook in `devenv.nix` instead.
 
 ```md
 ---
@@ -185,7 +185,8 @@ The key under `extraKnownMarketplaces` must equal the marketplace manifest name 
     "practice@lyngon": true,
     "review@lyngon": true,
     "writing@lyngon": true,
-    "conventions@lyngon": true
+    "conventions@lyngon": true,
+    "principles@lyngon": true
   }
 }
 ```

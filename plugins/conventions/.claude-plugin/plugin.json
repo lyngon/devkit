@@ -1,6 +1,6 @@
 {
   "name": "conventions",
-  "version": "0.12.1",
+  "version": "0.14.0",
   "description": "Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents.",
   "author": {
     "name": "Lyngon",

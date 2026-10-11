@@ -24,13 +24,13 @@ One test decides whether any text enters one:
 | `.claude/CLAUDE.md` | The line `@../INTENT.md`, and what the repository's authors add for the project | Every session |
 | `.claude/rules/<name>.md` | One repository principle, or one rule that has no check yet | At launch without `paths:`, otherwise when a matching file is read or edited |
 | `CONCEPTS.md` | Terms | On demand |
-| `docs/decisions/<name>.md` | One decision record | On demand |
+| `docs/decisions/<name>.md` | One decision record | On demand, and through `discover:why` |
 
 ## Rules
 
 - No `AGENTS.md` exists anywhere, and no `CLAUDE.md` exists outside `.claude/` at the repository root.
 - `.claude/CLAUDE.md` always holds the line `@../INTENT.md`. What else it holds is the choice of the repository's authors.
-- The organization's principles are in no repository. They come from the devkit plugins and are never copied in.
+- The organization's principles are in no repository. They come from the `principles` plugin, which the agent reads through `principles:index`, and are never copied in.
 - `README.md` is not a steering document. It says how to use the repository and links to `INTENT.md` instead of repeating it.
 - A rule file is named after its principle in kebab-case. It holds that name as its heading, the statement in one or two sentences, then one sentence starting `Why:`. It carries a `paths:` field whenever the principle concerns part of the tree, such as one package.
 - `INTENT.md` has the sections Product, For whom, Done means, Failure means, Non-goals and Horizon, stays within 50 lines, and changes only when the purpose changes.

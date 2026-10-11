@@ -1,0 +1,18 @@
+{
+  "name": "principles",
+  "version": "0.2.0",
+  "description": "The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "homepage": "https://github.com/lyngon/devkit",
+  "repository": "https://github.com/lyngon/devkit",
+  "license": "Apache-2.0",
+  "keywords": [
+    "principles",
+    "judgment",
+    "engineering",
+    "steering"
+  ]
+}
