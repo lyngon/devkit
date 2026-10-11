@@ -3,6 +3,10 @@
 All notable changes to the `devkit` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.3.0 - 2026-10-11
+
+- `add-skill` no longer reviews a skill for agent lock-in or asks for agent-neutral wording in a new one: the devkit supports Claude Code and no other agent harness, which `INTENT.md` states as a non-goal.
+
 ## 0.2.0 - 2026-09-29
 
 - `add-skill` commits its result as one commit on the feature branch and never pushes, instead of offering a commit message.

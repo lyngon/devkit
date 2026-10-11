@@ -22,7 +22,6 @@ Read every file in the skill directory, not only `SKILL.md`: scripts, references
 - The body is proportionate: long material lives in `references/`, loaded on demand.
 - Dependencies are stated: runtimes (Python, Node), CLIs, other skills or plugins.
 - The skill says what it does not do, or its scope is obvious.
-- No agent lock-in beyond what the feature needs (Claude-only wording, tool names of one product) when the skill is otherwise generic.
 
 ## Fit with the devkit
 
