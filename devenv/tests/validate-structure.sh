@@ -19,11 +19,10 @@ new_repo() {
   echo "$repo"
 }
 
-# The four documents every app and library carries.
+# The one document every app and library carries.
 package_docs() {
   local dir=$1
-  touch "$dir/README.md" "$dir/INTENT.md" "$dir/CLAUDE.md"
-  ln -sfn CLAUDE.md "$dir/AGENTS.md"
+  touch "$dir/README.md"
 }
 
 # py_pkg <repo> <path> <name> [dep...]
@@ -139,13 +138,12 @@ rm "$repo/pyproject.toml"
 expect_error "rule 3: no workspace file" "$repo" "pyproject.toml: [tool.uv.workspace] members is missing"
 
 repo=$(clean_py_repo)
-rm "$repo/libs/orders/INTENT.md"
-expect_error "rule 4: missing INTENT.md" "$repo" "libs/orders: missing INTENT.md"
+rm "$repo/libs/orders/README.md"
+expect_error "rule 4: missing README.md" "$repo" "libs/orders: missing README.md"
 
 repo=$(clean_py_repo)
-rm "$repo/apps/orders-api/AGENTS.md"
-cp "$repo/apps/orders-api/CLAUDE.md" "$repo/apps/orders-api/AGENTS.md"
-expect_error "rule 4: AGENTS.md is a copy" "$repo" "apps/orders-api: AGENTS.md must be a symlink to CLAUDE.md"
+touch "$repo/libs/orders/INTENT.md"
+expect_ok "rule 4: a package may carry an INTENT.md" "$repo"
 
 repo=$(clean_py_repo)
 mkdir "$repo/libs/python"

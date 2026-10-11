@@ -11,7 +11,7 @@ Every plugin is usable in every repository that meets its declared prerequisites
 | `documents` | The Lyngon document set, existing or created lazily: `INTENT.md`, `.claude/CLAUDE.md`, `.claude/rules/`, `CONCEPTS.md`, `docs/decisions/`, `docs/TODO.md`, `docs/conventions/`. | The files may be created; they need not exist. |
 | `workflow` | The Lyngon workflow, adopted by the owner: the agent follows the Lyngon conventions, commits on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge. | The `conventions` plugin is enabled for the repository; its session hook says "This is a Lyngon repository". |
 | `baseline` | The repository imports `lyngon/devenv`, the Baseline: the named hooks, `lyngon.*` options and the MCP file. | `lyngon.enable = true` in `devenv.nix`. |
-| `structure` | The repository follows `shared/STRUCTURE.md`. | The root `CLAUDE.md` says "This repository follows the Lyngon structure", and `lyngon.structure.enable = true` in `devenv.nix`. |
+| `structure` | The repository follows `shared/STRUCTURE.md`. | `lyngon.structure.enable = true` in `devenv.nix`. |
 
 The four are independent, not a ladder.
 A repository can have the documents without the baseline, the baseline without the layout, and any of them with or without the workflow.
@@ -48,7 +48,7 @@ A conditional section is a heading with one of these exact texts, at any level, 
 - `With the Lyngon structure`
 
 An agent reads such a section as "only if the repository has this".
-The markers to look for: the session context says "This is a Lyngon repository" (workflow); `devenv.nix` exists (devenv); it sets `lyngon.enable = true` (baseline); the root `CLAUDE.md` says "This repository follows the Lyngon structure" (structure).
+The markers to look for: the session context says "This is a Lyngon repository" (workflow); `devenv.nix` exists (devenv); it sets `lyngon.enable = true` (baseline); it sets `lyngon.structure.enable = true` (structure).
 
 A skill's `paths` never make it conditional: `*.nix` files exist in repositories that never touch devenv.
 

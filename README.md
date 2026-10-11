@@ -70,7 +70,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | --- | --- | --- | --- |
 | `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions` | documents, workflow, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `core` | bundle of `discover`, `build`, `practice`, `review`, `writing` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review and writing. A bundle: it has no skills of its own. |
-| `repo` | `/repo:add-package`, `/repo:init` | documents, workflow, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, CLAUDE.md, README, CONCEPTS.md, ADRs, devenv, git hooks) and create packages in the kind-first layout. |
+| `repo` | `/repo:add-package`, `/repo:init` | documents, workflow, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, the agent file, README, CONCEPTS.md, decision records, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview` | documents | Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval. |
 | `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | git | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
@@ -93,10 +93,8 @@ my-service/
 ├── apps/
 │   └── orders-api/             Python entrypoint: main, wiring, config; delivered as an image
 │       ├── devenv.nix          tasks, hooks and processes for this package only
-│       ├── INTENT.md           why it exists and for whom
 │       ├── README.md           what it is, how to run it
-│       ├── CLAUDE.md           how to work here (AGENTS.md is a symlink to it)
-│       └── docs/adr/           decisions local to this package
+│       └── INTENT.md           only when its intent differs from the root's
 ├── libs/
 │   ├── orders/                 core library: domain and application; holds CONCEPTS.md
 │   └── orders-postgres/        one adapter per technology
@@ -106,10 +104,13 @@ my-service/
 │   ├── modules/orders-api/     how the deployable is instantiated
 │   └── environments/prod/      one root per environment, never a branch
 ├── docs/
-│   ├── adr/                    decisions about the whole repository
-│   ├── conventions/            repository-specific conventions too long for a CLAUDE.md line
+│   ├── decisions/              decisions the code cannot show, one file each, named after the decision
+│   ├── conventions/            repository-specific conventions too long for a rule file
 │   └── TODO.md                 work the owner explicitly deferred
-├── .claude/settings.json       registers the lyngon marketplace, enables all@lyngon and each member
+├── .claude/
+│   ├── CLAUDE.md               one line that imports INTENT.md into every agent session
+│   ├── rules/                  this repository's principles, one per file
+│   └── settings.json           registers the lyngon marketplace, enables all@lyngon and each member
 ├── .github/workflows/ci.yml    runs devenv test
 ├── .vscode/extensions.json     recommends the direnv extension
 ├── .envrc                      loads the devenv shell through direnv
@@ -119,7 +120,6 @@ my-service/
 ├── devenv.nix                  lyngon.enable and lyngon.structure.enable, languages, hooks and tasks
 ├── secretspec.toml             declared secrets; values never enter the repository
 ├── INTENT.md                   why and for whom
-├── CLAUDE.md                   how to work (AGENTS.md is a symlink to it)
 ├── CONCEPTS.md                 the terms
 └── README.md                   how to use
 ```
@@ -181,10 +181,10 @@ The steps are the same for an empty repository and for one that has grown organi
 
 1. Install the plugins as above, at least `repo`.
 2. Open Claude Code in the repository and run `/repo:init`.
-   It interviews you, then writes INTENT.md, CLAUDE.md, README.md, CONCEPTS.md, ADRs, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` or `core@lyngon` and each of its members by name, or the subset you chose, with `conventions@lyngon` in every case.
+   It interviews you, then writes INTENT.md, `.claude/CLAUDE.md`, README.md, CONCEPTS.md, decision records, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` or `core@lyngon` and each of its members by name, or the subset you chose, with `conventions@lyngon` in every case.
 3. `/repo:init` commits its work: one root commit on `main` in a fresh repository, a branch with a pull request in an adopted one.
 
-In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md and CLAUDE.md instead of replacing them, and asks before reversing an AGENTS.md symlink.
+In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md instead of replacing it, and sorts an older `CLAUDE.md`, `AGENTS.md` and `docs/adr/` into rule files and decision records before it deletes them.
 
 Colleagues who clone the repository get the marketplace registered as soon as they trust the folder.
 Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command.

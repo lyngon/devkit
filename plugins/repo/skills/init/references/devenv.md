@@ -82,7 +82,9 @@ Add the `secretspec` section when the repository needs secrets (see below).
 }
 ```
 
-The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, commitizen, actionlint, yamllint (relaxed), and validate-structure (the dependency rules, member lists and package file set from `STRUCTURE.md`).
+The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), prose-lint, ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, commitizen, actionlint, yamllint (relaxed), validate-documents (where the steering documents live and what shape they have), and validate-structure (the dependency rules, member lists and package file set from `STRUCTURE.md`).
+
+Write `lyngon.structure.enable = true;` on a line of its own, exactly so: that line is the marker the `repo` plugin's session hook and `add-package` look for.
 
 Do not enable `claude.code.enable`.
 It would take over `.claude/settings.json` with a fixed key set and drop the marketplace registration.
@@ -111,7 +113,7 @@ A package adds only the custom `{name}-` hooks of its stack below, scoped to the
 
 The `add-package` skill writes this file from its `package-files.md` reference; its `workspaces.md` reference has the root workspace file per language.
 
-Wire package tests into the root `enterTest` by task name, or list the commands in `CLAUDE.md` when they are slow.
+Wire package tests into the root `enterTest` by task name, or list the commands in the package's `README.md` when they are slow.
 
 ## Stacks
 
@@ -133,7 +135,7 @@ Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 | OpenTofu | `opentofu.enable = true;` | `terraform-format` (runs `tofu fmt`) | `{name}-tflint` (custom, below) | | `.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `*.tfvars` (may hold secrets; `.terraform.lock.hcl` is committed) |
 | Haskell | `haskell.enable = true;` (`stack.enable` and `cabal.enable` default to true; disable the one not used) | `ormolu`, `cabal-fmt` | `hlint` | | `dist-newstyle/`, `.stack-work/`, `*.hi`, `*.o` |
 
-A stack outside this table gets `languages.<name>.enable = true` when devenv has it, no hooks beyond the baseline, and a note in `CLAUDE.md` that hooks for it are not configured.
+A stack outside this table gets `languages.<name>.enable = true` when devenv has it, no hooks beyond the baseline, and a note in `README.md` that hooks for it are not configured.
 
 ### Python: ruff.toml
 
@@ -461,7 +463,6 @@ revision = "1.0"
 
 Providers: `keyring` for developers, `env` for CI, `dotenv` only when the user asks; `onepassword` and `lastpass` exist too.
 Never write a secret value anywhere in the repository.
-Mention in `CLAUDE.md` that secrets come from `secretspec` and are never inlined.
 
 ## Services
 
@@ -491,3 +492,4 @@ devenv test
 
 runs `prek run --all-files` for every hook and then `enterTest`.
 When a hook fails on generated or vendored files, exclude the path with `excludes` on that hook rather than disabling the hook.
+A list set on `markdownlint.excludes` replaces the baseline's, so repeat its entry `"^\\.claude/CLAUDE\\.md$"` there: the agent file is one import line and has no heading.

@@ -1,6 +1,6 @@
 ---
 name: add-package
-description: Create a package in a Lyngon repository in the directory its kind decides (apps/, libs/, contracts/, tools/, infra/), with INTENT.md, README.md, CLAUDE.md, devenv.nix and the layer lint, and register it in its workspace and devenv. Use whenever a new app, service, CLI, library, adapter, contract, schema, tool, infra module or environment is needed, including when one feature needs several packages. Never create a package by hand.
+description: Create a package in a Lyngon repository in the directory its kind decides (apps/, libs/, contracts/, tools/, infra/), with README.md, devenv.nix and the layer lint, and register it in its workspace and devenv. Use whenever a new app, service, CLI, library, adapter, contract, schema, tool, infra module or environment is needed, including when one feature needs several packages. Never create a package by hand.
 argument-hint: "[kind] [name]"
 ---
 
@@ -21,13 +21,13 @@ Agents invoke it on their own: a feature that needs a core library, an adapter a
 ## When not to use
 
 - Adding a module inside an existing package. That is a file, not a package.
-- A repository whose root `CLAUDE.md` does not say "This repository follows the Lyngon structure". Stop and say that the structure has not been adopted; `repo:init` adopts it. Never create the layout on your own in such a repository.
+- A repository whose root `devenv.nix` does not set `lyngon.structure.enable = true`. Stop and say that the structure has not been adopted; `repo:init` adopts it. Never create the layout on your own in such a repository.
 
 ## Workflow
 
 ### 1. Read the repository
 
-Read the root `CLAUDE.md`, `CONCEPTS.md` and, if it exists, the `CONCEPTS.md` of the context the package belongs to.
+Read the root `INTENT.md`, `CONCEPTS.md` and, if it exists, the `CONCEPTS.md` of the context the package belongs to.
 List the existing packages under `apps/`, `libs/`, `contracts/`, `tools/` and `infra/`, and the workspace files at the root (`pyproject.toml`, `pnpm-workspace.yaml`, `Cargo.toml`, `go.work`).
 Read `STRUCTURE.md` sections 3 and 4 if you have not this session.
 
@@ -75,7 +75,6 @@ A library manifest declares constraints (`foo>=3.14`), never pins.
 
 - Add the path to the language's workspace member list at the root, explicitly, never as a glob. Create the workspace file if it is the first package of that language, following [references/workspaces.md](references/workspaces.md).
 - Add `./<path>` to `imports` in the root `devenv.yaml`.
-- Add one line for the package under `## Layout` in the root `CLAUDE.md`.
 - For a new context, add it to the root `CONCEPTS.md` map, or convert the root file into a map when this is the second context (see the `discover:domain-model` skill).
 - For a Python or TypeScript package, run the workspace sync (`uv sync`, `pnpm install`) so the lockfile records it.
 
@@ -84,10 +83,9 @@ A library manifest declares constraints (`foo>=3.14`), never pins.
 Templates are in [references/package-files.md](references/package-files.md).
 
 - `devenv.nix`: the package's tasks, its `{name}-` hooks scoped with `files`, and processes. No `languages.*` and no stock hooks; both are enabled at the root.
-- `README.md`: what it is and how to run it.
-- `INTENT.md`: why it exists and for whom. For an app, the product section states the deployable kind and the runtime units it backs.
-- `CLAUDE.md` with only what differs from the root, and `AGENTS.md` as a symlink to it.
-- `docs/adr/`: not created until the first decision.
+- `README.md`: what it is and how to run it. For an app, it states the deployable kind and the runtime units it backs.
+- `INTENT.md`: only on a yes. Ask once whether the package's intent differs from the root's: its own audience, its own done or failure, or non-goals that the root `INTENT.md` does not state. When `repo:init` invoked this skill, its interview question on contexts and package names has answered that.
+- No `CLAUDE.md` and no `AGENTS.md`; `validate-documents` rejects both.
 
 By kind:
 
