@@ -49,13 +49,13 @@ It changes when the purpose changes, not when the plan changes.
 
 ## .claude/CLAUDE.md
 
-One line, and nothing else:
+Init writes one line:
 
 ```md
 @../INTENT.md
 ```
 
-It imports the intent into every session.
+It imports the intent into every session, so the line stays whatever the authors add below it later.
 Write no `CLAUDE.md` at the root and no `AGENTS.md`.
 
 ## .claude/rules/

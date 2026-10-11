@@ -76,7 +76,7 @@ If an existing `README.md` states the problem, audience or non-goals, move that 
 
 An existing `CLAUDE.md`, `AGENTS.md` or `docs/adr/` is sorted and then deleted, never kept.
 Sort each line and each record by the admission test in `discover:domain-model`: drop what a check carries, what the tree shows and what holds for every Lyngon repository; a principle that passes becomes a rule file under `.claude/rules/`, and a decision that passes becomes a record under `docs/decisions/`, named after the decision.
-Show the owner the sorting before deleting anything.
+Show the owner the sorting before deleting anything; what the owner wants kept as it is goes into `.claude/CLAUDE.md`, below the import.
 
 ### 5. Write
 

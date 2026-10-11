@@ -104,7 +104,7 @@ in
       shellcheck.enable = lib.mkDefault true;
       markdownlint = {
         enable = lib.mkDefault true;
-        # The agent file is one import line, so it has no heading to open with.
+        # The agent file opens with the import of INTENT.md, not with a heading.
         excludes = lib.mkDefault [ "^\\.claude/CLAUDE\\.md$" ];
         settings.configuration = lib.mkDefault {
           default = true;

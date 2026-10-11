@@ -49,9 +49,10 @@ record() {
 clean_repo() {
   local repo
   repo=$(new_repo)
+  # The agent file holds the import and what the authors added below it.
   write "$repo" INTENT.md "# Intent" "" "## Product" "" "## For whom" "" "## Done means" "" "## Failure means" "" \
     "## Non-goals" "" "## Priorities" "" "- Correct totals over fast checkout." "" "## Horizon"
-  write "$repo" .claude/CLAUDE.md "@../INTENT.md"
+  write "$repo" .claude/CLAUDE.md "@../INTENT.md" "" "Run the tide simulator before changing the table."
   write "$repo" .claude/rules/money-is-never-a-float.md "# Money is never a float" "" "Amounts are integers of the minor unit." "" "Why: rounding."
   write "$repo" CONCEPTS.md "# Orders"
   write "$repo" README.md "# Orders"
@@ -107,7 +108,7 @@ expect_ok "every steering document in its allowed shape" "$(clean_repo)"
 repo=$(clean_repo)
 write "$repo" AGENTS.md "# Agents"
 expect_error "no-agents-md: a file at the root, whose lines have somewhere to go" "$repo" 1 \
-  "error: AGENTS.md: no-agents-md: move each line that passes the admission test to .claude/rules/<principle>.md, with paths: when it concerns part of the tree, and delete the file; Claude Code reads .claude/CLAUDE.md"
+  "error: AGENTS.md: no-agents-md: move what must stay to .claude/CLAUDE.md, below the line @../INTENT.md, or to .claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file; Claude Code reads .claude/CLAUDE.md"
 
 repo=$(clean_repo)
 write "$repo" .claude/rules/orders-api-owns-no-logic.md "# Orders API owns no logic"
@@ -119,7 +120,7 @@ expect_error "no-agents-md: a symlink in a package" "$repo" 1 \
 repo=$(clean_repo)
 write "$repo" CLAUDE.md "# Orders"
 expect_error "no-claude-md-outside-dot-claude: a file at the root" "$repo" 1 \
-  "error: CLAUDE.md: no-claude-md-outside-dot-claude: move each line that passes the admission test to .claude/rules/<principle>.md, with paths: when it concerns part of the tree, and delete the file"
+  "error: CLAUDE.md: no-claude-md-outside-dot-claude: move what must stay to .claude/CLAUDE.md, below the line @../INTENT.md, or to .claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file"
 
 repo=$(clean_repo)
 write "$repo" libs/orders/CLAUDE.md "# orders"

@@ -108,7 +108,7 @@ my-service/
 │   ├── conventions/            repository-specific conventions too long for a rule file
 │   └── TODO.md                 work the owner explicitly deferred
 ├── .claude/
-│   ├── CLAUDE.md               one line that imports INTENT.md into every agent session
+│   ├── CLAUDE.md               imports INTENT.md into every agent session
 │   ├── rules/                  this repository's principles, one per file
 │   └── settings.json           registers the lyngon marketplace, enables all@lyngon and each member
 ├── .github/workflows/ci.yml    runs devenv test

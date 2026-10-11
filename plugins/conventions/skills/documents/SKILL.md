@@ -21,7 +21,7 @@ One test decides whether any text enters one:
 | Path | Holds | Loaded |
 | --- | --- | --- |
 | `INTENT.md` at the root | Product, audiences, done, failure, non-goals, priorities, horizon | Every session, through the agent file |
-| `.claude/CLAUDE.md` | One line, `@../INTENT.md` | Every session |
+| `.claude/CLAUDE.md` | The line `@../INTENT.md`, and what the repository's authors add for the project | Every session |
 | `.claude/rules/<name>.md` | One repository principle, or one rule that has no check yet | At launch without `paths:`, otherwise when a matching file is read or edited |
 | `CONCEPTS.md` | Terms | On demand |
 | `docs/decisions/<name>.md` | One decision record | On demand |
@@ -29,7 +29,7 @@ One test decides whether any text enters one:
 ## Rules
 
 - No `AGENTS.md` exists anywhere, and no `CLAUDE.md` exists outside `.claude/` at the repository root.
-- Nothing but the import line goes into `.claude/CLAUDE.md`. A principle is a rule file, and whatever a tool can decide is a check.
+- `.claude/CLAUDE.md` always holds the line `@../INTENT.md`. What else it holds is the choice of the repository's authors.
 - The organization's principles are in no repository. They come from the devkit plugins and are never copied in.
 - `README.md` is not a steering document. It says how to use the repository and links to `INTENT.md` instead of repeating it.
 - A rule file is named after its principle in kebab-case. It holds that name as its heading, the statement in one or two sentences, then one sentence starting `Why:`. It carries a `paths:` field whenever the principle concerns part of the tree, such as one package.

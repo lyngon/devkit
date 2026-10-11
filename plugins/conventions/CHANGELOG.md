@@ -3,6 +3,10 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.12.1 - 2026-10-11
+
+- `documents` no longer limits `.claude/CLAUDE.md` to one line. The import of `INTENT.md` must be present, and what else the file holds is the choice of the repository's authors.
+
 ## 0.12.0 - 2026-10-11
 
 - `documents` is rewritten around steering documents: `INTENT.md`, `.claude/CLAUDE.md` holding only the line `@../INTENT.md`, one principle per file under `.claude/rules/`, `CONCEPTS.md` and decision records. No `AGENTS.md` exists anywhere and no `CLAUDE.md` outside `.claude/`. One admission test decides whether text enters a steering document. `INTENT.md` may gain a `## Priorities` section, and a package gets an `INTENT.md` only when its intent differs from the root's.

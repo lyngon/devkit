@@ -51,7 +51,7 @@ It replaces the three-part test for decision records (hard to reverse, surprisin
 | Path | Holds | Loaded |
 | --- | --- | --- |
 | `INTENT.md` | Product, audiences, done, failure, non-goals, priorities, horizon | Every session, through the agent file |
-| `.claude/CLAUDE.md` | One line, `@../INTENT.md` | Every session |
+| `.claude/CLAUDE.md` | The line `@../INTENT.md`, and what the repository's authors add | Every session |
 | `.claude/rules/<name>.md` | One repository principle, or one rule that has no check yet | At launch without `paths:`, otherwise when a matching file is read or edited |
 | `CONCEPTS.md` | Terms | On demand |
 | `docs/decisions/<name>.md` | One decision record | On demand, and through `why` |
@@ -300,7 +300,7 @@ On commit, `validate-documents` and `validate-structure` fail on anything the ru
 
 Each of these is a choice made while writing the design, not one settled in the interview.
 
-- `.claude/CLAUDE.md` holds only the import of `INTENT.md`. The full-check command and the pointers come from the session hook and `conventions:engineering`, as they do today.
+- `.claude/CLAUDE.md` must hold the import of `INTENT.md`. On the first pull request the owner ruled that authors may add to it, so it is not limited to that line. The full-check command and the pointers come from the session hook and `conventions:engineering`, as they do today.
 - The piece lands as two pull requests, and this file stays on the default branch between them.
 - The wording of the three non-goals in `INTENT.md`.
 - The name `use-purpose-built-tools` for the principle on tools.

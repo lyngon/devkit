@@ -3,6 +3,10 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.13.1 - 2026-10-11
+
+- `init` says that the import line of `.claude/CLAUDE.md` stays whatever the authors add below it, and in adopt mode puts what the owner wants kept from an old agent file there.
+
 ## 0.13.0 - 2026-10-11
 
 - Breaking: `init` writes `.claude/CLAUDE.md` holding the one line `@../INTENT.md`, and no root `CLAUDE.md` and no `AGENTS.md`. A repository principle from the interview becomes a file under `.claude/rules/`, and a decision becomes a record under `docs/decisions/`, named after the decision and admitted by the admission test. In adopt mode an existing `CLAUDE.md`, `AGENTS.md` and `docs/adr/` are sorted by that test and deleted.

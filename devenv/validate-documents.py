@@ -36,8 +36,8 @@ RULE_MAX_LINES: t.Final = 100
 SKIPPED_DIRECTORIES: t.Final = frozenset({"vendor", "generated"})
 AGENT_FILE: t.Final = pathlib.PurePosixPath(".claude/CLAUDE.md")
 MOVE_LINES: t.Final = (
-    "move each line that passes the admission test to .claude/rules/<principle>.md, with paths: "
-    "when it concerns part of the tree, and delete the file"
+    f"move what must stay to {AGENT_FILE}, below the line @../INTENT.md, or to "
+    ".claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file"
 )
 
 
@@ -180,7 +180,7 @@ def check(root: pathlib.Path, paths: list[pathlib.PurePosixPath]) -> list[str]:
         if path.name == "CLAUDE.md" and path != AGENT_FILE:
             found.append(error(
                 path, "no-claude-md-outside-dot-claude",
-                f"{MOVE_LINES}; {AGENT_FILE} holds only the line @../INTENT.md",
+                MOVE_LINES,
             ))
         directory = adr_directory(path)
         if directory is not None and directory not in adr_directories:
