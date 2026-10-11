@@ -3,6 +3,11 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.13.0 - 2026-10-11
+
+- The `SessionStart` hook tells the agent to invoke `principles:index` before work that takes judgment and then to read the file of each principle that applies.
+- `documents` names the `principles` plugin as the source of the organization's principles, and `discover:why` as the way a decision record is read beside reading it on demand.
+
 ## 0.12.1 - 2026-10-11
 
 - `documents` no longer limits `.claude/CLAUDE.md` to one line. The import of `INTENT.md` must be present, and what else the file holds is the choice of the repository's authors.
