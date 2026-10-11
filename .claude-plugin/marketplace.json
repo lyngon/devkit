@@ -48,7 +48,7 @@
     {
       "name": "discover",
       "source": "./plugins/discover",
-      "description": "Discovery before building: toss ideas around without writing anything, or sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval.",
+      "description": "Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues.",
       "category": "engineering",
       "keywords": [
         "discovery",
@@ -56,7 +56,9 @@
         "grilling",
         "domain-model",
         "decision-records",
-        "concepts"
+        "concepts",
+        "why",
+        "history"
       ],
       "license": "Apache-2.0"
     },
