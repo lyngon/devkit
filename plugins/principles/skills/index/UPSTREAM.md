@@ -9,7 +9,7 @@ The 8 principles of the group steering are written by Lyngon and have no upstrea
 - **Upstream version**: 0.15.15 (`pstack/.cursor-plugin/plugin.json`)
 - **Upstream commit**: 9f451cf875ad1239912762f67741e8e5ba6ac0f1
 - **Upstream license**: MIT (see [LICENSE](LICENSE))
-- **Reviewed**: not yet by a person. The agent session that vendored the files read all 24 in full at the commit on 2026-10-11, and the owner's read is owed before this lands.
+- **Reviewed**: 2026-10-11 by Anders Åström
 
 ## Why it is here
 
