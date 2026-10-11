@@ -34,6 +34,20 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-prerequisites.py" "$@"'';
   };
+  testValidateMarketplace = pkgs.writeShellApplication {
+    name = "test-validate-marketplace";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.findutils
+      pkgs.gawk
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.jq
+    ];
+    text = ''exec "${config.devenv.root}/scripts/tests/validate-marketplace.sh" "$@"'';
+  };
   # Fixture tests for the baseline module's validate-structure hook.
   testValidateStructure = pkgs.writeShellApplication {
     name = "test-validate-structure";
@@ -131,6 +145,7 @@ in
     validate-marketplace
     render-plugin-list
     validate-prerequisites
+    ${lib.getExe testValidateMarketplace}
     ${lib.getExe testValidateStructure}
     ${lib.getExe testValidatePrerequisites}
     ${lib.getExe testRepoHooks}

@@ -40,7 +40,11 @@ check_skill() {
   [[ "$(head -n 1 "$skill")" == "---" ]] || fail "$skill: frontmatter must start on line 1"
   grep -qE '^description:[[:space:]]*[^[:space:]]' "$skill" || fail "$skill: frontmatter needs a non-empty description"
   name=$(sed -n '2,/^---$/p' "$skill" | sed -nE 's/^name:[[:space:]]*//p' | head -n 1)
-  [[ -z "$name" || "$name" == "$dir" ]] || fail "$skill: frontmatter name '$name' differs from directory name '$dir'"
+  if [[ -z "$name" ]]; then
+    fail "$skill: frontmatter needs a name equal to the directory name '$dir'"
+  elif [[ "$name" != "$dir" ]]; then
+    fail "$skill: frontmatter name '$name' differs from directory name '$dir'"
+  fi
 
   # Vendored skill: UPSTREAM.md and LICENSE travel together.
   local has_upstream=0 has_license=0
@@ -144,7 +148,12 @@ done < <(jq -c '.plugins[]' "$manifest")
 
 # The `all` bundle lists every local plugin except the bundles and the ones in
 # category `devkit`, which maintain this repository and are useless elsewhere.
-if [[ -f plugins/all/.claude-plugin/plugin.json ]]; then
+# It must exist: Claude Code installs one plugin per command and cannot install
+# a whole marketplace, so without the bundle adoption costs one command per
+# plugin and every repository's list of enabled plugins drifts.
+if [[ ! -f plugins/all/.claude-plugin/plugin.json ]]; then
+  fail "plugins/all is missing: Claude Code installs one plugin per command, so a repository installs every plugin through this bundle; create it with every local plugin outside the categories devkit and bundle as its dependencies"
+else
   expected=$(jq -r '.plugins[] | select(.source | type == "string") | select(.category != "devkit") | select(.category != "bundle") | .name' "$manifest" | sort)
   actual=$(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' plugins/all/.claude-plugin/plugin.json | sort)
   [[ "$expected" == "$actual" ]] || fail "plugins/all: dependencies must be exactly: $(tr '\n' ' ' <<<"$expected")"
