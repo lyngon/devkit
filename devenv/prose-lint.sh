@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 # Flag the typographic marks that identify prose as machine-written: em and
-# en dashes and curly quotes. Runs on Markdown files at pre-commit and, with
-# --commit-msg, on the commit message at commit-msg. This is the deterministic
-# half of the job; the judgment half is the writing plugin's unslop skill.
+# en dashes and curly quotes. Runs on Markdown files at pre-commit, and
+# check-pull-request runs it on the title and the body of a pull request and
+# passes on each line of the form <file>:<line>: <message>. This is the
+# deterministic half of the job; the judgment half is the writing plugin's
+# unslop skill.
 set -euo pipefail
-
-mode=files
-if [[ "${1:-}" == "--commit-msg" ]]; then
-  mode=commit-msg
-  shift
-fi
 
 # The marks are spelled as UTF-8 bytes and matched under LC_ALL=C, so the
 # result does not depend on the locale and the script itself stays ASCII.
@@ -26,12 +22,7 @@ marks=(
 
 status=0
 for file in "$@"; do
-  if [[ "$mode" == commit-msg ]]; then
-    # Blank comment lines and stop at the scissors line (git commit -v), keeping line numbers.
-    content=$(awk '/^# -+ >8 -+$/ { exit } /^#/ { print ""; next } { print }' "$file")
-  else
-    content=$(cat "$file")
-  fi
+  content=$(cat "$file")
   for mark in "${marks[@]}"; do
     char=${mark%%|*}
     message=${mark#*|}

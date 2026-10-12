@@ -3,6 +3,11 @@
 All notable changes to the `conventions` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.15.0 - 2026-10-12
+
+- `engineering` says that branch commits are free-form, because a pull request lands as one commit: its title is the subject, in Conventional Commits form, and its body is the message, with seven headings in a fixed order. It said that every commit is in Conventional Commits form.
+- Its `With the Lyngon baseline` section names `check-pull-request`, which checks the title and the body in the devenv shell and in CI. It named the `commitizen` and `prose-lint-commit-msg` hooks, which the baseline no longer has.
+
 ## 0.14.0 - 2026-10-11
 
 - `engineering` says to fix an unrelated problem in a change of its own, with its own branch and pull request, when the fix can be proven, and otherwise to file an issue with the evidence. It said to fix a small one in a separate commit, which contradicted the principle `fix-debt-in-its-own-change`.

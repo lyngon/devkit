@@ -4,6 +4,10 @@ All notable changes to the `writing` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.2.1 - 2026-10-12
+
+- The README says where `prose-lint` runs: as a git hook on Markdown files and, through `check-pull-request`, on the title and the body of a pull request. It said that the hook also checks commit messages.
+
 ## 0.2.0 - 2026-10-11
 
 - `unslop` names decision records among the kinds of prose it edits, where its description and its paragraph on reference documents said ADRs.

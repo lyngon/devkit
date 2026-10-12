@@ -32,14 +32,14 @@
 let
   cfg = config.lyngon;
 
-  # Em and en dashes and curly quotes in Markdown and commit messages. The
+  # Em and en dashes and curly quotes, in Markdown as a hook and in the title
+  # and the body of a pull request through check-pull-request. The
   # deterministic half of prose quality; the judgment half is the writing
   # plugin's unslop skill.
   proseLint = pkgs.writeShellApplication {
     name = "prose-lint";
     runtimeInputs = [
       pkgs.coreutils
-      pkgs.gawk
       pkgs.gnugrep
     ];
     text = builtins.readFile ./prose-lint.sh;
@@ -69,11 +69,13 @@ let
     text = ''exec python3 ${./validate-documents.py} "$@"'';
   };
 
-  # The title and the body of a pull request, which land as one commit: a
-  # Conventional Commits title, the seven headings of the body, its length and
-  # the marks prose-lint flags. The two length values are written into the
-  # command, so a local shell and CI check against the same numbers, and it
-  # takes no arguments, so neither can be raised from outside.
+  # Checks the title and the body of a pull request: a Conventional Commits
+  # title, the seven headings of the body, its length and the marks prose-lint
+  # flags. A pull request lands as one commit with the two as its message, so
+  # the baseline has no hook on the message of a commit on a branch. The two
+  # length values are written into the command, so a local shell and CI check
+  # against the same numbers, and it takes no arguments, so neither can be
+  # raised from outside.
   checkPullRequest = pkgs.writeShellApplication {
     name = "check-pull-request";
     runtimeInputs = [
@@ -168,18 +170,11 @@ in
       };
       trim-trailing-whitespace.enable = lib.mkDefault true;
       check-merge-conflicts.enable = lib.mkDefault true;
-      commitizen.enable = lib.mkDefault true;
       prose-lint = {
         enable = lib.mkDefault true;
         name = lib.mkDefault "prose lint";
         entry = lib.mkDefault (lib.getExe proseLint);
         files = lib.mkDefault "\\.md$";
-      };
-      prose-lint-commit-msg = {
-        enable = lib.mkDefault true;
-        name = lib.mkDefault "prose lint (commit message)";
-        entry = lib.mkDefault "${lib.getExe proseLint} --commit-msg";
-        stages = lib.mkDefault [ "commit-msg" ];
       };
       validate-documents = {
         enable = lib.mkDefault true;
