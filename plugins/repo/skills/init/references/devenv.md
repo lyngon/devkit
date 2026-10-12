@@ -82,7 +82,9 @@ Add the `secretspec` section when the repository needs secrets (see below).
 }
 ```
 
-The baseline is: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), prose-lint, ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, commitizen, actionlint, yamllint (relaxed), validate-documents (where the steering documents live and what shape they have), and validate-structure (the dependency rules, member lists and package file set from `STRUCTURE.md`).
+The baseline's hooks are: nixfmt, shellcheck, markdownlint (one sentence per line, no length limit), prose-lint, ripsecrets, typos, end-of-file-fixer, trim-trailing-whitespace, check-merge-conflicts, actionlint, yamllint (relaxed), validate-documents (where the steering documents live and what shape they have), and validate-structure (the dependency rules, member lists and package file set from `STRUCTURE.md`).
+No hook checks a commit message: a pull request lands as one commit with its title and its body as the message, and the baseline's command `check-pull-request` checks those two, in the devenv shell and in the pull request workflow.
+The options `lyngon.pullRequest.body.targetLines` and `lyngon.pullRequest.body.headroomLines` set how long a body may be, 40 and 20 content lines by default.
 
 Write `lyngon.structure.enable = true;` on a line of its own, exactly so: that line is the marker the `repo` plugin's session hook and `add-package` look for.
 

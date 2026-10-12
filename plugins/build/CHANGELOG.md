@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 The upstream commit of the vendored skills is in their provenance record, `catalog/vendored/superpowers.md` in the devkit.
 
+## 0.27.0 - 2026-10-12
+
+- `finish` gives the pull request a title in Conventional Commits form and writes its description under seven headings, `## Why`, `## Decisions`, `## What changed`, `## Scope`, `## Blast radius`, `## Verified` and `## Not verified`, because the pull request lands as one commit with the two as its message. "Decisions for you", the executor's rulings and the link to the plan go under Decisions; the deferred minors, the unfixed review findings and the owner gates under Scope.
+- With the Lyngon baseline, `finish` runs `check-pull-request` on the title and the description before it opens the pull request.
+
 ## 0.26.2 - 2026-10-12
 
 - The provenance of the four skills is one record for their upstream, `catalog/vendored/superpowers.md` in the devkit, where each skill directory held an `UPSTREAM.md` and a `LICENSE`. The upstream license is `LICENSE-superpowers` in the plugin's root, and the README names both.
