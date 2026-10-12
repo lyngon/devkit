@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
-# one, one without the `all` bundle, skills whose frontmatter breaks a rule,
-# vendored records and license links that break one, and a principles index
-# that disagrees with its files. Run through `devenv test`.
+# one, one without the `all` bundle, a local plugin with a version or a
+# changelog, skills whose frontmatter breaks a rule, vendored records and
+# license links that break one, and a principles index that disagrees with its
+# files. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-marketplace.sh
@@ -39,9 +40,8 @@ plugin() {
     printf -- '---\nname: main\ndescription: Test skill.\n---\n\n# Main\n' >"$dir/skills/main/SKILL.md"
     ln -s ../../../../shared/SHARED.md "$dir/skills/main/SHARED.md"
   fi
-  printf '{"name": "%s", "version": "0.1.0", "description": "Test plugin.", "license": "Apache-2.0", "dependencies": [%s]}\n' \
+  printf '{"name": "%s", "description": "Test plugin.", "license": "Apache-2.0", "dependencies": [%s]}\n' \
     "$name" "${deps%,}" >"$dir/.claude-plugin/plugin.json"
-  echo "# Changelog" >"$dir/CHANGELOG.md"
   manifest "$repo"
 }
 
@@ -185,6 +185,20 @@ expect_error "the all bundle is missing" "$repo" "plugins/all is missing: Claude
 repo=$(clean_marketplace)
 plugin "$repo" two
 expect_error "the all bundle misses a plugin" "$repo" "plugins/all: dependencies must be exactly: one two"
+
+no_version="the commit is the version, and a version field would hold every user on that version until someone changes it"
+
+repo=$(clean_marketplace)
+printf '{"name": "one", "version": "0.1.0", "description": "Test plugin.", "license": "Apache-2.0"}\n' >"$repo/plugins/one/.claude-plugin/plugin.json"
+expect_error "version in the manifest of a local plugin" "$repo" "plugins/one/.claude-plugin/plugin.json: a local plugin declares no version: $no_version"
+
+repo=$(clean_marketplace)
+sed -i 's|"source": "./plugins/one"|&, "version": "0.1.0"|' "$repo/.claude-plugin/marketplace.json"
+expect_error "version in the marketplace entry of a local plugin" "$repo" "one: the marketplace entry of a local plugin declares no version: $no_version"
+
+repo=$(clean_marketplace)
+echo "# Changelog" >"$repo/plugins/one/CHANGELOG.md"
+expect_error "changelog in a plugin directory" "$repo" "plugins/one/CHANGELOG.md: a plugin has no changelog: its history is the commits under its path, which 'git log --oneline -- plugins/one' lists"
 
 repo=$(clean_marketplace)
 printf -- '---\ndescription: Test skill.\n---\n\n# Main\n' >"$(skill "$repo")"
