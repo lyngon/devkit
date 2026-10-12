@@ -232,6 +232,9 @@ devenv.local.yaml
 ## CI
 
 GitHub Actions default; mirror the same steps for another host.
+There are two workflows, each a file of its own.
+
+`.github/workflows/ci.yml` runs the full check:
 
 ```yaml
 name: CI
@@ -257,6 +260,43 @@ jobs:
 ```
 
 Add delivery jobs (image build, package publish) only for artifacts whose delivery the user named, as separate jobs that depend on `test`.
+
+`.github/workflows/pull-request.yml` checks the title and the body of every pull request, which become the subject and the message of the commit it lands as.
+`check-pull-request` comes from the baseline and is on the PATH of the devenv shell:
+
+```yaml
+name: Pull request
+
+permissions:
+  contents: read
+
+# A file of its own and not a job in ci.yml: an `edited` run that skipped the
+# test job there would report that job as passed.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v16
+        with:
+          name: devenv
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      # Anyone can write the title and the body, so they reach the command
+      # through the environment and are never interpolated into the script.
+      - name: Check the title and the body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: devenv shell -- check-pull-request
+```
+
+Write it as it is, with its two comments: they say why the file is not folded into `ci.yml` and why the title and the body never appear in the `run:` line.
 
 ## Packages
 

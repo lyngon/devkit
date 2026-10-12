@@ -1,5 +1,6 @@
 # The Lyngon baseline for every repository: git hooks, the devenv MCP server
-# file, and the languages every Lyngon repository has (Nix, shell).
+# file, the check-pull-request command, and the languages every Lyngon
+# repository has (Nix, shell).
 #
 # Consumers add this repository as an input and import this directory:
 #
@@ -31,14 +32,14 @@
 let
   cfg = config.lyngon;
 
-  # Em and en dashes and curly quotes in Markdown and commit messages. The
+  # Em and en dashes and curly quotes, in Markdown as a hook and in the title
+  # and the body of a pull request through check-pull-request. The
   # deterministic half of prose quality; the judgment half is the writing
   # plugin's unslop skill.
   proseLint = pkgs.writeShellApplication {
     name = "prose-lint";
     runtimeInputs = [
       pkgs.coreutils
-      pkgs.gawk
       pkgs.gnugrep
     ];
     text = builtins.readFile ./prose-lint.sh;
@@ -67,6 +68,31 @@ let
     ];
     text = ''exec python3 ${./validate-documents.py} "$@"'';
   };
+
+  # Checks the title and the body of a pull request: a Conventional Commits
+  # title, the seven headings of the body, its length and the marks prose-lint
+  # flags. A pull request lands as one commit with the two as its message, so
+  # the baseline has no hook on the message of a commit on a branch. The two
+  # length values are written into the command, so a local shell and CI check
+  # against the same numbers, and it takes no arguments, so neither can be
+  # raised from outside.
+  checkPullRequest = pkgs.writeShellApplication {
+    name = "check-pull-request";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.commitizen
+      proseLint
+    ];
+    text = ''
+      if (($# > 0)); then
+        echo "check-pull-request: takes no arguments; it reads the title from PR_TITLE and the body from PR_BODY" >&2
+        exit 2
+      fi
+      exec python3 ${./check-pull-request.py} \
+        --target-lines ${toString cfg.pullRequest.body.targetLines} \
+        --headroom-lines ${toString cfg.pullRequest.body.headroomLines}
+    '';
+  };
 in
 {
   options.lyngon = {
@@ -83,6 +109,20 @@ in
       default = false;
       description = "The repository follows the Lyngon structure (shared/STRUCTURE.md); enables the validate-structure hook.";
     };
+
+    pullRequest.body = {
+      targetLines = lib.mkOption {
+        type = lib.types.ints.positive;
+        default = 40;
+        description = "Content lines of a pull request body above which check-pull-request warns. A content line is neither blank nor one of the seven headings.";
+      };
+
+      headroomLines = lib.mkOption {
+        type = lib.types.ints.unsigned;
+        default = 20;
+        description = "Content lines above the target that a pull request body may have before check-pull-request fails. The limit is the target plus the headroom; with 0 the target is the limit.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -98,6 +138,14 @@ in
         args = [ "mcp" ];
         env.DEVENV_ROOT = config.devenv.root;
       };
+    };
+
+    # On the PATH of the shell, so a person, an agent and CI run the same
+    # check. A script and not an entry in `packages`: a default list there is
+    # dropped as soon as a repository lists a package of its own.
+    scripts.check-pull-request = {
+      exec = lib.mkDefault ''exec ${lib.getExe checkPullRequest} "$@"'';
+      description = lib.mkDefault "Check PR_TITLE and PR_BODY as the commit a pull request lands as.";
     };
 
     git-hooks.hooks = {
@@ -122,18 +170,11 @@ in
       };
       trim-trailing-whitespace.enable = lib.mkDefault true;
       check-merge-conflicts.enable = lib.mkDefault true;
-      commitizen.enable = lib.mkDefault true;
       prose-lint = {
         enable = lib.mkDefault true;
         name = lib.mkDefault "prose lint";
         entry = lib.mkDefault (lib.getExe proseLint);
         files = lib.mkDefault "\\.md$";
-      };
-      prose-lint-commit-msg = {
-        enable = lib.mkDefault true;
-        name = lib.mkDefault "prose lint (commit message)";
-        entry = lib.mkDefault "${lib.getExe proseLint} --commit-msg";
-        stages = lib.mkDefault [ "commit-msg" ];
       };
       validate-documents = {
         enable = lib.mkDefault true;

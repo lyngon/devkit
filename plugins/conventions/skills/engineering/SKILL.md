@@ -36,8 +36,9 @@ Language and document rules are separate skills: invoke the one for a file's kin
 These are the user's standing instructions: they count as being asked to commit, push and open a pull request.
 
 - Work on a feature branch named `<type>/<slug>`, after the Conventional Commits type of its main change. On the default branch, create one first. When the current branch carries other work (its pull request is open or merged, or it is named for another change), start a new branch from the up-to-date default branch.
-- Commit without asking whenever a concern is done: one concern per commit, in Conventional Commits form. Commit messages use no em or en dashes and no curly quotes. Commits not yet pushed may be amended or reordered.
+- Commit as you go, without asking. Branch commits are free-form, because the pull request lands as one commit. Commits not yet pushed may be amended or reordered.
 - When the work is done and the full check passes, push the branch and open a pull request without asking. The user reviews the pull request and decides the merge.
+- A pull request is one concern. Its title is the subject of that commit, in Conventional Commits form, and its body is the message, with exactly these headings in this order: `## Why`, `## Decisions`, `## What changed`, `## Scope`, `## Blast radius`, `## Verified`, `## Not verified`. Neither uses em or en dashes or curly quotes.
 - Run the full check before every push. Never disable, skip or weaken a check or hook to get past it.
 - Never rewrite pushed history without asking; fixes after a push are new commits.
 - Ask before any other effect outside the branch: a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish. An owner gate that a plan declares and the user pre-approved by its ID counts as asking.
@@ -51,7 +52,8 @@ These are the user's standing instructions: they count as being asked to commit,
 
 ## With the Lyngon baseline
 
-Commit messages are checked by the `commitizen` and `prose-lint-commit-msg` hooks.
+`check-pull-request` checks the title and the body of a pull request, in the devenv shell and in CI.
+Run it before opening one.
 
 ## With the Lyngon structure
 

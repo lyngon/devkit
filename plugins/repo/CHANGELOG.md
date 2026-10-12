@@ -3,6 +3,14 @@
 All notable changes to the `repo` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.15.1 - 2026-10-12
+
+- `init`'s devenv notes list the baseline's hooks without `commitizen`, and say that `check-pull-request` checks the title and the body of a pull request where a hook checked every commit message. They name the two options for the length of a body.
+
+## 0.15.0 - 2026-10-12
+
+- `init` writes a second workflow, `.github/workflows/pull-request.yml`, beside `ci.yml`. It runs the baseline's `check-pull-request` on the title and the body of every pull request, which reach the step through the environment.
+
 ## 0.14.0 - 2026-10-11
 
 - `init` enables `principles@lyngon` in the settings it writes, as a member of `all` and of `core`, and its templates name the `principles` plugin as the source of the organization's principles.

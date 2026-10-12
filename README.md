@@ -13,12 +13,13 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 - `INTENT.md`, the rule files under `.claude/rules/`, `CONCEPTS.md` and decision records carry purpose, principles, terms and decisions, in that division and no other.
 - Agents apply named principles with judgment. The organization's principles come from the `principles` plugin and are never copied into a repository.
 - Work is reviewed on its pull request, which the agent opens without asking; planned work is also reviewed at the plan. Not commit by commit.
+- A pull request lands as one commit, with its title as the subject in Conventional Commits form and its body as the message under seven fixed headings; `check-pull-request` checks both, locally and in CI, and commits on the branch are free-form.
 - A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
 ## The pieces
 
 - A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
-- A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file and languages.
+- A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file, languages and `check-pull-request` command.
 - A set of shared documents behind both, in `shared/`.
 
 Other kinds of reusable pieces may join; the test is that they are used by more than one repository.
@@ -116,7 +117,9 @@ my-service/
 │   ├── CLAUDE.md               imports INTENT.md into every agent session
 │   ├── rules/                  this repository's principles, one per file
 │   └── settings.json           registers the lyngon marketplace, enables all@lyngon and each member
-├── .github/workflows/ci.yml    runs devenv test
+├── .github/workflows/
+│   ├── ci.yml                  runs devenv test
+│   └── pull-request.yml        runs check-pull-request on the title and the body of a pull request
 ├── .vscode/extensions.json     recommends the direnv extension
 ├── .envrc                      loads the devenv shell through direnv
 ├── pyproject.toml              the Python workspace: explicit members, one uv.lock
@@ -140,6 +143,7 @@ And the way of working in it, in the order things happen:
 - Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
 - `/writing:unslop` before any prose is handed over.
 - `devenv test` before every push; it runs every git hook on every file, and no hook is ever disabled to make it pass.
+- `check-pull-request` before a pull request is opened, and again in CI whenever its title, its body or its branch changes; a body over the limit is shortened, and the limit is never raised to let it pass.
 
 ## Installing the plugins
 
@@ -228,6 +232,15 @@ Run every check the way CI does:
 ```sh
 devenv test
 ```
+
+Check the title and the body of a pull request the way CI does, with the body in a file such as `tmp/pull-request-body.md`:
+
+```sh
+PR_TITLE="feat(devenv): add a thing" PR_BODY="$(cat tmp/pull-request-body.md)" check-pull-request
+```
+
+It prints nothing when both pass.
+The workflow `pull-request` runs the same command on every pull request.
 
 This repository registers itself as the marketplace `lyngon` from the working tree in `.claude/settings.json`, so a Claude Code session opened here installs the plugins from this checkout. Project marketplaces are applied once per Claude Code process start, so a new registration needs a fresh session, not `/reload-plugins`.
 

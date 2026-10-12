@@ -1,0 +1,29 @@
+name: Pull request
+
+permissions:
+  contents: read
+
+# A file of its own and not a job in ci.yml: an `edited` run that skipped the
+# test job there would report that job as passed.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v16
+        with:
+          name: devenv
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      # Anyone can write the title and the body, so they reach the command
+      # through the environment and are never interpolated into the script.
+      - name: Check the title and the body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: devenv shell -- check-pull-request
