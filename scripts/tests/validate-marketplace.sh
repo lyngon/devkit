@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
 # one, one without the `all` bundle, skills whose frontmatter breaks a rule,
-# and a principles index that disagrees with its files. Run through
-# `devenv test`.
+# vendored records and license links that break one, and a principles index
+# that disagrees with its files. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-marketplace.sh
@@ -60,6 +60,55 @@ clean_marketplace() {
 
 skill() {
   echo "$1/plugins/one/skills/main/SKILL.md"
+}
+
+# A clean marketplace that holds vendored text: the record of the upstream
+# `origin`, whose destinations are the plugin's skill and the shared document,
+# the upstream license in shared/ and its link in the plugin's root. The
+# record's second table is not the one of what was taken, and the template of
+# each kind of record sits beside its records.
+vendored_marketplace() {
+  local repo
+  repo=$(clean_marketplace)
+  mkdir -p "$repo/catalog/vendored"
+  echo "MIT License" >"$repo/shared/LICENSE-origin"
+  ln -s ../../shared/LICENSE-origin "$repo/plugins/one/LICENSE-origin"
+  cat >"$(record "$repo")" <<'EOF'
+# origin
+
+- **Upstream**: <https://example.com/origin>
+- **Upstream commit**: 0123456789abcdef0123456789abcdef01234567
+- **Upstream license**: MIT
+- **Reviewed**: 2026-01-01 by A Reviewer
+
+## What was taken
+
+| Upstream path | Destination |
+| --- | --- |
+| `skills/main` | `plugins/one/skills/main` |
+| `skills/main/SHARED.md` | `shared/SHARED.md` |
+
+## Local patches
+
+### `plugins/one/skills/main`
+
+| Upstream says | The skill says |
+| --- | --- |
+| partner | user |
+EOF
+  echo "# {plugin-name}" >"$repo/catalog/TEMPLATE.md"
+  echo "# {upstream}" >"$repo/catalog/vendored/TEMPLATE.md"
+  echo "$repo"
+}
+
+record() {
+  echo "$1/catalog/vendored/origin.md"
+}
+
+# add_row <repo> <upstream path> <last cell>: one more row in the record's
+# table of what was taken.
+add_row() {
+  sed -i "/^| \`skills\/main\` /a | \`$2\` | $3 |" "$(record "$1")"
 }
 
 # A clean marketplace that also holds the principles plugin: an index of two
@@ -152,6 +201,86 @@ expect_error "frontmatter below line 1" "$repo" "plugins/one/skills/main/SKILL.m
 repo=$(clean_marketplace)
 printf -- '---\nname: main\n---\n\n# Main\n' >"$(skill "$repo")"
 expect_error "skill without a description" "$repo" "plugins/one/skills/main/SKILL.md: frontmatter needs a non-empty description"
+
+expect_ok "vendored record with its destinations and license link" "$(vendored_marketplace)"
+
+repo=$(vendored_marketplace)
+sed -i '/^- \*\*Upstream\*\*: /d' "$(record "$repo")"
+expect_error "vendored record without an upstream" "$repo" "catalog/vendored/origin.md: needs an '- **Upstream**:' line"
+
+repo=$(vendored_marketplace)
+sed -i '/^- \*\*Upstream commit\*\*: /d' "$(record "$repo")"
+expect_error "vendored record without a commit" "$repo" "catalog/vendored/origin.md: needs a 40-character '- **Upstream commit**:' line"
+
+repo=$(vendored_marketplace)
+sed -i 's/^\(- \*\*Upstream commit\*\*: \).*/\10123456/' "$(record "$repo")"
+expect_error "vendored record with a commit of 7 characters" "$repo" "catalog/vendored/origin.md: needs a 40-character '- **Upstream commit**:' line"
+
+repo=$(vendored_marketplace)
+sed -i '/^- \*\*Upstream license\*\*: /d' "$(record "$repo")"
+expect_error "vendored record without a license" "$repo" "catalog/vendored/origin.md: needs an '- **Upstream license**:' line"
+
+repo=$(vendored_marketplace)
+sed -i '/^- \*\*Reviewed\*\*: /d' "$(record "$repo")"
+expect_error "vendored record without a reviewer" "$repo" "catalog/vendored/origin.md: needs a '- **Reviewed**:' line"
+
+repo=$(vendored_marketplace)
+sed -i '/^## What was taken$/,/^## Local patches$/{/^|/d}' "$(record "$repo")"
+expect_error "vendored record without a table of what was taken" "$repo" "catalog/vendored/origin.md: needs a table under '## What was taken' whose rows each end with a destination"
+
+repo=$(vendored_marketplace)
+add_row "$repo" skills/other "the main skill"
+expect_error "row that ends with something other than a path in backticks" "$repo" "catalog/vendored/origin.md: a row under '## What was taken' ends with 'the main skill', where a destination is a path in backticks"
+
+repo=$(vendored_marketplace)
+add_row "$repo" skills/other ""
+expect_error "row without a destination" "$repo" "catalog/vendored/origin.md: a row under '## What was taken' ends with '', where a destination is a path in backticks"
+
+repo=$(vendored_marketplace)
+sed -i "s/\`shared\/SHARED.md\` |\$/|/" "$(record "$repo")"
+expect_error "last row without a destination" "$repo" "catalog/vendored/origin.md: a row under '## What was taken' ends with '', where a destination is a path in backticks"
+
+repo=$(vendored_marketplace)
+add_row "$repo" skills/gone "\`plugins/one/skills/gone\`"
+expect_error "destination that does not exist" "$repo" "catalog/vendored/origin.md: destination 'plugins/one/skills/gone' does not exist"
+
+needs_link="holds text recorded in catalog/vendored/origin.md, so it needs LICENSE-origin, a link to shared/LICENSE-origin"
+
+repo=$(vendored_marketplace)
+rm "$repo/plugins/one/LICENSE-origin"
+expect_error "plugin that holds a destination without the license link" "$repo" "plugins/one: $needs_link"
+
+repo=$(vendored_marketplace)
+rm "$repo/plugins/one/LICENSE-origin"
+cp "$repo/shared/LICENSE-origin" "$repo/plugins/one/LICENSE-origin"
+expect_error "copy of the license in place of the link" "$repo" "plugins/one: $needs_link"
+
+repo=$(vendored_marketplace)
+ln -sf ../../shared/SHARED.md "$repo/plugins/one/LICENSE-origin"
+expect_error "license link that points at another shared file" "$repo" "plugins/one: $needs_link"
+
+repo=$(vendored_marketplace)
+plugin "$repo" two
+plugin "$repo" all one two
+expect_error "plugin that links a shared destination without the license link" "$repo" "plugins/two: $needs_link"
+
+repo=$(clean_marketplace)
+echo "# main" >"$repo/plugins/one/skills/main/UPSTREAM.md"
+expect_error "provenance record in a skill directory" "$repo" "plugins/one/skills/main/UPSTREAM.md: a skill directory holds no provenance record; the record of an upstream is catalog/vendored/<upstream>.md"
+
+no_license="a skill directory holds no license file; an upstream license is shared/LICENSE-<upstream>, linked into the plugin's root"
+
+repo=$(clean_marketplace)
+echo "MIT License" >"$repo/plugins/one/skills/main/LICENSE"
+expect_error "license file in a skill directory" "$repo" "plugins/one/skills/main/LICENSE: $no_license"
+
+repo=$(clean_marketplace)
+echo "MIT License" >"$repo/plugins/one/skills/main/LICENSE-origin"
+expect_error "license file named after its upstream in a skill directory" "$repo" "plugins/one/skills/main/LICENSE-origin: $no_license"
+
+repo=$(clean_marketplace)
+echo "# {skill-name}" >"$repo/catalog/UPSTREAM-TEMPLATE.md"
+expect_error "second template beside the pinned records" "$repo" "catalog/UPSTREAM-TEMPLATE.md has no matching marketplace entry"
 
 expect_ok "principles index and files agree" "$(principles_marketplace)"
 

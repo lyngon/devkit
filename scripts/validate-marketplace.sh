@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Validate the marketplace manifest, every plugin directory, every SKILL.md,
-# every vendored skill's provenance, every catalog record, the plugins enabled
-# by the settings template of /repo:init and the principles index.
+# every catalog record, pinned and vendored, the plugins enabled by the
+# settings template of /repo:init and the principles index.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
-# pinning per plugin and vendoring per skill, the bundles, documents shared
-# through symlinks into shared/, and one line and one file per principle.
+# pinning per plugin and vendoring per upstream, the bundles, documents and
+# upstream licenses shared through symlinks into shared/, and one line and one
+# file per principle.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -48,19 +49,14 @@ check_skill() {
     fail "$skill: frontmatter name '$name' differs from directory name '$dir'"
   fi
 
-  # Vendored skill: UPSTREAM.md and LICENSE travel together.
-  local has_upstream=0 has_license=0
-  [[ -f "$skilldir/UPSTREAM.md" ]] && has_upstream=1
-  ls "$skilldir"/LICENSE* >/dev/null 2>&1 && has_license=1
-  if [[ "$has_upstream" == 1 ]]; then
-    [[ "$has_license" == 1 ]] || fail "$skilldir: vendored skill has UPSTREAM.md but no upstream LICENSE file"
-    grep -qE '^- \*\*Upstream\*\*: ' "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs an '- **Upstream**:' line"
-    grep -qE "^- \*\*Upstream commit\*\*: [0-9a-f]{40}$" "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs a 40-character '- **Upstream commit**:' line"
-    grep -qE '^- \*\*Upstream license\*\*: ' "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs an '- **Upstream license**:' line"
-    grep -qE '^- \*\*Reviewed\*\*: ' "$skilldir/UPSTREAM.md" || fail "$skilldir/UPSTREAM.md: needs a '- **Reviewed**:' line"
-  elif [[ "$has_license" == 1 ]]; then
-    fail "$skilldir: has a LICENSE file but no UPSTREAM.md; in-house skills carry no license file, vendored skills need both"
-  fi
+  # A skill directory holds neither provenance nor a license, vendored or not:
+  # both are recorded once per upstream, outside the skill.
+  local license
+  [[ ! -e "$skilldir/UPSTREAM.md" ]] || fail "$skilldir/UPSTREAM.md: a skill directory holds no provenance record; the record of an upstream is catalog/vendored/<upstream>.md"
+  for license in "$skilldir"/LICENSE*; do
+    [[ -e "$license" || -L "$license" ]] || continue
+    fail "$license: a skill directory holds no license file; an upstream license is shared/LICENSE-<upstream>, linked into the plugin's root"
+  done
 }
 
 check_local_plugin() {
@@ -109,7 +105,7 @@ check_local_plugin() {
     fi
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
   if [[ -f "catalog/$entry_name.md" ]]; then
-    fail "$entry_name: local plugins do not get catalog records; vendored skills use UPSTREAM.md"
+    fail "$entry_name: local plugins do not get catalog records; vendored skills are recorded per upstream in catalog/vendored/<upstream>.md"
   fi
 }
 
@@ -223,11 +219,70 @@ for dir in plugins/*/; do
   [[ -n "${listed[$name]:-}" ]] || fail "plugins directory '$dir' is not listed in $manifest"
 done
 
-# Every catalog record must belong to a listed pinned plugin.
+# Every catalog record directly under catalog/ must belong to a listed pinned
+# plugin.
 for record in catalog/*.md; do
   name=$(basename "$record" .md)
-  [[ "$name" == "README" || "$name" == *TEMPLATE ]] && continue
+  [[ "$name" == "README" || "$name" == "TEMPLATE" ]] && continue
   [[ -n "${listed[$name]:-}" ]] || fail "$record has no matching marketplace entry"
+done
+
+# A vendored record, catalog/vendored/<upstream>.md, covers what was taken
+# from one upstream at one commit. Its table under "What was taken" ends each
+# row with a destination, a path in backticks. The upstream license is
+# shared/LICENSE-<upstream>, and every plugin that holds a destination, or
+# links one that lies in shared/, links the license under that name in its
+# root, so that an installed plugin carries the license of the text it holds.
+destination_cell="^\`([^\`]+)\`\$"
+for record in catalog/vendored/*.md; do
+  [[ -f "$record" ]] || continue
+  upstream=$(basename "$record" .md)
+  [[ "$upstream" == "TEMPLATE" ]] && continue
+  grep -qE '^- \*\*Upstream\*\*: ' "$record" || fail "$record: needs an '- **Upstream**:' line"
+  grep -qE '^- \*\*Upstream commit\*\*: [0-9a-f]{40}$' "$record" || fail "$record: needs a 40-character '- **Upstream commit**:' line"
+  grep -qE '^- \*\*Upstream license\*\*: ' "$record" || fail "$record: needs an '- **Upstream license**:' line"
+  grep -qE '^- \*\*Reviewed\*\*: ' "$record" || fail "$record: needs a '- **Reviewed**:' line"
+  declare -A holders=()
+  rows=0
+  # Reads the last cell of every row below the table's header and separator.
+  while IFS= read -r cell; do
+    rows=$((rows + 1))
+    if [[ ! "$cell" =~ $destination_cell ]]; then
+      fail "$record: a row under '## What was taken' ends with '$cell', where a destination is a path in backticks"
+      continue
+    fi
+    destination=${BASH_REMATCH[1]}
+    [[ -e "$destination" ]] || {
+      fail "$record: destination '$destination' does not exist"
+      continue
+    }
+    case "$destination" in
+      plugins/*)
+        plugin=${destination#plugins/}
+        holders[${plugin%%/*}]=1
+        ;;
+      shared/*)
+        while IFS= read -r link; do
+          plugin=${link#plugins/}
+          holders[${plugin%%/*}]=1
+        done < <(find plugins -type l -lname "*/$destination")
+        ;;
+    esac
+  done < <(awk '/^## What was taken$/ { section = 1; next }
+    section && /^## / { exit }
+    section && /^\|/ && ++row > 2 {
+      cell = $0
+      sub(/[[:space:]]*\|[[:space:]]*$/, "", cell)
+      sub(/^.*\|[[:space:]]*/, "", cell)
+      print cell
+    }' "$record")
+  ((rows > 0)) || fail "$record: needs a table under '## What was taken' whose rows each end with a destination"
+  while IFS= read -r plugin; do
+    [[ -n "$plugin" ]] || continue
+    link="plugins/$plugin/LICENSE-$upstream"
+    [[ -L "$link" && "$(readlink -f "$link")" == "$PWD/shared/LICENSE-$upstream" ]] ||
+      fail "plugins/$plugin: holds text recorded in $record, so it needs LICENSE-$upstream, a link to shared/LICENSE-$upstream"
+  done < <(printf '%s\n' "${!holders[@]}" | sort)
 done
 
 # Symlinks under plugins/ must resolve and point into shared/ (dereferenced at install time).
