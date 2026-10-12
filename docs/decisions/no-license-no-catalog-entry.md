@@ -6,6 +6,6 @@ The cost is that useful skills stay out until their authors answer; the alternat
 
 ## Consequences
 
-- `validate-marketplace` fails a vendored skill that has no license file, but only judgment keeps an agent from writing a license file that the upstream never published.
+- `validate-marketplace` fails a plugin that holds vendored text without a link to the license of its upstream, but only judgment keeps an agent from writing a license file that the upstream never published.
 
 Enforced by: validate-marketplace and judgment

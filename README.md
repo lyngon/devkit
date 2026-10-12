@@ -40,10 +40,13 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │   └── <concern>/          one plugin per concern, in-house and vendored skills side by side
 │       ├── .claude-plugin/plugin.json
 │       ├── CHANGELOG.md
-│       └── skills/<name>/  a skill; vendored ones carry UPSTREAM.md and the upstream LICENSE
+│       ├── LICENSE-<upstream>  link to the license of an upstream whose text the plugin holds
+│       └── skills/<name>/  a skill, in-house or vendored
 ├── catalog/
-│   └── <plugin>.md         provenance record for every pinned third-party plugin
-├── shared/                 shared documents, symlinked into the plugins that use them
+│   ├── <plugin>.md         provenance record for every pinned third-party plugin
+│   └── vendored/
+│       └── <upstream>.md   provenance record for everything vendored from one upstream
+├── shared/                 shared documents and upstream licenses, symlinked into the plugins that use them
 ├── devenv/                 the shared devenv module every Lyngon repository imports
 ├── scripts/                validation and generation run by git hooks and CI
 ├── .claude/
@@ -243,12 +246,13 @@ Run `/devkit:add-skill <name, URL or description>` from a Claude Code session in
 By hand, the same policy: read every skill, command, agent and hook you are about to take, then pick one of two kinds:
 
 - **Pin the plugin** when the upstream plugin is used whole and unmodified: add a marketplace entry with a 40-character `sha` and a `version`, and a record in `catalog/<name>.md`.
-- **Vendor the skill** when only some skills are wanted or they must be rewritten to Lyngon vocabulary: copy the skill into the plugin for its concern, with the upstream `LICENSE` and an `UPSTREAM.md` beside `SKILL.md`.
+- **Vendor the skill** when only some skills are wanted or they must be rewritten to Lyngon vocabulary: copy the skill into the plugin for its concern, record it in `catalog/vendored/<upstream>.md`, the one record for everything taken from that upstream, and link the upstream license from `shared/LICENSE-<upstream>` into the plugin's root.
 
 See [catalog/README.md](catalog/README.md) for both.
 
 ## License
 
 Apache-2.0 for everything Lyngon wrote.
-Vendored skills keep their upstream license, next to their files.
-The format documents in `shared/` adapted from mattpocock/skills keep its MIT license in `shared/LICENSE-mattpocock`.
+Vendored text keeps the license of its upstream, which sits in `shared/LICENSE-<upstream>` and is linked into the root of every plugin that holds text from that upstream.
+That includes the format documents in `shared/` adapted from mattpocock/skills, under MIT in `shared/LICENSE-mattpocock`.
+The records under `catalog/vendored/` say which text came from which upstream.

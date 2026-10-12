@@ -34,7 +34,7 @@ The devenv module under `devenv/` that every Lyngon repository imports: git hook
 A skill authored by Lyngon.
 
 **Vendored skill**:
-A skill copied from a third party into one of our plugins, rewritten to Lyngon vocabulary, with the upstream license and a provenance record beside it.
+A skill copied from a third party into one of our plugins and rewritten to Lyngon vocabulary. The upstream license is in its plugin, and its provenance record is in the catalog.
 
 **Pinned plugin**:
 A third-party plugin listed in the marketplace at a fixed upstream commit. Nothing is copied.
@@ -44,7 +44,7 @@ The third-party part of the marketplace: every vendored skill and every pinned p
 _Avoid_: using "catalog" for the whole marketplace
 
 **Provenance record**:
-The file that documents where a catalog item came from, at which commit, under which license, who reviewed it, and which local patches it carries. `UPSTREAM.md` for a vendored skill, `catalog/<plugin>.md` for a pinned plugin.
+The file that documents what the catalog took from one upstream, at which commit, under which license, who reviewed it, where each piece went and which local patches it carries. `catalog/vendored/<upstream>.md` for vendored skills, `catalog/<plugin>.md` for a pinned plugin.
 _Avoid_: catalog record, vetting note
 
 **Vetted**:
@@ -151,7 +151,8 @@ _Avoid_: assumption, tier, requirement
 - The **Devkit** holds the **Marketplace**, the **Baseline** and the shared documents.
 - The **Marketplace** lists many **Plugins**; each **Plugin** that is not a **Bundle** serves one **Concern**.
 - A **Plugin** that is not a **Bundle** holds one or more **Skills**, each either **In-house** or **Vendored**.
-- Every **Vendored skill** and every **Pinned plugin** has exactly one **Provenance record**.
+- A **Provenance record** covers one upstream at one commit: every **Vendored skill** taken from it, or one **Pinned plugin**.
+- Every **Pinned plugin** has exactly one **Provenance record**, and every **Vendored skill** is in the record of each upstream whose text it holds.
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
 - The **Structure** is one of the shared documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
