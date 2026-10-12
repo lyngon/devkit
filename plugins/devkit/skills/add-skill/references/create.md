@@ -33,11 +33,11 @@ claude plugin eval plugins/<concern> --case <case> --runs 1 --ablation none --no
 ```
 
 Report the result faithfully; a failing eval is a finding, not a reason to delete the case.
-Evals are not wired into CI yet (token cost); note that in the changelog entry if it is the plugin's first eval.
+Evals are not wired into CI yet (token cost); note that in the commit message if it is the plugin's first eval.
 
 ## Bookkeeping
 
-- Bump the plugin's minor version, add a changelog entry, update its README, including its `Prerequisites:` line when the skill raised it.
+- Update the plugin's README, including its `Prerequisites:` line when the skill raised it.
 - New concern plugin: same files as in `install.md`, including the `Prerequisites:` line and the bundle memberships.
 - If the skill calls skills from another plugin, add that plugin to `dependencies`.
 - Run `devenv test`.
