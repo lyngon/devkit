@@ -222,16 +222,27 @@ check "uncommitted changes: the head line says so" contains "$out" "head: $(sha 
 check "uncommitted changes: the working tree is as it was" equals "$(git -C "$repo" status --porcelain)" " M canned-result.json
 ?? draft.md"
 
+# A run error is the harness's word for a run it refused or cut short. Three
+# runs of one case ended in two of them here, for the same reason.
 refusal="the Bash sandbox cannot reliably exclude it"
 repo=$(two_commits)
-result 0 "$(case_of plugins/one/evals/needs-bash 0 1 "$refusal")" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
-commit "$repo" "chore: a case the harness refuses"
+needs_bash=$(case_of plugins/one/evals/needs-bash 0.3333333333333333 3 "$refusal" | jq '.arms.with[0].error = null')
+result 0 "$needs_bash" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: a case with run errors"
 compare "$repo" base
-check "a refused run: exits 0" equals "$code" 0
-check "a refused run: is an error, not a score" contains "$out" "plugins/one/evals/needs-bash       -              error"
-check "a refused run: its reason follows the table" contains "$out" "
+check "run errors: exits 0" equals "$code" 0
+check "run errors: are counted beside the score" contains "$out" "plugins/one/evals/needs-bash       -              0.33 (3 runs, 2 errors)"
+check "run errors: a case without one is unmarked" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
+check "run errors: the reason follows the table, once" equals "$(grep -c -F -- "$refusal" <<<"$out")" 1
+check "run errors: the reason names its case and commit" contains "$out" "
 plugins/one/evals/needs-bash at head: $refusal
 "
+
+repo=$(two_commits)
+result 0 "$(case_of plugins/one/evals/red-then-green 0 1 "run hit the turn cap")" >"$repo/canned-result.json"
+commit "$repo" "chore: a case with one run error"
+compare "$repo" base
+check "one run error: is counted in the singular" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.00 (1 run, 1 error)"
 
 repo=$(two_commits)
 echo 1 >"$repo/canned-exit"

@@ -35,7 +35,8 @@ class Options:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Case:
-    """What one eval case did at one commit. An error is the harness's reason for a run it refused."""
+    """What one eval case did at one commit. A run the harness refused or cut short adds
+    its reason to the errors, and still counts in the score."""
 
     score: float
     runs: int
@@ -134,7 +135,7 @@ def parse_result(data: object, side: str) -> Result:
             parsed[str(entry["dir"])] = Case(
                 score=float(entry["aggregates"]["score"]),
                 runs=len(runs),
-                errors=tuple(dict.fromkeys(str(run["error"]) for run in runs if run["error"] is not None)),
+                errors=tuple(str(run["error"]) for run in runs if run["error"] is not None),
             )
         return Result(cases=parsed, cost_usd=float(data["costUsd"]))
     except (KeyError, TypeError, ValueError) as error:
@@ -142,18 +143,19 @@ def parse_result(data: object, side: str) -> Result:
 
 
 def cell(case: Case | None) -> str:
-    """One cell of the table: a dash for a case the commit does not have, the word
-    error for a case with a run the harness refused, otherwise the score and its runs."""
+    """One cell of the table: a dash for a case the commit does not have, otherwise the
+    score with the number of runs behind it and how many of them ended in an error."""
     if case is None:
         return "-"
+    counts = f"{case.runs} {'run' if case.runs == 1 else 'runs'}"
     if case.errors:
-        return "error"
-    return f"{case.score:.2f} ({case.runs} {'run' if case.runs == 1 else 'runs'})"
+        counts += f", {len(case.errors)} {'error' if len(case.errors) == 1 else 'errors'}"
+    return f"{case.score:.2f} ({counts})"
 
 
 def report(base: Result, head: Result) -> list[str]:
-    """The table of every case of either run, the reason of each refused run, and
-    what the two runs cost."""
+    """The table of every case of either run, each distinct reason of a run error,
+    and what the two runs cost."""
     names = sorted(base.cases.keys() | head.cases.keys())
     rows = [("case", "base", "head"), *((name, cell(base.cases.get(name)), cell(head.cases.get(name))) for name in names)]
     widths = [max(len(row[column]) for row in rows) for column in range(3)]
@@ -163,7 +165,7 @@ def report(base: Result, head: Result) -> list[str]:
         for name in names
         for side, result in (("base", base), ("head", head))
         if (case := result.cases.get(name)) is not None
-        for error in case.errors
+        for error in dict.fromkeys(case.errors)
     ]
     if errors:
         lines += ["", *errors]
