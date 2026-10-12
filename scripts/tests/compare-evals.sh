@@ -307,6 +307,13 @@ compare "$repo"
 check "no base: is a usage error" equals "$code" 2
 check "no base: runs nothing" equals "$calls" ""
 
+# The list of tools takes every word after it, the base included.
+repo=$(two_commits)
+compare "$repo" --allow-tools Write main~1
+check "a base after the list of tools: is a usage error" equals "$code" 2
+check "a base after the list of tools: the usage line puts the base first" contains "$err" "usage: compare-evals base ["
+check "a base after the list of tools: runs nothing" equals "$calls" ""
+
 path=$without_claude
 repo=$(two_commits)
 compare "$repo" main~1

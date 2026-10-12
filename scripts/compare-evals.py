@@ -56,16 +56,18 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     that none of them can publish a report or move the result this program reads."""
     parser = argparse.ArgumentParser(
         prog="compare-evals",
+        # The base comes first: the list of tools takes every word that follows it.
+        usage="%(prog)s base [-h] [--case GLOB] [--runs N] [--model MODEL] [--allow-tools TOOL [TOOL ...]]",
         description="Run the eval suite at a base commit and in the working tree, "
         "and print each case's score at both. Every run is a model call on your account.",
     )
     parser.add_argument("base", help="the commit to compare the working tree with, such as origin/main")
     parser.add_argument("--case", metavar="GLOB", help="run only the cases whose name matches")
-    parser.add_argument(
-        "--allow-tools", nargs="+", default=[], metavar="TOOL", help="grant gated tools that cases list, such as Write"
-    )
     parser.add_argument("--runs", type=int, metavar="N", help="runs per case, in place of each case's own number")
     parser.add_argument("--model", help="the model for every case, in place of each case's own")
+    parser.add_argument(
+        "--allow-tools", nargs="+", default=[], metavar="TOOL", help="grant gated tools, such as Write, to every case"
+    )
     parsed = parser.parse_args(arguments)
     eval_options: list[str] = []
     if parsed.case is not None:
