@@ -4,6 +4,11 @@ All notable changes to the `build` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 Vendored skills record their upstream commit in their own `UPSTREAM.md`.
 
+## 0.27.0 - 2026-10-12
+
+- `finish` gives the pull request a title in Conventional Commits form and writes its description under seven headings, `## Why`, `## Decisions`, `## What changed`, `## Scope`, `## Blast radius`, `## Verified` and `## Not verified`, because the pull request lands as one commit with the two as its message. "Decisions for you", the executor's rulings and the link to the plan go under Decisions; the deferred minors, the unfixed review findings and the owner gates under Scope.
+- With the Lyngon baseline, `finish` runs `check-pull-request` on the title and the description before it opens the pull request.
+
 ## 0.26.1 - 2026-10-11
 
 - The README links the devkit's three decision records on review gates, owner gates and plans by their names, under `docs/decisions/`.

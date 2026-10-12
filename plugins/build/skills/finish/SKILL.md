@@ -145,14 +145,19 @@ When a pull request for this branch already exists, the push has updated it: upd
 Without a forge CLI, or with one that is not signed in, hand over the creation link the forge printed on push.
 Follow the repository's pull request template and conventions if present.
 
-The description carries, in this order:
+The pull request lands as one commit: its title is that commit's subject, in Conventional Commits form, and its description is the message.
+The description has exactly these second-level headings, in this order, and a section with nothing to say holds the word "None":
 
-1. What changed and why, in a short paragraph.
-2. "Decisions for you": anything the user must decide, or "none".
-3. When an executor produced the branch, its "Rulings I made" and "Deferred minors" lists, and a link to the plan file at the parent of the plan-removal commit, since the plan does not show in the pull request's diff.
-4. When the branch has record commits, an "Owner gates" list, one entry per gate: its ID, the owner's answer verbatim with its time or the pre-approval, and the hash of the record commit that ends its task.
-5. Review findings nobody fixed.
-6. Verification: the full check command and its result, and any other evidence by name.
+1. `## Why`: the problem and the approach, in a short paragraph.
+2. `## Decisions`: first "Decisions for you", anything the user must decide. When an executor produced the branch, then its "Rulings I made" list, and a link to the plan file at the parent of the plan-removal commit, since the plan does not show in the pull request's diff.
+3. `## What changed`: what changed, in one to three bullets.
+4. `## Scope`: what the branch covers and what it leaves out, which is where the executor's "Deferred minors" list and the review findings nobody fixed go. When the branch has record commits, also an "Owner gates" list, one entry per gate: its ID, the owner's answer verbatim with its time or the pre-approval, and the hash of the record commit that ends its task.
+5. `## Blast radius`: who or what the change touches, and why that is safe or risky.
+6. `## Verified`: the full check command and its result, and any other evidence by name.
+7. `## Not verified`: what the change claims or touches that no run covered.
+
+A list inside a section carries its name on a line of its own, never as a second-level heading.
+A list too long for the description goes into a comment on the pull request, and its section points there.
 
 Report the URL to the user.
 
@@ -190,6 +195,11 @@ Check that the pull request shows as merged, then delete it with `-D`.
 ### With the Lyngon workflow
 
 The user's standing instructions in `conventions:engineering` cover pushing the feature branch and opening its pull request: do both without asking.
+
+### With the Lyngon baseline
+
+Before opening the pull request, and after every later change to its title or its description, run `check-pull-request` with the title in `PR_TITLE` and the description in `PR_BODY`, and fix what it reports.
+CI runs the same check on the pull request.
 
 ## Step 6: Other outcomes, on request
 
