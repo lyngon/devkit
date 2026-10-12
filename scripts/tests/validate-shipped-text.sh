@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Exercise validate-shipped-text.py against throwaway marketplaces: skill
 # references that name no skill, in every kind of shipped text, the text of the
-# same shape that is no skill reference, and a writing plugin that names
-# another plugin's skill or a term of a development repository. Run through
-# `devenv test`.
+# same shape that is no skill reference, a writing plugin that names another
+# plugin's skill or a term of a development repository, and a term of the
+# structure outside the one conditional section. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-shipped-text.py
@@ -275,6 +275,81 @@ repo=$(new_repo)
 plugin "$repo" writing
 echo "Terms are in CONCEPTS.md." >>"$repo/plugins/writing/README.md"
 expect_ok "the README of writing is not shipped text" "$repo"
+
+# --- The structure is a choice per repository ---------------------------------
+
+outside="outside a section 'With the Lyngon structure'; the structure is a choice per repository, so only repo and devkit write about it anywhere else"
+
+repo=$(new_repo)
+plugin "$repo" one
+echo "Put it under apps/." >>"$(skill "$repo" one)"
+expect_error "structure term outside the section" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'apps/' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" one
+printf '\n## With the Lyngon structure\n\nPut it under apps/, and run validate-structure.\n' >>"$(skill "$repo" one)"
+expect_ok "structure terms inside the section" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" one
+printf '\n## With the Lyngon structure\n\nFine here.\n\n## Elsewhere\n\nPut it under apps/.\n' >>"$(skill "$repo" one)"
+expect_error "structure term after the section ends" "$repo" "plugins/one/skills/main/SKILL.md:14: names 'apps/' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" one
+printf '\n### With the Lyngon structure\n\nThe layout is in STRUCTURE.md.\n\n## Next\n\nRun add-package.\n' >>"$(skill "$repo" one)"
+expect_error "heading of a higher level closes the section" "$repo" "plugins/one/skills/main/SKILL.md:14: names 'add-package' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" one
+printf '\n## With the Lyngon structure\n\nFine here.\n\n### Python\n\nA core library lives under libs/.\n' >>"$(skill "$repo" one)"
+expect_ok "heading of a lower level stays inside the section" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" one
+cat >>"$(skill "$repo" one)" <<'EOF'
+
+```md
+## With the Lyngon structure
+```
+
+Put it under apps/.
+EOF
+expect_error "heading inside a fenced block opens no section" "$repo" "plugins/one/skills/main/SKILL.md:12: names 'apps/' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" one
+printf '\n## With the Lyngon baseline\n\nPut it under apps/.\n' >>"$(skill "$repo" one)"
+expect_error "no other heading makes a section conditional" "$repo" "plugins/one/skills/main/SKILL.md:10: names 'apps/' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" one
+printf -- '---\nname: main\ndescription: Create a package under apps/ or libs/.\n---\n\n# Main\n' >"$(skill "$repo" one)"
+expect_ok "the frontmatter of a skill is not text about the structure" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" one
+echo "The layout is in STRUCTURE.md." >"$repo/shared/STRUCTURE.md"
+ln -s ../../../../shared/STRUCTURE.md "$repo/plugins/one/skills/main/STRUCTURE.md"
+expect_error "structure term in a shared document that the plugin links" "$repo" "plugins/one/skills/main/STRUCTURE.md:1: names 'STRUCTURE.md' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" one
+mkdir "$repo/plugins/one/hooks"
+echo "Create every package under libs/ with the skill." >"$repo/plugins/one/hooks/session-start.txt"
+expect_error "structure term in a hook text" "$repo" "plugins/one/hooks/session-start.txt:1: names 'libs/' $outside" 1
+
+repo=$(new_repo)
+plugin "$repo" repo
+plugin "$repo" devkit
+echo "Put it under apps/." >>"$(skill "$repo" repo)"
+echo "The layout is in STRUCTURE.md." >>"$(skill "$repo" devkit)"
+expect_ok "repo and devkit write about the structure anywhere" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" one
+echo "Tools come from devenv.nix, terms are in CONCEPTS.md and the ruff hook runs." >>"$(skill "$repo" one)"
+expect_ok "a plugin for development names the documents, devenv and the baseline anywhere" "$repo"
 
 if ((failures > 0)); then
   echo "test-validate-shipped-text: $failures failure(s)" >&2

@@ -13,9 +13,9 @@ One session that takes a repository from "empty" or "grown organically" to the L
 The interview is the core.
 The files are its output, written only after the owner confirms a shared understanding.
 
-The scope question in the interview decides which prerequisites the repository adopts: the documents alone, the documents and the baseline, or the documents, the baseline and the layout defined in [STRUCTURE.md](STRUCTURE.md).
-The file set below is written scope by scope; nothing from a scope the owner did not adopt is written.
-Every scope adopts the Lyngon workflow: the settings enable `conventions`, whose standing instructions commit, push and open pull requests without asking.
+Every repository this skill sets up has the Lyngon documents, the baseline and the workflow.
+The one choice is the structure: the interview asks whether the repository adopts the layout defined in [STRUCTURE.md](STRUCTURE.md), and the structure files below are written only when it does.
+The workflow comes with the settings, which enable `all` and each of its members: the standing instructions of `conventions` commit, push and open pull requests without asking.
 
 ## When to use
 
@@ -85,29 +85,29 @@ In adopt mode, when the repository is on its default branch, create the branch f
 Use the templates and rules in [references/repo-files.md](references/repo-files.md) and [references/devenv.md](references/devenv.md).
 The full set:
 
-Documents scope:
+The documents:
 
 - `INTENT.md` from the round 1 answers: product, for whom, done, failure, non-goals, horizon.
 - `.claude/CLAUDE.md` holding the one line that imports `INTENT.md`.
 - `.claude/rules/<name>.md` for each repository principle from step 3, one per file. Most repositories start with none.
 - `README.md`, `CONCEPTS.md`, `docs/decisions/<name>.md` for each decision record from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention too long for a rule file.
 - `.gitignore` with the baseline patterns, `/tmp/`, `/sandbox/`, and the stack patterns.
-- `.claude/settings.json` hiding the agent's commit attribution, registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, or `core@lyngon` and its members, or the subset the user chose with its dependencies, the last two together with `conventions@lyngon`. The README installs the bundle, or the chosen plugins, with `conventions`.
+- `.claude/settings.json` hiding the agent's commit attribution, registering the `lyngon` marketplace and enabling `all@lyngon` and each of its members by name. The README installs the bundle.
 - `.github/workflows/ci.yml` and `.github/workflows/pull-request.yml` (or the equivalents for the chosen host).
 
-Baseline scope:
+The baseline:
 
 - `devenv.yaml`, `devenv.nix`, `.envrc`, `.vscode/extensions.json`.
 - `ruff.toml` and `[tool.basedpyright]` in the root `pyproject.toml` when Python is in the stack.
 - `tsconfig.base.json`, `eslint.config.js`, and their dev dependencies in the root `package.json`, when TypeScript is in the stack.
+- `secretspec.toml` and the `secretspec` section in `devenv.yaml` when the repository needs secrets.
+- Services (`services.*` in devenv) only when the user confirmed each one by name.
 
-Structure scope:
+The structure, only when the repository adopts it:
 
 - `lyngon.structure.enable = true;` on a line of its own in the root `devenv.nix`; the session hook and `add-package` look for that line.
 - The root workspace file for every language in use, with explicit members (see `add-package`'s `workspaces.md` reference), and `languages.*` in the root `devenv.nix`.
 - Every package named in the interview, created through the `add-package` skill of this plugin, which puts it in the directory its kind decides, writes its files and registers it in its workspace and the root `devenv.yaml`.
-- `secretspec.toml` and the `secretspec` section in `devenv.yaml` when the repository needs secrets.
-- Services (`services.*` in devenv) only when the user confirmed each one by name.
 
 ### 6. Verify
 
@@ -139,9 +139,9 @@ In adopt mode the work is on the branch step 5 created, or on the feature branch
 Commit by concern, in an order in which each commit passes the hooks, and put two concerns in one commit when neither passes alone:
 
 1. `docs: adopt the Lyngon documents`: `INTENT.md`, `.claude/CLAUDE.md`, the rule files, `README.md`, `CONCEPTS.md`, the decision records, `docs/`, `.gitignore` and `.claude/settings.json`, together with the removal of an old `CLAUDE.md`, `AGENTS.md` and `docs/adr/`.
-2. `build: import the Lyngon baseline`: the devenv files and the linter configurations.
+2. `build: import the Lyngon baseline`: the devenv files, the linter configurations and `secretspec.toml`.
 3. `ci: run the full check and the pull request check in CI`: both workflows.
-4. `build: adopt the Lyngon structure`: the root workspace files and `secretspec.toml`; then one `feat(<name>): add <kind> <name>` per package.
+4. `build: adopt the Lyngon structure`, only when the repository adopts it: the root workspace files; then one `feat(<name>): add <kind> <name>` per package.
 
 Then finish the branch with `/build:finish` when the build plugin is installed; otherwise push it and open a pull request.
 

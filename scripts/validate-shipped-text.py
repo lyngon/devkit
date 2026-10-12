@@ -7,7 +7,7 @@ a link into shared/ read as the document it points at, and every document
 under shared/. A plugin's README.md, its eval cases and its licenses are not
 shipped text: a README is read in this repository, by a person.
 
-Two checks:
+Three checks:
 
 - A skill reference names a skill that exists. A plugin assumes every other
   plugin of the bundle, so its text names their skills freely, and nothing else
@@ -15,6 +15,11 @@ Two checks:
 - `writing` stands alone. It is the one plugin that is installed outside a
   Lyngon development repository, so its text names no skill of another plugin
   and no term of such a repository.
+- The structure is a choice per repository. Every other plugin assumes a Lyngon
+  development repository, which has the documents, devenv and the baseline but
+  not always the structure, so a term of the structure stands in a section
+  headed `With the Lyngon structure`. An agent reads such a section as "only
+  where the repository adopted the structure".
 
 Runs from anywhere inside the repository. Exits 1 when a check fails.
 """
@@ -65,6 +70,15 @@ NAMESPACES = {
 # The plugin that assumes nothing: no other plugin, and no Lyngon development
 # repository around it.
 STANDALONE = "writing"
+
+# The one conditional heading, at any level. Its section runs to the next
+# heading of the same or a higher level.
+STRUCTURE_HEADING = "With the Lyngon structure"
+
+# The plugins that write about the structure outside such a section: `repo`
+# sets the structure up and creates the packages in it, and `devkit` maintains
+# the document that defines it.
+STRUCTURE_ASSUMED = ("repo", "devkit")
 
 # What only a Lyngon development repository has, by where it comes from: the
 # documents, devenv, the baseline and the structure. A term is matched as it
@@ -272,12 +286,61 @@ def check_standalone(root: pathlib.Path, marketplace: Marketplace) -> list[Findi
     return findings
 
 
+def unconditional_lines(path: pathlib.Path) -> ct.Iterator[tuple[int, str]]:
+    """The lines of a file that no structure section holds, each with its number.
+
+    The frontmatter of a SKILL.md is left out: its name, description and paths
+    say when a skill loads, not what an agent does. A heading inside a fenced
+    block opens and closes nothing.
+    """
+    lines = read_lines(path)
+    body_starts = 1
+    if path.name == "SKILL.md" and lines and lines[0] == "---":
+        body_starts = next((number for number, line in enumerate(lines[1:], 2) if line == "---"), 0) + 1
+    section_level: int | None = None
+    fenced = False
+    for number, line in enumerate(lines[body_starts - 1 :], body_starts):
+        if line.startswith("```"):
+            fenced = not fenced
+        elif not fenced and (heading := re.match(r"^(#+) (.*)$", line)) is not None:
+            level = len(heading.group(1))
+            if section_level is not None and level <= section_level:
+                section_level = None
+            if section_level is None and heading.group(2).strip() == STRUCTURE_HEADING:
+                section_level = level
+        if section_level is None:
+            yield number, line
+
+
+def check_structure(root: pathlib.Path, marketplace: Marketplace) -> list[Finding]:
+    """A finding for the first structure term of every line outside a structure
+    section, in the text of every plugin that does not assume the structure. The
+    plugin that stands alone is left to its own check, which no section satisfies."""
+    return [
+        Finding(
+            path=displayed(path, root),
+            line=number,
+            message=f"names '{term}' outside a section '{STRUCTURE_HEADING}'; the structure is a choice per "
+            f"repository, so only {' and '.join(STRUCTURE_ASSUMED)} write about it anywhere else",
+        )
+        for name, directory in marketplace.local.items()
+        if name not in STRUCTURE_ASSUMED and name != STANDALONE
+        for path in plugin_files(directory)
+        for number, line in unconditional_lines(path)
+        if (term := next((term for term in TERMS["structure"] if term in line), None)) is not None
+    ]
+
+
 def main() -> int:
     """Print what fails and return the exit status: 0 when nothing does, 1 otherwise."""
     try:
         root = repository_root()
         marketplace = read_marketplace(root)
-        findings = check_references(root, marketplace) + check_standalone(root, marketplace)
+        findings = [
+            *check_references(root, marketplace),
+            *check_standalone(root, marketplace),
+            *check_structure(root, marketplace),
+        ]
     except ValidationError as error:
         print(f"validate-shipped-text: {error}", file=sys.stderr)
         return 1

@@ -1,6 +1,6 @@
 # Installing
 
-Everything below is checked by `scripts/validate-marketplace.sh`; read it when unsure.
+Everything below is checked by `scripts/validate-marketplace.sh` and `scripts/validate-shipped-text.py`; read them when unsure.
 
 ## Vendored skills
 
@@ -14,12 +14,12 @@ Target: `plugins/<concern>/skills/<name>/` for each path, and one record for the
    ln -s ../../shared/LICENSE-<upstream> plugins/<concern>/LICENSE-<upstream>
    ```
 
-3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`<plugin>:<skill>`). Put every line about a prerequisite the plugin does not declare under a conditional heading (`With the Lyngon documents`, `With devenv`, `With the Lyngon structure`).
+3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`<plugin>:<skill>`). Put what the skill says about the structure under a `With the Lyngon structure` heading, unless the plugin is `repo` or `devkit`.
 4. Write `catalog/vendored/<upstream>.md` from `catalog/vendored/TEMPLATE.md`: upstream URL, 40-character commit, version, license, reviewer and date, then for each path why it is here, its row in the table of what was taken (upstream path and destination), every local patch and the review findings, each under its destination. When the upstream already has a record, add the paths to it and leave its commit as it is.
 5. Frontmatter `name` must equal the directory name; `description` must state what and when.
 
-If the concern plugin is new: create `plugins/<concern>/.claude-plugin/plugin.json` (name, description, author, license `Apache-2.0`, `dependencies` if it calls other plugins' skills, and no `version`) and `README.md` with its `Prerequisites:` line, and add the marketplace entry, also without a `version`, because the commit is the plugin's version. Add it to the `dependencies` of `plugins/all/`, and of `plugins/core/` when it declares at most `documents`; the validator refuses the marketplace otherwise.
-If it exists: update its README skill list, and update its `Prerequisites:` line when the settled prerequisites raised it (then also move it out of `core`).
+If the concern plugin is new: create `plugins/<concern>/.claude-plugin/plugin.json` (name, description, author, license `Apache-2.0`, `dependencies` if it calls other plugins' skills, and no `version`) and `README.md`, and add the marketplace entry, also without a `version`, because the commit is the plugin's version. Add it to the `dependencies` of `plugins/all/`; the validator refuses the marketplace otherwise.
+If it exists: update its README skill list.
 Either way, the plugin's README names the upstream, the license link and the record.
 
 ## Pinned plugin

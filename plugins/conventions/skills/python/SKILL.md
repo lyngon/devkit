@@ -49,7 +49,7 @@ paths:
 - `.pyi` stubs only for third-party packages that ship no types, under `typings/` at the package root.
 - Notebooks are exploration. They are never imported, and their outputs are stripped before commit.
 
-## With the Lyngon baseline
+## Checks
 
 - Checked by the `ruff-format` and `ruff` hooks against the root `ruff.toml`: every stable ruff rule, minus a short ignore list with a reason on each entry. It also enforces the import rules above, except that a `from` import names a module.
 - The root `ruff.toml` is the only ruff configuration. A `[tool.ruff]` table in a package's `pyproject.toml` silently replaces it.

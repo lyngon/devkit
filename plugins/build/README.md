@@ -2,8 +2,6 @@
 
 From an approved design to an open pull request.
 
-Prerequisites: documents
-
 ## Skills
 
 - `/build:plan`: write the implementation plan for a settled design as the tasks in order with their interfaces, acceptance lines and dictated text, written for an implementer who writes the tests and the code, appended to the design file under `docs/plans/`, and hand it to the user for review.

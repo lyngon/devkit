@@ -44,7 +44,7 @@ A package gets an `INTENT.md` only when it has its own audience, its own done or
 That file uses the root's section names and holds only the sections that differ.
 No session loads it: it is read on demand, and the package's `README.md` links to it.
 
-## With the Lyngon baseline
+## Checks
 
 Checked by the `validate-documents`, `markdownlint` and `prose-lint` hooks.
 
