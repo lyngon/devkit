@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
 # one, one without the `all` bundle, a local plugin with a version or a
-# changelog, skills whose frontmatter breaks a rule, vendored records and
-# license links that break one, a principles index that disagrees with its
-# files, and eval cases that load the wrong plugins. Run through `devenv test`.
+# changelog, skills whose frontmatter breaks a rule, the flag that only a
+# conventions skill carries, vendored records and license links that break a
+# rule, a principles index that disagrees with its files, and eval cases that
+# load the wrong plugins. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-marketplace.sh
@@ -144,6 +145,29 @@ lines() {
   done
 }
 
+# A clean marketplace that also holds the conventions plugin, whose skill has
+# the frontmatter that a conventions skill needs.
+conventions_marketplace() {
+  local repo
+  repo=$(clean_marketplace)
+  plugin "$repo" conventions
+  plugin "$repo" all one conventions
+  conventions_skill "$repo" "user-invocable: false"
+  echo "$repo"
+}
+
+# conventions_skill <repo> [<frontmatter line>...]: the skill of the
+# conventions plugin, with those lines after its paths.
+conventions_skill() {
+  local file="$1/plugins/conventions/skills/main/SKILL.md"
+  shift
+  {
+    printf -- '---\nname: main\ndescription: Test conventions. Invoke before editing a test file.\npaths:\n  - "**/*.test"\n'
+    (($# == 0)) || printf '%s\n' "$@"
+    printf -- '---\n\n# Main\n'
+  } >"$file"
+}
+
 # A clean marketplace that also holds the writing plugin.
 writing_marketplace() {
   local repo
@@ -240,6 +264,30 @@ expect_error "frontmatter below line 1" "$repo" "plugins/one/skills/main/SKILL.m
 repo=$(clean_marketplace)
 printf -- '---\nname: main\n---\n\n# Main\n' >"$(skill "$repo")"
 expect_error "skill without a description" "$repo" "plugins/one/skills/main/SKILL.md: frontmatter needs a non-empty description"
+
+expect_ok "conventions skill without a slash command" "$(conventions_marketplace)"
+
+repo=$(conventions_marketplace)
+conventions_skill "$repo"
+expect_error "conventions skill with a slash command" "$repo" "plugins/conventions/skills/main/SKILL.md: conventions skills need user-invocable: false"
+
+repo=$(conventions_marketplace)
+conventions_skill "$repo" "user-invocable: true"
+expect_error "conventions skill that sets the flag to true" "$repo" "plugins/conventions/skills/main/SKILL.md: conventions skills need user-invocable: false"
+
+slash_command="only a conventions skill sets user-invocable: false; the operator can invoke every other skill as a slash command"
+
+repo=$(clean_marketplace)
+printf -- '---\nname: main\ndescription: Test skill.\nuser-invocable: false\n---\n\n# Main\n' >"$(skill "$repo")"
+expect_error "skill outside conventions without a slash command" "$repo" "plugins/one/skills/main/SKILL.md: $slash_command"
+
+repo=$(conventions_marketplace)
+printf -- '---\nname: main\ndescription: Test skill.\nuser-invocable:   false\n---\n\n# Main\n' >"$(skill "$repo")"
+expect_error "skill outside conventions without a slash command, beside conventions" "$repo" "plugins/one/skills/main/SKILL.md: $slash_command"
+
+repo=$(clean_marketplace)
+printf -- '---\nname: main\ndescription: Test skill.\nuser-invocable: true\n---\n\n# Main\n\nSet user-invocable: false only in conventions.\n' >"$(skill "$repo")"
+expect_ok "skill that sets the flag to true and names it in its body" "$repo"
 
 expect_ok "vendored record with its destinations and license link" "$(vendored_marketplace)"
 

@@ -4,10 +4,11 @@
 # settings template of /repo:init, the principles index and the plugins that
 # every eval case loads.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
-# the commit as the version of a local plugin, pinning per plugin and vendoring
-# per upstream, the bundles, documents and upstream licenses shared through
-# symlinks into shared/, one line and one file per principle, and an eval case
-# that runs with the plugins its plugin assumes.
+# the commit as the version of a local plugin, a slash command for every skill
+# outside conventions, pinning per plugin and vendoring per upstream, the
+# bundles, documents and upstream licenses shared through symlinks into
+# shared/, one line and one file per principle, and an eval case that runs
+# with the plugins its plugin assumes.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -40,6 +41,12 @@ jq -e . "$manifest" >/dev/null 2>&1 || {
 
 jq -e '.name and .owner.name and (.plugins | type == "array")' "$manifest" >/dev/null ||
   fail "$manifest needs name, owner.name and a plugins array"
+
+# The frontmatter of a file, without the lines that fence it; nothing when the
+# file does not start with one.
+frontmatter() {
+  awk 'NR == 1 { if ($0 != "---") exit; next } /^---$/ { exit } { print }' "$1"
+}
 
 check_skill() {
   local skill=$1
@@ -88,7 +95,7 @@ check_local_plugin() {
   [[ "$(jq -r '.description // ""' "$pj")" != "" ]] || fail "$pj: description is required"
   [[ "$(jq -r '.license // ""' "$pj")" != "" ]] || fail "$pj: license is required"
   [[ ! -e "$dir/CHANGELOG.md" ]] || fail "$dir/CHANGELOG.md: a plugin has no changelog: its history is the commits under its path, which 'git log --oneline -- $dir' lists"
-  local content=0 skill dep
+  local content=0 skill dep meta
   for sub in skills commands agents hooks; do
     [[ -e "$dir/$sub" ]] && content=1
   done
@@ -103,12 +110,17 @@ check_local_plugin() {
   done < <(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' "$pj")
   while IFS= read -r skill; do
     check_skill "$skill"
+    meta=$(frontmatter "$skill")
     # Convention skills have no slash command, and their body reaches the agent
-    # only when it invokes them, so the description says when to do that.
+    # only when it invokes them, so the description says when to do that. They
+    # are the only skills without one: the operator can invoke every other
+    # skill, whether or not the agent may start it too.
     if [[ "$entry_name" == conventions ]]; then
-      sed -n '2,/^---$/p' "$skill" | grep -qE '^paths:' || fail "$skill: conventions skills need a paths list in the frontmatter"
-      sed -n '2,/^---$/p' "$skill" | grep -qE '^user-invocable:[[:space:]]*false' || fail "$skill: conventions skills need user-invocable: false"
-      sed -n '2,/^---$/p' "$skill" | grep -qE '^description:.* Invoke before ' || fail "$skill: conventions skills need a description that ends with when to invoke them (Invoke before ...)"
+      grep -qE '^paths:' <<<"$meta" || fail "$skill: conventions skills need a paths list in the frontmatter"
+      grep -qE '^user-invocable:[[:space:]]*false' <<<"$meta" || fail "$skill: conventions skills need user-invocable: false"
+      grep -qE '^description:.* Invoke before ' <<<"$meta" || fail "$skill: conventions skills need a description that ends with when to invoke them (Invoke before ...)"
+    elif grep -qE '^user-invocable:[[:space:]]*false' <<<"$meta"; then
+      fail "$skill: only a conventions skill sets user-invocable: false; the operator can invoke every other skill as a slash command"
     fi
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
   if [[ -f "catalog/$entry_name.md" ]]; then
@@ -225,9 +237,6 @@ fi
 # `writing` is the exception: it assumes no other plugin, and a case that names
 # none proves it. The line is read from the frontmatter of prompt.md, so that
 # is the one layout of a case.
-frontmatter() {
-  awk 'NR == 1 { if ($0 != "---") exit; next } /^---$/ { exit } { print }' "$1"
-}
 while IFS= read -r file; do
   if [[ "$file" == */case.yaml ]]; then
     fail "$file: an eval case is a prompt.md with its graders, never a case.yaml; the plugins a case loads are checked in the frontmatter of prompt.md"
