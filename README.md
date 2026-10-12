@@ -259,6 +259,14 @@ Its frontmatter line `plugins: ["../../.."]` loads every plugin under `plugins/`
 A case of `writing` has no such line and runs with `writing` alone, which shows that `writing` needs no other plugin.
 `validate-marketplace` fails a case that breaks either rule.
 
+A case proves a change only when it scores the same in every run, so write it to leave the model little room:
+
+- Invoke the skill as a slash command when the case is about what the skill does. A trigger phrase tests the routing, and another skill may answer.
+- Grade no call of the Skill tool in such a case, since the harness loads a slash command itself.
+- Say in the prompt what the workspace is. A run starts in an empty directory, and an agent that expects code there stops to ask where it is.
+- Prefer a grader that no model judges.
+- When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
+
 Run the suite at a base commit and in the working tree, and print the score of each case at both:
 
 ```sh
