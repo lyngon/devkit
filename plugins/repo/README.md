@@ -2,8 +2,6 @@
 
 Repository setup and package creation for Lyngon.
 
-Prerequisites: documents, workflow, baseline, structure
-
 ## Skills
 
 - `/repo:init`: interview the owner about purpose, audiences, stack and constraints, then create or adopt the steering documents and the other standard repository files.
@@ -19,7 +17,7 @@ Prerequisites: documents, workflow, baseline, structure
   Otherwise it prints nothing.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
 
-### With devenv
+### The devenv environment in a session
 
 Claude Code captures its environment once, at start, so without help the packages and variables of `devenv.nix` are missing from the agent's Bash commands, or stale after a change.
 `hooks/export-environment.sh` fixes that in every project whose root has a `devenv.nix`:
@@ -44,7 +42,9 @@ Verified in headless sessions (`claude -p`) with Claude Code 2.1.283, devenv 2.4
 
 ## Install
 
+Part of the `all` bundle, which a Lyngon repository installs whole:
+
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install repo@lyngon --scope project
+claude plugin install all@lyngon --scope project
 ```

@@ -17,7 +17,6 @@ The agent pushes the branch and opens the pull request without asking once the f
 - The plan is one file, `docs/plans/YYYY-MM-DD-<slug>.md`, with the design and the tasks, committed on the branch so a reviewer or a fresh session reads both together, and removed by `/build:finish` before the push, because git history holds the work and decision records hold the decisions. The execution ledger lives in `tmp/build/<slug>/`, the agent scratch directory, never in git.
 - The standing instructions to commit, push and open the pull request live in `conventions:engineering`, because only a plugin reaches every repository that uses the devkit; the `conventions` session hook and the skill descriptions make agents invoke it.
   Those instructions also list what still waits for the owner: a merge, a push to the default branch, a force-push, closing a pull request, deleting a remote branch, a tag, a release, a publish.
-- `build` declares `documents` and is in `core`; the ledger location does not raise it, since `tmp/` is the scratch directory of every repository the `repo` plugin sets up and the workspace script ignores its own directory where `tmp/` is not ignored.
 - A decision made while planning still becomes a decision record before the plan file is removed; `/build:finish` checks the design section for one.
 - Owner gates inside a plan's execution, and the copy of the ledger in the plan when a run pauses, are in [Owner gates are declared in the plan and pre-approved by name](owner-gates-are-declared-in-the-plan-and-pre-approved-by-name.md).
 

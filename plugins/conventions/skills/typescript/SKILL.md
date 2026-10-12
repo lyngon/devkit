@@ -45,7 +45,7 @@ paths:
 - Test names say the behaviour: `it("rejects a second shipment")`.
 - Tests import the package through its `exports` map, the way a consumer does.
 
-## With the Lyngon baseline
+## Checks
 
 - Checked by the `prettier` hook and by two hooks per package: `{name}-tsc` type-checks against the root `tsconfig.base.json`, and `{name}-eslint` lints with the root `eslint.config.js` (typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, plus the import and condition rules above).
 - A package's `tsconfig.json` extends `tsconfig.base.json` and never loosens a flag. The root `eslint.config.js` is the only ESLint configuration.

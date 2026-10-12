@@ -3,8 +3,6 @@
 Skills for maintaining the Lyngon devkit itself.
 They only run inside the devkit repository.
 
-Prerequisites: documents, baseline, structure
-
 ## Skills
 
 - `/devkit:add-skill <what>`: given a skill name, a URL, several paths of one upstream, or a description of a skill that should exist, either finds and vets existing third-party skills and installs them (a pinned plugin, or vendored skills under their concerns with one provenance record for the upstream), or designs a new in-house skill with `discover:approach` and creates it. User-invoked.

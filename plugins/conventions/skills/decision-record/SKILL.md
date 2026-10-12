@@ -11,6 +11,6 @@ paths:
 The format and the rules are in [DECISION-RECORD-FORMAT.md](DECISION-RECORD-FORMAT.md): when to write a record, how to name it, what it holds, and when to delete it.
 Read it before writing, editing or deleting one.
 
-## With the Lyngon baseline
+## Checks
 
 Checked by the `validate-documents`, `markdownlint` and `prose-lint` hooks.

@@ -34,14 +34,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/render-plugin-list.sh" "$@"'';
   };
-  # The plugin prerequisites convention in docs/conventions/prerequisites.md.
-  validatePrerequisites = pkgs.writeShellApplication {
-    name = "validate-prerequisites";
+  # What an agent can read from an installed plugin: every skill reference in
+  # it names a skill that exists, the text of `writing` names no other plugin
+  # and nothing of a development repository, and a term of the structure
+  # stands under the one conditional heading.
+  validateShippedText = pkgs.writeShellApplication {
+    name = "validate-shipped-text";
     runtimeInputs = [
       pkgs.python3
       pkgs.git
     ];
-    text = ''exec "${config.devenv.root}/scripts/validate-prerequisites.py" "$@"'';
+    text = ''exec "${config.devenv.root}/scripts/validate-shipped-text.py" "$@"'';
   };
   # The eval suite at a base commit and in the working tree, side by side.
   # The program also runs `claude`, which no file declares: it is the harness,
@@ -143,17 +146,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/validate-structure.sh" "$@"'';
   };
-  testValidatePrerequisites = pkgs.writeShellApplication {
-    name = "test-validate-prerequisites";
+  testValidateShippedText = pkgs.writeShellApplication {
+    name = "test-validate-shipped-text";
     runtimeInputs = [
       pkgs.bash
-      pkgs.python3
-      pkgs.git
       pkgs.coreutils
+      pkgs.git
       pkgs.gnugrep
-      pkgs.gnused
+      pkgs.jq
+      pkgs.python3
     ];
-    text = ''exec "${config.devenv.root}/scripts/tests/validate-prerequisites.sh" "$@"'';
+    text = ''exec "${config.devenv.root}/scripts/tests/validate-shipped-text.sh" "$@"'';
   };
   # Fixture tests for the repo plugin's hook scripts; zsh reads back the
   # environment file, as Claude Code's Bash tool does in a zsh session.
@@ -195,7 +198,7 @@ in
   packages = [
     validateMarketplace
     renderPluginList
-    validatePrerequisites
+    validateShippedText
     compareEvals
     pkgs.jq
   ];
@@ -216,10 +219,10 @@ in
     files = "^(\\.claude-plugin/|plugins/|catalog/|shared/)";
     pass_filenames = false;
   };
-  git-hooks.hooks.validate-prerequisites = {
+  git-hooks.hooks.validate-shipped-text = {
     enable = true;
-    name = "validate prerequisites";
-    entry = lib.getExe validatePrerequisites;
+    name = "validate shipped text";
+    entry = lib.getExe validateShippedText;
     files = "^(\\.claude-plugin/marketplace\\.json$|plugins/|shared/)";
     pass_filenames = false;
   };
@@ -240,14 +243,14 @@ in
     }
     declared_tools_only ${lib.getExe validateMarketplace}
     declared_tools_only ${lib.getExe renderPluginList}
-    declared_tools_only ${lib.getExe validatePrerequisites}
+    declared_tools_only ${lib.getExe validateShippedText}
     declared_tools_only ${lib.getExe testValidateMarketplace}
     declared_tools_only ${lib.getExe testCompareEvals}
     declared_tools_only ${lib.getExe testValidateDocuments}
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
     declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"
     declared_tools_only ${lib.getExe testValidateStructure}
-    declared_tools_only ${lib.getExe testValidatePrerequisites}
+    declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
   '';

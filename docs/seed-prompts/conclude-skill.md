@@ -27,7 +27,7 @@ The idea was deferred on 2026-09-26 (working name `conclude`); on 2026-09-27 a l
 
 ## Decisions to settle
 
-1. Plugin and name: a skill in `build` next to `finish`, in `review`, or a new plugin; prerequisites (`documents` only, most likely).
+1. Plugin and name: a skill in `build` next to `finish`, in `review`, or a new plugin.
 2. Trigger: user-invoked (`/conclude`), invoked by `build:finish` before the push, or both.
 3. The output format of the devkit-feedback prompt: verified claims with paths and line numbers, one prompt per suggestion or one prompt for the session, and how it references existing `docs/TODO.md` entries.
 4. Where the handover document lives (`docs/plans/`, `tmp/`, or the roadmap of `docs/seed-prompts/roadmap-for-multi-piece-work.md`) and when it is removed.

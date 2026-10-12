@@ -2,8 +2,6 @@
 
 From an approved design to an open pull request.
 
-Prerequisites: documents
-
 ## Skills
 
 - `/build:plan`: write the implementation plan for a settled design as the tasks in order with their interfaces, acceptance lines and dictated text, written for an implementer who writes the tests and the code, appended to the design file under `docs/plans/`, and hand it to the user for review.
@@ -19,7 +17,7 @@ See the decision records [Planned work is reviewed at two gates](../../docs/deci
 
 All four are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT).
 The license is `LICENSE-superpowers` in this plugin, and the provenance record is [catalog/vendored/superpowers.md](../../catalog/vendored/superpowers.md).
-The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, so `practice` and `review` are dependencies.
+The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, skills of two other members of the `all` bundle.
 
 ## Install
 

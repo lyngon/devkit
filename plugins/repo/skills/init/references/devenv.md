@@ -58,7 +58,7 @@ Add the `secretspec` section when the repository needs secrets (see below).
   # a comment saying why, e.g. `git-hooks.hooks.typos.enable = false;`.
   lyngon.enable = true;
   # The repository follows the Lyngon structure; enables the validate-structure hook.
-  lyngon.structure.enable = true; # {structure scope only}
+  lyngon.structure.enable = true; # {only when the repository adopts the structure}
 
   # Languages are enabled once, here, for the workspace at the root.
   languages.python = {

@@ -71,20 +71,19 @@ The `practice` skills (`tdd`, `debug`, `verify`) and `review:receive` apply on t
 Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do not edit between the markers.
 
 <!-- plugins:start -->
-| Plugin | Skills | Prerequisites | Description |
-| --- | --- | --- | --- |
-| `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions`, `principles` | documents, workflow, baseline, structure | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
-| `core` | bundle of `discover`, `build`, `practice`, `review`, `writing`, `principles` | documents | The plugins that work in any repository with the Lyngon documents: discover, build, practice, review, writing and principles. A bundle: it has no skills of its own. |
-| `repo` | `/repo:add-package`, `/repo:init` | documents, workflow, baseline, structure | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, the agent file, README, CONCEPTS.md, decision records, devenv, git hooks) and create packages in the kind-first layout. |
-| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview`, `/discover:why` | documents | Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues. |
-| `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | documents | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
-| `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | git | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
-| `review` | `/review:receive`, `/review:request` | git | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
-| `devkit` | `/devkit:add-skill` | documents, baseline, structure | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
-| `writing` | `/writing:unslop` | git | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
-| `conventions` | `decision-record` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | documents, workflow | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. |
-| `principles` | `/principles:index` | documents | The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon. |
-| `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | git | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
+| Plugin | Skills | Description |
+| --- | --- | --- |
+| `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions`, `principles` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, the agent file, README, CONCEPTS.md, decision records, devenv, git hooks) and create packages in the kind-first layout. |
+| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview`, `/discover:why` | Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues. |
+| `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
+| `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
+| `review` | `/review:receive`, `/review:request` | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
+| `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
+| `writing` | `/writing:unslop` | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
+| `conventions` | `decision-record` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. |
+| `principles` | `/principles:index` | The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon. |
+| `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
 
 ## What a Lyngon repository looks like
@@ -134,7 +133,7 @@ my-service/
 
 And the way of working in it, in the order things happen:
 
-- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it asks which prerequisites the repository adopts and writes only those, and always adopts the Lyngon workflow.
+- `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it writes the Lyngon documents, the baseline and the workflow, and asks whether the repository adopts the structure.
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in decision records as they settle.
 - A decision record only for a decision that passes the admission test in [DECISION-RECORD-FORMAT.md](shared/DECISION-RECORD-FORMAT.md), and only while the decision holds; a decision a check can carry becomes the check.
@@ -147,43 +146,21 @@ And the way of working in it, in the order things happen:
 
 ## Installing the plugins
 
-Install the plugins per repository.
-`conventions` carries the Lyngon workflow, including the standing instruction to commit, push and open pull requests without asking; only a repository whose owner adopted the workflow gets it, directly or through `all`.
-In the repository, in Claude Code:
+A Lyngon repository installs `all`, the bundle of every plugin for development, see the table above.
+Its members assume a Lyngon development repository (Nix, devenv, the baseline, the documents and the workflow) and each other, so they are installed together and never as a subset.
+Among them, `conventions` carries the workflow's standing instruction to commit, push and open pull requests without asking.
+In the repository:
 
 ```sh
 claude plugin marketplace add lyngon/devkit
 claude plugin install all@lyngon --scope project
 ```
 
-`all` is a bundle that brings every plugin a Lyngon repository uses, see the table above.
-A repository that keeps its own toolchain and layout installs `core` and `conventions` instead; `core` brings `discover`, `build`, `practice`, `review`, `writing` and `principles`, and the two need the Lyngon documents and the workflow:
+Any other repository installs `writing` alone.
+It assumes nothing about the repository it is installed in and needs no other plugin:
 
 ```sh
-claude plugin install core@lyngon --scope project
-claude plugin install conventions@lyngon --scope project
-```
-
-`core` alone assumes only the Lyngon documents, so it may also be enabled at user scope, for every repository.
-Without `conventions`, `/build:finish` asks before it pushes, and nothing announces a Lyngon repository.
-Its executors still commit each task on a feature branch, and its skills still write the Lyngon documents where they run, such as a plan in `docs/plans/`, `CONCEPTS.md` and decision records.
-Install the members by name too: Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies, and `build` needs `practice` and `review`.
-
-```sh
-claude plugin install core@lyngon --scope user
-claude plugin install discover@lyngon --scope user
-claude plugin install build@lyngon --scope user
-claude plugin install practice@lyngon --scope user
-claude plugin install review@lyngon --scope user
-claude plugin install writing@lyngon --scope user
-claude plugin install principles@lyngon --scope user
-```
-
-The Prerequisites column says what each plugin needs from a repository; the rules are in [docs/conventions/prerequisites.md](docs/conventions/prerequisites.md).
-For a subset, install the members by name instead; `repo` brings `discover` with it as a dependency:
-
-```sh
-claude plugin install repo@lyngon --scope project
+claude plugin marketplace add lyngon/devkit
 claude plugin install writing@lyngon --scope project
 ```
 
@@ -191,26 +168,26 @@ claude plugin install writing@lyngon --scope project
 
 The steps are the same for an empty repository and for one that has grown organically; `/repo:init` tells them apart by the tracked files.
 
-1. Install the plugins as above, at least `repo`.
+1. Install `all` as above.
 2. Open Claude Code in the repository and run `/repo:init`.
-   It interviews you, then writes INTENT.md, `.claude/CLAUDE.md`, README.md, CONCEPTS.md, decision records, devenv with the shared module imported, git hooks, CI, every package you named, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` or `core@lyngon` and each of its members by name, or the subset you chose, with `conventions@lyngon` in every case.
+   It interviews you, then writes INTENT.md, `.claude/CLAUDE.md`, README.md, CONCEPTS.md, decision records, devenv with the shared module imported, git hooks, CI, every package you named when the repository adopts the structure, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` and each of its members by name.
 3. `/repo:init` commits its work: one root commit on `main` in a fresh repository, a branch with a pull request in an adopted one.
 
 In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md instead of replacing it, and sorts an older `CLAUDE.md`, `AGENTS.md` and `docs/adr/` into rule files and decision records before it deletes them.
 
 Colleagues who clone the repository get the marketplace registered as soon as they trust the folder.
 Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command.
-The settings name every plugin, since Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies.
+The settings name every plugin: Claude Code does not count a plugin installed with the bundle as enabled when it checks what another plugin depends on (seen in Claude Code 2.1.278), so the settings do not rely on the bundle to enable its members.
 One command still installs them all:
 
 ```sh
 claude plugin install all@lyngon --scope project
 ```
 
-To add a plugin to an adopted repository later, `--scope project` writes it into the committed settings:
+To add a plugin outside the bundle to an adopted repository, such as a pinned one, `--scope project` writes it into the committed settings:
 
 ```sh
-claude plugin install writing@lyngon --scope project
+claude plugin install skill-creator@lyngon --scope project
 ```
 
 ## Versions and updates
@@ -322,6 +299,12 @@ When an eval cannot run, the pull request says so and makes no claim about the b
 3. Add an entry to `.claude-plugin/marketplace.json`, also without a `version`; the commit is the version, and the validator refuses the field in both files.
 4. Add it to the `dependencies` of `plugins/all/`, unless its marketplace category is `devkit`.
 5. Run `devenv test`; it regenerates the plugin table above and fails until the change is staged.
+
+A member of `all` declares no `dependencies` of its own.
+It assumes a Lyngon development repository and every other member, so its text names their skills as `<plugin>:<skill>`, and `validate-shipped-text` fails a name that no skill has.
+What it says about the structure goes under a `With the Lyngon structure` heading, unless the plugin is `repo` or `devkit`.
+Only a skill of `conventions` sets `user-invocable: false`.
+A skill that must work outside a Lyngon development repository goes into `writing`, whose text names no other plugin's skill and no term of such a repository.
 
 ## Adding third-party work
 

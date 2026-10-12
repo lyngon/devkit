@@ -2,8 +2,6 @@
 
 Discovery before building.
 
-Prerequisites: documents
-
 ## Skills
 
 - `/discover:brainstorm`: toss ideas around in conversation without writing anything: no rounds, no gate, no `CONCEPTS.md` entries, no decision records, no plan file. In-house. The agent invokes it on "brainstorm", "toss ideas around" and "think out loud".
@@ -19,7 +17,9 @@ The provenance records are [mattpocock.md](../../catalog/vendored/mattpocock.md)
 
 ## Install
 
+Part of the `all` bundle, which a Lyngon repository installs whole:
+
 ```sh
 claude plugin marketplace add lyngon/devkit
-claude plugin install discover@lyngon --scope project
+claude plugin install all@lyngon --scope project
 ```

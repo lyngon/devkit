@@ -2,8 +2,6 @@
 
 Code review, both ways.
 
-Prerequisites: git
-
 ## Skills
 
 - `/review:request`: dispatch a fresh reviewer subagent with a crafted brief, a commit range and the plan or requirements, and act on its findings by severity. Used by the `build` executors after every task and on the whole branch, and before every pull request in the bounded and architectural flows; also on request.
@@ -14,7 +12,7 @@ The license is `LICENSE-superpowers` in this plugin, and the provenance record i
 
 ## Install
 
-Part of the `core` and `all` bundles.
+Part of the `all` bundle.
 On its own:
 
 ```sh

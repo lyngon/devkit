@@ -2,8 +2,6 @@
 
 Engineering discipline while changing code.
 
-Prerequisites: git
-
 ## Skills
 
 - `tdd`: write the failing test first, watch it fail, write the minimal code, watch it pass, refactor. The agent invokes it before writing production code for any feature, bug fix or behaviour change.
@@ -16,7 +14,7 @@ The `conventions` plugin states the same rules in a few lines; these skills are 
 
 ## Install
 
-Part of the `core` and `all` bundles.
+Part of the `all` bundle.
 On its own:
 
 ```sh

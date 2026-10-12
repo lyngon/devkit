@@ -1,6 +1,6 @@
 # Creating a new in-house skill
 
-Input: the design settled by `discover:approach` (name, concern, prerequisites, does and does not, invocation mode, inputs and outputs, a must-trigger prompt and a must-not-trigger prompt).
+Input: the design settled by `discover:approach` (name, concern, for development or for anywhere, does and does not, invocation mode, inputs and outputs, a must-trigger prompt and a must-not-trigger prompt).
 
 ## Engine
 
@@ -21,7 +21,7 @@ plugins/<concern>/skills/<name>/
 `SKILL.md` sections: a one-paragraph overview, "When to use", "When not to use", the workflow as numbered steps, and links to references.
 `disable-model-invocation: true` for skills that write many files or ask many questions; model-invocable only when the trigger is unambiguous.
 No dashes, one sentence per line.
-Every line about a prerequisite the plugin does not declare goes under a conditional heading (`With the Lyngon documents`, `With the Lyngon workflow`, `With devenv`, `With the Lyngon baseline`, `With the Lyngon structure`); `validate-prerequisites` checks it.
+What the skill says about the structure goes under a `With the Lyngon structure` heading, the one conditional heading, unless the plugin is `repo` or `devkit`; `validate-shipped-text` checks it.
 
 ## Evals
 
@@ -37,8 +37,8 @@ Evals are not wired into CI yet (token cost); note that in the commit message if
 
 ## Bookkeeping
 
-- Update the plugin's README, including its `Prerequisites:` line when the skill raised it.
-- New concern plugin: same files as in `install.md`, including the `Prerequisites:` line and the bundle memberships.
-- If the skill calls skills from another plugin, add that plugin to `dependencies`.
+- Update the plugin's README.
+- New concern plugin: same files as in `install.md`.
+- A member of `all` declares no `dependencies`: its skills name the skills of other members as `<plugin>:<skill>`, and `validate-shipped-text` fails a name that no skill has.
 - Run `devenv test`.
 - Commit as one commit on the feature branch, `feat(<concern>): add <name> skill`; do not push, since the push comes when the whole piece of work is done.

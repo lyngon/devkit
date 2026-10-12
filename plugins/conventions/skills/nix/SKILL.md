@@ -18,7 +18,7 @@ paths:
 - Comments say why, not what: what the module does is visible, why a hook is disabled is not.
 - Nothing is installed imperatively; a missing tool is added to the environment definition.
 
-## With devenv
+## devenv
 
 - Every tool comes from `packages` or a `languages.*` entry in `devenv.nix`.
 - Inputs live in `devenv.yaml` and are pinned by `devenv.lock`; `devenv update <input>` bumps one.
@@ -26,7 +26,7 @@ paths:
 - `.pre-commit-config.yaml` is generated; never edit it.
 - Do not enable `claude.code.enable`; it overwrites `.claude/settings.json`.
 
-## With the Lyngon baseline
+## The baseline
 
 - The root `devenv.nix` sets `lyngon.enable = true` and `devenv.yaml` imports `lyngon/devenv` from the `lyngon` input; the baseline hooks, languages and MCP file come from there.
 - Override a baseline value in place, with a comment saying why. Never disable a hook to make a check pass.

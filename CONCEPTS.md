@@ -17,7 +17,7 @@ _Avoid_: skill pack, extension
 The activity a plugin serves, such as setting up repositories or discovery before building. One plugin per concern.
 
 **Bundle**:
-A plugin with no skills of its own, which exists so that one command installs the plugins it depends on. `all` and `core` are the bundles.
+A plugin with no skills of its own, which exists so that one command installs the plugins it depends on. `all` is the bundle.
 _Avoid_: meta-plugin, pack, calling an ordinary plugin a bundle
 
 **Devkit**:
@@ -142,10 +142,6 @@ _Avoid_: verbatim block, copy text, boilerplate
 A command whose exact output a plan pins, shown failing when its property does not hold and passing when it does.
 _Avoid_: verification step, smoke test
 
-**Prerequisite**:
-Something a repository must have for a plugin to apply: the documents, the workflow, the baseline, or the structure. Declared per plugin; independent of each other. Using devenv at all is a condition a plugin may write for, not a prerequisite.
-_Avoid_: assumption, tier, requirement
-
 ## Relationships
 
 - The **Devkit** holds the **Marketplace**, the **Baseline** and the shared documents.
@@ -156,7 +152,6 @@ _Avoid_: assumption, tier, requirement
 - A **Pinned plugin** is never **Vendored**, and a **Vendored skill** never comes from a **Pinned plugin**.
 - The **Structure** is one of the shared documents; the **Baseline** enforces its dependency rules.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
-- Every **Plugin** declares its **Prerequisites**; a **Bundle**'s are the union of its members'.
 - An **Owner** approves every change to a **Steering document** of their repository.
 - An **Owner** may act as an **Operator**; an **Operator** need not be an **Owner**.
 - A **Plan**'s execution lies between its two **Review gates**; its **Owner gates** lie inside it.
