@@ -11,7 +11,9 @@ Three checks:
 
 - A skill reference names a skill that exists. A plugin assumes every other
   plugin of the bundle, so its text names their skills freely, and nothing else
-  fails when a skill is renamed or removed and a pointer to it stays.
+  fails when a skill is renamed or removed and a pointer to it stays. The
+  skills of a pinned plugin are not in this tree, so a reference to one passes
+  when the marketplace lists the plugin.
 - `writing` stands alone. It is the one plugin that is installed outside a
   Lyngon development repository, so its text names no skill of another plugin
   and no term of such a repository.
@@ -34,7 +36,7 @@ import subprocess
 import sys
 
 # The directories of a plugin whose files reach an agent.
-COMPONENTS = ("skills", "commands", "agents", "hooks")
+COMPONENTS: tuple[str, ...] = ("skills", "commands", "agents", "hooks")
 
 # A skill reference is two names in kebab-case, each starting with a letter,
 # joined by a colon with nothing around it: `<plugin>:<skill>`. A slash may
@@ -54,12 +56,12 @@ COMPONENTS = ("skills", "commands", "agents", "hooks")
 # is no plugin of the marketplace fails as well: a pointer to a plugin that
 # was removed is the stale reference this check exists for, and a list of the
 # known plugins could not catch it.
-_NAME = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
-REFERENCE = re.compile(rf"(?<![\w./:-])/?({_NAME}):({_NAME})(?![\w-])")
+_NAME: str = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+REFERENCE: re.Pattern[str] = re.compile(rf"(?<![\w./:-])/?({_NAME}):({_NAME})(?![\w-])")
 
 # The left sides that other tools own, each with the text it stands in. A
 # plugin of that name wins over the entry, so the list can never hide a skill.
-NAMESPACES = {
+NAMESPACES: ct.Mapping[str, str] = {
     "blob": "git's partial clone filter, --filter=blob:none",
     "file": "a place in a file, file:line",
     "github": "a flake reference, github:owner/repository",
@@ -69,16 +71,16 @@ NAMESPACES = {
 
 # The plugin that assumes nothing: no other plugin, and no Lyngon development
 # repository around it.
-STANDALONE = "writing"
+STANDALONE: str = "writing"
 
 # The one conditional heading, at any level. Its section runs to the next
 # heading of the same or a higher level.
-STRUCTURE_HEADING = "With the Lyngon structure"
+STRUCTURE_HEADING: str = "With the Lyngon structure"
 
 # The plugins that write about the structure outside such a section: `repo`
 # sets the structure up and creates the packages in it, and `devkit` maintains
 # the document that defines it.
-STRUCTURE_ASSUMED = ("repo", "devkit")
+STRUCTURE_ASSUMED: tuple[str, ...] = ("repo", "devkit")
 
 # What only a Lyngon development repository has, by where it comes from: the
 # documents, devenv, the baseline and the structure. A term is matched as it
