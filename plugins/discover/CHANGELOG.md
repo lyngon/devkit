@@ -2,7 +2,11 @@
 
 All notable changes to the `discover` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
-Vendored skills record their upstream commit in their own `UPSTREAM.md`.
+The upstream commit of the vendored skills is in their provenance records, under `catalog/vendored/` in the devkit.
+
+## 0.10.2 - 2026-10-12
+
+- The provenance of the vendored skills is one record per upstream, under `catalog/vendored/` in the devkit (`mattpocock.md`, `superpowers.md` and `pstack.md`), where each skill directory held an `UPSTREAM.md` and its upstream licenses. The upstream licenses are `LICENSE-mattpocock`, `LICENSE-superpowers` and `LICENSE-pstack` in the plugin's root, and the README names them and the records.
 
 ## 0.10.1 - 2026-10-11
 

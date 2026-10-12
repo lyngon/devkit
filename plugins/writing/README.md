@@ -10,7 +10,8 @@ Prerequisites: git
 
 The deterministic half (no em or en dashes, no curly quotes) is the `prose-lint` git hook in the shared devenv module, which also checks commit messages.
 
-Vendored from [poteto/noodle](https://github.com/poteto/noodle) (MIT), see the skill's `UPSTREAM.md`.
+Vendored from [poteto/noodle](https://github.com/poteto/noodle) (MIT).
+The license is `LICENSE-noodle` in this plugin, and the provenance record is [catalog/vendored/noodle.md](../../catalog/vendored/noodle.md).
 
 ## Install
 

@@ -10,7 +10,8 @@ Prerequisites: git
 - `debug`: find the root cause before proposing a fix. The agent invokes it on any bug, failing test, unexpected behaviour or build failure.
 - `verify`: run the command that proves a claim and read its output before saying done, fixed or passing. The agent invokes it before any completion claim, commit or hand-over.
 
-All three are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), see each skill's `UPSTREAM.md`.
+All three are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT).
+The license is `LICENSE-superpowers` in this plugin, and the provenance record is [catalog/vendored/superpowers.md](../../catalog/vendored/superpowers.md).
 The `conventions` plugin states the same rules in a few lines; these skills are the procedures that make an agent follow them under pressure.
 
 ## Install

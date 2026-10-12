@@ -2,7 +2,11 @@
 
 All notable changes to the `writing` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
-Vendored skills record their upstream commit in their own `UPSTREAM.md`.
+The upstream commit of the vendored skill is in its provenance record, `catalog/vendored/noodle.md` in the devkit.
+
+## 0.2.1 - 2026-10-12
+
+- The provenance of `unslop` is in the record of its upstream, `catalog/vendored/noodle.md` in the devkit, where the skill directory held an `UPSTREAM.md` and a `LICENSE`. The upstream license is `LICENSE-noodle` in the plugin's root, and the README names both.
 
 ## 0.2.0 - 2026-10-11
 

@@ -1,6 +1,6 @@
 {
   "name": "discover",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues.",
   "author": {
     "name": "Lyngon",
