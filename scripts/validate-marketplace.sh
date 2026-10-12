@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Validate the marketplace manifest, every plugin directory, every SKILL.md,
 # every catalog record, pinned and vendored, the plugins enabled by the
-# settings template of /repo:init and the principles index.
+# settings template of /repo:init, the principles index and the plugins that
+# every eval case loads.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
 # the commit as the version of a local plugin, pinning per plugin and vendoring
 # per upstream, the bundles, documents and upstream licenses shared through
-# symlinks into shared/, and one line and one file per principle.
+# symlinks into shared/, one line and one file per principle, and an eval case
+# that runs with the plugins its plugin assumes.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -216,6 +218,31 @@ elif [[ -d plugins/principles ]]; then
     ((length <= 100)) || fail "$file: is $length lines long, and a principle file holds at most 100"
   done
 fi
+
+# An eval case runs with the plugins that its frontmatter names, and with its
+# own plugin alone when it names none. A plugin assumes every other plugin of
+# the checkout, so its case names the plugins directory, which loads them all.
+# `writing` is the exception: it assumes no other plugin, and a case that names
+# none proves it. The line is read from the frontmatter of prompt.md, so that
+# is the one layout of a case.
+frontmatter() {
+  awk 'NR == 1 { if ($0 != "---") exit; next } /^---$/ { exit } { print }' "$1"
+}
+while IFS= read -r file; do
+  if [[ "$file" == */case.yaml ]]; then
+    fail "$file: an eval case is a prompt.md with its graders, never a case.yaml; the plugins a case loads are checked in the frontmatter of prompt.md"
+    continue
+  fi
+  inside=${file#plugins/}
+  line=$(frontmatter "$file" | grep -E '^plugins:' || true)
+  if [[ "${inside%%/*}" == writing ]]; then
+    [[ -z "$line" ]] || fail "$file: an eval case of writing has no 'plugins' line in its frontmatter; writing assumes no other plugin, and a case without the line runs with its own plugin alone"
+  else
+    # One `..` for each directory between the plugins directory and the case.
+    expected="plugins: [\"$(dirname "$inside" | sed -E 's|[^/]+|..|g')\"]"
+    [[ "$line" == "$expected" ]] || fail "$file: an eval case loads every plugin of the checkout, so its frontmatter needs the line '$expected'; without it the case runs with its own plugin alone"
+  fi
+done < <(find plugins -regextype posix-extended -regex 'plugins/[^/]+/evals/.+/(prompt\.md|case\.yaml)' | sort)
 
 # Every plugin directory must be listed.
 for dir in plugins/*/; do

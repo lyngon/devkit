@@ -43,6 +43,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-prerequisites.py" "$@"'';
   };
+  # The eval suite at a base commit and in the working tree, side by side.
+  # The program also runs `claude`, which no file declares: it is the harness,
+  # and comes from the PATH of whoever runs an eval.
+  compareEvals = pkgs.writeShellApplication {
+    name = "compare-evals";
+    runtimeInputs = [
+      pkgs.python3
+      pkgs.git
+    ];
+    text = ''exec "${config.devenv.root}/scripts/compare-evals.py" "$@"'';
+  };
   testValidateMarketplace = pkgs.writeShellApplication {
     name = "test-validate-marketplace";
     runtimeInputs = [
@@ -56,6 +67,20 @@ let
       pkgs.jq
     ];
     text = ''exec "${config.devenv.root}/scripts/tests/validate-marketplace.sh" "$@"'';
+  };
+  # Fixture tests for compare-evals, with a stub in place of `claude`, so that
+  # the full check never calls a model.
+  testCompareEvals = pkgs.writeShellApplication {
+    name = "test-compare-evals";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.jq
+      pkgs.python3
+    ];
+    text = ''exec "${config.devenv.root}/scripts/tests/compare-evals.sh" "$@"'';
   };
   # Fixture tests for the baseline module's validate-documents hook.
   testValidateDocuments = pkgs.writeShellApplication {
@@ -171,6 +196,7 @@ in
     validateMarketplace
     renderPluginList
     validatePrerequisites
+    compareEvals
     pkgs.jq
   ];
 
@@ -216,6 +242,7 @@ in
     declared_tools_only ${lib.getExe renderPluginList}
     declared_tools_only ${lib.getExe validatePrerequisites}
     declared_tools_only ${lib.getExe testValidateMarketplace}
+    declared_tools_only ${lib.getExe testCompareEvals}
     declared_tools_only ${lib.getExe testValidateDocuments}
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
     declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"

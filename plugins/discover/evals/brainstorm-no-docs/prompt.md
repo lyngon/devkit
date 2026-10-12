@@ -1,5 +1,5 @@
 ---
-runs: 1
+plugins: ["../../.."]
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 Let's brainstorm names for the new billing service. No docs, no decisions, just toss ideas around.
