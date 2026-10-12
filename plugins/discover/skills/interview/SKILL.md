@@ -10,24 +10,25 @@ Map this as a **design tree**: every decision branches into the decisions that h
 
 Work the tree in **rounds**.
 The **frontier** is every decision whose prerequisites are already settled: the questions you can ask _now_ without guessing at answers you haven't heard yet.
-Ask the whole frontier in one round: number each question and give your recommended answer.
+Ask the whole frontier in one round: give each question a name of two or three words and your recommended answer.
+The name is how the user answers the question and how a later round refers to it, so a name is used once in an interview.
+No question carries a number: a number says nothing about its question, and it shifts when the tree does.
 Then wait for the user's answers before the next round.
 
 Format a round like so:
 
 ```text
-❓ **Q1** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+❓ **<question name>**: <question body, might be multiple paragraphs, including multiple choices>
 
 ➡️ <your recommended answer>
 
 ---
 
-❓ **Q2** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+❓ **<another question name>**: <question body, might be multiple paragraphs, including multiple choices>
 
 ➡️ <your recommended answer>
 ```
 
-Number questions continuously across rounds.
 Open every round after the first by naming the questions the user skipped; a skipped question takes your recommended answer.
 
 Each round the user answers reshapes the tree: settled decisions push the frontier outward and unblock questions that depended on them.

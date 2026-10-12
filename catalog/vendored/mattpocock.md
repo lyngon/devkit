@@ -77,7 +77,8 @@ The list covers the whole skill, the text adapted from obra/superpowers included
 
 - Renamed `grilling` to `interview`.
 - Description lists "interviewed" and "challenged" as triggers next to the upstream "grill" phrases.
-- Added the rules that question numbers continue across rounds and that a skipped question takes the recommended answer.
+- Each question carries a name of two or three words, where upstream numbers the questions, and the template of a round follows. The user answers under the name and a later round refers to it.
+- Added the rule that a skipped question takes the recommended answer.
 - Reflowed to one sentence per line.
 
 ## Review notes
