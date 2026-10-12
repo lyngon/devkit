@@ -43,7 +43,7 @@ The list covers the whole skill, the text adapted from obra/superpowers included
 - Renamed `grill-with-docs` to `approach`.
 - Skill calls are namespaced (`discover:interview`, `discover:domain-model`) so they resolve inside this plugin.
 - Added the `--no-docs` argument, replacing upstream's separate `grill-me` skill.
-- 2026-09-23: the classification into spike, bounded and architectural work with its one-way ratchet, the approval gate, the design file with its self-review and user review, the "Design for isolation and clarity" and "Working in existing codebases" lists and the red-flags table are adapted from obra/superpowers `skills/brainstorming` at commit `5bf4e78011075bcfc0dc295f0724994cd123ee71` (MIT, see [LICENSE-superpowers](LICENSE-superpowers)).
+- 2026-09-23: the classification into spike, bounded and architectural work with its one-way ratchet, the approval gate, the design file with its self-review and user review, the "Design for isolation and clarity" and "Working in existing codebases" lists and the red-flags table are adapted from obra/superpowers `skills/brainstorming` at commit `5bf4e78011075bcfc0dc295f0724994cd123ee71` (MIT, see [LICENSE-superpowers](../../shared/LICENSE-superpowers)).
 - Removed `disable-model-invocation: true`.
   The repo plugin's session hook tells the agent to invoke this skill before building anything with more than one reasonable design, which the flag made impossible.
 - Rewrote the description to say what the skill does (classify, interview, write terms and decision records, gate implementation) and when to use it, keeping the upstream "grill me" trigger and pointing tossing ideas around to `discover:brainstorm`.
