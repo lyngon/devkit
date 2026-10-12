@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
 # one, one without the `all` bundle, skills whose frontmatter breaks a rule,
-# vendored records and license links that break one, and a principles index
-# that disagrees with its files. Run through `devenv test`.
+# vendored records and license links that break one, a principles index that
+# disagrees with its files, and eval cases that load the wrong plugins. Run
+# through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-marketplace.sh
@@ -142,6 +143,31 @@ lines() {
   for ((count = 1; count < $1; count++)); do
     echo "A line."
   done
+}
+
+# A clean marketplace that also holds the writing plugin.
+writing_marketplace() {
+  local repo
+  repo=$(clean_marketplace)
+  plugin "$repo" writing
+  plugin "$repo" all one writing
+  echo "$repo"
+}
+
+# eval_case <repo> <plugin> <case> [<frontmatter line>...]: an eval case of the
+# plugin, whose prompt.md has those lines as its frontmatter. The case may be
+# a path of several directories.
+eval_case() {
+  local dir="$1/plugins/$2/evals/$3"
+  shift 3
+  mkdir -p "$dir/graders"
+  {
+    echo "---"
+    (($# == 0)) || printf '%s\n' "$@"
+    echo "---"
+    echo "Name the service."
+  } >"$dir/prompt.md"
+  printf -- '---\ntype: regex\npattern: "billing"\n---\n' >"$dir/graders/names-it.md"
 }
 
 # --- Assertions --------------------------------------------------------------
@@ -325,6 +351,73 @@ expect_error "principle file of 101 lines without a final newline" "$repo" "plug
 repo=$(principles_marketplace)
 rm "$(principles "$repo")/SKILL.md"
 expect_error "principles plugin without its index" "$repo" "plugins/principles/skills/index/SKILL.md is missing: the principles plugin holds its index there, one line for each file under plugins/principles/skills/index/references/"
+
+whole_bundle='plugins: ["../../.."]'
+needs_bundle="an eval case loads every plugin of the checkout, so its frontmatter needs the line"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "runs: 1" "$whole_bundle" "allowed_tools: [Read, Skill]"
+expect_ok "eval case that loads the whole bundle" "$repo"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "runs: 1"
+expect_error "eval case without a plugins line" "$repo" "plugins/one/evals/names-the-service/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service
+expect_error "eval case with an empty frontmatter" "$repo" "plugins/one/evals/names-the-service/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service
+printf 'Name the service.\n\n---\n%s\n---\n' "$whole_bundle" >"$repo/plugins/one/evals/names-the-service/prompt.md"
+expect_error "eval case whose plugins line is in the prompt, not the frontmatter" "$repo" "plugins/one/evals/names-the-service/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service 'plugins: ["../.."]'
+expect_error "eval case that loads its own plugin by name" "$repo" "plugins/one/evals/names-the-service/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service 'plugins: ["../../..", "../../../../elsewhere"]'
+expect_error "eval case that loads a second directory" "$repo" "plugins/one/evals/names-the-service/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "plugins:" '  - "../../.."'
+expect_error "eval case with its plugins as a block list" "$repo" "plugins/one/evals/names-the-service/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" all installs-everything "runs: 1"
+expect_error "eval case of the bundle without a plugins line" "$repo" "plugins/all/evals/installs-everything/prompt.md: $needs_bundle '$whole_bundle'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one naming/names-the-service 'plugins: ["../../../.."]'
+expect_ok "eval case one directory deeper, with the longer path" "$repo"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one naming/names-the-service "$whole_bundle"
+expect_error "eval case one directory deeper, with the shorter path" "$repo" "plugins/one/evals/naming/names-the-service/prompt.md: $needs_bundle 'plugins: [\"../../../..\"]'"
+
+repo=$(writing_marketplace)
+eval_case "$repo" writing plain-words "runs: 1"
+eval_case "$repo" one names-the-service "$whole_bundle"
+expect_ok "eval case of writing that names no plugin" "$repo"
+
+repo=$(writing_marketplace)
+eval_case "$repo" writing plain-words "runs: 1" "$whole_bundle"
+expect_error "eval case of writing that loads the whole bundle" "$repo" "plugins/writing/evals/plain-words/prompt.md: an eval case of writing has no 'plugins' line in its frontmatter"
+
+repo=$(writing_marketplace)
+eval_case "$repo" writing plain-words 'plugins: [".."]'
+expect_error "eval case of writing that names any plugin" "$repo" "plugins/writing/evals/plain-words/prompt.md: an eval case of writing has no 'plugins' line in its frontmatter"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf 'execution:\n  prompt: Name the service.\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders, never a case.yaml"
+
+repo=$(clean_marketplace)
+mkdir -p "$repo/plugins/one/evals/names-the-service"
+printf 'plugins: ["../../.."]\nexecution:\n  prompt: Name the service.\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml on its own" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders, never a case.yaml"
 
 if ((failures > 0)); then
   echo "test-validate-marketplace: $failures failure(s)" >&2
