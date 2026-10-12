@@ -4,10 +4,10 @@
 # settings template of /repo:init, the principles index and the plugins that
 # every eval case loads.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
-# pinning per plugin and vendoring per upstream, the bundles, documents and
-# upstream licenses shared through symlinks into shared/, one line and one
-# file per principle, and an eval case that runs with the plugins its plugin
-# assumes.
+# the commit as the version of a local plugin, pinning per plugin and vendoring
+# per upstream, the bundles, documents and upstream licenses shared through
+# symlinks into shared/, one line and one file per principle, and an eval case
+# that runs with the plugins its plugin assumes.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -21,8 +21,13 @@ fail() {
 }
 
 kebab='^[a-z0-9]+(-[a-z0-9]+)*$'
-semver='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 sha40='^[0-9a-f]{40}$'
+
+# Claude Code gives a plugin with a relative source and no version the first
+# 12 characters of the marketplace's commit as its version (measured on Claude
+# Code 2.1.283), so every commit on the default branch is a new version of
+# every local plugin.
+no_version="the commit is the version, and a version field would hold every user on that version until someone changes it"
 
 [[ -f "$manifest" ]] || {
   fail "$manifest is missing"
@@ -79,10 +84,10 @@ check_local_plugin() {
     return
   }
   [[ "$(jq -r '.name // ""' "$pj")" == "$entry_name" ]] || fail "$pj: name must equal marketplace entry name '$entry_name'"
-  [[ "$(jq -r '.version // ""' "$pj")" =~ $semver ]] || fail "$pj: version must be semver"
+  [[ "$(jq -r 'has("version")' "$pj")" == "false" ]] || fail "$pj: a local plugin declares no version: $no_version"
   [[ "$(jq -r '.description // ""' "$pj")" != "" ]] || fail "$pj: description is required"
   [[ "$(jq -r '.license // ""' "$pj")" != "" ]] || fail "$pj: license is required"
-  [[ -f "$dir/CHANGELOG.md" ]] || fail "$entry_name: CHANGELOG.md is required in the plugin directory"
+  [[ ! -e "$dir/CHANGELOG.md" ]] || fail "$dir/CHANGELOG.md: a plugin has no changelog: its history is the commits under its path, which 'git log --oneline -- $dir' lists"
   local content=0 skill dep
   for sub in skills commands agents hooks; do
     [[ -e "$dir/$sub" ]] && content=1
@@ -139,7 +144,7 @@ while IFS= read -r entry; do
   listed[$name]=1
   [[ "$(jq -r '.description // ""' <<<"$entry")" != "" ]] || fail "$name: marketplace entry needs a description"
   if [[ "$(jq -r '.source | type' <<<"$entry")" == "string" ]]; then
-    [[ "$(jq -r 'has("version")' <<<"$entry")" == "false" ]] || fail "$name: set version in plugin.json only, not in the marketplace entry"
+    [[ "$(jq -r 'has("version")' <<<"$entry")" == "false" ]] || fail "$name: the marketplace entry of a local plugin declares no version: $no_version"
     check_local_plugin "$name" "$(jq -r '.source' <<<"$entry")"
   else
     check_pinned_plugin "$name" "$entry"

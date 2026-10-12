@@ -40,7 +40,6 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │   ├── all/                the bundle every Lyngon repository installs
 │   └── <concern>/          one plugin per concern, in-house and vendored skills side by side
 │       ├── .claude-plugin/plugin.json
-│       ├── CHANGELOG.md
 │       ├── LICENSE-<upstream>  link to the license of an upstream whose text the plugin holds
 │       ├── evals/<case>/   an eval case: prompt.md and its graders
 │       └── skills/<name>/  a skill, in-house or vendored
@@ -214,6 +213,20 @@ To add a plugin to an adopted repository later, `--scope project` writes it into
 claude plugin install writing@lyngon --scope project
 ```
 
+## Versions and updates
+
+A plugin has no `version`, because the commit is the version.
+Claude Code gives a plugin that declares none the first 12 characters of the marketplace's commit as its version, when the marketplace is served from git.
+Every commit to the default branch is therefore a new version of every plugin, including a plugin the commit does not touch.
+What a repository learns of an update is the commits under the plugin's path, one for each pull request, and a breaking change is the `!` in the title of its pull request.
+In a clone of this repository:
+
+```sh
+git log --oneline -- plugins/build
+```
+
+Only a pinned third-party plugin has a `version`, in its marketplace entry.
+
 ## Developing
 
 Every tool comes from the devenv shell.
@@ -304,12 +317,11 @@ When an eval cannot run, the pull request says so and makes no claim about the b
 
 ## Adding a plugin
 
-1. Create `plugins/<name>/.claude-plugin/plugin.json` with `name`, `version`, `description` and `license`.
+1. Create `plugins/<name>/.claude-plugin/plugin.json` with `name`, `description` and `license`, and without a `version`.
 2. Add skills under `plugins/<name>/skills/<skill>/SKILL.md`.
-3. Add `plugins/<name>/CHANGELOG.md`.
-4. Add an entry to `.claude-plugin/marketplace.json` without a `version` field; the version lives in `plugin.json`.
-5. Add it to the `dependencies` of `plugins/all/`, unless its marketplace category is `devkit`.
-6. Run `devenv test`; it regenerates the plugin table above and fails until the change is staged.
+3. Add an entry to `.claude-plugin/marketplace.json`, also without a `version`; the commit is the version, and the validator refuses the field in both files.
+4. Add it to the `dependencies` of `plugins/all/`, unless its marketplace category is `devkit`.
+5. Run `devenv test`; it regenerates the plugin table above and fails until the change is staged.
 
 ## Adding third-party work
 

@@ -1,6 +1,5 @@
 {
   "name": "core",
-  "version": "0.5.0",
   "description": "The plugins that work in any repository with the Lyngon documents: discover, build, practice, review, writing and principles. A bundle: it has no skills of its own.",
   "author": {
     "name": "Lyngon",
