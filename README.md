@@ -41,6 +41,7 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │       ├── .claude-plugin/plugin.json
 │       ├── CHANGELOG.md
 │       ├── LICENSE-<upstream>  link to the license of an upstream whose text the plugin holds
+│       ├── evals/<case>/   an eval case: prompt.md and its graders
 │       └── skills/<name>/  a skill, in-house or vendored
 ├── catalog/
 │   ├── <plugin>.md         provenance record for every pinned third-party plugin
@@ -48,7 +49,7 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │       └── <upstream>.md   provenance record for everything vendored from one upstream
 ├── shared/                 shared documents and upstream licenses, symlinked into the plugins that use them
 ├── devenv/                 the shared devenv module every Lyngon repository imports
-├── scripts/                validation and generation run by git hooks and CI
+├── scripts/                validation and generation run by git hooks and CI, and the eval comparison
 ├── .claude/
 │   ├── CLAUDE.md           imports INTENT.md into every agent session
 │   └── rules/              this repository's principles, one per file, loaded by path
@@ -230,6 +231,59 @@ devenv test
 ```
 
 This repository registers itself as the marketplace `lyngon` from the working tree in `.claude/settings.json`, so a Claude Code session opened here installs the plugins from this checkout. Project marketplaces are applied once per Claude Code process start, so a new registration needs a fresh session, not `/reload-plugins`.
+
+### Evals
+
+An eval case is a directory `plugins/<plugin>/evals/<case>/` that holds a `prompt.md` and its graders under `graders/`.
+Which changes owe one is in [a-skill-change-owes-an-eval.md](.claude/rules/a-skill-change-owes-an-eval.md).
+Evals run on the author's machine and never in CI, and every run is a model call on the author's account.
+
+Run the suite of a checkout from its root:
+
+```sh
+claude plugin eval . --no-publish --ablation none --trust-plugin --allow-tools Write
+```
+
+Without `--no-publish` the command publishes its report to claude.ai.
+`--ablation none` leaves out the arm that runs without plugins, and `--trust-plugin` answers the question whether to trust the checkout.
+`--allow-tools` grants the gated tools that the cases list, and a case runs without a tool that is not granted.
+The report lands under `evals/results/`, which git ignores.
+
+The target is the root because a case can only name plugins inside the target, and a case here names the plugins directory.
+Its frontmatter line `plugins: ["../../.."]` loads every plugin under `plugins/` from the checkout, so a case of one plugin can use the skills of another.
+A case of `writing` has no such line and runs with `writing` alone, which shows that `writing` needs no other plugin.
+`validate-marketplace` fails a case that breaks either rule.
+
+Run the suite at a base commit and in the working tree, and print the score of each case at both:
+
+```sh
+compare-evals origin/main --allow-tools Write
+```
+
+`compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places and removes what it created.
+The working tree counts as head, uncommitted changes included.
+In the table a dash stands for a case that the commit does not have, and `error` for a case that the harness refused to run, with its reason below the table.
+A case that is new at head has no score at the base commit.
+To see it fail first, commit the case before the change it proves and name that commit as the base.
+
+While iterating, narrow both runs to one case, one run and a cheaper model:
+
+```sh
+compare-evals origin/main --allow-tools Write --case python-domain-value --runs 1 --model sonnet
+```
+
+A case that grants Bash runs only on a machine where the sandbox of the harness can exclude every credential store.
+Where it cannot, the harness refuses the run with a message of these two parts:
+
+```text
+the AWS (~/.aws) credential store on this machine holds a symbolic link inside it, so the Bash sandbox cannot reliably exclude it
+a Bash-granting evaluation cannot run here; keep the store's contents in one plain directory (its root may be a link)
+```
+
+So `~/.aws` must hold no symbolic link inside it.
+A `~/.aws/config` that the machine's Nix configuration links into the store is one, and the fix belongs in that configuration.
+The refusal is a safety check of the sandbox, so never work around it, for example by pointing `HOME` elsewhere.
+When an eval cannot run, the pull request says so and makes no claim about the behaviour.
 
 ## Adding a plugin
 
