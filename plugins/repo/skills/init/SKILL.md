@@ -49,7 +49,7 @@ Whatever the inventory settled is not asked again.
 
 ### 2. Interview
 
-Invoke two skills from the `discover` plugin, which this plugin depends on: `discover:interview` for the rounds-and-frontier method, and `discover:domain-model` for settling terms into `CONCEPTS.md` and recording decisions.
+Invoke two skills from the `discover` plugin: `discover:interview` for the rounds-and-frontier method, and `discover:domain-model` for settling terms into `CONCEPTS.md` and recording decisions.
 Then follow [references/interview.md](references/interview.md) for the question catalog, the first question ("what would make this repository a failure in a year?"), the rules specific to repository setup, and where each answer lands.
 
 Every question carries a recommended answer.
@@ -143,7 +143,7 @@ Commit by concern, in an order in which each commit passes the hooks, and put tw
 3. `ci: run the full check and the pull request check in CI`: both workflows.
 4. `build: adopt the Lyngon structure`, only when the repository adopts it: the root workspace files; then one `feat(<name>): add <kind> <name>` per package.
 
-Then finish the branch with `/build:finish` when the build plugin is installed; otherwise push it and open a pull request.
+Then finish the branch with `/build:finish`.
 
 Print the next steps for the owner:
 

@@ -177,7 +177,7 @@ In an existing repository, init shows a diff for every file it would touch, merg
 
 Colleagues who clone the repository get the marketplace registered as soon as they trust the folder.
 Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command.
-The settings name every plugin, since Claude Code does not count a member installed with the bundle as enabled when it checks another member's dependencies.
+The settings name every plugin: Claude Code does not count a plugin installed with the bundle as enabled when it checks what another plugin depends on (seen in Claude Code 2.1.278), so the settings do not rely on the bundle to enable its members.
 One command still installs them all:
 
 ```sh
@@ -299,6 +299,12 @@ When an eval cannot run, the pull request says so and makes no claim about the b
 3. Add an entry to `.claude-plugin/marketplace.json`, also without a `version`; the commit is the version, and the validator refuses the field in both files.
 4. Add it to the `dependencies` of `plugins/all/`, unless its marketplace category is `devkit`.
 5. Run `devenv test`; it regenerates the plugin table above and fails until the change is staged.
+
+A member of `all` declares no `dependencies` of its own.
+It assumes a Lyngon development repository and every other member, so its text names their skills as `<plugin>:<skill>`, and `validate-shipped-text` fails a name that no skill has.
+What it says about the structure goes under a `With the Lyngon structure` heading, unless the plugin is `repo` or `devkit`.
+Only a skill of `conventions` sets `user-invocable: false`.
+A skill that must work outside a Lyngon development repository goes into `writing`, whose text names no other plugin's skill and no term of such a repository.
 
 ## Adding third-party work
 

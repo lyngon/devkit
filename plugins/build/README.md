@@ -17,7 +17,7 @@ See the decision records [Planned work is reviewed at two gates](../../docs/deci
 
 All four are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT).
 The license is `LICENSE-superpowers` in this plugin, and the provenance record is [catalog/vendored/superpowers.md](../../catalog/vendored/superpowers.md).
-The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, so `practice` and `review` are dependencies.
+The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, skills of two other members of the `all` bundle.
 
 ## Install
 

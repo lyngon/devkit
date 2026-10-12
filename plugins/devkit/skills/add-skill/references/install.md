@@ -18,7 +18,7 @@ Target: `plugins/<concern>/skills/<name>/` for each path, and one record for the
 4. Write `catalog/vendored/<upstream>.md` from `catalog/vendored/TEMPLATE.md`: upstream URL, 40-character commit, version, license, reviewer and date, then for each path why it is here, its row in the table of what was taken (upstream path and destination), every local patch and the review findings, each under its destination. When the upstream already has a record, add the paths to it and leave its commit as it is.
 5. Frontmatter `name` must equal the directory name; `description` must state what and when.
 
-If the concern plugin is new: create `plugins/<concern>/.claude-plugin/plugin.json` (name, description, author, license `Apache-2.0`, `dependencies` if it calls other plugins' skills, and no `version`) and `README.md`, and add the marketplace entry, also without a `version`, because the commit is the plugin's version. Add it to the `dependencies` of `plugins/all/`; the validator refuses the marketplace otherwise.
+If the concern plugin is new: create `plugins/<concern>/.claude-plugin/plugin.json` (name, description, author, license `Apache-2.0`, and neither a `version` nor `dependencies`) and `README.md`, and add the marketplace entry, also without a `version`, because the commit is the plugin's version. Add it to the `dependencies` of `plugins/all/`; the validator refuses the marketplace otherwise.
 If it exists: update its README skill list.
 Either way, the plugin's README names the upstream, the license link and the record.
 

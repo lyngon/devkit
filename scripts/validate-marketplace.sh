@@ -6,9 +6,10 @@
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
 # the commit as the version of a local plugin, a slash command for every skill
 # outside conventions, pinning per plugin and vendoring per upstream, the
-# bundles, documents and upstream licenses shared through symlinks into
-# shared/, one line and one file per principle, and an eval case that runs
-# with the plugins its plugin assumes.
+# bundle and its members without dependencies of their own, documents and
+# upstream licenses shared through symlinks into shared/, one line and one
+# file per principle, and an eval case that runs with the plugins its plugin
+# assumes.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -174,11 +175,23 @@ else
   expected=$(jq -r '.plugins[] | select(.source | type == "string") | select(.category != "devkit") | select(.category != "bundle") | .name' "$manifest" | sort)
   actual=$(jq -r '.dependencies // [] | .[] | if type == "string" then . else .name end' plugins/all/.claude-plugin/plugin.json | sort)
   [[ "$expected" == "$actual" ]] || fail "plugins/all: dependencies must be exactly: $(tr '\n' ' ' <<<"$expected")"
+
+  # A member assumes every other member, so its text names their skills, and
+  # theirs name its own. Declared, that would be a cycle, and Claude Code's
+  # documentation does not say what a cycle of dependencies does. The bundle
+  # is what installs the members together.
+  while IFS= read -r member; do
+    pj="plugins/$member/.claude-plugin/plugin.json"
+    jq -e . "$pj" >/dev/null 2>&1 || continue
+    [[ "$(jq -r 'has("dependencies")' "$pj")" == "false" ]] ||
+      fail "$pj: a member of all declares no dependencies: a member assumes the whole bundle, and members name each other's skills in both directions, which a list of dependencies cannot express"
+  done <<<"$actual"
 fi
 
 # The settings template of /repo:init enables `all` and every member by name:
-# Claude Code does not count a member installed with the bundle as enabled when
-# it checks another member's dependencies.
+# Claude Code does not count a plugin installed with the bundle as enabled
+# when it checks what another plugin depends on (seen in Claude Code 2.1.278),
+# so the settings do not rely on the bundle to enable its members.
 settings_template=plugins/repo/skills/init/references/repo-files.md
 if [[ -f plugins/all/.claude-plugin/plugin.json && -f "$settings_template" ]]; then
   marketplace=$(jq -r '.name' "$manifest")

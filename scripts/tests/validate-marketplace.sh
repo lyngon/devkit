@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
-# one, one without the `all` bundle, a local plugin with a version or a
-# changelog, skills whose frontmatter breaks a rule, the flag that only a
-# conventions skill carries, vendored records and license links that break a
-# rule, a principles index that disagrees with its files, and eval cases that
-# load the wrong plugins. Run through `devenv test`.
+# one, one without the `all` bundle, a member of it that declares
+# dependencies, a local plugin with a version or a changelog, skills whose
+# frontmatter breaks a rule, the flag that only a conventions skill carries,
+# vendored records and license links that break a rule, a principles index
+# that disagrees with its files, and eval cases that load the wrong plugins.
+# Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-marketplace.sh
@@ -29,21 +30,38 @@ manifest() {
 }
 
 # plugin <repo> <name> [dependency...]: a plugin with one skill that links the
-# shared document, or a bundle when dependencies are given.
+# shared document and declares no dependencies, or a bundle when dependencies
+# are given.
 plugin() {
   local repo=$1 name=$2 dir="$1/plugins/$2" deps=""
   shift 2
   mkdir -p "$dir/.claude-plugin"
   if (($# > 0)); then
     deps=$(printf '"%s",' "$@")
+    deps=", \"dependencies\": [${deps%,}]"
   else
     mkdir -p "$dir/skills/main"
     printf -- '---\nname: main\ndescription: Test skill.\n---\n\n# Main\n' >"$dir/skills/main/SKILL.md"
     ln -s ../../../../shared/SHARED.md "$dir/skills/main/SHARED.md"
   fi
-  printf '{"name": "%s", "description": "Test plugin.", "license": "Apache-2.0", "dependencies": [%s]}\n' \
-    "$name" "${deps%,}" >"$dir/.claude-plugin/plugin.json"
+  printf '{"name": "%s", "description": "Test plugin.", "license": "Apache-2.0"%s}\n' \
+    "$name" "$deps" >"$dir/.claude-plugin/plugin.json"
   manifest "$repo"
+}
+
+# depend <repo> <name> <dependencies as JSON>: the plugin declares them.
+depend() {
+  local file="$1/plugins/$2/.claude-plugin/plugin.json" declared
+  declared=$(jq --argjson dependencies "$3" '.dependencies = $dependencies' "$file")
+  printf '%s\n' "$declared" >"$file"
+}
+
+# categorize <repo> <name> <category>: the marketplace entry of the plugin
+# gets the category. A later call of `plugin` writes the manifest anew.
+categorize() {
+  local file="$1/.claude-plugin/marketplace.json" listed
+  listed=$(jq --arg name "$2" --arg category "$3" '(.plugins[] | select(.name == $name)).category = $category' "$file")
+  printf '%s\n' "$listed" >"$file"
 }
 
 # A clean marketplace: one plugin with a skill, and the `all` bundle over it.
@@ -234,6 +252,24 @@ expect_error "the all bundle is missing" "$repo" "plugins/all is missing: Claude
 repo=$(clean_marketplace)
 plugin "$repo" two
 expect_error "the all bundle misses a plugin" "$repo" "plugins/all: dependencies must be exactly: one two"
+
+whole_bundle_assumed="a member of all declares no dependencies: a member assumes the whole bundle, and members name each other's skills in both directions, which a list of dependencies cannot express"
+
+repo=$(clean_marketplace)
+plugin "$repo" two
+plugin "$repo" all one two
+depend "$repo" one '["two"]'
+expect_error "member of the all bundle that depends on another member" "$repo" "plugins/one/.claude-plugin/plugin.json: $whole_bundle_assumed"
+
+repo=$(clean_marketplace)
+depend "$repo" one '[]'
+expect_error "member of the all bundle with an empty list of dependencies" "$repo" "plugins/one/.claude-plugin/plugin.json: $whole_bundle_assumed"
+
+repo=$(clean_marketplace)
+plugin "$repo" devkit
+depend "$repo" devkit '["one"]'
+categorize "$repo" devkit devkit
+expect_ok "plugin outside the all bundle that depends on a member" "$repo"
 
 no_version="the commit is the version, and a version field would hold every user on that version until someone changes it"
 

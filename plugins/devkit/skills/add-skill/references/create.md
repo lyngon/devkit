@@ -39,6 +39,6 @@ Evals are not wired into CI yet (token cost); note that in the commit message if
 
 - Update the plugin's README.
 - New concern plugin: same files as in `install.md`.
-- If the skill calls skills from another plugin, add that plugin to `dependencies`.
+- A member of `all` declares no `dependencies`: its skills name the skills of other members as `<plugin>:<skill>`, and `validate-shipped-text` fails a name that no skill has.
 - Run `devenv test`.
 - Commit as one commit on the feature branch, `feat(<concern>): add <name> skill`; do not push, since the push comes when the whole piece of work is done.
