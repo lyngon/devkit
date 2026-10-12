@@ -1,6 +1,6 @@
 {
   "name": "principles",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon.",
   "author": {
     "name": "Lyngon",

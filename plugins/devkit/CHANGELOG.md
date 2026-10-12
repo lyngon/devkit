@@ -3,6 +3,10 @@
 All notable changes to the `devkit` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
 
+## 0.5.0 - 2026-10-12
+
+- `add-skill` records vendored skills per upstream. It takes several paths of one upstream in one pass, writes the record `catalog/vendored/<upstream>.md` or adds to the one the upstream has, at the commit that record names, and puts the license in `shared/LICENSE-<upstream>` with a link in the root of each plugin that receives a path. It wrote an `UPSTREAM.md` and a `LICENSE` into each skill directory. Its check for a skill that is already in the catalog reads `catalog/`.
+
 ## 0.4.1 - 2026-10-11
 
 - `add-skill` names the four prerequisites a plugin can declare (`documents`, `workflow`, `baseline`, `structure`) and all five conditional headings. It still listed the three from before `baseline` replaced `devenv` and `workflow` was added.
