@@ -113,7 +113,9 @@ my-service/
 │   ├── CLAUDE.md               imports INTENT.md into every agent session
 │   ├── rules/                  this repository's principles, one per file
 │   └── settings.json           registers the lyngon marketplace, enables all@lyngon and each member
-├── .github/workflows/ci.yml    runs devenv test
+├── .github/workflows/
+│   ├── ci.yml                  runs devenv test
+│   └── pull-request.yml        runs check-pull-request on the title and the body of a pull request
 ├── .vscode/extensions.json     recommends the direnv extension
 ├── .envrc                      loads the devenv shell through direnv
 ├── pyproject.toml              the Python workspace: explicit members, one uv.lock

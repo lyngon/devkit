@@ -93,7 +93,7 @@ Documents scope:
 - `README.md`, `CONCEPTS.md`, `docs/decisions/<name>.md` for each decision record from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention too long for a rule file.
 - `.gitignore` with the baseline patterns, `/tmp/`, `/sandbox/`, and the stack patterns.
 - `.claude/settings.json` hiding the agent's commit attribution, registering the `lyngon` marketplace and enabling each plugin by name: `all@lyngon` and its members, or `core@lyngon` and its members, or the subset the user chose with its dependencies, the last two together with `conventions@lyngon`. The README installs the bundle, or the chosen plugins, with `conventions`.
-- `.github/workflows/ci.yml` (or the equivalent for the chosen host).
+- `.github/workflows/ci.yml` and `.github/workflows/pull-request.yml` (or the equivalents for the chosen host).
 
 Baseline scope:
 
@@ -140,7 +140,7 @@ Commit by concern, in an order in which each commit passes the hooks, and put tw
 
 1. `docs: adopt the Lyngon documents`: `INTENT.md`, `.claude/CLAUDE.md`, the rule files, `README.md`, `CONCEPTS.md`, the decision records, `docs/`, `.gitignore` and `.claude/settings.json`, together with the removal of an old `CLAUDE.md`, `AGENTS.md` and `docs/adr/`.
 2. `build: import the Lyngon baseline`: the devenv files and the linter configurations.
-3. `ci: run the full check in CI`.
+3. `ci: run the full check and the pull request check in CI`: both workflows.
 4. `build: adopt the Lyngon structure`: the root workspace files and `secretspec.toml`; then one `feat(<name>): add <kind> <name>` per package.
 
 Then finish the branch with `/build:finish` when the build plugin is installed; otherwise push it and open a pull request.
