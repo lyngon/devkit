@@ -35,12 +35,17 @@ class Options:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Case:
-    """What one eval case did at one commit. A run the harness refused or cut short adds
-    its reason to the errors, and still counts in the score."""
+    """What one eval case did at one commit.
+
+    A run the harness refused or cut short adds its reason to the errors, and
+    still counts in the score. A grader that failed is listed with the number
+    of runs it failed in, in the order the case declares its graders.
+    """
 
     score: float
     runs: int
     errors: tuple[str, ...]
+    failed_graders: ct.Mapping[str, int]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -134,10 +139,13 @@ def parse_result(data: object, side: str) -> Result:
     try:
         for entry in cases:
             runs = entry["arms"]["with"]
+            verdicts = [(str(grader["name"]), bool(grader["passed"])) for run in runs for grader in run["graders"]]
+            failures = {name: verdicts.count((name, False)) for name, _ in verdicts}
             parsed[str(entry["dir"])] = Case(
                 score=float(entry["aggregates"]["score"]),
                 runs=len(runs),
                 errors=tuple(str(run["error"]) for run in runs if run["error"] is not None),
+                failed_graders={name: count for name, count in failures.items() if count > 0},
             )
         return Result(cases=parsed, cost_usd=float(data["costUsd"]))
     except (KeyError, TypeError, ValueError) as error:
@@ -155,22 +163,31 @@ def cell(case: Case | None) -> str:
     return f"{case.score:.2f} ({counts})"
 
 
+def reasons(case: Case) -> list[str]:
+    """What stands behind a score below 1: each distinct run error, and each grader
+    that failed with the number of runs it failed in."""
+    return [
+        *(f"run error: {error}" for error in dict.fromkeys(case.errors)),
+        *(f"grader {name} failed in {count} of {case.runs} runs" for name, count in case.failed_graders.items()),
+    ]
+
+
 def report(base: Result, head: Result) -> list[str]:
-    """The table of every case of either run, each distinct reason of a run error,
+    """The table of every case of either run, the reasons behind each score below 1,
     and what the two runs cost."""
     names = sorted(base.cases.keys() | head.cases.keys())
     rows = [("case", "base", "head"), *((name, cell(base.cases.get(name)), cell(head.cases.get(name))) for name in names)]
     widths = [max(len(row[column]) for row in rows) for column in range(3)]
     lines = ["  ".join(text.ljust(width) for text, width in zip(row, widths, strict=True)).rstrip() for row in rows]
-    errors = [
-        f"{name} at {side}: {error}"
+    behind = [
+        f"{name} at {side}: {reason}"
         for name in names
         for side, result in (("base", base), ("head", head))
         if (case := result.cases.get(name)) is not None
-        for error in dict.fromkeys(case.errors)
+        for reason in reasons(case)
     ]
-    if errors:
-        lines += ["", *errors]
+    if behind:
+        lines += ["", *behind]
     return [*lines, "", f"cost: base {base.cost_usd:.2f} USD, head {head.cost_usd:.2f} USD"]
 
 

@@ -265,7 +265,8 @@ compare-evals origin/main --allow-tools Write
 `compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places and removes what it created.
 The working tree counts as head, uncommitted changes included.
 In the table a dash stands for a case that the commit does not have.
-A run that the harness refused or cut short is counted as an error beside the score, and its reason follows the table.
+Below the table each grader that failed is listed with the number of runs it failed in.
+A run that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
 A case that is new at head has no score at the base commit.
 To see it fail first, commit the case before the change it proves and name that commit as the base.
 

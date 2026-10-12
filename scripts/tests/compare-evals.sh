@@ -72,6 +72,14 @@ case_of() {
     '{name: ($dir | split("/") | last), dir: $dir, arms: {with: [range($runs) | $run]}, aggregates: {score: $score, passRate: $score}}'
 }
 
+# with_grader <name> <verdicts>: the case on stdin with one more grader in its
+# runs. The verdicts hold one letter for each run, p for passed and f for
+# failed.
+with_grader() {
+  jq --arg name "$1" --arg verdicts "$2" \
+    '.arms.with |= [to_entries[] | .value.graders += [{name: $name, passed: ($verdicts[.key:.key + 1] == "p")}] | .value]'
+}
+
 # result <cost> <case>...: a whole result file.
 result() {
   local cost=$1
@@ -86,22 +94,22 @@ commit() {
 
 # A repository of two commits, each with its own canned result: a case that
 # goes from red to green, one that exists only at the first commit, one whose
-# score drops over three runs, and one that exists only at the second. The
-# tag `base` names the first commit.
+# score drops over three runs as its graders start to fail, and one that
+# exists only at the second. The tag `base` names the first commit.
 two_commits() {
   local repo
   repo=$(mktemp -d "$tmp/repo.XXXXXX")
   git -C "$repo" init -q -b main
   result 0.25 \
-    "$(case_of plugins/one/evals/red-then-green 0 1)" \
-    "$(case_of plugins/one/evals/removed-at-head 1 1)" \
-    "$(case_of plugins/one/evals/stays-green 1 3)" >"$repo/canned-result.json"
+    "$(case_of plugins/one/evals/red-then-green 0 1 | with_grader writes-the-file f)" \
+    "$(case_of plugins/one/evals/removed-at-head 1 1 | with_grader writes-the-file p)" \
+    "$(case_of plugins/one/evals/stays-green 1 3 | with_grader names-it ppp | with_grader asks-first ppp)" >"$repo/canned-result.json"
   commit "$repo" "chore: base"
   git -C "$repo" tag base
   result 0.5 \
-    "$(case_of plugins/two/evals/new-at-head 1 1)" \
-    "$(case_of plugins/one/evals/stays-green 0.6666666666666666 3)" \
-    "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+    "$(case_of plugins/two/evals/new-at-head 1 1 | with_grader writes-the-file p)" \
+    "$(case_of plugins/one/evals/stays-green 0.6666666666666666 3 | with_grader names-it pff | with_grader asks-first fpp)" \
+    "$(case_of plugins/one/evals/red-then-green 1 1 | with_grader writes-the-file p)" >"$repo/canned-result.json"
   commit "$repo" "chore: head"
   echo "$repo"
 }
@@ -131,16 +139,17 @@ equals() {
   }
 }
 
+# A needle may span lines, which grep would read as one pattern for each line.
 contains() {
-  grep -qF -- "$2" <<<"$1" || {
-    echo "  missing: $2"
+  [[ "$1" == *"$2"* ]] || {
+    echo "  missing: ${2//$'\n'/$'\n'           }"
     echo "  in:      ${1//$'\n'/$'\n'           }"
     return 1
   }
 }
 
 lacks() {
-  ! grep -qF -- "$2" <<<"$1" || {
+  [[ "$1" != *"$2"* ]] || {
     echo "  unexpected: $2"
     return 1
   }
@@ -181,7 +190,7 @@ nothing_left() {
 repo=$(two_commits)
 compare "$repo" main~1
 check "two commits: exits 0" equals "$code" 0
-check "two commits: prints each case with its score and runs at base and at head" equals "$out" "base: $(sha "$repo" main~1) (main~1)
+check "two commits: prints each case with its score and runs at base and at head, then the graders that failed" equals "$out" "base: $(sha "$repo" main~1) (main~1)
 head: $(sha "$repo" main)
 
 case                               base           head
@@ -189,6 +198,10 @@ plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)
 plugins/one/evals/removed-at-head  1.00 (1 run)   -
 plugins/one/evals/stays-green      1.00 (3 runs)  0.67 (3 runs)
 plugins/two/evals/new-at-head      -              1.00 (1 run)
+
+plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
+plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
 
 cost: base 0.25 USD, head 0.50 USD"
 check "two commits: the run's own output stays off stdout" contains "$err" "stub: progress of the run"
@@ -235,7 +248,7 @@ check "run errors: are counted beside the score" contains "$out" "plugins/one/ev
 check "run errors: a case without one is unmarked" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
 check "run errors: the reason follows the table, once" equals "$(grep -c -F -- "$refusal" <<<"$out")" 1
 check "run errors: the reason names its case and commit" contains "$out" "
-plugins/one/evals/needs-bash at head: $refusal
+plugins/one/evals/needs-bash at head: run error: $refusal
 "
 
 repo=$(two_commits)
@@ -294,6 +307,17 @@ commit "$repo" "chore: no case at head"
 compare "$repo" main --case 'no-such-case'
 check "no case at either commit: exits 1" equals "$code" 1
 check "no case at either commit: says so" contains "$err" "compare-evals: no eval case ran at either commit"
+
+repo=$(two_commits)
+git -C "$repo" tag -a -m "the first release" release base
+compare "$repo" release
+check "a base given as an annotated tag: is named by its commit" contains "$out" "base: $(sha "$repo" base) (release)"$'\n'
+
+repo=$(two_commits)
+compare "$repo" main:canned-result.json
+check "a base that names a file: exits 1" equals "$code" 1
+check "a base that names a file: says so" contains "$err" "compare-evals: 'main:canned-result.json' names no commit"
+check "a base that names a file: runs nothing" equals "$calls" ""
 
 repo=$(two_commits)
 compare "$repo" no-such-branch
