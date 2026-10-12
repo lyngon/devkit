@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Exercise validate-shipped-text.py against throwaway marketplaces: skill
-# references that name no skill, in every kind of shipped text, and the text of
-# the same shape that is no skill reference. Run through `devenv test`.
+# references that name no skill, in every kind of shipped text, the text of the
+# same shape that is no skill reference, and a writing plugin that names
+# another plugin's skill or a term of a development repository. Run through
+# `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-shipped-text.py
@@ -195,6 +197,84 @@ repo=$(new_repo)
 plugin "$repo" one
 printf 'A binary: \xff\xfe\x00 one:gone\n' >"$repo/plugins/one/skills/main/logo.png"
 expect_ok "file that is not text" "$repo"
+
+# --- writing stands alone ----------------------------------------------------
+
+no_other_plugin="and writing assumes no other plugin, so its text names only its own skills"
+no_repository="a term of a Lyngon development repository, and writing assumes nothing about the repository it is installed in"
+
+repo=$(new_repo)
+plugin "$repo" writing
+plugin "$repo" one
+echo "Run writing:main on the prose, then read it aloud." >>"$(skill "$repo" writing)"
+echo "Terms are in CONCEPTS.md, and the full check is devenv test." >>"$(skill "$repo" one)"
+expect_ok "writing that names its own skill, beside a plugin for development" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" writing
+plugin "$repo" one
+echo "Then invoke one:main." >>"$(skill "$repo" writing)"
+expect_error "writing names a skill of another plugin" "$repo" "plugins/writing/skills/main/SKILL.md:7: names the skill 'one:main', $no_other_plugin" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+pinned "$repo" creator
+echo "Hand the draft to /creator:draft." >>"$(skill "$repo" writing)"
+expect_error "writing names a skill of a pinned plugin" "$repo" "plugins/writing/skills/main/SKILL.md:7: names the skill 'creator:draft', $no_other_plugin" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+echo "Cite the place as file:line." >>"$(skill "$repo" writing)"
+expect_ok "writing holds a pair that is no skill reference" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" writing
+echo "Use the terms of CONCEPTS.md." >>"$(skill "$repo" writing)"
+expect_error "writing names a document of a Lyngon repository" "$repo" "plugins/writing/skills/main/SKILL.md:7: names 'CONCEPTS.md', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+echo "Run devenv test before handing over." >>"$(skill "$repo" writing)"
+expect_error "writing names devenv" "$repo" "plugins/writing/skills/main/SKILL.md:7: names 'devenv', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+echo "The prose-lint hook checks the dashes." >>"$(skill "$repo" writing)"
+expect_error "writing names a hook of the baseline" "$repo" "plugins/writing/skills/main/SKILL.md:7: names 'prose-lint', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+echo "Each package under libs/ has a README." >>"$(skill "$repo" writing)"
+expect_error "writing names a directory of the structure" "$repo" "plugins/writing/skills/main/SKILL.md:7: names 'libs/', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+printf -- '\n## With the Lyngon structure\n\nEach package under libs/ has a README.\n' >>"$(skill "$repo" writing)"
+expect_error "no heading makes a term conditional in writing" "$repo" "plugins/writing/skills/main/SKILL.md:10: names 'libs/', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+printf -- '---\nname: main\ndescription: Edit prose, such as a README or CLAUDE.md.\n---\n\n# Main\n' >"$(skill "$repo" writing)"
+expect_error "writing names a term in a description" "$repo" "plugins/writing/skills/main/SKILL.md:3: names 'CLAUDE.md', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+mkdir "$repo/plugins/writing/hooks"
+echo "Decisions are in docs/decisions/." >"$repo/plugins/writing/hooks/session-start.txt"
+expect_error "writing names a term in a hook text" "$repo" "plugins/writing/hooks/session-start.txt:1: names 'docs/decisions', $no_repository" 1
+
+repo=$(new_repo)
+plugin "$repo" writing
+plugin "$repo" one
+echo "The glossary is CONCEPTS.md; settle a term with one:main." >"$repo/shared/FORMAT.md"
+ln -s ../../../../shared/FORMAT.md "$repo/plugins/writing/skills/main/FORMAT.md"
+ln -s ../../../../shared/FORMAT.md "$repo/plugins/one/skills/main/FORMAT.md"
+expect_error "writing links a shared document for development" "$repo" "plugins/writing/skills/main/FORMAT.md:1: names 'CONCEPTS.md', $no_repository" 2
+
+repo=$(new_repo)
+plugin "$repo" writing
+echo "Terms are in CONCEPTS.md." >>"$repo/plugins/writing/README.md"
+expect_ok "the README of writing is not shipped text" "$repo"
 
 if ((failures > 0)); then
   echo "test-validate-shipped-text: $failures failure(s)" >&2

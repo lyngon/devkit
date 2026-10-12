@@ -44,7 +44,8 @@ let
     text = ''exec "${config.devenv.root}/scripts/validate-prerequisites.py" "$@"'';
   };
   # What an agent can read from an installed plugin: every skill reference in
-  # it names a skill that exists.
+  # it names a skill that exists, and the text of `writing` names no other
+  # plugin and nothing of a development repository.
   validateShippedText = pkgs.writeShellApplication {
     name = "validate-shipped-text";
     runtimeInputs = [

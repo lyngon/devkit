@@ -7,9 +7,14 @@ a link into shared/ read as the document it points at, and every document
 under shared/. A plugin's README.md, its eval cases and its licenses are not
 shipped text: a README is read in this repository, by a person.
 
-One check: a skill reference names a skill that exists. A plugin assumes every
-other plugin of the bundle, so its text names their skills freely, and nothing
-else fails when a skill is renamed or removed and a pointer to it stays.
+Two checks:
+
+- A skill reference names a skill that exists. A plugin assumes every other
+  plugin of the bundle, so its text names their skills freely, and nothing else
+  fails when a skill is renamed or removed and a pointer to it stays.
+- `writing` stands alone. It is the one plugin that is installed outside a
+  Lyngon development repository, so its text names no skill of another plugin
+  and no term of such a repository.
 
 Runs from anywhere inside the repository. Exits 1 when a check fails.
 """
@@ -55,6 +60,62 @@ NAMESPACES = {
     "github": "a flake reference, github:owner/repository",
     "in": "a GitHub search qualifier, in:title",
     "node": "a Node builtin module, node:fs",
+}
+
+# The plugin that assumes nothing: no other plugin, and no Lyngon development
+# repository around it.
+STANDALONE = "writing"
+
+# What only a Lyngon development repository has, by where it comes from: the
+# documents, devenv, the baseline and the structure. A term is matched as it
+# is written here, anywhere in a line, so `ruff` also fails "gruff". When a
+# sentence trips a term it does not mean, reword the sentence.
+TERMS: ct.Mapping[str, tuple[str, ...]] = {
+    "documents": (
+        "CONCEPTS.md",
+        "docs/decisions",
+        "INTENT.md",
+        "CLAUDE.md",
+        ".claude/rules",
+        "docs/TODO.md",
+        "docs/conventions",
+    ),
+    "devenv": ("devenv", "secretspec", "git-hooks", "enterTest", ".pre-commit-config"),
+    "baseline": (
+        "lyngon.enable",
+        "lyngon.structure",
+        "lyngon.mcp",
+        "lyngon/devenv",
+        "validate-documents",
+        "prose-lint",
+        "markdownlint",
+        "nixfmt",
+        "shellcheck",
+        "ruff",
+        "prettier",
+        "commitizen",
+        "typos",
+        "ripsecrets",
+        "actionlint",
+        "yamllint",
+        "deadnix",
+        "statix",
+        "golangci-lint",
+        "ruff.toml",
+        "tsconfig.base.json",
+        "eslint.config.js",
+        "basedpyright",
+    ),
+    "structure": (
+        "apps/",
+        "libs/",
+        "contracts/",
+        "tools/",
+        "infra/",
+        "STRUCTURE.md",
+        "add-package",
+        "validate-structure",
+    ),
 }
 
 
@@ -121,15 +182,15 @@ def files_below(directory: pathlib.Path) -> list[pathlib.Path]:
     )
 
 
+def plugin_files(directory: pathlib.Path) -> list[pathlib.Path]:
+    """The files of one plugin that hold shipped text, by their paths inside the plugin."""
+    return [path for component in COMPONENTS for path in files_below(directory / component)]
+
+
 def shipped_files(root: pathlib.Path, marketplace: Marketplace) -> list[pathlib.Path]:
     """The files that hold shipped text, each once: a document that plugins link is
     the one file under shared/, however many links lead to it."""
-    found = [
-        path.resolve()
-        for directory in marketplace.local.values()
-        for component in COMPONENTS
-        for path in files_below(directory / component)
-    ]
+    found = [path.resolve() for directory in marketplace.local.values() for path in plugin_files(directory)]
     found += [path.resolve() for path in files_below(root / "shared") if not path.name.startswith("LICENSE")]
     return sorted(set(found))
 
@@ -147,8 +208,17 @@ def read_lines(path: pathlib.Path) -> list[str]:
         return []
 
 
+def references(line: str, marketplace: Marketplace) -> ct.Iterator[tuple[str, str]]:
+    """The skill references of a line, each as its plugin and its skill."""
+    for match in REFERENCE.finditer(line):
+        plugin, skill = match.group(1), match.group(2)
+        if plugin in NAMESPACES and plugin not in marketplace.local and plugin not in marketplace.pinned:
+            continue
+        yield plugin, skill
+
+
 def unresolved(plugin: str, skill: str, root: pathlib.Path, marketplace: Marketplace) -> str | None:
-    """Why the reference names no skill, or None when it names one or is no skill reference."""
+    """Why the reference names no skill, or None when it names one."""
     directory = marketplace.local.get(plugin)
     if directory is not None:
         skill_file = directory / "skills" / skill / "SKILL.md"
@@ -157,7 +227,7 @@ def unresolved(plugin: str, skill: str, root: pathlib.Path, marketplace: Marketp
         return f"names the skill '{plugin}:{skill}', and {displayed(skill_file, root)} does not exist"
     # The skills of a pinned plugin are in its upstream, not in this tree, so
     # a reference to one is taken on trust once the plugin is listed.
-    if plugin in marketplace.pinned or plugin in NAMESPACES:
+    if plugin in marketplace.pinned:
         return None
     return (
         f"names the skill '{plugin}:{skill}', and the marketplace has no plugin '{plugin}'; if this is not a skill, "
@@ -171,16 +241,43 @@ def check_references(root: pathlib.Path, marketplace: Marketplace) -> list[Findi
         Finding(path=displayed(path, root), line=number, message=reason)
         for path in shipped_files(root, marketplace)
         for number, line in enumerate(read_lines(path), 1)
-        for match in REFERENCE.finditer(line)
-        if (reason := unresolved(match.group(1), match.group(2), root, marketplace)) is not None
+        for plugin, skill in references(line, marketplace)
+        if (reason := unresolved(plugin, skill, root, marketplace)) is not None
     ]
+
+
+def check_standalone(root: pathlib.Path, marketplace: Marketplace) -> list[Finding]:
+    """A finding for every skill of another plugin, and for the first development
+    term of every line, in the text of the plugin that stands alone. A document it
+    links from shared/ counts as its text, and no heading makes a line conditional."""
+    directory = marketplace.local.get(STANDALONE)
+    if directory is None:
+        return []
+    terms = [term for group in TERMS.values() for term in group]
+    findings: list[Finding] = []
+    for path in plugin_files(directory):
+        for number, line in enumerate(read_lines(path), 1):
+            reasons = [
+                f"names the skill '{plugin}:{skill}', and {STANDALONE} assumes no other plugin, "
+                "so its text names only its own skills"
+                for plugin, skill in references(line, marketplace)
+                if plugin != STANDALONE
+            ]
+            if (term := next((term for term in terms if term in line), None)) is not None:
+                reasons.append(
+                    f"names '{term}', a term of a Lyngon development repository, "
+                    f"and {STANDALONE} assumes nothing about the repository it is installed in"
+                )
+            findings += [Finding(path=displayed(path, root), line=number, message=reason) for reason in reasons]
+    return findings
 
 
 def main() -> int:
     """Print what fails and return the exit status: 0 when nothing does, 1 otherwise."""
     try:
         root = repository_root()
-        findings = check_references(root, read_marketplace(root))
+        marketplace = read_marketplace(root)
+        findings = check_references(root, marketplace) + check_standalone(root, marketplace)
     except ValidationError as error:
         print(f"validate-shipped-text: {error}", file=sys.stderr)
         return 1
