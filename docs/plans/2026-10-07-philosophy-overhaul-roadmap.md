@@ -14,7 +14,7 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `workflow` | Inputs settled, no design | [seed prompt](../seed-prompts/003-workflow.md) |
+| `workflow` | Design written, twelve changes to build | [design](2026-10-12-workflow.md) |
 | `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/004-agent-identity.md) |
 | `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/005-issue-pipeline.md) |
 | `github-repository-setup` | Inputs settled, no design | [seed prompt](../seed-prompts/006-github-repository-setup.md) |
