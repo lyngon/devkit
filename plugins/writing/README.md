@@ -10,7 +10,8 @@ Prerequisites: git
 
 The deterministic half (no em or en dashes, no curly quotes) is `prose-lint` in the shared devenv module: a git hook on Markdown files, and part of `check-pull-request` for the title and the body of a pull request.
 
-Vendored from [poteto/noodle](https://github.com/poteto/noodle) (MIT), see the skill's `UPSTREAM.md`.
+Vendored from [poteto/noodle](https://github.com/poteto/noodle) (MIT).
+The license is `LICENSE-noodle` in this plugin, and the provenance record is [catalog/vendored/noodle.md](../../catalog/vendored/noodle.md).
 
 ## Install
 

@@ -17,7 +17,8 @@ Every task with an owner gate ends with a record commit that holds its evidence.
 The execution ledger and the task briefs live under `tmp/build/<plan>/`, the agent scratch directory; when a run pauses, the ledger is copied into the plan, so a later session resumes it.
 See the decision records [Planned work is reviewed at two gates](../../docs/decisions/planned-work-is-reviewed-at-two-gates.md), [Owner gates are declared in the plan and pre-approved by name](../../docs/decisions/owner-gates-are-declared-in-the-plan-and-pre-approved-by-name.md) and [Plans carry decisions and facts; the implementer writes the tests and the code](../../docs/decisions/plans-carry-decisions-and-facts-the-implementer-writes-the-tests-and-the-code.md).
 
-All four are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), see each skill's `UPSTREAM.md`.
+All four are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT).
+The license is `LICENSE-superpowers` in this plugin, and the provenance record is [catalog/vendored/superpowers.md](../../catalog/vendored/superpowers.md).
 The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, so `practice` and `review` are dependencies.
 
 ## Install

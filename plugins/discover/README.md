@@ -12,7 +12,10 @@ Prerequisites: documents
 - `domain-model`: settle terms into `CONCEPTS.md` and record decisions as decision records. Claude invokes it when terminology or decisions are being discussed.
 - `/discover:why <question>`: answer why code, a design or a decision is the way it is, from the decision records (the deleted ones included), git, pull request bodies and issues, with every claim marked as found, inferred or unknown. The agent invokes it before changing code whose reason is not visible.
 
-`approach`, `interview` and `domain-model` are vendored from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); `approach` also carries text from [obra/superpowers](https://github.com/obra/superpowers) (MIT). `why` is vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT). See each skill's `UPSTREAM.md`.
+`approach`, `interview` and `domain-model` are vendored from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); `approach` also carries text from [obra/superpowers](https://github.com/obra/superpowers) (MIT).
+`why` is vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT).
+The licenses are `LICENSE-mattpocock`, `LICENSE-superpowers` and `LICENSE-pstack` in this plugin.
+The provenance records are [mattpocock.md](../../catalog/vendored/mattpocock.md), [superpowers.md](../../catalog/vendored/superpowers.md) and [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 
 ## Install
 

@@ -2,7 +2,11 @@
 
 All notable changes to the `review` plugin.
 Versions follow semver and are recorded in `.claude-plugin/plugin.json`.
-Vendored skills record their upstream commit in their own `UPSTREAM.md`.
+The upstream commit of the vendored skills is in their provenance record, `catalog/vendored/superpowers.md` in the devkit.
+
+## 0.4.1 - 2026-10-12
+
+- The provenance of the two skills is one record for their upstream, `catalog/vendored/superpowers.md` in the devkit, where each skill directory held an `UPSTREAM.md` and a `LICENSE`. The upstream license is `LICENSE-superpowers` in the plugin's root, and the README names both.
 
 ## 0.4.0 - 2026-10-06
 

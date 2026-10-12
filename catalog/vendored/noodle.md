@@ -1,20 +1,28 @@
-# unslop
+# noodle
 
 - **Upstream**: <https://github.com/poteto/noodle>
-- **Upstream path**: `.agents/skills/unslop`
-- **Upstream name**: `unslop`
-- **Upstream version**: none declared (the skill ships inside the noodle application repository; noodle `VERSION` was 0.61.0 at the commit)
 - **Upstream commit**: 82d2921c52370f23f29086de81ccfb600939c037
-- **Upstream license**: MIT (see [LICENSE](LICENSE))
+- **Upstream version**: none declared (the skill ships inside the noodle application repository; noodle `VERSION` was 0.61.0 at the commit)
+- **Upstream license**: MIT (see [LICENSE-noodle](../../shared/LICENSE-noodle))
 - **Reviewed**: 2026-09-16 by Anders Åström
 
 ## Why it is here
+
+### `plugins/writing/skills/unslop`
 
 Lyngon documentation, READMEs and posts are drafted with agents and must read as written by a person.
 This checklist names the tells concretely (25 patterns with examples) and adds a voice section, which the writing rules in CLAUDE.md files do not cover.
 It is a single agent-neutral file with no dependencies.
 
+## What was taken
+
+| Upstream path | Destination |
+| --- | --- |
+| `.agents/skills/unslop` | `plugins/writing/skills/unslop` |
+
 ## Local patches
+
+### `plugins/writing/skills/unslop`
 
 - Removed every em dash from the skill's own text (pattern headings now use a colon, step 2 of the process is a sentence); the em dash pattern now also names en dashes.
 - Added a paragraph to "Adding soul" scoping "Use I" and "Let some mess in" out of reference documents (READMEs, agent instruction files, glossaries, intent statements, decision records, API docs), named generically so the plugin assumes nothing about the repository.
@@ -25,6 +33,8 @@ It is a single agent-neutral file with no dependencies.
 - Added `paths: ["**/*.md"]`, so the skill loads automatically whenever a Markdown file is read or edited.
 
 ## Review notes
+
+### `plugins/writing/skills/unslop`
 
 Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-16.
 

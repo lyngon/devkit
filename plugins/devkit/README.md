@@ -7,9 +7,9 @@ Prerequisites: documents, baseline, structure
 
 ## Skills
 
-- `/devkit:add-skill <what>`: given a skill name, a URL, or a description of a skill that should exist, either finds and vets an existing third-party skill and installs it (pinned plugin or vendored skill under a concern), or designs a new in-house skill with `discover:approach` and creates it. User-invoked.
+- `/devkit:add-skill <what>`: given a skill name, a URL, several paths of one upstream, or a description of a skill that should exist, either finds and vets existing third-party skills and installs them (a pinned plugin, or vendored skills under their concerns with one provenance record for the upstream), or designs a new in-house skill with `discover:approach` and creates it. User-invoked.
 
-Planned: `bump-skill` (compare a vendored skill with upstream and carry changes over) and `package` (zip skills for Claude.ai chat). See `docs/TODO.md`.
+Planned: `bump-skill` (compare what is vendored from one upstream with it and carry changes over) and `package` (zip skills for Claude.ai chat). See `docs/TODO.md`.
 
 ## Install
 
