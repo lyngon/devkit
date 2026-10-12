@@ -163,7 +163,8 @@ let
   };
 in
 {
-  # Baseline hooks, MCP server file and languages come from ./devenv.
+  # Baseline hooks, MCP server file, check-pull-request and languages come
+  # from ./devenv.
   lyngon.enable = true;
 
   packages = [

@@ -3,7 +3,8 @@
 # the message of the one commit the pull request lands as. Each message says
 # what is wrong and what to do:
 #
-#   title     one line that commitizen accepts as a Conventional Commits subject
+#   title     one line that commitizen accepts as a Conventional Commits subject,
+#             under the repository's own commitizen configuration when it has one
 #   headings  the body's second-level headings are exactly the seven sections,
 #             each once, in order; a line inside a fenced code block is no heading
 #   length    the body's content lines (neither blank nor one of the seven
@@ -53,7 +54,7 @@ class Refusal(Exception):
 
 
 def from_environment(name: str) -> str:
-    """The variable's text, or none when it is unset; bytes that are not UTF-8 are replaced."""
+    """The variable's text, empty when it is unset; bytes that are not UTF-8 are replaced."""
     return os.environb.get(name.encode(), b"").decode("utf-8", errors="replace")
 
 
