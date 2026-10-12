@@ -14,7 +14,7 @@ Target: `plugins/<concern>/skills/<name>/` for each path, and one record for the
    ln -s ../../shared/LICENSE-<upstream> plugins/<concern>/LICENSE-<upstream>
    ```
 
-3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`plugin:skill`). Put every line about a prerequisite the plugin does not declare under a conditional heading (`With the Lyngon documents`, `With devenv`, `With the Lyngon structure`).
+3. Rewrite to Lyngon vocabulary (`CONCEPTS.md`, the layout in `shared/STRUCTURE.md`, no dashes, one sentence per line) and rename the skill if the settled name differs. Namespace any skill calls (`<plugin>:<skill>`). Put every line about a prerequisite the plugin does not declare under a conditional heading (`With the Lyngon documents`, `With devenv`, `With the Lyngon structure`).
 4. Write `catalog/vendored/<upstream>.md` from `catalog/vendored/TEMPLATE.md`: upstream URL, 40-character commit, version, license, reviewer and date, then for each path why it is here, its row in the table of what was taken (upstream path and destination), every local patch and the review findings, each under its destination. When the upstream already has a record, add the paths to it and leave its commit as it is.
 5. Frontmatter `name` must equal the directory name; `description` must state what and when.
 
