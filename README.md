@@ -237,6 +237,7 @@ This repository registers itself as the marketplace `lyngon` from the working tr
 An eval case is a directory `plugins/<plugin>/evals/<case>/` that holds a `prompt.md` and its graders under `graders/`.
 Which changes owe one is in [a-skill-change-owes-an-eval.md](.claude/rules/a-skill-change-owes-an-eval.md).
 Evals run on the author's machine and never in CI, and every run is a model call on the author's account.
+The command that runs them is documented at <https://code.claude.com/docs/en/plugin-evals>.
 
 Run the suite of a checkout from its root:
 
@@ -246,7 +247,8 @@ claude plugin eval . --no-publish --ablation none --trust-plugin --allow-tools W
 
 Without `--no-publish` the command publishes its report to claude.ai.
 `--ablation none` leaves out the arm that runs without plugins, and `--trust-plugin` answers the question whether to trust the checkout.
-`--allow-tools` grants the gated tools that the cases list, and a case runs without a tool that is not granted.
+A case lists the tools it wants in `allowed_tools`.
+A gated tool, such as `Write` or `Bash`, is removed from a run unless `--allow-tools` grants it, and a grant holds for every case of the run.
 The report lands under `evals/results/`, which git ignores.
 
 The target is the root because a case can only name plugins inside the target, and a case here names the plugins directory.
@@ -262,7 +264,8 @@ compare-evals origin/main --allow-tools Write
 
 `compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places and removes what it created.
 The working tree counts as head, uncommitted changes included.
-In the table a dash stands for a case that the commit does not have, and `error` for a case that the harness refused to run, with its reason below the table.
+In the table a dash stands for a case that the commit does not have.
+A run that the harness refused or cut short is counted as an error beside the score, and its reason follows the table.
 A case that is new at head has no score at the base commit.
 To see it fail first, commit the case before the change it proves and name that commit as the base.
 
@@ -272,8 +275,8 @@ While iterating, narrow both runs to one case, one run and a cheaper model:
 compare-evals origin/main --allow-tools Write --case python-domain-value --runs 1 --model sonnet
 ```
 
-A case that grants Bash runs only on a machine where the sandbox of the harness can exclude every credential store.
-Where it cannot, the harness refuses the run with a message of these two parts:
+A run that grants Bash puts every command under the sandbox of the harness, which must be able to exclude the credential stores of the machine.
+Where it cannot, the harness refuses the run, with a message of these two parts:
 
 ```text
 the AWS (~/.aws) credential store on this machine holds a symbolic link inside it, so the Bash sandbox cannot reliably exclude it
