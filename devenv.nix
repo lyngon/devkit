@@ -92,6 +92,20 @@ let
       fi
     '';
   };
+  # Fixture tests for the baseline module's check-pull-request command, which
+  # `enterTest` hands over as it is on the PATH of the shell. commitizen and
+  # the tools of prose-lint.sh serve the runs that call the Python file itself.
+  testCheckPullRequest = pkgs.writeShellApplication {
+    name = "test-check-pull-request";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.commitizen
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.python3
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/check-pull-request.sh" "$@"'';
+  };
   # Fixture tests for the baseline module's validate-structure hook.
   testValidateStructure = pkgs.writeShellApplication {
     name = "test-validate-structure";
@@ -203,6 +217,7 @@ in
     declared_tools_only ${lib.getExe testValidateMarketplace}
     declared_tools_only ${lib.getExe testValidateDocuments}
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
+    declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"
     declared_tools_only ${lib.getExe testValidateStructure}
     declared_tools_only ${lib.getExe testValidatePrerequisites}
     declared_tools_only ${lib.getExe testRepoHooks}
