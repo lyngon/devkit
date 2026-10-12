@@ -1,8 +1,8 @@
 ---
 name: add-skill
-description: Add a skill to the Lyngon devkit. Given a third-party skill name or URL, find it, vet it against the review checklist, and install it as a pinned plugin or a vendored skill under the right concern. Given a description of a skill that should exist, search for prior art, design it with discover:approach, then install an existing one or create a new one. User-invoked only, devkit repository only.
+description: Add a skill to the Lyngon devkit. Given a third-party skill name or URL, or several paths of one upstream, find them, vet them against the review checklist, and install them as a pinned plugin or as vendored skills under the right concerns. Given a description of a skill that should exist, search for prior art, design it with discover:approach, then install an existing one or create a new one. User-invoked only, devkit repository only.
 disable-model-invocation: true
-argument-hint: "<skill name, URL, or description of the skill you want>"
+argument-hint: "<skill name, URL, paths of one upstream, or description of the skill you want>"
 ---
 
 # Add a skill
@@ -13,7 +13,7 @@ One entry point for growing the marketplace, so every addition follows the same 
 
 ## When to use
 
-- The user names or links a third-party skill they want in the devkit.
+- The user names or links a third-party skill, or several paths of one upstream, that they want in the devkit.
 - The user describes a skill that does not exist yet.
 
 ## When not to use
@@ -27,33 +27,46 @@ One entry point for growing the marketplace, so every addition follows the same 
 Read `$ARGUMENTS`.
 
 - **Case A, existing skill**: a URL, an `owner/repo` or `owner/repo/path`, a skill name with an author, or a name that is clearly a product ("the unslop skill").
+  Several paths of one upstream are one request.
+  Every step of Case A covers each path, and A.6 installs them together.
+  Paths of different upstreams are separate requests.
 - **Case B, new skill**: a description of behaviour ("a skill that wraps up a conversation and...").
 - **Unclear**: ask one question with both readings, and wait.
 
-Check the catalog first: `grep -rl` the name in `plugins/*/skills/*/UPSTREAM.md` and `catalog/`. If it is already there, stop as described above.
+Check the catalog first.
+The records of pinned plugins are in `catalog/`, and the records of vendored skills in `catalog/vendored/`, one per upstream:
+
+```sh
+grep -rl '<name>' catalog/
+```
+
+If the skill is already there, stop as described above.
+If only its upstream is there, the skill joins that upstream's record.
 
 ## Case A: an existing skill
 
 ### A.1 Find it
 
 Follow [references/find.md](references/find.md).
-Resolve to an exact upstream: repository URL, path inside it, and the commit you inspected.
+Resolve to an exact upstream: repository URL, every path inside it that the request names, and the commit you inspected.
 Clone with `--depth 1` into the scratchpad; never into the repository.
+When the upstream already has a record under `catalog/vendored/`, inspect the commit that record names, because a record covers one upstream at one commit.
+Taking a newer commit is a bump of everything vendored from that upstream, which is the bump flow in `docs/TODO.md`.
 
 ### A.2 Confirm it is the right one
 
-Show the user: upstream, path, license, size (files and lines), the frontmatter description, and in your own words what the skill does and does not do.
+Show the user, for each path: upstream, path, license, size (files and lines), the frontmatter description, and in your own words what the skill does and does not do.
 If several candidates match, list them with the same facts and ask.
 Wait for confirmation.
 
 ### A.3 Review it
 
-Work through [SKILL-REVIEW.md](SKILL-REVIEW.md) file by file.
+Work through [SKILL-REVIEW.md](SKILL-REVIEW.md) file by file, once for each path.
 Read everything in the skill directory, including scripts and references.
 
 ### A.4 Present findings
 
-Present every section's findings, including "none found", and the verdict.
+Present every section's findings, including "none found", and the verdict, for each path.
 A **blocked** verdict ends here unless the user overrules it in writing; record the overruling in the provenance record.
 No license: follow [references/license-request.md](references/license-request.md) and stop.
 
@@ -67,7 +80,7 @@ Derive the kind, do not ask for it:
 - **Vendor** when the upstream is a bare skill directory with no `plugin.json`, when only a subset of a plugin is wanted, or when a patch is needed to fit the devkit.
 - **Pin** when the upstream is a plugin used whole and unmodified.
 
-Then propose the concern: an existing plugin under `plugins/` whose concern the skill serves, or a new one. Give a recommendation, list the alternatives, and wait.
+Then propose the concern of each path: an existing plugin under `plugins/` whose concern the skill serves, or a new one. Give a recommendation, list the alternatives, and wait.
 
 Then settle the prerequisites (`docs/conventions/prerequisites.md`): which of `documents`, `workflow`, `baseline` and `structure` the skill's text needs.
 Derive the recommendation from the text, the way the validator does: name every line that carries a term of an undeclared prerequisite, and say for each whether it belongs under a conditional heading or raises the plugin's declaration.
