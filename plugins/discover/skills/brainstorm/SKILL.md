@@ -26,10 +26,13 @@ The only output is the conversation itself and, at the end, a short summary the 
 
 ## Workflow
 
-1. Take the idea as given.
-   Ask at most one clarifying question, and only if the idea cannot be discussed without it.
+1. Take what the user brings as given, and offer ideas in the first reply.
+   When the user brings a topic and no idea, offer several ideas of your own.
+   A first reply that only asks costs the user a turn before the first idea.
+   Where an answer would change the ideas, state what you assume or give an idea for each answer.
+   Ask at most one clarifying question, after the ideas and never in place of them.
 2. Argue back and offer alternatives.
-   Name the strongest objection to each idea.
+   Name the strongest objection to each idea, your own included.
    No recommendation is required, but give one when asked.
 3. Keep a running list of ideas in chat, marking kept and dropped ones as the conversation moves.
 4. Write no files: no `CONCEPTS.md` entry, no decision record, no plan, and no `docs/TODO.md` entry unless the user says "defer that" in so many words.
