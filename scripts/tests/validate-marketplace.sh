@@ -510,8 +510,18 @@ only_context="and a case.yaml holds only schema_version, name and context"
 
 repo=$(clean_marketplace)
 eval_case "$repo" one names-the-service "$whole_bundle"
-printf '# The code the case reads.\nschema_version: "1.1"\nname: names-the-service\ncontext:\n  add_dirs: [billing]\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+printf '# The code the case reads.\nschema_version: "1.1"\nname: names-the-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
 expect_ok "case.yaml beside a prompt.md that seeds the run" "$repo"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf 'schema_version: "1.1"\nname: names-another-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md under another name than its directory" "$repo" "plugins/one/evals/names-the-service/case.yaml: needs the line 'name: names-the-service'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf '\n# Indented as a whole.\n  schema_version: "1.1"\n  name: names-the-service\n  plugins: [".."]\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md whose keys are indented" "$repo" "plugins/one/evals/names-the-service/case.yaml: starts with an indented line"
 
 repo=$(clean_marketplace)
 eval_case "$repo" one names-the-service "$whole_bundle"
@@ -530,7 +540,7 @@ expect_error "case.yaml beside a prompt.md that is one flow mapping" "$repo" "pl
 
 repo=$(clean_marketplace)
 mkdir -p "$repo/plugins/one/evals/names-the-service"
-printf 'schema_version: "1.1"\nname: names-the-service\ncontext:\n  add_dirs: [billing]\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+printf 'schema_version: "1.1"\nname: names-the-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
 expect_error "case.yaml on its own" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders; a case.yaml only stands beside one"
 
 if ((failures > 0)); then

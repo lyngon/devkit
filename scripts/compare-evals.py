@@ -6,8 +6,9 @@ directory. Both runs are `claude plugin eval .` from the root of their
 checkout: a model call on the account of whoever runs this, with the report
 kept off claude.ai and no baseline arm. A case that seeds its working
 directory does so with a script of its own, which runs as whoever runs this,
-at both commits. The worktree and everything a run writes are removed again. Exits 0 when both runs wrote a result, whatever the
-scores are, since a red case at the base commit is the point.
+at both commits. The worktree and everything a run writes are removed again.
+Exits 0 when both runs wrote a result, whatever the scores are, since a red
+case at the base commit is the point.
 """
 
 import argparse
@@ -65,7 +66,8 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         # The base comes first: the list of tools takes every word that follows it.
         usage="%(prog)s base [-h] [--case GLOB] [--runs N] [--model MODEL] [--allow-tools TOOL [TOOL ...]]",
         description="Run the eval suite at a base commit and in the working tree, "
-        "and print each case's score at both. Every run is a model call on your account.",
+        "and print each case's score at both. Every run is a model call on your account, "
+        "and a case that seeds its working directory runs its script as you, at both commits.",
     )
     parser.add_argument("base", help="the commit to compare the working tree with, such as origin/main")
     parser.add_argument("--case", metavar="GLOB", help="run only the cases whose name matches")
