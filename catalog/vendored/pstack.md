@@ -4,7 +4,7 @@
 - **Upstream commit**: 9f451cf875ad1239912762f67741e8e5ba6ac0f1
 - **Upstream version**: 0.15.15 (`pstack/.cursor-plugin/plugin.json`)
 - **Upstream license**: MIT (see [LICENSE-pstack](../../shared/LICENSE-pstack))
-- **Reviewed**: 2026-10-11 by Anders Åström
+- **Reviewed**: 2026-10-13 by Anders Åström
 
 ## Why it is here
 
@@ -35,6 +35,19 @@ pstack states 24 such principles in a form short enough to read whenever one app
 Upstream ships each principle as a skill of its own and indexes them inside its mode skill.
 Here they are one skill, so that an agent reads one index and then only the files it needs.
 
+### `plugins/writing/skills/technical`
+
+Agents draft Lyngon's documents, pull request descriptions and commit messages, and the people who read them review many in a day.
+`unslop` removes the patterns of machine-written prose, and says nothing about what kind of document a text is, whom a sentence addresses or how much it carries.
+This skill is that standard, in four layers that each rest on a published one: Diátaxis, the Google developer documentation style guide, Simplified Technical English and Global English.
+It is short enough to read before every document, it comes from the author of `unslop`, and it hands each document to that skill when the layers are done.
+
+### `plugins/writing/skills/simpler`
+
+An agent reports in the vocabulary of the work it just did, and the person who reads the report was not there.
+This skill gives the request "say that again so that I follow" a name: the last message, restated shorter and without jargon.
+It is three sentences, and it is vendored so that the request works the same in every repository.
+
 ## What was taken
 
 | Upstream path | Destination |
@@ -44,6 +57,8 @@ Here they are one skill, so that an agent reads one index and then only the file
 | `pstack/skills/teach` | `plugins/discover/skills/explanation` |
 | `pstack/skills/principle-*`, 24 skill directories of one `SKILL.md` each | `plugins/principles/skills/index` |
 | `pstack/skills/poteto-mode/SKILL.md`, the section "Principles", for the lines of the index | `plugins/principles/skills/index` |
+| `pstack/skills/technical-writing` | `plugins/writing/skills/technical` |
+| `pstack/skills/bro` | `plugins/writing/skills/simpler` |
 
 The 8 principles of the group steering in `plugins/principles/skills/index` are written by Lyngon and have no upstream.
 
@@ -164,6 +179,24 @@ The index, `SKILL.md`:
 - Upstream's groups (core, architecture, verification, delegation, meta) are kept, and the group steering is added for the Lyngon principles.
 - The lines of `never-block-on-the-human`, `encode-lessons-in-structure`, `outcome-oriented-execution` and `sequence-verifiable-units` state the patched rule.
 
+### `plugins/writing/skills/technical`
+
+- Renamed from `technical-writing` to `technical`, which reads after the plugin's name, as in `/writing:technical`.
+- `disable-model-invocation: true` is removed, so that an agent starts the skill when it writes or reviews a document. In the description, "Use for /technical-writing or when writing or reviewing" became "Use before writing or reviewing", and "every time, however small the document" is added. With upstream's wording an agent wrote the page of the eval case `technical-writes-a-how-to` without the skill in one run of four.
+- The sentences "Propose a new offender and its replacement as an addition to `unslop`'s abstract-metaphor rule in your reply, with the diff. Don't edit that skill." are left out. The `unslop` of the devkit is vendored from noodle and has no such rule. Upstream's own `unslop` has it as rule 26.
+- The bullet "Apply the **unslop** skill to every doc this skill touches." and its second sentence moved out of "Voice and repo specifics" into a closing section of their own, "Before you hand the document over". The skill is named `writing:unslop` there, and the sentence "A doc that `writing:unslop` has not gone over is not ready to hand over, however clean it looks." is added. As a bullet the instruction was skipped in each of the three runs of the eval case that loaded the skill, and in two of three as a section without the added sentence.
+- "Do not paste swarm logs" became "Do not paste logs", because the skill `swarm` is not in the devkit.
+- "Indent code snippets with tabs." is left out. It is a rule of upstream's own repository, and a snippet follows the formatter of its language.
+- Added the bullet "The repository's own rules for documents come first. Where they differ from this skill, follow them." at the head of "Voice and repo specifics". A repository with a house style keeps it, and `writing` cannot name the skills that hold Lyngon's.
+- Paragraphs are reflowed to one sentence per line, the two quotes of the worked example included. A bullet keeps its sentences on one line.
+
+### `plugins/writing/skills/simpler`
+
+- Renamed from `bro` to `simpler`, which says what the skill does and reads after the plugin's name, as in `/writing:simpler`. "bro" stays in the description as a trigger phrase.
+- The description gains when to use the skill, with the trigger phrases "bro", "say that simpler", "in plain words" and "no jargon". `disable-model-invocation: true` is removed, so that an agent starts the skill on one of them.
+- Added the heading "Simpler", which markdownlint demands of the first line of a file.
+- The body is reflowed to one sentence per line.
+
 ## Review notes
 
 ### `plugins/discover/skills/why`
@@ -203,5 +236,25 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-11, every file read in full
 - Security: none found. The 24 files are prose, with no scripts, hooks, agents, network access, credential reads, tool permissions or encoded content, and they write nothing. `never-block-on-the-human` tells the agent to proceed without asking on reversible work; that is the behaviour wanted, and its boundary is patched to the Lyngon gate.
 - Quality: every upstream description says when the principle applies. Upstream sets `disable-model-invocation: true` on each and reaches them through the inline index of its mode skill; here the index is the skill and the agent may invoke it. Trigger check: "refactor the parser so that adding a format is one file" must trigger the index, "what does this function return?" must not. Bodies are 11 to 36 lines. Three files pointed at skills that are not in the devkit (`benchmark-checklist`, `show-me-your-work`, `typescript-best-practices`); the pointers are left out.
 - Fit: no em or en dashes and no curly quotes upstream. Writes no file. `encode-lessons-in-structure` routed a one-off to a "brain note", which Lyngon has no place for (patched). `sequence-verifiable-units` let each commit land on its own, where Lyngon lands one change (patched). Overlap: `prove-it-works`, `fix-root-causes` and `test-behavior-not-implementation` cover the ground of `practice:verify`, `practice:debug` and `practice:tdd`; the principles say what to judge, the skills are procedures, and both stay until the workflow is redesigned.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/writing/skills/technical`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-13, the one upstream file read in full.
+
+- Security: none found. The file is prose, with no scripts, hooks, agents, network access, credential reads, tool permissions or encoded content. It writes nothing but the document the agent was asked for, and no sentence tells the agent to override, hide or skip anything.
+- Quality: the description states what and when. Upstream sets `disable-model-invocation: true`; here the agent may start the skill (patched). Trigger check: "turn these notes into the how-to page for our docs site" must trigger it, "rename this function and its callers" must not. Its trigger overlaps the one of `unslop`, which fires on any prose: this skill is the standard a technical document is written to, `unslop` is the edit pass on what was written, and this skill ends by applying `unslop`. The file is 106 lines upstream and 155 here, after the reflow, with no references. Dependencies: the skill `unslop`, in the same plugin. Scope: stated, since product UI strings are out.
+- Fit: no line carries a term of a development repository, shown by a search of the upstream file for every term that `scripts/validate-shipped-text.py` lists, so `writing` holds the skill without rewording. It pointed at a rule that only upstream's `unslop` has, at swarm logs and at tabs for snippets (all patched). Two of its rules differ from Lyngon's documents: "UI elements go in bold", where `conventions:markdown` allows bold for the first words of a bullet at most, and "Use serial commas", which the devkit's own text does not. `writing` cannot name that skill, so a bullet gives a repository's own rules the last word (patched). No em or en dashes and no curly quotes upstream; the one character outside ASCII is the "á" of Diátaxis. Writes no file of its own. Overlap: "Vary the rhythm" covers the ground of "Adding soul" in `unslop`, in four bullets. Both stay, because this skill applies them while a document is drafted and `unslop` when any prose is edited.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/writing/skills/simpler`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-13, the one upstream file read in full.
+
+- Security: none found. The file is three sentences of prose, with no scripts, hooks, agents, network access, credential reads, tool permissions or encoded content, and it writes nothing.
+- Quality: upstream's description says what the skill does and not when, and upstream sets `disable-model-invocation: true`, so that only `/bro` starts it. Here the description carries the trigger phrases and the agent may start the skill (patched). Trigger check: "bro, what?" after a dense answer must trigger it, "simplify this function" must not. No dependencies. Scope: the last message of the conversation, which the text makes obvious.
+- Fit: no line carries a term of a development repository, shown by the same search. No em or en dashes and no curly quotes. Writes no file. No devkit skill overlaps: `unslop` edits prose that is about to be handed over, and this skill restates an answer that was already given.
 - License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
 - Verdict: clear with patches, all applied.
