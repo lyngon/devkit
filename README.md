@@ -292,7 +292,7 @@ compare-evals origin/main --allow-tools Write
 `compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
 The working tree counts as head, uncommitted changes included.
 The comparison opens with the two commits and the gated tools that both runs were granted.
-A grader that expects that something did not happen proves nothing about a tool that is not among them, whether the case lists the tool or not.
+A grader that expects that something did not happen is no proof when the tool that would do it is not among them, whether the case lists the tool or not.
 In the table a dash stands for a case that the commit does not have.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
