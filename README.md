@@ -274,11 +274,11 @@ A case proves a change only when it scores the same in every run, so write it to
 - Grade no call of the Skill tool in such a case, since the harness loads a slash command itself.
 - Say in the prompt what the workspace is. A run starts in an empty directory, and an agent that expects code there stops to ask where it is.
 - Prefer a grader that no model judges.
-- Leave to a judge only what no other grader can check. A rubric that also asked whether the reply announced a written file, which `file_exists` checks, failed a reply that kept its list of ideas in chat, in 15 of 15 votes (measured on Claude Code 2.1.283).
+- Leave to a judge only what no other grader can check. Whether a file was written is for `file_exists`. A rubric that also asked whether the reply announced one failed a reply that kept its list of ideas in chat, in 37 of 39 votes (measured on Claude Code 2.1.283).
 - Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).
 - List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283).
 - When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
-- When the three votes of one run disagree, the rubric leaves the judge room. To find the clause, have the judge vote on that reply again: a scratch case whose prompt asks the agent to repeat the reply word for word, with each clause of the rubric as a grader of its own.
+- When the three votes of one run disagree, the rubric leaves the judge room. To find the clause, have the judge vote on that reply again, in a scratch case whose prompt asks the agent to repeat the reply word for word and whose graders are the clauses of the rubric, one each. Count only the runs whose `evidence` in the result is that reply, since the agent drops a line now and then.
 
 Run the suite at a base commit and in the working tree, and print the score of each case at both:
 
