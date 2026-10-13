@@ -100,7 +100,7 @@ When no MCP maps to a category, run the investigation yourself, with no investig
 ### Parallel investigators, when another source exists
 
 Spawn one investigator per source, each a subagent that inherits the session's model.
-Launch them in a single message so they run concurrently.
+Launch them in a single message and in the foreground (`run_in_background: false` on each call), so that they run concurrently and every finding is back before you go on.
 Don't ask one agent to cover multiple sources.
 An investigator needs the tools of its source, so do not give it an agent type that lacks them.
 Investigators still shouldn't write anything.
@@ -140,7 +140,7 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 Say so explicitly.
 This should be rare.
 
-Then spawn one synthesizer subagent, which also inherits the session's model and needs the tools of every source, because its quality check spot-verifies citations.
+Then spawn one synthesizer subagent in the foreground (`run_in_background: false`), which also inherits the session's model and needs the tools of every source, because its quality check spot-verifies citations.
 The synthesizer gets:
 
 1. The investigator findings, including any null results and any categories skipped with justification

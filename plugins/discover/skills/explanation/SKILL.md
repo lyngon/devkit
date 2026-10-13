@@ -23,6 +23,7 @@ Keep the confidence language of `discover:why` intact (its hedges are findings, 
 2. Let `discover:how` and `discover:why` do the work, don't redo it.
    Read the code yourself to get oriented, then run `discover:how` for how it works and `discover:why` for why.
    Have a subagent of its own invoke each skill, so that they run in parallel, and combine the results.
+   Start those subagents in a single message and in the foreground (`run_in_background: false` on each call), so that what each returns is back before you go on.
    What a subagent returns is material for the explanation, never the reply.
    Match the size to the question.
    Run both for a subsystem, maybe one is enough for a small change, never none.
