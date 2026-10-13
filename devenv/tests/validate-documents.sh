@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Exercise validate-documents.py against throwaway fixture repositories: for
-# each of its seven rules a tree that fails and one that passes, plus the paths
+# each of its eight rules a tree that fails and one that passes, plus the paths
 # it skips and the two ways it is run. Run through `devenv test`.
 set -euo pipefail
 
@@ -45,6 +45,17 @@ record() {
   write "$1" "$2" "# Orders are event sourced" "" "The audit needs every change, so orders are stored as events." "" "Enforced by: judgment"
 }
 
+# mistake <repo> <path> [line...]: a file of the mistake ledger whose heading
+# is followed by the given lines, which is where its date and its link go.
+mistake() {
+  local repo=$1 path=$2
+  shift 2
+  write "$repo" "$path" "# A generated client was edited by hand" "" "$@" "" \
+    "The agent edited the client where it should have changed the schema."
+}
+
+caught_in="- **Caught in**: [feat(orders): add the client](https://example.com/orders/pull/7)"
+
 # A repository that holds every steering document in its allowed shape.
 clean_repo() {
   local repo
@@ -57,6 +68,7 @@ clean_repo() {
   write "$repo" CONCEPTS.md "# Orders"
   write "$repo" README.md "# Orders"
   record "$repo" docs/decisions/orders-are-event-sourced.md
+  mistake "$repo" docs/mistakes/a-generated-client-was-edited-by-hand.md "- **Date**: 2026-10-12" "$caught_in"
   record "$repo" libs/orders/docs/decisions/orders-are-event-sourced.md
   write "$repo" libs/orders/INTENT.md "# Intent" "" "## Non-goals"
   write "$repo" libs/orders/README.md "# orders"
@@ -233,6 +245,52 @@ repo=$(clean_repo)
 write "$repo" .claude/rules/money-is-never-a-float.md "# Money is never a float" "$(lines 100)"
 expect_error "rule-file-shape: 101 lines" "$repo" 1 \
   "error: .claude/rules/money-is-never-a-float.md: rule-file-shape: 101 lines; cut it to 100 at most"
+
+# ledger-file-shape
+ledger_file=docs/mistakes/a-generated-client-was-edited-by-hand.md
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "- **Date**: 2026-10-12"
+expect_ok "ledger-file-shape: a mistake whose pull request does not exist yet" "$repo"
+
+repo=$(clean_repo)
+mistake "$repo" docs/mistakes/Edited_Client.md "- **Date**: 2026-10-12"
+expect_error "ledger-file-shape: a name that is not kebab-case" "$repo" 1 \
+  "error: docs/mistakes/Edited_Client.md: ledger-file-shape: name the file after its mistake, <mistake-in-kebab-case>.md"
+
+repo=$(clean_repo)
+write "$repo" "$ledger_file" "The agent edited the client by hand." "" "- **Date**: 2026-10-12"
+expect_error "ledger-file-shape: no heading on the first line" "$repo" 1 \
+  "error: $ledger_file:1: ledger-file-shape: start the file with the heading '# <the mistake, as a sentence>'"
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "$caught_in"
+expect_error "ledger-file-shape: no date line" "$repo" 1 \
+  "error: $ledger_file: ledger-file-shape: 0 lines '- **Date**: <YYYY-MM-DD>'; give the file exactly one, with the day the mistake was caught, because the ledger is pruned by it"
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "- **Date**: 2026-10-12" "- **Date**: 2026-10-13"
+expect_error "ledger-file-shape: two date lines" "$repo" 1 \
+  "error: $ledger_file: ledger-file-shape: 2 lines '- **Date**: <YYYY-MM-DD>'; give the file exactly one"
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "- **Date**: 12 October 2026"
+expect_error "ledger-file-shape: a date in another form" "$repo" 1 \
+  "error: $ledger_file:3: ledger-file-shape: '12 October 2026' is no day; write the day the mistake was caught as YYYY-MM-DD"
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "- **Date**: 2026-02-30"
+expect_error "ledger-file-shape: a day that does not exist" "$repo" 1 \
+  "error: $ledger_file:3: ledger-file-shape: '2026-02-30' is no day; write the day the mistake was caught as YYYY-MM-DD"
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "- **Date**: 2026-10-12" "- **Caught in**: pull request 7"
+expect_error "ledger-file-shape: caught in something that is no link" "$repo" 1 \
+  "error: $ledger_file:4: ledger-file-shape: write the line as '- **Caught in**: [<pull request title>](<pull request link>)', or leave it out until the pull request exists"
+
+repo=$(clean_repo)
+write "$repo" libs/orders/docs/mistakes/notes.md "Notes on mistakes in the orders library."
+expect_ok "ledger-file-shape: only docs/mistakes/ at the root is the ledger" "$repo"
 
 # What it looks at
 repo=$(clean_repo)
