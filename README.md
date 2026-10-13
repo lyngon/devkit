@@ -303,7 +303,9 @@ While iterating, narrow both runs to one case, one run and a cheaper model:
 compare-evals origin/main --allow-tools Write --case python-domain-value --runs 1 --model sonnet
 ```
 
-A run that grants Bash puts every command under the sandbox of the harness, which must be able to exclude the credential stores of the machine.
+A run that grants Bash puts every command under the sandbox of the harness, and the sandbox needs two things from the machine.
+
+It must be able to exclude the credential stores of the machine.
 Where it cannot, the harness refuses the run, with a message of these two parts:
 
 ```text
@@ -314,6 +316,35 @@ a Bash-granting evaluation cannot run here; keep the store's contents in one pla
 So `~/.aws` must hold no symbolic link inside it.
 A `~/.aws/config` that the machine's Nix configuration links into the store is one, and the fix belongs in that configuration.
 The refusal is a safety check of the sandbox, so never work around it, for example by pointing `HOME` elsewhere.
+
+The shell of a run must find `bwrap` and `socat`, the two programs that the sandbox starts.
+A run inherits the PATH of the shell that started it and few other variables, and `__NIXOS_SET_ENVIRONMENT_DONE` is not among them.
+On NixOS a shell that starts without that variable replaces its PATH with the system's.
+The `claude-code` package puts the two programs in front of the PATH of its own launcher and nowhere else, so the machine's Nix configuration has to put them on the system's PATH:
+
+```nix
+environment.systemPackages = [
+  pkgs.bubblewrap
+  pkgs.socat
+];
+```
+
+Without them the harness refuses nothing, and every call of the shell tool ends with status 127 before its command starts:
+
+```text
+zsh:1: command not found: bwrap
+```
+
+A run whose shell is bash fails the same way (measured on Claude Code 2.1.283).
+So read the result of a call in the trace of a run before saying that a command ran.
+
+A command of a run finds the tools of the shell that started the run, so start a run from the devenv shell.
+The hook of the `devkit` plugin hands that PATH over when the session starts.
+Without the hook a command has only the PATH that its shell starts with, on NixOS the system's, because the sandbox hides the file through which a session hands its PATH to its commands (measured on Claude Code 2.1.283).
+With it a command finds `git`, `python3` and the commands of the baseline, and it lacks what the devenv shell lacks, such as `ruff`.
+A case that does not load the `devkit` plugin, as a case of `writing`, runs without the hook.
+No other variable of the devenv shell reaches a run, `LYNGON_MISTAKES_MAX_AGE_DAYS` included.
+
 When an eval cannot run, the pull request says so and makes no claim about the behaviour.
 
 ## Adding a plugin
