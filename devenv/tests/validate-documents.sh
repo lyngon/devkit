@@ -256,7 +256,17 @@ expect_ok "ledger-file-shape: a mistake whose pull request does not exist yet" "
 repo=$(clean_repo)
 mistake "$repo" docs/mistakes/Edited_Client.md "- **Date**: 2026-10-12"
 expect_error "ledger-file-shape: a name that is not kebab-case" "$repo" 1 \
-  "error: docs/mistakes/Edited_Client.md: ledger-file-shape: name the file after its mistake, <mistake-in-kebab-case>.md"
+  "error: docs/mistakes/Edited_Client.md: ledger-file-shape: name the file after its mistake, docs/mistakes/<mistake-in-kebab-case>.md, with no directory between"
+
+repo=$(clean_repo)
+mistake "$repo" docs/mistakes/2026/a-print-call-was-left-in-library-code.md "- **Date**: 2026-10-12"
+expect_error "ledger-file-shape: a file in a directory of the ledger" "$repo" 1 \
+  "error: docs/mistakes/2026/a-print-call-was-left-in-library-code.md: ledger-file-shape: name the file after its mistake, docs/mistakes/<mistake-in-kebab-case>.md, with no directory between"
+
+repo=$(clean_repo)
+mistake "$repo" "$ledger_file" "- **Date**: 2026-10-12" \
+  "- **Caught in**: [fix(orders): accept [] as an empty list](https://example.com/orders/pull/8)"
+expect_ok "ledger-file-shape: a pull request title with brackets of its own" "$repo"
 
 repo=$(clean_repo)
 write "$repo" "$ledger_file" "The agent edited the client by hand." "" "- **Date**: 2026-10-12"

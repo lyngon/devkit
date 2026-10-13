@@ -14,10 +14,11 @@
 #                                    own sections
 #   rule-file-shape                  a file under .claude/rules/ has a kebab-case
 #                                    name and at most 100 lines
-#   ledger-file-shape                a file under docs/mistakes/ at the root is
-#                                    named after its mistake, starts with a
-#                                    heading, has one date line with a day that
-#                                    exists, and links what it was caught in
+#   ledger-file-shape                a file under docs/mistakes/ at the root lies
+#                                    directly in it, is named after its mistake,
+#                                    starts with a heading, has one date line
+#                                    with a day that exists, and writes what it
+#                                    was caught in as a link
 #
 # Runs at pre-commit from the repository root with the files to check as
 # arguments, so a hook's `excludes` keeps a fixture tree out. Without arguments
@@ -43,12 +44,16 @@ INTENT_SECTIONS: t.Final = (
 INTENT_MAX_LINES: t.Final = 50
 RULE_MAX_LINES: t.Final = 100
 # The two lines below the heading of a file in the mistake ledger. The build
-# plugin's prune-mistakes.py reads the date line the same way, and ages a file
-# by it.
+# plugin's prune-mistakes.py ages a file by its date line, and stops at a
+# ledger with a date it cannot read. It reads the Markdown files directly in
+# docs/mistakes/ and decodes them as read_lines below does, so a ledger that
+# passes here never stops it; plugins/build/tests/prune-mistakes.sh holds the
+# two to that.
 LEDGER_DATE: t.Final = re.compile(r"- \*\*Date\*\*: (.*)")
 LEDGER_CAUGHT_IN: t.Final = re.compile(r"- \*\*Caught in\*\*: (.*)")
 ISO_DAY: t.Final = re.compile(r"\d{4}-\d{2}-\d{2}")
-LINK: t.Final = re.compile(r"\[[^\]]+\]\(\S+\)")
+# The title of a pull request may hold brackets of its own.
+LINK: t.Final = re.compile(r"\[.+\]\(\S+\)")
 SKIPPED_DIRECTORIES: t.Final = frozenset({"vendor", "generated"})
 AGENT_FILE: t.Final = pathlib.PurePosixPath(".claude/CLAUDE.md")
 IMPORT_LINE: t.Final = "@../INTENT.md"
@@ -210,8 +215,10 @@ def is_day(text: str) -> bool:
 def check_ledger_file(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str]:
     rule = "ledger-file-shape"
     found = []
-    if path.suffix != ".md" or not KEBAB.fullmatch(path.stem):
-        found.append(error(path, rule, "name the file after its mistake, <mistake-in-kebab-case>.md"))
+    if len(path.parts) != 3 or path.suffix != ".md" or not KEBAB.fullmatch(path.stem):
+        found.append(error(
+            path, rule, "name the file after its mistake, docs/mistakes/<mistake-in-kebab-case>.md, with no directory between",
+        ))
     lines = read_lines(root, path)
     if lines is None:
         return found

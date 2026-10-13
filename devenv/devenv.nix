@@ -134,7 +134,7 @@ in
       type = lib.types.listOf lib.types.package;
       default = [ pkgs.python3 ];
       defaultText = lib.literalExpression "[ pkgs.python3 ]";
-      description = "The tools a script that a skill ships may run, added to the shell. Such a script takes nothing else from the PATH.";
+      description = "The tools a script that a skill ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so keep pkgs.python3 in it.";
     };
   };
 

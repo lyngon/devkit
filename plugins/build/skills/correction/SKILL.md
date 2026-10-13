@@ -18,7 +18,12 @@ A correction from the operator, a review finding that was accepted and a change 
 A check or a test that failed hands you none, because that mistake already fails.
 Asked for the mistakes agents keep repeating, read recent commits, reverts, review comments, the rule files under `.claude/rules/`, and comments that explain workarounds.
 
-Either way, read every file of the mistake ledger, `docs/mistakes/`, before you write anything.
+Either way, prune the mistake ledger first, then read every file of it before you write anything.
+The ledger is `docs/mistakes/`, and this skill's `scripts/prune-mistakes.py`, run from the root of the repository, deletes the files older than the limit the repository sets with `lyngon.mistakes.maxAgeDays`.
+A mistake that stayed alone that long is no class.
+Commit what the script deleted.
+If it cannot run or refuses, report what it printed, and prune nothing by hand.
+
 Group the mistakes into classes.
 A class counts once it has happened twice, and the ledger holds the ones that have happened once.
 
@@ -38,8 +43,8 @@ Exceptions go on the offending line with a reason, an expiry date, and the owner
 
 ## Keep the mistake ledger
 
-Last, keep the ledger: one file in `docs/mistakes/` for each mistake that has happened once.
-When a mistake is not in the ledger, fix it and write its file, named after the mistake in kebab-case:
+Last, keep the ledger: one file for each mistake that has happened once.
+When a mistake is not in the ledger, fix it and write its file, `docs/mistakes/<mistake-in-kebab-case>.md`:
 
 ```md
 # <The mistake, as a sentence>
@@ -54,8 +59,5 @@ Leave the line **Caught in** out while the pull request does not exist, and add 
 `validate-documents` fails a file of another shape.
 
 If the mistake was already in the ledger, that's a repeat, so fix it at the highest level in the same change and delete its file.
-
-Every time you use this skill, run its `scripts/prune-mistakes.py` from the root of the repository, and commit what it deleted.
-It deletes the files older than the limit the repository sets with `lyngon.mistakes.maxAgeDays`, because a mistake that stayed alone that long is no class.
 
 **Reply:** each class with its evidence. For a first occurrence, the ledger file you wrote. For a repeat, the level you picked, why a higher level didn't work, and the check failing on the past mistake.

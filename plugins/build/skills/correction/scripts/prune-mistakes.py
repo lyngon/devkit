@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Delete the files of the mistake ledger that are older than the repository's limit.
 
-The ledger is docs/mistakes/ below the working directory, one file per mistake,
-each with a line `- **Date**: YYYY-MM-DD`. A file is deleted when its date lies
-more than LYNGON_MISTAKES_MAX_AGE_DAYS days back. The baseline sets that
-variable from its option lyngon.mistakes.maxAgeDays, so the limit has one home
-and this program has no default of its own.
+The ledger is the Markdown files directly in docs/mistakes/ of the repository
+whose root is the working directory, one file per mistake, each with a line
+`- **Date**: YYYY-MM-DD`. A file is deleted when its date lies more than
+LYNGON_MISTAKES_MAX_AGE_DAYS days back. The baseline sets that variable from
+its option lyngon.mistakes.maxAgeDays, so the limit has one home and this
+program has no default of its own.
 
 Every date is read before any file is deleted. Exits 1 and deletes nothing
-when the variable is missing or is no positive number of days, and when a file
-has no date that can be read. Imports the standard library only, because the
-baseline promises a shipped script the interpreter and nothing else.
+outside the root of a repository, when the variable is missing or is no
+positive number of days, and when a file has no date that can be read. It
+reads a file as the baseline's validate-documents does, so a ledger that the
+validator passes never stops it. Imports the standard library only, because
+the baseline promises a shipped script the interpreter and nothing else.
 """
 
 import argparse
@@ -36,7 +39,8 @@ def limit_in_days(environment: ct.Mapping[str, str]) -> int:
     if value is None:
         raise PruneError(
             f"{LIMIT_VARIABLE} is not set; the baseline sets it from lyngon.mistakes.maxAgeDays, "
-            "so run this in the devenv shell of the repository"
+            "so run this in the devenv shell of the repository, and where that shell lacks it too, "
+            "the repository's baseline is older than this script: run 'devenv update lyngon'"
         )
     if not (value.isascii() and value.isdigit()) or int(value) == 0:
         raise PruneError(f"{LIMIT_VARIABLE} is '{value}', and the limit is a positive whole number of days")
@@ -46,9 +50,9 @@ def limit_in_days(environment: ct.Mapping[str, str]) -> int:
 def date_of(path: pathlib.Path) -> dt.date:
     """The date of a ledger file. Raises PruneError unless the file has exactly one date line, with a day that exists."""
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError) as error:
-        raise PruneError(f"{path}: cannot be read as text: {error}") from error
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as error:
+        raise PruneError(f"{path}: cannot be read: {error}") from error
     found = [match.group(1) for line in lines if (match := DATE_LINE.fullmatch(line)) is not None]
     if len(found) != 1:
         raise PruneError(f"{path}: needs exactly one line '- **Date**: <YYYY-MM-DD>', and has {len(found)}")
@@ -61,11 +65,15 @@ def date_of(path: pathlib.Path) -> dt.date:
 def prune(today: dt.date, limit: int) -> list[str]:
     """Delete the ledger files dated more than the limit before today, and return the lines to print.
 
-    Raises PruneError before it deletes anything when one file has no date that can be read.
+    Raises PruneError before it deletes anything, when the working directory is not the root of a
+    repository and when one file has no date that can be read.
     """
+    # A run from another directory would find no ledger and report that it pruned one.
+    if not pathlib.Path(".git").exists():
+        raise PruneError(f"{pathlib.Path.cwd()} has no .git; run this from the root of the repository")
     if not LEDGER.is_dir():
-        return [f"prune-mistakes: no {LEDGER}/ in {pathlib.Path.cwd()}, so nothing to prune"]
-    dated = [(path, date_of(path)) for path in sorted(LEDGER.rglob("*")) if path.is_file()]
+        return [f"prune-mistakes: no {LEDGER}/ in this repository, so nothing to prune"]
+    dated = [(path, date_of(path)) for path in sorted(LEDGER.glob("*.md")) if path.is_file()]
     old = [(path, date) for path, date in dated if (today - date).days > limit]
     for path, _ in old:
         path.unlink()
@@ -79,7 +87,7 @@ def main(arguments: ct.Sequence[str]) -> int:
     """Prune the ledger below the working directory and return the exit status: 0 when pruned, 1 when refused."""
     parser = argparse.ArgumentParser(
         prog="prune-mistakes",
-        description="Delete the files under docs/mistakes/ that are older than the repository's limit. "
+        description="Delete the Markdown files in docs/mistakes/ that are older than the repository's limit. "
         "Run it from the root of the repository.",
     )
     parser.add_argument(
