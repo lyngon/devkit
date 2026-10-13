@@ -7,7 +7,7 @@ checkout: a model call on the account of whoever runs this, with the report
 kept off claude.ai and no baseline arm. A case that seeds its working
 directory does so with a script of its own, which runs as whoever runs this,
 at both commits. The worktree and everything a run writes are removed again.
-Exits 0 when both runs wrote a result, whatever the scores are, since a red
+Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point.
 """
 
@@ -16,6 +16,7 @@ import collections.abc as ct
 import contextlib
 import dataclasses
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -29,9 +30,11 @@ class CompareError(Exception):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Options:
-    """What the operator asked for: the base commit, and the options both runs get."""
+    """What the operator asked for: the base commit, the gated tools that both runs are
+    granted, and the options both runs get, the grant among them."""
 
     base: str
+    granted: tuple[str, ...]
     eval_options: tuple[str, ...]
 
 
@@ -39,13 +42,18 @@ class Options:
 class Case:
     """What one eval case did at one commit.
 
-    A run the harness refused or cut short adds its reason to the errors, and
-    still counts in the score. A grader that failed is listed with the number
-    of runs it failed in, in the order the case declares its graders.
+    The notes are what the harness said about the case as a whole, such as a
+    gated tool that the case lists and the run did not grant. A grader that
+    expects that something did not happen cannot fail in such a run, so the
+    score alone is no proof. A run the harness refused or cut short adds its
+    reason to the errors, and still counts in the score. A grader that failed
+    is listed with the number of runs it failed in, in the order the case
+    declares its graders.
     """
 
     score: float
     runs: int
+    notes: tuple[str, ...]
     errors: tuple[str, ...]
     failed_graders: ct.Mapping[str, int]
 
@@ -86,7 +94,7 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         eval_options += ["--model", parsed.model]
     if parsed.allow_tools:
         eval_options += ["--allow-tools", *parsed.allow_tools]
-    return Options(base=parsed.base, eval_options=tuple(eval_options))
+    return Options(base=parsed.base, granted=tuple(parsed.allow_tools), eval_options=tuple(eval_options))
 
 
 def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -111,28 +119,78 @@ def checkout_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> ct.Itera
 def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_options: ct.Sequence[str]) -> Result:
     """Run the suite of a checkout and read its result.
 
-    The run's own output goes to stderr, and its report into the scratch
-    directory. Raises CompareError when the run writes no result this program
-    can read. The exit status of `claude` does not decide that: it is 1 for a
-    case below the threshold too.
+    The harness prints the progress of a run only when no `--json` names a
+    file for the result, so the result is read from the output directory
+    instead. All that the run prints goes to stderr as it comes. Without
+    `--json` the harness also keeps the sandbox of a run that ended in an
+    error, so the run gets a temporary directory inside the scratch directory
+    and the sandbox goes with it.
+
+    Raises CompareError when the run writes no result this program can read,
+    unless it found no case. The exit status of `claude` does not decide that:
+    it is 1 for a case below the threshold too.
     """
-    result = scratch / f"{side}.json"
-    command = ["claude", "plugin", "eval", ".", "--json", str(result), "--output-dir", str(scratch / side)]
+    output, temporary = scratch / side, scratch / "tmp"
+    temporary.mkdir(exist_ok=True)
+    command = ["claude", "plugin", "eval", ".", "--output-dir", str(output)]
     command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *eval_options]
     print(f"compare-evals: running the suite at {side}", file=sys.stderr)
-    done = subprocess.run(command, cwd=checkout, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
+    progress: list[str] = []
+    with subprocess.Popen(
+        command,
+        cwd=checkout,
+        env={**os.environ, "TMPDIR": str(temporary)},
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        encoding="utf-8",
+        errors="replace",
+    ) as run:
+        try:
+            for line in run.stdout or ():  # a pipe, which the type of the attribute cannot say
+                print(line, end="", file=sys.stderr)
+                progress.append(line.rstrip("\n"))
+        except BaseException:  # an interrupt too: the run must not outlive the scratch directory
+            run.kill()
+            raise
+    result = output / "aggregate-result.json"
     if not result.is_file():
-        raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {done.returncode})")
+        if found_no_case(progress):
+            return Result(cases={}, cost_usd=0.0)
+        raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})")
     try:
         data = json.loads(result.read_text())
     except json.JSONDecodeError as error:
         raise CompareError(f"the result at {side} is not JSON: {error}") from error
-    return parse_result(data, side)
+    return parse_result(data, side, progress)
 
 
-def parse_result(data: object, side: str) -> Result:
-    """Turn the JSON of `claude plugin eval --json` into a Result, or raise CompareError
-    when it has another shape than the one this program was written against."""
+def found_no_case(progress: ct.Iterable[str]) -> bool:
+    """Whether the run said that its suite has no case, or none that the filter matches.
+
+    The harness then writes no result, as it does when it dies, and only its
+    words tell the two apart (measured on Claude Code 2.1.283). When they
+    change, a commit without a case counts as a run that died.
+    """
+    return any(line.startswith("No eval cases found") for line in progress)
+
+
+def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
+    """What the run said about a case as a whole, in the harness's own words.
+
+    These are its lines that open with two spaces, the name of the case and a
+    colon (measured on Claude Code 2.1.283), which is how it names a gated
+    tool that the case lists and the run did not grant. None of the words that
+    follow are read, so a line that the harness words anew is still found.
+    """
+    opening = f"  {name}: "
+    return tuple(line.removeprefix(opening) for line in progress if line.startswith(opening))
+
+
+def parse_result(data: object, side: str, progress: ct.Sequence[str]) -> Result:
+    """Turn the result that `claude plugin eval` wrote, and what it said about each case in its
+    progress, into a Result, or raise CompareError when the result has another shape than the one
+    this program was written against."""
     if not isinstance(data, dict):
         raise CompareError(f"the result at {side} is not a JSON object")
     cases = data.get("cases")
@@ -147,6 +205,7 @@ def parse_result(data: object, side: str) -> Result:
             parsed[str(entry["dir"])] = Case(
                 score=float(entry["aggregates"]["score"]),
                 runs=len(runs),
+                notes=notes_about(str(entry["name"]), progress),
                 errors=tuple(str(run["error"]) for run in runs if run["error"] is not None),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
             )
@@ -155,29 +214,38 @@ def parse_result(data: object, side: str) -> Result:
         raise CompareError(f"the result at {side} holds a field this program cannot read: {error!r}") from error
 
 
+def counted(number: int, noun: str) -> str:
+    """A number with its noun, in the plural unless the number is 1."""
+    return f"{number} {noun}" if number == 1 else f"{number} {noun}s"
+
+
 def cell(case: Case | None) -> str:
     """One cell of the table: a dash for a case the commit does not have, otherwise the
-    score with the number of runs behind it and how many of them ended in an error."""
+    score with the number of runs behind it, how many notes the harness left about the
+    case and how many of the runs ended in an error."""
     if case is None:
         return "-"
-    counts = f"{case.runs} {'run' if case.runs == 1 else 'runs'}"
+    counts = [counted(case.runs, "run")]
+    if case.notes:
+        counts.append(counted(len(case.notes), "note"))
     if case.errors:
-        counts += f", {len(case.errors)} {'error' if len(case.errors) == 1 else 'errors'}"
-    return f"{case.score:.2f} ({counts})"
+        counts.append(counted(len(case.errors), "error"))
+    return f"{case.score:.2f} ({', '.join(counts)})"
 
 
 def reasons(case: Case) -> list[str]:
-    """What stands behind a score below 1: each distinct run error, and each grader
-    that failed with the number of runs it failed in."""
+    """What stands behind a score: what the harness said about the case, each distinct
+    run error, and each grader that failed with the number of runs it failed in."""
     return [
+        *case.notes,
         *(f"run error: {error}" for error in dict.fromkeys(case.errors)),
         *(f"grader {name} failed in {count} of {case.runs} runs" for name, count in case.failed_graders.items()),
     ]
 
 
 def report(base: Result, head: Result) -> list[str]:
-    """The table of every case of either run, the reasons behind each score below 1,
-    and what the two runs cost."""
+    """The table of every case of either run, what stands behind each score, and what
+    the two runs cost."""
     names = sorted(base.cases.keys() | head.cases.keys())
     rows = [("case", "base", "head"), *((name, cell(base.cases.get(name)), cell(head.cases.get(name))) for name in names)]
     widths = [max(len(row[column]) for row in rows) for column in range(3)]
@@ -224,6 +292,7 @@ def compare(options: Options) -> list[str]:
     return [
         f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
         f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
+        f"granted tools: {', '.join(options.granted) or 'none'}",
         "",
         *report(base, head),
     ]

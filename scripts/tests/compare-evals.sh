@@ -8,7 +8,12 @@ set -euo pipefail
 
 program=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/compare-evals.py
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+# A sandbox that the stub kept is read-only, as the real one is.
+remove() {
+  [[ ! -e "$1" ]] || chmod -R u+rwx "$1"
+  rm -rf "$1"
+}
+trap 'remove "$tmp"' EXIT
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
@@ -17,16 +22,26 @@ failures=0
 
 # --- The stub ----------------------------------------------------------------
 
-# Like the real command, the stub writes its report below the directory it
-# runs in unless --output-dir names another, and exits with the status the
-# checkout asks for after it wrote the result. A checkout without a canned
-# result stands for a run that dies before it writes one.
+# The stub does what the real command was measured to do on Claude Code
+# 2.1.283. It writes aggregate-result.json and its report into the directory
+# that --output-dir names, and exits with the status the checkout asks for
+# after it wrote the result. It prints the file canned-progress of the
+# checkout on stderr and a table on stdout, unless --json names a file: then
+# it writes the result there too and prints neither. A run that ended in an
+# error leaves its sandbox in the temporary directory, read-only, unless
+# --json names a file.
+#
+# A checkout without a canned result stands for a run that dies before it
+# writes one. A canned result without a case stands for a filter that matches
+# none: the stub says so and writes a result only where --json names a file.
+# A checkout with the file canned-hang stands for a run that never ends: the
+# stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
 mkdir "$tmp/bin" "$tmp/tools" "$tmp/empty"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
-json="" output=evals/results/stub
+json="" output=evals/results/stub filter=""
 while (($# > 0)); do
   case "$1" in
     --json)
@@ -37,22 +52,51 @@ while (($# > 0)); do
       output=$2
       shift
       ;;
+    --case)
+      filter=" matching --case \"$2\""
+      shift
+      ;;
   esac
   shift
 done
-echo "stub: progress of the run"
+if [[ -f canned-hang ]]; then
+  echo "$$" >"$FAKE_CLAUDE_PID"
+  exec sleep 1000
+fi
 [[ -f canned-result.json ]] || exit 1
+if jq -e '.cases == []' canned-result.json >/dev/null 2>&1; then
+  echo "No eval cases found$filter under $PWD." >&2
+  [[ -z $json ]] || cp canned-result.json "$json"
+  exit 1
+fi
+if [[ -z $json ]]; then
+  [[ ! -f canned-progress ]] || echo "$(<canned-progress)" >&2
+  if jq -e '[.cases[]?.arms.with[]?.error // empty] != []' canned-result.json >/dev/null 2>&1; then
+    kept=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
+    mkdir -p "$kept/sealed/home"
+    echo "written by the plugin under test" >"$kept/sealed/home/notes.md"
+    chmod 000 "$kept/sealed"
+    chmod 500 "$kept"
+    echo "  kept temp (run failed): $kept" >&2
+  fi
+fi
 mkdir -p "$output"
+cp canned-result.json "$output/aggregate-result.json"
 echo "<html></html>" >"$output/report.html"
-cp canned-result.json "$json"
+if [[ -n $json ]]; then
+  cp canned-result.json "$json"
+else
+  echo "CASE  SCORE PASS% RUNS COST  NOTES"
+fi
+echo "Report: $output/report.html" >&2
 [[ ! -f canned-exit ]] || exit "$(<canned-exit)"
 EOF
 chmod +x "$tmp/bin/claude"
-export FAKE_CLAUDE_LOG=$tmp/claude.log
+export FAKE_CLAUDE_LOG=$tmp/claude.log FAKE_CLAUDE_PID=$tmp/claude.pid
 
 # The program and the stub run with these tools and no others, so that no test
 # can reach the real Claude Code, whatever the PATH of the shell that runs it.
-for tool in bash cp git mkdir python3; do
+for tool in bash chmod cp env git jq mkdir mktemp python3 sleep; do
   ln -s "$(command -v "$tool")" "$tmp/tools/$tool"
 done
 with_claude=$tmp/bin:$tmp/tools
@@ -87,6 +131,25 @@ result() {
   printf '%s\n' "$@" | jq -s --argjson cost "$cost" '{schemaVersion: 1, costUsd: $cost, partial: false, cases: .}'
 }
 
+# progress_of <case name> [<line about the case as a whole>...]: what the real
+# command prints on stderr for a case with one run, copied from a run on
+# Claude Code 2.1.283. Its lines about the case as a whole come first, such
+# as a gated tool that the case lists and the run did not grant, then the run
+# with its graders, then the verdict.
+progress_of() {
+  local name=$1 line
+  shift
+  for line in "$@"; do
+    echo "  $name: $line"
+  done
+  cat <<EOF
+  $name run 1/1: score 1.00  \$0.07
+    ✓ names-with-objections (weight 1): judge votes: PASS PASS PASS
+    ✓ no-file-written (weight 1): **/* absent as expected
+✓ $name  score 1.00  (1 run)  \$0.07
+EOF
+}
+
 commit() {
   git -C "$1" add -A
   git -C "$1" commit -q -m "$2"
@@ -95,7 +158,8 @@ commit() {
 # A repository of two commits, each with its own canned result: a case that
 # goes from red to green, one that exists only at the first commit, one whose
 # score drops over three runs as its graders start to fail, and one that
-# exists only at the second. The tag `base` names the first commit.
+# exists only at the second. Neither run says anything about a case as a
+# whole. The tag `base` names the first commit.
 two_commits() {
   local repo
   repo=$(mktemp -d "$tmp/repo.XXXXXX")
@@ -104,12 +168,14 @@ two_commits() {
     "$(case_of plugins/one/evals/red-then-green 0 1 | with_grader writes-the-file f)" \
     "$(case_of plugins/one/evals/removed-at-head 1 1 | with_grader writes-the-file p)" \
     "$(case_of plugins/one/evals/stays-green 1 3 | with_grader names-it ppp | with_grader asks-first ppp)" >"$repo/canned-result.json"
+  progress_of removed-at-head >"$repo/canned-progress"
   commit "$repo" "chore: base"
   git -C "$repo" tag base
   result 0.5 \
     "$(case_of plugins/two/evals/new-at-head 1 1 | with_grader writes-the-file p)" \
     "$(case_of plugins/one/evals/stays-green 0.6666666666666666 3 | with_grader names-it pff | with_grader asks-first fpp)" \
     "$(case_of plugins/one/evals/red-then-green 1 1 | with_grader writes-the-file p)" >"$repo/canned-result.json"
+  progress_of new-at-head >"$repo/canned-progress"
   commit "$repo" "chore: head"
   echo "$repo"
 }
@@ -155,13 +221,18 @@ lacks() {
   }
 }
 
+# gone <process ID>: no such process runs any more.
+gone() {
+  ! kill -0 "$1" 2>/dev/null
+}
+
 # compare <repo> <argument>...: run the program in the repository, capturing
 # stdout, stderr and the exit code in out, err and code, and the stub's calls
 # in calls. Temporary files go to an empty directory of their own.
 compare() {
   local repo=$1
   shift
-  rm -rf "$tmp/scratch" && mkdir "$tmp/scratch"
+  remove "$tmp/scratch" && mkdir "$tmp/scratch"
   : >"$FAKE_CLAUDE_LOG"
   code=0
   out=$(cd "$repo" && TMPDIR=$tmp/scratch PATH=$path "$program" "$@" 2>"$tmp/stderr" </dev/null) || code=$?
@@ -192,6 +263,7 @@ compare "$repo" main~1
 check "two commits: exits 0" equals "$code" 0
 check "two commits: prints each case with its score and runs at base and at head, then the graders that failed" equals "$out" "base: $(sha "$repo" main~1) (main~1)
 head: $(sha "$repo" main)
+granted tools: none
 
 case                               base           head
 plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)
@@ -204,7 +276,15 @@ plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
 plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
 
 cost: base 0.25 USD, head 0.50 USD"
-check "two commits: the run's own output stays off stdout" contains "$err" "stub: progress of the run"
+check "two commits: the progress of a run reaches stderr" contains "$err" "
+  new-at-head run 1/1: score 1.00  \$0.07
+    ✓ names-with-objections (weight 1): judge votes: PASS PASS PASS
+    ✓ no-file-written (weight 1): **/* absent as expected
+✓ new-at-head  score 1.00  (1 run)  \$0.07
+"
+check "two commits: what a run prints on stdout reaches stderr" contains "$err" "
+CASE  SCORE PASS% RUNS COST  NOTES
+"
 check "two commits: one run at head, in the working tree" equals "$(calls_in "$repo" | wc -l)" 1
 check "two commits: one run at base, outside the working tree" equals "$(calls_outside "$repo" | wc -l)" 1
 check "two commits: the head run is the suite of the checkout, unpublished, without a baseline arm" \
@@ -225,6 +305,10 @@ for option in "--case red-*" "--allow-tools Write Bash(git:*)" "--runs 1" "--mod
   check "options: the base run gets $option" contains "$(calls_outside "$repo")" "$option"
 done
 check "options: a commit given by its hash is named once" contains "$out" "base: $(sha "$repo" main~1)"$'\n'
+check "options: the tools that both runs were granted follow the commits" contains "$out" "head: $(sha "$repo" main)
+granted tools: Write, Bash(git:*)
+
+case "
 
 repo=$(two_commits)
 result 0.125 "$(case_of plugins/one/evals/red-then-green 0.5 2)" >"$repo/canned-result.json"
@@ -234,6 +318,69 @@ check "uncommitted changes: head is the working tree as it stands" contains "$ou
 check "uncommitted changes: the head line says so" contains "$out" "head: $(sha "$repo" main) with uncommitted changes"
 check "uncommitted changes: the working tree is as it was" equals "$(git -C "$repo" status --porcelain)" " M canned-result.json
 ?? draft.md"
+
+# A run has no gated tool that it does not grant, whatever the case lists, and
+# the harness says so about a case that lists one. A grader that expects that
+# something did not happen then passes whatever the skill does, so the full
+# score of red-then-green at head is no proof. At the base commit the run said
+# nothing about a case.
+not_granted="not granted (missing --allow-tools grant, or a malformed entry)"
+repo=$(two_commits)
+{
+  progress_of red-then-green "$not_granted: Write"
+  progress_of stays-green "$not_granted: Write, Bash"
+  progress_of new-at-head
+} >"$repo/canned-progress"
+commit "$repo" "chore: two cases list gated tools"
+compare "$repo" main~1
+check "a run that lacked a tool: exits 0" equals "$code" 0
+check "a run that lacked a tool: what the harness said is counted beside the score" contains "$out" "plugins/one/evals/red-then-green  1.00 (1 run)   1.00 (1 run, 1 note)"
+check "a run that lacked a tool: the case, the commit and the tool follow the table, ahead of the graders" contains "$out" "
+
+plugins/one/evals/red-then-green at head: $not_granted: Write
+plugins/one/evals/stays-green at base: grader names-it failed in 2 of 3 runs
+plugins/one/evals/stays-green at base: grader asks-first failed in 1 of 3 runs
+plugins/one/evals/stays-green at head: $not_granted: Write, Bash
+plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
+plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
+
+cost:"
+
+# The other way round: at head no case lists a gated tool any more.
+progress_of red-then-green >"$repo/canned-progress"
+commit "$repo" "chore: no case lists a gated tool"
+compare "$repo" main~1
+check "a tool that only the base run lacked: is named at base" contains "$out" "
+plugins/one/evals/red-then-green at base: $not_granted: Write
+"
+check "a tool that only the base run lacked: is not named at head" lacks "$out" "at head: not granted"
+
+# The program reads none of the harness's words. Whatever the harness says
+# about a case as a whole is repeated as it stands.
+repo=$(two_commits)
+progress_of new-at-head "$not_granted: Artifact" \
+  "the Artifact tool is not available inside eval runs; --allow-tools cannot enable it" >"$repo/canned-progress"
+commit "$repo" "chore: a case lists a tool that no grant enables"
+compare "$repo" main~1
+check "a line in other words: is repeated as it stands" contains "$out" "
+plugins/two/evals/new-at-head at head: $not_granted: Artifact
+plugins/two/evals/new-at-head at head: the Artifact tool is not available inside eval runs; --allow-tools cannot enable it
+"
+check "a line in other words: is counted like the other" contains "$out" "plugins/two/evals/new-at-head     1.00 (1 run)   1.00 (1 run, 2 notes)"
+
+# A filter that matches no case at a commit is not a run that died: the
+# harness says so, and writes no result.
+repo=$(two_commits)
+result 0 >"$repo/canned-result.json"
+commit "$repo" "chore: a commit without the case"
+git -C "$repo" tag without-the-case
+result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: the case"
+compare "$repo" without-the-case --case 'new-*'
+check "no case at the base commit: exits 0" equals "$code" 0
+check "no case at the base commit: the case has a dash there" contains "$out" "plugins/two/evals/new-at-head  -     1.00 (1 run)"
+check "no case at the base commit: the base run cost nothing" contains "$out" "cost: base 0.00 USD, head 0.50 USD"
+check "no case at the base commit: nothing is left behind" nothing_left "$repo"
 
 # A run error is the harness's word for a run it refused or cut short. Three
 # runs of one case ended in two of them here, for the same reason.
@@ -250,6 +397,12 @@ check "run errors: the reason follows the table, once" equals "$(grep -c -F -- "
 check "run errors: the reason names its case and commit" contains "$out" "
 plugins/one/evals/needs-bash at head: run error: $refusal
 "
+check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp (run failed): "
+check "run errors: that sandbox is removed too" nothing_left "$repo"
+progress_of needs-bash "$not_granted: Bash" >"$repo/canned-progress"
+commit "$repo" "chore: the harness says that the case lacked a tool"
+compare "$repo" base
+check "run errors beside a note: both are counted, the note first" contains "$out" "plugins/one/evals/needs-bash       -              0.33 (3 runs, 1 note, 2 errors)"
 
 repo=$(two_commits)
 result 0 "$(case_of plugins/one/evals/red-then-green 0 1 "run hit the turn cap")" >"$repo/canned-result.json"
@@ -272,6 +425,29 @@ check "no result at head: exits 1" equals "$code" 1
 check "no result at head: says which run and how it ended" contains "$err" "compare-evals: the eval run at head wrote no result (claude exited with status 1)"
 check "no result at head: prints no table" equals "$out" ""
 check "no result at head: nothing is left behind" nothing_left "$repo"
+
+# An interrupt ends the run as well. The run here never ends by itself, and
+# the signal reaches the program alone. A command that a script starts in the
+# background ignores the signal, so env gives it back its default.
+repo=$(two_commits)
+: >"$repo/canned-hang"
+commit "$repo" "chore: a run that never ends"
+remove "$tmp/scratch" && mkdir "$tmp/scratch"
+(cd "$repo" && TMPDIR=$tmp/scratch PATH=$path exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
+program_pid=$!
+for _ in {1..100}; do
+  [[ ! -s $FAKE_CLAUDE_PID ]] || break
+  sleep 0.1
+done
+check "an interrupt: comes while the run is on" test -s "$FAKE_CLAUDE_PID"
+run_pid=$(<"$FAKE_CLAUDE_PID")
+kill -INT "$program_pid"
+code=0
+wait "$program_pid" || code=$?
+check "an interrupt: ends the program the way a signal does" equals "$code" 130
+check "an interrupt: ends the run" gone "$run_pid"
+check "an interrupt: nothing is left behind" nothing_left "$repo"
+kill "$run_pid" 2>/dev/null || true
 
 repo=$(two_commits)
 echo '{"schemaVersion": 2, "suites": []}' >"$repo/canned-result.json"
@@ -337,6 +513,15 @@ compare "$repo" --allow-tools Write main~1
 check "a base after the list of tools: is a usage error" equals "$code" 2
 check "a base after the list of tools: the usage line puts the base first" contains "$err" "usage: compare-evals base ["
 check "a base after the list of tools: runs nothing" equals "$calls" ""
+
+# Only the options of the usage line reach the harness, so none can move the
+# result that the program reads or publish the report.
+repo=$(two_commits)
+for option in --output-dir --json --report --publish-report; do
+  compare "$repo" main~1 "$option" "$tmp/elsewhere"
+  check "an option of the harness, $option: is a usage error" equals "$code" 2
+  check "an option of the harness, $option: runs nothing" equals "$calls" ""
+done
 
 path=$without_claude
 repo=$(two_commits)

@@ -277,7 +277,7 @@ A case proves a change only when it scores the same in every run, so write it to
 - Prefer a grader that no model judges.
 - Leave to a judge only what no other grader can check. Whether a file was written is for `file_exists`. A rubric that also asked whether the reply announced one failed a reply that kept its list of ideas in chat, in 37 of 39 votes (measured on Claude Code 2.1.283).
 - Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).
-- List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283).
+- List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283), and `compare-evals` repeats that line below its table.
 - Grade how a subagent was started on its `Agent` call. A `tool_used` grader counts the calls that subagents make too, at every depth.
 - Grade that the agent ends one turn with the pattern `"type":"result"` and `match: "count:1"` on the target `trace`. The trace holds one such event for each turn the agent ends, and `last_message` holds the text of the last turn only (measured on Claude Code 2.1.283).
 - When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
@@ -291,9 +291,21 @@ compare-evals origin/main --allow-tools Write
 
 `compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
 The working tree counts as head, uncommitted changes included.
+The comparison opens with the two commits and the gated tools that both runs were granted.
+A grader that expects that something did not happen is no proof when the tool that would do it is not among them, whether the case lists the tool or not.
 In the table a dash stands for a case that the commit does not have.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
+A line that the harness printed about a case as a whole is counted as a note beside the score, and listed in the harness's words.
+That is how a comparison names a gated tool that a case lists and the run did not grant:
+
+```text
+plugins/discover/evals/brainstorm-no-docs at head: not granted (missing --allow-tools grant, or a malformed entry): Write
+```
+
+`compare-evals` finds such a line by the name of the case at its start and reads none of the words after it (measured on Claude Code 2.1.283).
+When a later harness starts such a line otherwise, the note is missing from the comparison and the line is still in the output of the run, which goes to stderr as it comes.
+There the harness also says `kept temp` for the sandbox of a run that ended in an error, and `compare-evals` removes that sandbox with the rest.
 A case that is new at head has no score at the base commit.
 To see it fail first, commit the case before the change it proves and name that commit as the base.
 
