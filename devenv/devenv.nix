@@ -32,6 +32,19 @@
 let
   cfg = config.lyngon;
 
+  # The devenv root as a path from the root of the working tree, "." where
+  # the two are one directory. Null outside a git repository, and where
+  # devenv reached its root through a path that git does not report.
+  rootInWorkingTree =
+    if config.git.root == null then
+      null
+    else if config.devenv.root == config.git.root then
+      "."
+    else if lib.hasPrefix "${config.git.root}/" config.devenv.root then
+      lib.removePrefix "${config.git.root}/" config.devenv.root
+    else
+      null;
+
   # Em and en dashes and curly quotes, in Markdown as a hook and in the title
   # and the body of a pull request through check-pull-request. The
   # deterministic half of prose quality; the judgment half is the writing
@@ -171,6 +184,19 @@ in
     # A shipped script cannot read an option, so the limit reaches the
     # correction skill's prune-mistakes.py through the environment.
     env.LYNGON_MISTAKES_MAX_AGE_DAYS = lib.mkDefault (toString cfg.mistakes.maxAgeDays);
+
+    # All worktrees of a clone share one hooks directory, and devenv writes
+    # the absolute path of a checkout's hook configuration into the shims
+    # there, so a commit in any worktree ran the hooks of whichever checkout
+    # entered devenv last. Git runs a hook from the root of the working tree,
+    # so a path from that root names the configuration of the checkout a
+    # commit is made in, and none in a worktree that never entered devenv,
+    # where the commit then fails. The install task builds the path on
+    # DEVENV_ROOT and has no option for it.
+    tasks."devenv:git-hooks:install" = lib.mkIf (config.git-hooks.enable && rootInWorkingTree != null) {
+      cwd = lib.mkDefault config.git.root;
+      env.DEVENV_ROOT = lib.mkDefault rootInWorkingTree;
+    };
 
     git-hooks.hooks = {
       nixfmt.enable = lib.mkDefault true;
