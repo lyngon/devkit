@@ -45,6 +45,64 @@ let
     else
       null;
 
+  # The hook types that the hook configuration installs no shim for. A stage
+  # may carry the old name of its type, without the "pre-".
+  unusedHookTypes =
+    lib.subtractLists
+      (map (
+        stage:
+        if
+          lib.elem stage [
+            "commit"
+            "merge-commit"
+            "push"
+          ]
+        then
+          "pre-${stage}"
+        else
+          stage
+      ) config.git-hooks.installStages)
+      [
+        "commit-msg"
+        "post-checkout"
+        "post-commit"
+        "post-merge"
+        "post-rewrite"
+        "pre-commit"
+        "pre-merge-commit"
+        "pre-push"
+        "pre-rebase"
+        "prepare-commit-msg"
+      ];
+
+  # Writes the shim of each of those types again, with the path of the hook
+  # configuration from the root of the working tree. Only a shim that the
+  # hook tool generated: its uninstall leaves a hook written by hand in
+  # place, and then nothing is installed over it.
+  refreshUnusedHookShims = pkgs.writeShellApplication {
+    name = "refresh-unused-hook-shims";
+    runtimeInputs = [ pkgs.git ];
+    text = ''
+      # The hook tool reports what it skips and what it writes, which is
+      # worth reading only when it fails.
+      quietly() {
+        local output
+        if ! output=$("$@" 2>&1); then
+          echo "$output" >&2
+          return 1
+        fi
+      }
+
+      hooks=$(git rev-parse --path-format=absolute --git-path hooks)
+      for type in ${lib.concatStringsSep " " unusedHookTypes}; do
+        [[ -e "$hooks/$type" ]] || continue
+        quietly ${lib.getExe config.git-hooks.package} uninstall -t "$type"
+        [[ ! -e "$hooks/$type" ]] || continue
+        quietly ${lib.getExe config.git-hooks.package} install -c "$DEVENV_ROOT/${config.git-hooks.configPath}" -t "$type"
+      done
+    '';
+  };
+
   # Em and en dashes and curly quotes, in Markdown as a hook and in the title
   # and the body of a pull request through check-pull-request. The
   # deterministic half of prose quality; the judgment half is the writing
@@ -197,6 +255,23 @@ in
       cwd = lib.mkDefault config.git.root;
       env.DEVENV_ROOT = lib.mkDefault rootInWorkingTree;
     };
+
+    # The install task writes the shims of the hook types the configuration
+    # uses and touches no other, so a shim outlives its type's last use. One
+    # from before the path above still names the checkout that wrote it:
+    # every commit in the clone runs that checkout's configuration, and fails
+    # once the configuration is gone. Such a shim gets the path from the root
+    # too. It is not removed, as the installer of git-hooks.nix would,
+    # because another worktree of the clone may use its type.
+    tasks."lyngon:git-hooks:refresh-unused-shims" =
+      lib.mkIf (config.git-hooks.enable && rootInWorkingTree != null)
+        {
+          after = lib.mkDefault [ "devenv:git-hooks:install" ];
+          before = lib.mkDefault [ "devenv:enterShell" ];
+          cwd = lib.mkDefault config.git.root;
+          env.DEVENV_ROOT = lib.mkDefault rootInWorkingTree;
+          exec = lib.mkDefault (lib.getExe refreshUnusedHookShims);
+        };
 
     git-hooks.hooks = {
       nixfmt.enable = lib.mkDefault true;
