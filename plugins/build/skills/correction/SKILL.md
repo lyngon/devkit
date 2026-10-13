@@ -18,14 +18,10 @@ A correction from the operator, a review finding that was accepted and a change 
 A check or a test that failed hands you none, because that mistake already fails.
 Asked for the mistakes agents keep repeating, read recent commits, reverts, review comments, the rule files under `.claude/rules/`, and comments that explain workarounds.
 
-Either way, prune the mistake ledger first, then read every file of it before you write anything.
-The ledger is `docs/mistakes/`, and this skill's `scripts/prune-mistakes.py`, run from the root of the repository, deletes the files older than the limit the repository sets with `lyngon.mistakes.maxAgeDays`.
-A mistake that stayed alone that long is no class.
-Commit what the script deleted.
-If it cannot run or refuses, report what it printed, and prune nothing by hand.
-
+Either way, read every file of the mistake ledger, `docs/mistakes/`, before you write anything.
 Group the mistakes into classes.
 A class counts once it has happened twice, and the ledger holds the ones that have happened once.
+A ledger file counts whatever its date: a mistake that comes back after years is a repeat.
 
 ## Fix each class at the highest level that works
 
@@ -59,5 +55,11 @@ Leave the line **Caught in** out while the pull request does not exist, and add 
 `validate-documents` fails a file of another shape.
 
 If the mistake was already in the ledger, that's a repeat, so fix it at the highest level in the same change and delete its file.
+
+Prune the ledger when all of that is done, and never before you have read it.
+This skill's `scripts/prune-mistakes.py`, run from the root of the repository, deletes the files older than the limit the repository sets with `lyngon.mistakes.maxAgeDays`.
+A repository may go untouched for longer than that, and pruned first, a mistake that came back would look new.
+Commit what the script deleted.
+If it cannot run or refuses, report what it printed, and prune nothing by hand.
 
 **Reply:** each class with its evidence. For a first occurrence, the ledger file you wrote. For a repeat, the level you picked, why a higher level didn't work, and the check failing on the past mistake.
