@@ -41,7 +41,7 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │   └── <concern>/          one plugin per concern, in-house and vendored skills side by side
 │       ├── .claude-plugin/plugin.json
 │       ├── LICENSE-<upstream>  link to the license of an upstream whose text the plugin holds
-│       ├── evals/<case>/   an eval case: prompt.md and its graders
+│       ├── evals/<case>/   an eval case: prompt.md, its graders and the files a run starts with
 │       └── skills/<name>/  a skill, in-house or vendored
 ├── catalog/
 │   ├── <plugin>.md         provenance record for every pinned third-party plugin
@@ -245,11 +245,12 @@ The command that runs them is documented at <https://code.claude.com/docs/en/plu
 Run the suite of a checkout from its root:
 
 ```sh
-claude plugin eval . --no-publish --ablation none --trust-plugin --allow-tools Write
+claude plugin eval . --no-publish --ablation none --trust-plugin --scaffold --allow-tools Write
 ```
 
 Without `--no-publish` the command publishes its report to claude.ai.
 `--ablation none` leaves out the arm that runs without plugins, and `--trust-plugin` answers the question whether to trust the checkout.
+`--scaffold` runs the script of each case that seeds its working directory, as you and outside the sandbox.
 A case lists the tools it wants in `allowed_tools`.
 A gated tool, such as `Write` or `Bash`, is removed from a run unless `--allow-tools` grants it, and a grant holds for every case of the run.
 The report lands under `evals/results/`, which git ignores.
@@ -258,6 +259,11 @@ The target is the root because a case can only name plugins inside the target, a
 Its frontmatter line `plugins: ["../../.."]` loads every plugin under `plugins/` from the checkout, so a case of one plugin can use the skills of another.
 A case of `writing` has no such line and runs with `writing` alone, which shows that `writing` needs no other plugin.
 `validate-marketplace` fails a case that breaks either rule.
+
+A run starts in an empty working directory.
+A case that needs files there keeps them under `workspace/`, next to a `seed-workspace.sh` that copies them in and a `case.yaml` that names the script as `context.scaffold_script`.
+The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, since everything else of a case is in the frontmatter of `prompt.md`, and `validate-marketplace` fails any other key.
+`context.add_dirs` does not serve here: it lets a run read a directory of the case where it lies, and nothing tells the agent where that is (measured on Claude Code 2.1.283).
 
 A case proves a change only when it scores the same in every run, so write it to leave the model little room:
 
@@ -273,7 +279,7 @@ Run the suite at a base commit and in the working tree, and print the score of e
 compare-evals origin/main --allow-tools Write
 ```
 
-`compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places and removes what it created.
+`compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
 The working tree counts as head, uncommitted changes included.
 In the table a dash stands for a case that the commit does not have.
 Below the table each grader that failed is listed with the number of runs it failed in.

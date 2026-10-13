@@ -209,7 +209,7 @@ check "two commits: one run at head, in the working tree" equals "$(calls_in "$r
 check "two commits: one run at base, outside the working tree" equals "$(calls_outside "$repo" | wc -l)" 1
 check "two commits: the head run is the suite of the checkout, unpublished, without a baseline arm" \
   contains "$(calls_in "$repo")" "plugin eval . "
-for flag in "--no-publish" "--ablation none" "--trust-plugin"; do
+for flag in "--no-publish" "--ablation none" "--trust-plugin" "--scaffold"; do
   check "two commits: the head run passes $flag" contains "$(calls_in "$repo")" "$flag"
   check "two commits: the base run passes $flag" contains "$(calls_outside "$repo")" "$flag"
 done

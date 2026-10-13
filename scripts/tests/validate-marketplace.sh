@@ -506,15 +506,42 @@ repo=$(writing_marketplace)
 eval_case "$repo" writing plain-words 'plugins: [".."]'
 expect_error "eval case of writing that names any plugin" "$repo" "plugins/writing/evals/plain-words/prompt.md: an eval case of writing has no 'plugins' line in its frontmatter"
 
+only_context="and a case.yaml holds only schema_version, name and context"
+
 repo=$(clean_marketplace)
 eval_case "$repo" one names-the-service "$whole_bundle"
-printf 'execution:\n  prompt: Name the service.\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
-expect_error "case.yaml beside a prompt.md" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders, never a case.yaml"
+printf '# The code the case reads.\nschema_version: "1.1"\nname: names-the-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_ok "case.yaml beside a prompt.md that seeds the run" "$repo"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf 'schema_version: "1.1"\nname: names-another-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md under another name than its directory" "$repo" "plugins/one/evals/names-the-service/case.yaml: needs the line 'name: names-the-service'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf '\n# Indented as a whole.\n  schema_version: "1.1"\n  name: names-the-service\n  plugins: [".."]\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md whose keys are indented" "$repo" "plugins/one/evals/names-the-service/case.yaml: starts with an indented line"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf 'schema_version: "1.1"\nname: names-the-service\nexecution:\n  prompt: Name the service.\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md that holds a prompt" "$repo" "plugins/one/evals/names-the-service/case.yaml: holds 'execution', $only_context"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf 'schema_version: "1.1"\nname: names-the-service\nplugins: [".."]\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md that names plugins" "$repo" "plugins/one/evals/names-the-service/case.yaml: holds 'plugins', $only_context"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+printf '{schema_version: "1.1", name: names-the-service, plugins: [".."]}\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml beside a prompt.md that is one flow mapping" "$repo" "plugins/one/evals/names-the-service/case.yaml: holds '{schema_version', $only_context"
 
 repo=$(clean_marketplace)
 mkdir -p "$repo/plugins/one/evals/names-the-service"
-printf 'plugins: ["../../.."]\nexecution:\n  prompt: Name the service.\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
-expect_error "case.yaml on its own" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders, never a case.yaml"
+printf 'schema_version: "1.1"\nname: names-the-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
+expect_error "case.yaml on its own" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders; a case.yaml only stands beside one"
 
 if ((failures > 0)); then
   echo "test-validate-marketplace: $failures failure(s)" >&2
