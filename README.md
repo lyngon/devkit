@@ -291,19 +291,20 @@ compare-evals origin/main --allow-tools Write
 
 `compare-evals` checks the base commit out into a temporary worktree, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
 The working tree counts as head, uncommitted changes included.
+The comparison opens with the two commits and the gated tools that both runs were granted.
+A grader that expects that something did not happen proves nothing about a tool that is not among them, whether the case lists the tool or not.
 In the table a dash stands for a case that the commit does not have.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
-So is every line that the harness printed about a case as a whole, in the harness's words.
+A line that the harness printed about a case as a whole is counted as a note beside the score, and listed in the harness's words.
 That is how a comparison names a gated tool that a case lists and the run did not grant:
 
 ```text
 plugins/discover/evals/brainstorm-no-docs at head: not granted (missing --allow-tools grant, or a malformed entry): Write
 ```
 
-A grader that expects that something did not happen cannot fail in such a run, so the score of that case is no proof until the run grants the tool.
 `compare-evals` finds such a line by the name of the case at its start and reads none of the words after it (measured on Claude Code 2.1.283).
-When a later harness starts such a line otherwise, the line is missing below the table and still in the output of the run, which goes to stderr as it comes.
+When a later harness starts such a line otherwise, the note is missing from the comparison and the line is still in the output of the run, which goes to stderr as it comes.
 There the harness also says `kept temp` for the sandbox of a run that ended in an error, and `compare-evals` removes that sandbox with the rest.
 A case that is new at head has no score at the base commit.
 To see it fail first, commit the case before the change it proves and name that commit as the base.

@@ -7,8 +7,8 @@ checkout: a model call on the account of whoever runs this, with the report
 kept off claude.ai and no baseline arm. A case that seeds its working
 directory does so with a script of its own, which runs as whoever runs this,
 at both commits. The worktree and everything a run writes are removed again.
-Exits 0 when each run wrote a result or found no case, whatever the scores
-are, since a red case at the base commit is the point.
+Exits 0 when it prints a comparison, whatever the scores are, since a red
+case at the base commit is the point.
 """
 
 import argparse
@@ -30,9 +30,11 @@ class CompareError(Exception):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Options:
-    """What the operator asked for: the base commit, and the options both runs get."""
+    """What the operator asked for: the base commit, the gated tools that both runs are
+    granted, and the options both runs get, the grant among them."""
 
     base: str
+    granted: tuple[str, ...]
     eval_options: tuple[str, ...]
 
 
@@ -92,7 +94,7 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         eval_options += ["--model", parsed.model]
     if parsed.allow_tools:
         eval_options += ["--allow-tools", *parsed.allow_tools]
-    return Options(base=parsed.base, eval_options=tuple(eval_options))
+    return Options(base=parsed.base, granted=tuple(parsed.allow_tools), eval_options=tuple(eval_options))
 
 
 def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -144,9 +146,13 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
         encoding="utf-8",
         errors="replace",
     ) as run:
-        for line in run.stdout or ():  # a pipe, which the type of the attribute cannot say
-            print(line, end="", file=sys.stderr)
-            progress.append(line.rstrip("\n"))
+        try:
+            for line in run.stdout or ():  # a pipe, which the type of the attribute cannot say
+                print(line, end="", file=sys.stderr)
+                progress.append(line.rstrip("\n"))
+        except BaseException:  # an interrupt too: the run must not outlive the scratch directory
+            run.kill()
+            raise
     result = output / "aggregate-result.json"
     if not result.is_file():
         if found_no_case(progress):
@@ -208,15 +214,23 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str]) -> Result:
         raise CompareError(f"the result at {side} holds a field this program cannot read: {error!r}") from error
 
 
+def counted(number: int, noun: str) -> str:
+    """A number with its noun, in the plural unless the number is 1."""
+    return f"{number} {noun}" if number == 1 else f"{number} {noun}s"
+
+
 def cell(case: Case | None) -> str:
     """One cell of the table: a dash for a case the commit does not have, otherwise the
-    score with the number of runs behind it and how many of them ended in an error."""
+    score with the number of runs behind it, how many notes the harness left about the
+    case and how many of the runs ended in an error."""
     if case is None:
         return "-"
-    counts = f"{case.runs} {'run' if case.runs == 1 else 'runs'}"
+    counts = [counted(case.runs, "run")]
+    if case.notes:
+        counts.append(counted(len(case.notes), "note"))
     if case.errors:
-        counts += f", {len(case.errors)} {'error' if len(case.errors) == 1 else 'errors'}"
-    return f"{case.score:.2f} ({counts})"
+        counts.append(counted(len(case.errors), "error"))
+    return f"{case.score:.2f} ({', '.join(counts)})"
 
 
 def reasons(case: Case) -> list[str]:
@@ -278,6 +292,7 @@ def compare(options: Options) -> list[str]:
     return [
         f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
         f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
+        f"granted tools: {', '.join(options.granted) or 'none'}",
         "",
         *report(base, head),
     ]
