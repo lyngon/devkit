@@ -1,6 +1,6 @@
 # The Lyngon baseline for every repository: git hooks, the devenv MCP server
-# file, the check-pull-request command, and the languages every Lyngon
-# repository has (Nix, shell).
+# file, the check-pull-request command, the tools of the scripts that skills
+# ship, and the languages every Lyngon repository has (Nix, shell).
 #
 # Consumers add this repository as an input and import this directory:
 #
@@ -59,7 +59,7 @@ let
 
   # The document rules: an agent file that imports INTENT.md, no AGENTS.md, no
   # CLAUDE.md outside .claude/, no docs/adr/, and the shape of decision
-  # records, INTENT.md and rule files.
+  # records, INTENT.md, rule files and the files of the mistake ledger.
   validateDocuments = pkgs.writeShellApplication {
     name = "validate-documents";
     runtimeInputs = [
@@ -123,6 +123,19 @@ in
         description = "Content lines above the target that a pull request body may have before check-pull-request fails. The limit is the target plus the headroom; with 0 the target is the limit.";
       };
     };
+
+    mistakes.maxAgeDays = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 365;
+      description = "Days a file of the mistake ledger, docs/mistakes/, is kept after its date. The correction skill of the build plugin deletes an older file, and reads the limit from LYNGON_MISTAKES_MAX_AGE_DAYS.";
+    };
+
+    scriptTools = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = [ pkgs.python3 ];
+      defaultText = lib.literalExpression "[ pkgs.python3 ]";
+      description = "The tools a script that a skill ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so keep pkgs.python3 in it.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -147,6 +160,17 @@ in
       exec = lib.mkDefault ''exec ${lib.getExe checkPullRequest} "$@"'';
       description = lib.mkDefault "Check PR_TITLE and PR_BODY as the commit a pull request lands as.";
     };
+
+    # What a script that a skill ships runs, on the PATH of the shell an agent
+    # works in. Not a `lib.mkDefault`: a default list here is dropped as soon
+    # as a repository lists a package of its own, and the list has its own
+    # option to override. At low priority, so that a repository's own package
+    # keeps a name both provide, such as `python3`.
+    packages = map lib.lowPrio cfg.scriptTools;
+
+    # A shipped script cannot read an option, so the limit reaches the
+    # correction skill's prune-mistakes.py through the environment.
+    env.LYNGON_MISTAKES_MAX_AGE_DAYS = lib.mkDefault (toString cfg.mistakes.maxAgeDays);
 
     git-hooks.hooks = {
       nixfmt.enable = lib.mkDefault true;

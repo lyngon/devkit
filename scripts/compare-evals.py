@@ -4,8 +4,9 @@
 The base commit is checked out into a detached worktree in a temporary
 directory. Both runs are `claude plugin eval .` from the root of their
 checkout: a model call on the account of whoever runs this, with the report
-kept off claude.ai and no baseline arm. The worktree and everything a run
-writes are removed again. Exits 0 when both runs wrote a result, whatever the
+kept off claude.ai and no baseline arm. A case that seeds its working
+directory does so with a script of its own, which runs as whoever runs this,
+at both commits. The worktree and everything a run writes are removed again. Exits 0 when both runs wrote a result, whatever the
 scores are, since a red case at the base commit is the point.
 """
 
@@ -115,7 +116,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     """
     result = scratch / f"{side}.json"
     command = ["claude", "plugin", "eval", ".", "--json", str(result), "--output-dir", str(scratch / side)]
-    command += ["--no-publish", "--ablation", "none", "--trust-plugin", *eval_options]
+    command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *eval_options]
     print(f"compare-evals: running the suite at {side}", file=sys.stderr)
     done = subprocess.run(command, cwd=checkout, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
     if not result.is_file():
