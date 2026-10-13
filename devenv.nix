@@ -189,6 +189,19 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/build/tests/scripts.sh" "$@"'';
   };
+
+  # Fixture tests for the prune script that the correction skill ships. The
+  # test hands the script a PATH of the baseline's lyngon.scriptTools and
+  # nothing else, which is all a repository's shell promises a shipped script.
+  testPruneMistakes = pkgs.writeShellApplication {
+    name = "test-prune-mistakes";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.gnugrep
+    ];
+    text = ''exec "${config.devenv.root}/plugins/build/tests/prune-mistakes.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
+  };
 in
 {
   # Baseline hooks, MCP server file, check-pull-request and languages come
@@ -253,5 +266,6 @@ in
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
+    declared_tools_only ${lib.getExe testPruneMistakes}
   '';
 }

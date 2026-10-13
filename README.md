@@ -19,7 +19,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 ## The pieces
 
 - A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
-- A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file, languages and `check-pull-request` command.
+- A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, MCP server file, languages and `check-pull-request` command, and the tools that the scripts of skills run.
 - A set of shared documents behind both, in `shared/`.
 
 Other kinds of reusable pieces may join; the test is that they are used by more than one repository.
@@ -76,7 +76,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions`, `principles` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, the agent file, README, CONCEPTS.md, decision records, devenv, git hooks) and create packages in the kind-first layout. |
 | `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview`, `/discover:why` | Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues. |
-| `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
+| `build` | `/build:correction`, `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
 | `review` | `/review:receive`, `/review:request` | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
 | `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
@@ -140,6 +140,7 @@ And the way of working in it, in the order things happen:
 - `/discover:why` when a reason is needed: it answers from the decision records, the deleted ones included, and from git, pull requests and issues, and says what it found, what it inferred and what it could not find out.
 - `principles:index` before work that takes judgment; the agent then reads the file of each principle that applies. A repository's own principles are its rule files under `.claude/rules/`.
 - Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
+- `build:correction` when the operator corrects the agent, a review finding is accepted or a change is reverted. A first occurrence becomes a file in the mistake ledger, `docs/mistakes/`, and a mistake that repeats becomes a check, or a rule file when no tool can decide it.
 - `/writing:unslop` before any prose is handed over.
 - `devenv test` before every push; it runs every git hook on every file, and no hook is ever disabled to make it pass.
 - `check-pull-request` before a pull request is opened, and again in CI whenever its title, its body or its branch changes; a body over the limit is shortened, and the limit is never raised to let it pass.
@@ -271,6 +272,7 @@ A case proves a change only when it scores the same in every run, so write it to
 - Grade no call of the Skill tool in such a case, since the harness loads a slash command itself.
 - Say in the prompt what the workspace is. A run starts in an empty directory, and an agent that expects code there stops to ask where it is.
 - Prefer a grader that no model judges.
+- Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).
 - When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
 
 Run the suite at a base commit and in the working tree, and print the score of each case at both:

@@ -28,7 +28,7 @@ The part of the devkit described by `.claude-plugin/marketplace.json`, listing e
 _Avoid_: using "marketplace" for the whole repository
 
 **Baseline**:
-The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the MCP server file, the `check-pull-request` command and the languages every repository has.
+The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the MCP server file, the `check-pull-request` command, the tools of the scripts that skills ship and the languages every repository has.
 
 **In-house skill**:
 A skill authored by Lyngon.
@@ -106,6 +106,10 @@ A named, binding statement that a tool can decide.
 Its name is the identifier its check reports.
 _Avoid_: convention, hard rule, working rule
 
+**Mistake ledger**:
+The directory that holds one file per mistake an agent made in the repository for the first time, kept until the mistake repeats and gets a check, or ages out.
+_Avoid_: rule table, lessons learned
+
 **Change**:
 One concern, delivered as one pull request and landing on the default branch as one commit.
 _Avoid_: task (that is an issue type), commit, PR
@@ -154,6 +158,7 @@ _Avoid_: verification step, smoke test
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - An **Owner** approves every change to a **Steering document** of their repository.
 - An **Owner** may act as an **Operator**; an **Operator** need not be an **Owner**.
+- A mistake in the **Mistake ledger** that repeats becomes a **Rule** with its check, or a **Principle** when no tool can decide it.
 - A **Plan**'s execution lies between its two **Review gates**; its **Owner gates** lie inside it.
 - A task of a **Plan** states the behaviour it leaves to its implementer as **Acceptance lines**; it has **Dictated text** only where the wording is the decision, and a **Mandated check** only where a command's exact output is the behaviour.
 - An **Owner gate** has at most one **Pre-approval**, and only a gate whose action the executor performs can have one.

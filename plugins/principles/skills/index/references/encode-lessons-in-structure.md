@@ -24,7 +24,7 @@ A rule without a check is debt.
 **Feedback loop:**
 
 - **Capture every correction.** When the owner or the operator intervenes or tests fail, decide if it's a one-off or a pattern.
-- **Route to the right layer.** A first occurrence is noted in the pull request. A repeat gets the strongest check that works. A repeat that no tool can decide becomes a principle, which in a repository is a file under `.claude/rules/`.
+- **Route to the right layer.** A first occurrence goes into the mistake ledger, as a file under `docs/mistakes/` that `build:correction` writes. A repeat gets the strongest check that works. A repeat that no tool can decide becomes a principle, which in a repository is a file under `.claude/rules/`.
 - **Close the loop.** Don't just record. Apply now, or file an issue with the evidence.
 
 **Anti-patterns:**
