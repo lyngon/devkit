@@ -80,7 +80,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
 | `review` | `/review:receive`, `/review:request` | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
 | `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
-| `writing` | `/writing:unslop` | Prose quality: edit documentation, READMEs, posts and other non-code text so it reads as written by a person. |
+| `writing` | `/writing:simpler`, `/writing:technical`, `/writing:unslop` | Prose quality: write technical documents to a standard that is understood on the first read, edit documentation, READMEs, posts and other non-code text so it reads as written by a person, and restate a message in plain words. |
 | `conventions` | `decision-record` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. |
 | `principles` | `/principles:index` | The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon. |
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
@@ -141,7 +141,7 @@ And the way of working in it, in the order things happen:
 - `principles:index` before work that takes judgment; the agent then reads the file of each principle that applies. A repository's own principles are its rule files under `.claude/rules/`.
 - Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
 - `build:correction` when the operator corrects the agent, a review finding is accepted or a change is reverted. A first occurrence becomes a file in the mistake ledger, `docs/mistakes/`, and a mistake that repeats becomes a check, or a rule file when no tool can decide it.
-- `/writing:unslop` before any prose is handed over.
+- `/writing:technical` when a document, a pull request description or a commit message is written or reviewed, and `/writing:unslop` before any prose is handed over.
 - `devenv test` before every push; it runs every git hook on every file, and no hook is ever disabled to make it pass.
 - `check-pull-request` before a pull request is opened, and again in CI whenever its title, its body or its branch changes; a body over the limit is shortened, and the limit is never raised to let it pass.
 
