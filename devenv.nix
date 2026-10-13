@@ -146,6 +146,19 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/validate-structure.sh" "$@"'';
   };
+  # The baseline's git hooks in the worktrees of a throwaway repository, which
+  # the test enters with the devenv that `enterTest` hands over, the one that
+  # runs the full check. This repository's lock file pins the throwaway one,
+  # so its inputs are the ones that devenv has fetched already.
+  testHooksFollowTheirWorktree = pkgs.writeShellApplication {
+    name = "test-hooks-follow-their-worktree";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/hooks-follow-their-worktree.sh" "$@" "${config.devenv.root}/devenv.lock"'';
+  };
   testValidateShippedText = pkgs.writeShellApplication {
     name = "test-validate-shipped-text";
     runtimeInputs = [
@@ -263,6 +276,7 @@ in
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
     declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"
     declared_tools_only ${lib.getExe testValidateStructure}
+    declared_tools_only ${lib.getExe testHooksFollowTheirWorktree} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
