@@ -249,10 +249,19 @@ fi
 # the checkout, so its case names the plugins directory, which loads them all.
 # `writing` is the exception: it assumes no other plugin, and a case that names
 # none proves it. The line is read from the frontmatter of prompt.md, so that
-# is the one layout of a case.
+# is where a case is stated. A case.yaml may stand beside it for one thing,
+# `context`, which seeds the run with files and which the eval tool reads
+# from no other place. Its keys at the left margin are checked as lines, so
+# that this needs no YAML parser.
 while IFS= read -r file; do
   if [[ "$file" == */case.yaml ]]; then
-    fail "$file: an eval case is a prompt.md with its graders, never a case.yaml; the plugins a case loads are checked in the frontmatter of prompt.md"
+    if [[ ! -f "$(dirname "$file")/prompt.md" ]]; then
+      fail "$file: an eval case is a prompt.md with its graders; a case.yaml only stands beside one, to seed the run through 'context'"
+      continue
+    fi
+    while IFS= read -r key; do
+      fail "$file: holds '$key', and a case.yaml holds only schema_version, name and context; the rest of a case, the plugins it loads included, is in the frontmatter of prompt.md"
+    done < <(grep -oE '^[^[:space:]#][^:]*' "$file" | grep -vxE 'schema_version|name|context' || true)
     continue
   fi
   inside=${file#plugins/}
