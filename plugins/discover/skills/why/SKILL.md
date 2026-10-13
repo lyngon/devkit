@@ -1,12 +1,16 @@
 ---
 name: why
-description: Investigate why code, a design or a decision is the way it is, and return a cited answer that separates what was found from what is inferred and what is unknown. Reads the decision records, git history, pull request bodies and reviews, and issues, and any other evidence source the session offers. Use for 'why does X work this way', 'why we picked Y', design rationale, regressions, postmortems, or data-backed thresholds, and before changing code whose reason is not visible. Not for how the code behaves at runtime.
+description: Investigate why code, a design or a decision is the way it is, and return a cited answer that separates what was found from what is inferred and what is unknown. Reads the decision records, git history, pull request bodies and reviews, and issues, and any other evidence source the session offers. Use for 'why does X work this way', 'why we picked Y', design rationale, regressions, postmortems, or data-backed thresholds, and before changing code whose reason is not visible. For how the code behaves at runtime, use discover:how.
 argument-hint: "<the question, naming the code, design or decision it is about>"
 ---
 
 # Why
 
 Investigate the motivation and intent behind code.
+
+Companion to `discover:how`.
+`discover:how` answers what the code does and how it works.
+This skill answers what forces led to its shape.
 
 ## Operating posture
 

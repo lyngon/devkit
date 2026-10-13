@@ -75,7 +75,7 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 | --- | --- | --- |
 | `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions`, `principles` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, the agent file, README, CONCEPTS.md, decision records, devenv, git hooks) and create packages in the kind-first layout. |
-| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:interview`, `/discover:why` | Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, or find out why code is the way it is from the decision records, git, pull requests and issues. |
+| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:explanation`, `/discover:how`, `/discover:interview`, `/discover:why` | Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, find out how code works and why it is the way it is, or have both explained plainly. |
 | `build` | `/build:delegate`, `/build:execute`, `/build:finish`, `/build:plan` | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. |
 | `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
 | `review` | `/review:receive`, `/review:request` | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
@@ -138,6 +138,7 @@ And the way of working in it, in the order things happen:
 - `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in decision records as they settle.
 - A decision record only for a decision that passes the admission test in [DECISION-RECORD-FORMAT.md](shared/DECISION-RECORD-FORMAT.md), and only while the decision holds; a decision a check can carry becomes the check.
 - `/discover:why` when a reason is needed: it answers from the decision records, the deleted ones included, and from git, pull requests and issues, and says what it found, what it inferred and what it could not find out.
+- `/discover:how` when the question is how code works, and `/discover:explanation` to have a change or a subsystem explained plainly, from what `how` and `why` find.
 - `principles:index` before work that takes judgment; the agent then reads the file of each principle that applies. A repository's own principles are its rule files under `.claude/rules/`.
 - Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
 - `/writing:unslop` before any prose is handed over.
@@ -262,7 +263,8 @@ A case of `writing` has no such line and runs with `writing` alone, which shows 
 
 A run starts in an empty working directory.
 A case that needs files there keeps them under `workspace/`, next to a `seed-workspace.sh` that copies them in and a `case.yaml` that names the script as `context.scaffold_script`.
-The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, since everything else of a case is in the frontmatter of `prompt.md`, and `validate-marketplace` fails any other key.
+The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, since everything else of a case is in the frontmatter of `prompt.md`.
+Its `name` is the name of the case's directory, and `validate-marketplace` fails another name and any other key.
 `context.add_dirs` does not serve here: it lets a run read a directory of the case where it lies, and nothing tells the agent where that is (measured on Claude Code 2.1.283).
 
 A case proves a change only when it scores the same in every run, so write it to leave the model little room:

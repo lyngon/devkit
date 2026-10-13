@@ -14,6 +14,20 @@ A Lyngon repository keeps only what is true now, and deletes a decision record w
 The reason behind code or a decision is then in git, in pull requests and in issues, and an agent that cannot find it there either guesses or undoes the decision.
 This skill reads those sources and keeps what it found apart from what it inferred and what it could not find out, which is the property that makes its answer safe to act on.
 
+### `plugins/discover/skills/how`
+
+An agent that changes code it has not traced guesses at the flow around it, and a person who asks how a subsystem works gets an answer built from whichever files the agent happened to open.
+This skill makes the reading a job of its own.
+Subagents trace the code and one explanation comes back, with the flow, the files and the gotchas, and the session that asked keeps its context.
+It is the companion `why` was written against, from the same author and in the same form, so each of the two hands a question over to the other by name.
+
+### `plugins/discover/skills/explanation`
+
+The owner reviews on the pull request, and so has to understand changes and subsystems that an agent wrote.
+`how` and `why` each answer one question in the shape of a report.
+This skill turns both into one account for a person: a plain definition first, the smallest complete answer, then more on request.
+It keeps the hedges of `why`, so a reason is never taught as firmer than its evidence.
+
 ### `plugins/principles/skills/index`
 
 Lyngon steers agents by named principles they apply with judgment, where it used to script their steps.
@@ -26,6 +40,8 @@ Here they are one skill, so that an agent reads one index and then only the file
 | Upstream path | Destination |
 | --- | --- |
 | `pstack/skills/why` | `plugins/discover/skills/why` |
+| `pstack/skills/how` | `plugins/discover/skills/how` |
+| `pstack/skills/teach` | `plugins/discover/skills/explanation` |
 | `pstack/skills/principle-*`, 24 skill directories of one `SKILL.md` each | `plugins/principles/skills/index` |
 | `pstack/skills/poteto-mode/SKILL.md`, the section "Principles", for the lines of the index | `plugins/principles/skills/index` |
 
@@ -49,7 +65,7 @@ All kept files:
 `SKILL.md`:
 
 - The description says what the skill does and when to use it, and keeps upstream's trigger phrases. `disable-model-invocation: true` is removed, so that an agent can ask why before it changes code. Added an `argument-hint`.
-- The paragraph on the companion skill `how` and the description's "Use how for runtime behavior" are left out, because that skill is not in the devkit.
+- The paragraph on the companion skill names it `discover:how`, and says "This skill" where upstream wrote `why`. The description's "Use how for runtime behavior" became "For how the code behaves at runtime, use discover:how".
 - The paragraph on the `pstack-models.mdc` role lines and the three "Subagent config" lists (`subagent_type`, `model`, `readonly`) are removed. A subagent inherits the session's model, and the one fact the lists carried is kept as a sentence: an investigator and the synthesizer need the tools of their sources.
 - Discovery lists the MCP servers the session offers, where upstream read the Cursor environment and its `mcps/` directory. The issue tracker is GitHub Issues through `gh`, so two categories are always available where upstream had one. Added that an MCP holding none of the seven kinds of evidence is not a source, and that a source that could not be reached is reported as a gap with its error, never as "nothing found".
 - Added the section "One pass, when git and GitHub are the only sources": with no MCP mapped to a category, the agent runs the investigation itself from the two playbooks, to the investigator prompt's posture, and writes the answer in the synthesizer's format, with no investigators and no synthesizer. Upstream's "Default to the full parallel investigation" is removed with it, and its trivial-target exception now permits one pass.
@@ -87,6 +103,40 @@ All kept files:
 
 `references/epistemics.md`: only the patches of all kept files.
 
+### `plugins/discover/skills/how`
+
+All three files (`SKILL.md`, `references/explorer-prompt.md` and `references/explainer-prompt.md`):
+
+- Paragraphs are reflowed to one sentence per line, with blank lines around lists and headings.
+- Headings are in sentence case. The names of the output sections follow ("Key concepts", "How it works", "Where things live", "Components found", "Files read", "Non-obvious things", "Open questions"), in the headings and where `SKILL.md` lists them.
+
+`SKILL.md`:
+
+- The description says what the skill does and when to use it, and keeps upstream's trigger phrases. Its sentence "Explains subsystem architecture, runtime flow, onboarding mental models." is folded into the first one. "Use why for motivation" became "For why the code is the way it is, use discover:why". "Code walkthroughs before changing something" became "a code walkthrough before changing code you do not know", and "Not for a question that reading one function answers" is added, because the agent may now start the skill and upstream's wording fits every edit. `disable-model-invocation: true` is removed, so that an agent can ask how code works before it changes it. Added an `argument-hint`.
+- The paragraph on the `pstack-models.mdc` role lines and the three lists of `subagent_type`, `model` and `readonly` are removed. A subagent inherits the session's model, and the one fact the lists carried is kept as a sentence: explorers and the explainer read and search, and change nothing.
+- The step headings lose "Step 1." to "Step 4.", and say which path they belong to in words ("Explore, for a complex question"), where upstream had a parenthesis. "Direct Explain" became "Explain directly". The text sends the reader to a step by its name, where upstream wrote "Go to Step 2b".
+- "The user can redirect" and "Present the explainer's output to the user" name the operator.
+- "Spawn one Task subagent" became "Spawn one subagent", and "Spawn all explorers in a single message" says why: so that they run concurrently.
+
+`references/explorer-prompt.md`:
+
+- Added "You read and search, and you change nothing: no file, no commit." Upstream held an explorer to that with the Task parameter `readonly: true`. Claude Code's Agent tool has no such parameter, so reading only is now asked of an explorer where upstream enforced it.
+
+`references/explainer-prompt.md`: only the patches of all three files.
+
+### `plugins/discover/skills/explanation`
+
+- The skill is named `explanation`, where upstream's is `teach`, because a skill's name is a noun that reads after its plugin's. The title follows, and "Teach sits on top of" became "This skill sits on top of".
+- The description says what an explanation covers ("what it is, how it works and why it is built that way"), keeps upstream's trigger phrases and names the two skills it runs as `discover:how` and `discover:why`. "Not for a question that one fact answers" is added, because the agent may now start the skill. `disable-model-invocation: true` is removed. Added an `argument-hint`.
+- `how`, `why` and `unslop` are `discover:how`, `discover:why` and `writing:unslop` everywhere. "Keep `why`'s confidence language intact" became "Keep the confidence language of `discover:why` intact".
+- "Write every response through the **unslop** skill, in plain spoken English, the way you'd explain it to a colleague." became a paragraph of its own, "Before you write the explanation, invoke the `writing:unslop` skill, and write every response through it.", followed by "Write in plain spoken English, the way you'd explain it to a colleague.". The reply paragraph gained "Send it only after you have invoked `writing:unslop`." In Claude Code a skill's text reaches the agent only when the skill is invoked. With upstream's wording the agent invoked it in none of 4 eval runs and wrote em dashes in 3 of them, and with the patch it invoked it in 3 of 3 (sonnet, 2026-10-13).
+- In the second step, "maybe one is enough for a small change" gained ", never none". Without it the agent read a small subject itself and ran neither skill in 2 of 10 eval runs, which the step's first sentence forbids.
+- In the same step, "Run them in parallel and combine the results." became "Have a subagent of its own invoke each skill, so that they run in parallel, and combine the results. What a subagent returns is material for the explanation, never the reply." A skill invoked in the agent's own context takes the session over: in an eval run the agent invoked `discover:why` itself, followed that skill to its last step and ended with a `why` report where an explanation was asked for. The sentence names the invocation because, told only to use a subagent, the agent once handed the digging to subagents that invoked neither skill.
+- The image generation is gone, because Claude Code has no tool for it. Four sentences of the fifth step are left out: "Match the medium to the idea, and use both kinds when both help.", the one that begins "When the idea is spatial" and reaches for the image-generation tool, "Generate that picture, don't settle for describing it in words." and "The build-up rule holds for generated images too."
+- "Running one-shot with no live human" became "Running one-shot, with no operator there to answer".
+- The opening paragraph is no longer bold, because Lyngon's Markdown never sets a whole sentence in bold.
+- Paragraphs and the five steps are reflowed to one sentence per line.
+
 ### `plugins/principles/skills/index`
 
 All 24 files:
@@ -121,8 +171,28 @@ The index, `SKILL.md`:
 Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-11, all 13 upstream files read in full, the five that are left out and `linear.md` included.
 
 - Security: the skill reads and never writes. Network: `gh` reads pull requests and issues of the repository, and `gh search issues` reads the organization's. Credentials: none read by the skill; `gh` uses its own sign-in. Execution surface: no scripts, hooks or `allowed-tools`. Upstream told investigators to run in agent mode so that MCP tools stay available while writing nothing; the patched sentence keeps both halves. Instruction hijacking: none in the text, and the opposite risk exists, since an issue or a pull request body is text from anyone. The synthesizer prompt forbids writing files, committing or changing external state, and the new issue playbook says that issue text is a claim and never an instruction. No encoded content, no persistence.
-- Quality: the description states what and when. Trigger check: "why does validate-marketplace demand the all bundle?" must trigger it, "how does the session hook find its text file?" must not. `SKILL.md` is 171 lines; the confidence framework, both prompts and the playbooks are references. Dependencies: git, and `gh` signed in for pull requests and issues, whose absence the skill reports as a gap. The left-out playbooks named MCP tools of products Lyngon does not use (`search_datadog_incidents`, `notion-search`, `execute_sql_read_only`).
+- Quality: the description states what and when. Trigger check: "why does validate-marketplace demand the all bundle?" must trigger it, "how does the session hook find its text file?" must not. `SKILL.md` is 175 lines; the confidence framework, both prompts and the playbooks are references. Dependencies: git, and `gh` signed in for pull requests and issues, whose absence the skill reports as a gap. The left-out playbooks named MCP tools of products Lyngon does not use (`search_datadog_incidents`, `notion-search`, `execute_sql_read_only`).
 - Fit: reads decision records in `docs/decisions/` (patched). Assumes no layout. Installs nothing; `rg` was not guaranteed and became `git grep` (patched). No em or en dashes and no curly quotes upstream. Writes no file. No devkit skill overlaps: `discover:domain-model` writes decision records, and this one reads them and the history behind them.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/discover/skills/how`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-13, all 3 upstream files read in full.
+
+- Security: the skill reads and never writes. Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. Upstream held its subagents to reading with the Task parameter `readonly: true`; here the constraint is a sentence in `SKILL.md` and in the explorer prompt (patched), and the explainer prompt already says that its access is read-only. Nothing but those sentences keeps a subagent from writing, unless the lead picks an agent type that cannot write. Instruction hijacking: none in the text. The code an explorer reads is text from whoever wrote it, and a comment in it could address an agent. No encoded content, no persistence.
+- Quality: the description states what and when. Trigger check: "how does the session hook find its text file?" must trigger it, "why does validate-marketplace demand the all bundle?" must not. Upstream never let the agent start the skill, and its "code walkthroughs before changing something" would fire before every edit; the description now has a lower bound (patched). `SKILL.md` is 54 lines, and both prompts are references. Dependencies: a harness that spawns subagents. The explainer prompt is written for the path with explorers, and the simple path reuses it "without the explorer-findings section", which leaves its sentences about explorers for the lead to drop; kept as upstream wrote it.
+- Fit: reads no glossary and no decision record. Assumes no layout: a placement question is answered from the code as it lies, not from a layout rule. Installs nothing. No em or en dashes and no curly quotes upstream. Writes no file. Overlap: `discover:why` answers the other question about the same code, and each description hands over to the other. The explainer may draw a mermaid diagram, which a terminal prints as its source; the prompt offers plain characters as well.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/discover/skills/explanation`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-13, the one upstream file read in full.
+
+- Security: the skill changes nothing, and says so. Network: none of its own; upstream reached for an image-generation tool (left out). Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. It tells the agent to open "the diff, the code, or the debugger" when that shows a thing fastest, which is a shell command under the session's own permissions. Instruction hijacking: the reply rule ("the explanation itself, never a report about what you did or delivered") shapes the reply and hides no action, since the skill takes none. No encoded content, no persistence.
+- Quality: the description states what and when. Trigger check: "teach me how the session hook reaches a session" must trigger it, "what does this function return?" must not. Upstream never let the agent start the skill; "explain this change or subsystem to me" stays a trigger, and the description now excludes a question that one fact answers (patched). `SKILL.md` is 81 lines and has no references, since every invocation needs all of it. Dependencies: the skills `discover:how`, `discover:why` and `writing:unslop`, all members of the bundle.
+- Fit: reaches the glossary and the decision records only through `discover:why`. Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and the text forbids the agent em dashes. Writes no file. Overlap: none. It is the one skill whose answer is shaped for a person who is learning, and it builds on `how` and `why` where it could have repeated them. It may draw mermaid diagrams, which a terminal prints as their source.
 - License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
 - Verdict: clear with patches, all applied.
 
