@@ -185,6 +185,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/hooks.sh" "$@"'';
   };
+  # Fixture tests for the devkit plugin's hook script; zsh and bash read back
+  # the environment file, as Claude Code's Bash tool does before a command.
+  testDevkitHooks = pkgs.writeShellApplication {
+    name = "test-devkit-hooks";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.zsh
+    ];
+    text = ''exec "${config.devenv.root}/plugins/devkit/hooks/tests/hooks.sh" "$@"'';
+  };
 
   # Fixture tests for the build plugin's scripts. perl provides shasum, so
   # the tests can run pin with each hash tool alone.
@@ -279,6 +290,7 @@ in
     declared_tools_only ${lib.getExe testHooksFollowTheirWorktree} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
+    declared_tools_only ${lib.getExe testDevkitHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
     declared_tools_only ${lib.getExe testPruneMistakes}
   '';

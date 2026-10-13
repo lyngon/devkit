@@ -9,6 +9,12 @@ They only run inside the devkit repository.
 
 Planned: `bump-skill` (compare what is vendored from one upstream with it and carry changes over) and `package` (zip skills for Claude.ai chat). See `docs/TODO.md`.
 
+## Hooks
+
+- `SessionStart` (`hooks/export-path-to-eval-run.sh`): in a run of `claude plugin eval`, writes the PATH of the session to `$CLAUDE_ENV_FILE`, so that a shell command of the run finds the tools of the devenv shell that the run was started from.
+  In any other session it does nothing.
+  Why a run needs it is in the section "Evals" of the [root README](../../README.md#evals).
+
 ## Install
 
 ```sh
