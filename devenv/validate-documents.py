@@ -14,6 +14,11 @@
 #                                    own sections
 #   rule-file-shape                  a file under .claude/rules/ has a kebab-case
 #                                    name and at most 100 lines
+#   ledger-file-shape                a file under docs/mistakes/ at the root lies
+#                                    directly in it, is named after its mistake,
+#                                    starts with a heading, has one date line
+#                                    with a day that exists, and writes what it
+#                                    was caught in as a link
 #
 # Runs at pre-commit from the repository root with the files to check as
 # arguments, so a hook's `excludes` keeps a fixture tree out. Without arguments
@@ -22,6 +27,7 @@
 # generated/ directory is skipped, and so is one that is gone from the working
 # tree. It exits 1 on a violation and 2 when it cannot check what it was asked
 # to.
+import datetime as dt
 import os
 import pathlib
 import re
@@ -37,6 +43,17 @@ INTENT_SECTIONS: t.Final = (
 )
 INTENT_MAX_LINES: t.Final = 50
 RULE_MAX_LINES: t.Final = 100
+# The two lines below the heading of a file in the mistake ledger. The build
+# plugin's prune-mistakes.py ages a file by its date line, and stops at a
+# ledger with a date it cannot read. It reads the Markdown files directly in
+# docs/mistakes/ and decodes them as read_lines below does, so a ledger that
+# passes here never stops it; plugins/build/tests/prune-mistakes.sh holds the
+# two to that.
+LEDGER_DATE: t.Final = re.compile(r"- \*\*Date\*\*: (.*)")
+LEDGER_CAUGHT_IN: t.Final = re.compile(r"- \*\*Caught in\*\*: (.*)")
+ISO_DAY: t.Final = re.compile(r"\d{4}-\d{2}-\d{2}")
+# The title of a pull request may hold brackets of its own.
+LINK: t.Final = re.compile(r"\[.+\]\(\S+\)")
 SKIPPED_DIRECTORIES: t.Final = frozenset({"vendor", "generated"})
 AGENT_FILE: t.Final = pathlib.PurePosixPath(".claude/CLAUDE.md")
 IMPORT_LINE: t.Final = "@../INTENT.md"
@@ -184,6 +201,57 @@ def check_rule_file(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str
     return found
 
 
+def is_day(text: str) -> bool:
+    """Whether the text is a day that exists, written as YYYY-MM-DD."""
+    if not ISO_DAY.fullmatch(text):
+        return False
+    try:
+        dt.date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
+def check_ledger_file(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str]:
+    rule = "ledger-file-shape"
+    found = []
+    if len(path.parts) != 3 or path.suffix != ".md" or not KEBAB.fullmatch(path.stem):
+        found.append(error(
+            path, rule, "name the file after its mistake, docs/mistakes/<mistake-in-kebab-case>.md, with no directory between",
+        ))
+    lines = read_lines(root, path)
+    if lines is None:
+        return found
+    if not lines or not lines[0].startswith("# "):
+        found.append(error(path, rule, "start the file with the heading '# <the mistake, as a sentence>'", 1))
+    dates = [
+        (number, match.group(1))
+        for number, line in enumerate(lines, 1)
+        if (match := LEDGER_DATE.fullmatch(line)) is not None
+    ]
+    if len(dates) != 1:
+        found.append(error(
+            path, rule,
+            f"{len(dates)} lines '- **Date**: <YYYY-MM-DD>'; give the file exactly one, with the day the mistake "
+            "was caught, because the ledger is pruned by it",
+        ))
+    for number, day in dates:
+        if not is_day(day):
+            found.append(error(
+                path, rule, f"'{day}' is no day; write the day the mistake was caught as YYYY-MM-DD", number,
+            ))
+    for number, line in enumerate(lines, 1):
+        caught_in = LEDGER_CAUGHT_IN.fullmatch(line)
+        if caught_in is not None and not LINK.fullmatch(caught_in.group(1)):
+            found.append(error(
+                path, rule,
+                "write the line as '- **Caught in**: [<pull request title>](<pull request link>)', or leave it "
+                "out until the pull request exists",
+                number,
+            ))
+    return found
+
+
 def check(root: pathlib.Path, paths: list[pathlib.PurePosixPath]) -> list[str]:
     """Every violation among the paths, one line each, in path order."""
     found = []
@@ -218,6 +286,8 @@ def check(root: pathlib.Path, paths: list[pathlib.PurePosixPath]) -> list[str]:
             found += check_intent(root, path)
         if path.parts[:2] == (".claude", "rules") and len(path.parts) > 2:
             found += check_rule_file(root, path)
+        if path.parts[:2] == ("docs", "mistakes") and len(path.parts) > 2:
+            found += check_ledger_file(root, path)
     return found
 
 
