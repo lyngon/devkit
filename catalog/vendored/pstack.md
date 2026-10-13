@@ -4,7 +4,7 @@
 - **Upstream commit**: 9f451cf875ad1239912762f67741e8e5ba6ac0f1
 - **Upstream version**: 0.15.15 (`pstack/.cursor-plugin/plugin.json`)
 - **Upstream license**: MIT (see [LICENSE-pstack](../../shared/LICENSE-pstack))
-- **Reviewed**: 2026-10-11 by Anders Åström
+- **Reviewed**: 2026-10-13 by Anders Åström
 
 ## Why it is here
 
