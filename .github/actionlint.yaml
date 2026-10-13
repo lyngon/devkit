@@ -1,0 +1,5 @@
+# For the probe of issue 40 only: actionlint 1.7.12, the latest release, does
+# not know the label of the new image, and this is how it learns a label.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
