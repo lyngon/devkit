@@ -8,7 +8,12 @@ set -euo pipefail
 
 program=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/compare-evals.py
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+# A sandbox that the stub kept is read-only, as the real one is.
+remove() {
+  [[ ! -e "$1" ]] || chmod -R u+rwx "$1"
+  rm -rf "$1"
+}
+trap 'remove "$tmp"' EXIT
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
@@ -17,16 +22,27 @@ failures=0
 
 # --- The stub ----------------------------------------------------------------
 
-# Like the real command, the stub writes its report below the directory it
-# runs in unless --output-dir names another, and exits with the status the
-# checkout asks for after it wrote the result. A checkout without a canned
-# result stands for a run that dies before it writes one.
+# The stub does what the real command was measured to do on Claude Code
+# 2.1.283. It writes aggregate-result.json and its report into the directory
+# that --output-dir names, and exits with the status the checkout asks for
+# after it wrote the result. It prints its progress on stderr and a table on
+# stdout, unless --json names a file: then it writes the result there too and
+# prints neither. A checkout without a canned result stands for a run that
+# dies before it writes one. A canned result without a case stands for a
+# filter that matches none: the stub says so and writes a result only where
+# --json names a file.
+#
+# The file canned-listed-tools.json of a checkout maps the name of a case to
+# the gated tools it lists. The progress names the ones that --allow-tools
+# does not grant, and says of Artifact that no grant enables it. A run that
+# ended in an error leaves its sandbox in the temporary directory, read-only,
+# unless --json names a file.
 mkdir "$tmp/bin" "$tmp/tools" "$tmp/empty"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
-json="" output=evals/results/stub
+json="" output=evals/results/stub granted=()
 while (($# > 0)); do
   case "$1" in
     --json)
@@ -37,14 +53,50 @@ while (($# > 0)); do
       output=$2
       shift
       ;;
+    --allow-tools)
+      while (($# > 1)) && [[ $2 != --* ]]; do
+        granted+=("$2")
+        shift
+      done
+      ;;
   esac
   shift
 done
-echo "stub: progress of the run"
 [[ -f canned-result.json ]] || exit 1
+if jq -e '.cases == []' canned-result.json >/dev/null 2>&1; then
+  echo "No eval cases found under $PWD." >&2
+  [[ -z $json ]] || cp canned-result.json "$json"
+  exit 1
+fi
+if [[ -z $json ]]; then
+  listed='{}'
+  [[ ! -f canned-listed-tools.json ]] || listed=$(<canned-listed-tools.json)
+  # A canned result of another shape than the real one has no progress.
+  jq -r --argjson listed "$listed" '
+    .cases[]? | select(.name) | .name as $name
+    | (($listed[$name] // []) - $ARGS.positional) as $denied
+    | (select($denied != []) | "  \($name): not granted (missing --allow-tools grant, or a malformed entry): \($denied | join(", "))"),
+      (select($denied | any(. == "Artifact")) | "  \($name): the Artifact tool is not available inside eval runs; --allow-tools cannot enable it"),
+      (.arms.with | length as $runs | to_entries[] | "  \($name) run \(.key + 1)/\($runs): score \(.value.score)")
+  ' canned-result.json --args "${granted[@]}" >&2 2>/dev/null || true
+  if jq -e '[.cases[]?.arms.with[]?.error // empty] != []' canned-result.json >/dev/null 2>&1; then
+    kept=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
+    mkdir -p "$kept/sealed/home"
+    echo "written by the plugin under test" >"$kept/sealed/home/notes.md"
+    chmod 000 "$kept/sealed"
+    chmod 500 "$kept"
+    echo "  kept temp (run failed): $kept" >&2
+  fi
+fi
 mkdir -p "$output"
+cp canned-result.json "$output/aggregate-result.json"
 echo "<html></html>" >"$output/report.html"
-cp canned-result.json "$json"
+if [[ -n $json ]]; then
+  cp canned-result.json "$json"
+else
+  echo "CASE  SCORE PASS% RUNS COST  NOTES"
+fi
+echo "Report: $output/report.html" >&2
 [[ ! -f canned-exit ]] || exit "$(<canned-exit)"
 EOF
 chmod +x "$tmp/bin/claude"
@@ -52,7 +104,7 @@ export FAKE_CLAUDE_LOG=$tmp/claude.log
 
 # The program and the stub run with these tools and no others, so that no test
 # can reach the real Claude Code, whatever the PATH of the shell that runs it.
-for tool in bash cp git mkdir python3; do
+for tool in bash chmod cp git jq mkdir mktemp python3; do
   ln -s "$(command -v "$tool")" "$tmp/tools/$tool"
 done
 with_claude=$tmp/bin:$tmp/tools
@@ -161,7 +213,7 @@ lacks() {
 compare() {
   local repo=$1
   shift
-  rm -rf "$tmp/scratch" && mkdir "$tmp/scratch"
+  remove "$tmp/scratch" && mkdir "$tmp/scratch"
   : >"$FAKE_CLAUDE_LOG"
   code=0
   out=$(cd "$repo" && TMPDIR=$tmp/scratch PATH=$path "$program" "$@" 2>"$tmp/stderr" </dev/null) || code=$?
@@ -204,7 +256,12 @@ plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
 plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
 
 cost: base 0.25 USD, head 0.50 USD"
-check "two commits: the run's own output stays off stdout" contains "$err" "stub: progress of the run"
+check "two commits: the progress of a run reaches stderr" contains "$err" "
+  stays-green run 3/3: score 0
+"
+check "two commits: what a run prints on stdout reaches stderr" contains "$err" "
+CASE  SCORE PASS% RUNS COST  NOTES
+"
 check "two commits: one run at head, in the working tree" equals "$(calls_in "$repo" | wc -l)" 1
 check "two commits: one run at base, outside the working tree" equals "$(calls_outside "$repo" | wc -l)" 1
 check "two commits: the head run is the suite of the checkout, unpublished, without a baseline arm" \
@@ -235,6 +292,57 @@ check "uncommitted changes: the head line says so" contains "$out" "head: $(sha 
 check "uncommitted changes: the working tree is as it was" equals "$(git -C "$repo" status --porcelain)" " M canned-result.json
 ?? draft.md"
 
+# A run has no gated tool that it does not grant, whatever the case lists. A
+# grader that expects that something did not happen then passes whatever the
+# skill does, so the full score of red-then-green at head is no proof. The
+# base commit has no case that lists a gated tool.
+repo=$(two_commits)
+echo '{"red-then-green": ["Write"], "stays-green": ["Write", "Bash"]}' >"$repo/canned-listed-tools.json"
+commit "$repo" "chore: two cases list gated tools"
+compare "$repo" main~1
+check "a run that lacked a tool: exits 0" equals "$code" 0
+check "a run that lacked a tool: the case has its score" contains "$out" "plugins/one/evals/red-then-green  1.00 (1 run)   1.00 (1 run)"
+check "a run that lacked a tool: the case, the commit and the tool follow the table, ahead of the graders" contains "$out" "
+
+plugins/one/evals/red-then-green at head: not granted (missing --allow-tools grant, or a malformed entry): Write
+plugins/one/evals/stays-green at base: grader names-it failed in 2 of 3 runs
+plugins/one/evals/stays-green at base: grader asks-first failed in 1 of 3 runs
+plugins/one/evals/stays-green at head: not granted (missing --allow-tools grant, or a malformed entry): Write, Bash
+plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
+plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
+
+cost:"
+compare "$repo" main~1 --allow-tools Write
+check "a grant: a case that has every tool it lists is not named" lacks "$out" "red-then-green at head"
+check "a grant: a tool that is still missing is named" contains "$out" "
+plugins/one/evals/stays-green at head: not granted (missing --allow-tools grant, or a malformed entry): Bash
+"
+
+# The program reads none of the harness's words. Whatever the harness says
+# about a case as a whole is repeated as it stands.
+repo=$(two_commits)
+echo '{"new-at-head": ["Artifact"]}' >"$repo/canned-listed-tools.json"
+commit "$repo" "chore: a case lists a tool that no grant enables"
+compare "$repo" main~1
+check "a line in other words: is repeated as it stands" contains "$out" "
+plugins/two/evals/new-at-head at head: not granted (missing --allow-tools grant, or a malformed entry): Artifact
+plugins/two/evals/new-at-head at head: the Artifact tool is not available inside eval runs; --allow-tools cannot enable it
+"
+
+# A filter that matches no case at a commit is not a run that died: the
+# harness says so, and writes no result.
+repo=$(two_commits)
+result 0 >"$repo/canned-result.json"
+commit "$repo" "chore: a commit without the case"
+git -C "$repo" tag without-the-case
+result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: the case"
+compare "$repo" without-the-case --case 'new-*'
+check "no case at the base commit: exits 0" equals "$code" 0
+check "no case at the base commit: the case has a dash there" contains "$out" "plugins/two/evals/new-at-head  -     1.00 (1 run)"
+check "no case at the base commit: the base run cost nothing" contains "$out" "cost: base 0.00 USD, head 0.50 USD"
+check "no case at the base commit: nothing is left behind" nothing_left "$repo"
+
 # A run error is the harness's word for a run it refused or cut short. Three
 # runs of one case ended in two of them here, for the same reason.
 refusal="the Bash sandbox cannot reliably exclude it"
@@ -250,6 +358,8 @@ check "run errors: the reason follows the table, once" equals "$(grep -c -F -- "
 check "run errors: the reason names its case and commit" contains "$out" "
 plugins/one/evals/needs-bash at head: run error: $refusal
 "
+check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp (run failed): "
+check "run errors: that sandbox is removed too" nothing_left "$repo"
 
 repo=$(two_commits)
 result 0 "$(case_of plugins/one/evals/red-then-green 0 1 "run hit the turn cap")" >"$repo/canned-result.json"
@@ -337,6 +447,15 @@ compare "$repo" --allow-tools Write main~1
 check "a base after the list of tools: is a usage error" equals "$code" 2
 check "a base after the list of tools: the usage line puts the base first" contains "$err" "usage: compare-evals base ["
 check "a base after the list of tools: runs nothing" equals "$calls" ""
+
+# Only the options of the usage line reach the harness, so none can move the
+# result that the program reads or publish the report.
+repo=$(two_commits)
+for option in --output-dir --json --report --publish-report; do
+  compare "$repo" main~1 "$option" "$tmp/elsewhere"
+  check "an option of the harness, $option: is a usage error" equals "$code" 2
+  check "an option of the harness, $option: runs nothing" equals "$calls" ""
+done
 
 path=$without_claude
 repo=$(two_commits)
