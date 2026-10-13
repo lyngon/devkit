@@ -238,6 +238,11 @@ in
     validateShippedText
     compareEvals
     pkgs.jq
+    # For the eval case of build:correction, whose run proves a lint rule on
+    # the Python files it seeds. A command of a run finds what this shell has
+    # and nothing else, and an agent that misses ruff runs whichever one it
+    # finds in the Nix store.
+    pkgs.ruff
   ];
 
   # Eval prompts and graders have a fixed shape (frontmatter, then the prompt

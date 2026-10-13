@@ -277,6 +277,8 @@ A case proves a change only when it scores the same in every run, so write it to
 - Prefer a grader that no model judges.
 - Leave to a judge only what no other grader can check. Whether a file was written is for `file_exists`. A rubric that also asked whether the reply announced one failed a reply that kept its list of ideas in chat, in 37 of 39 votes (measured on Claude Code 2.1.283).
 - Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).
+- Grade the `Write` call too when no file may be written under the name of a seeded one. For `file_exists` a seeded file that was deleted and written again is no file the run created (measured on Claude Code 2.1.283).
+- Give a claim a case of its own when a second route reaches the same end. A ledger file past the limit is deleted by the prune script as well as by the rule for a repeat, so the case of that rule seeds a file within the limit.
 - List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283), and `compare-evals` repeats that line below its table.
 - Grade how a subagent was started on its `Agent` call. A `tool_used` grader counts the calls that subagents make too, at every depth.
 - Grade that the agent ends one turn with the pattern `"type":"result"` and `match: "count:1"` on the target `trace`. The trace holds one such event for each turn the agent ends, and `last_message` holds the text of the last turn only (measured on Claude Code 2.1.283).
@@ -353,9 +355,15 @@ So read the result of a call in the trace of a run before saying that a command 
 A command of a run finds the tools of the shell that started the run, so start a run from the devenv shell.
 The hook of the `devkit` plugin hands that PATH over when the session starts.
 Without the hook a command has only the PATH that its shell starts with, on NixOS the system's, because the sandbox hides the file through which a session hands its PATH to its commands (measured on Claude Code 2.1.283).
-With it a command finds `git`, `python3` and the commands of the baseline, and it lacks what the devenv shell lacks, such as `ruff`.
+With it a command finds `git`, `python3`, `ruff` and the commands of the baseline, and nothing that the devenv shell lacks.
+An agent that misses a tool may run one it finds in the Nix store, which no lock file of this repository pins, so a tool that a case needs goes into `packages` in `devenv.nix`.
 A case that does not load the `devkit` plugin, as a case of `writing`, runs without the hook.
-No other variable of the devenv shell reaches a run, `LYNGON_MISTAKES_MAX_AGE_DAYS` included.
+No other variable of the devenv shell reaches a run, `LYNGON_MISTAKES_MAX_AGE_DAYS` included, and the harness passes a variable of a case on only when its name starts with `EVAL_`.
+A case whose commands need a variable names it with the prefix `EVAL_EXPORT_` in its frontmatter, and the hook hands it to the commands without the prefix:
+
+```yaml
+env: { EVAL_EXPORT_LYNGON_MISTAKES_MAX_AGE_DAYS: "365" }
+```
 
 When an eval cannot run, the pull request says so and makes no claim about the behaviour.
 
