@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: how-explores-a-subsystem
+context:
+  scaffold_script: seed-workspace.sh

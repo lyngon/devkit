@@ -264,6 +264,7 @@ A case of `writing` has no such line and runs with `writing` alone, which shows 
 
 A run starts in an empty working directory.
 A case that needs files there keeps them under `workspace/`, next to a `seed-workspace.sh` that copies them in and a `case.yaml` that names the script as `context.scaffold_script`.
+Two cases that ask about the same files keep them once, and the script of the second copies the `workspace/` of the first.
 The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, since everything else of a case is in the frontmatter of `prompt.md`.
 Its `name` is the name of the case's directory, and `validate-marketplace` fails another name and any other key.
 `context.add_dirs` does not serve here: it lets a run read a directory of the case where it lies, and nothing tells the agent where that is (measured on Claude Code 2.1.283).
@@ -277,6 +278,8 @@ A case proves a change only when it scores the same in every run, so write it to
 - Leave to a judge only what no other grader can check. Whether a file was written is for `file_exists`. A rubric that also asked whether the reply announced one failed a reply that kept its list of ideas in chat, in 37 of 39 votes (measured on Claude Code 2.1.283).
 - Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).
 - List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283).
+- Grade how a subagent was started on its `Agent` call. A `tool_used` grader counts the calls that subagents make too, at every depth.
+- Grade that the agent ends one turn with the pattern `"type":"result"` and `match: "count:1"` on the target `trace`. The trace holds one such event for each turn the agent ends, and `last_message` holds the text of the last turn only (measured on Claude Code 2.1.283).
 - When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
 - When the three votes of one run disagree, the rubric leaves the judge room. To find the clause, have the judge vote on that reply again, in a scratch case whose prompt asks the agent to repeat the reply word for word and whose graders are the clauses of the rubric, one each. Count only the runs whose `evidence` in the result is that reply, since the agent drops a line now and then.
 
