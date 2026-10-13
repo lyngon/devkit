@@ -24,14 +24,15 @@ run_hook() {
   code=0
   rm -f "$tmp/env-file.sh"
   out=$(env -i PATH="$session_path" HOME="$tmp" _=/usr/bin/env "$@" \
-    "$hooks/export-path-to-eval-run.sh" 2>"$tmp/stderr") || code=$?
+    "$hooks/export-environment-to-eval-run.sh" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
 }
 
-# The PATH of a command whose shell started with another PATH and then ran the
-# environment file.
-path_after_env_file() {
-  env -i PATH=/replaced/by/the/shell "$(command -v "$1")" -c "source '$tmp/env-file.sh' && printf %s \"\$PATH\""
+# after_env_file <shell> <variable>: the value of the variable in a command
+# whose shell started with another PATH and then ran the environment file, or
+# "unset".
+after_env_file() {
+  env -i PATH=/replaced/by/the/shell "$(command -v "$1")" -c "source '$tmp/env-file.sh' && printf %s \"\${$2-unset}\""
 }
 
 # --- Assertions --------------------------------------------------------------
@@ -55,17 +56,35 @@ equals() {
   }
 }
 
-# --- export-path-to-eval-run.sh ----------------------------------------------
+# --- export-environment-to-eval-run.sh ---------------------------------------
 
 run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh"
 check "eval run: a command in zsh gets the PATH of the session" \
-  equals "$(path_after_env_file zsh)" "$session_path"
+  equals "$(after_env_file zsh PATH)" "$session_path"
 check "eval run: a command in bash gets the PATH of the session" \
-  equals "$(path_after_env_file bash)" "$session_path"
+  equals "$(after_env_file bash PATH)" "$session_path"
 check "eval run: exits 0, adds nothing to the context and says what it did" \
   equals "$code|$out|$err" "0||devkit plugin: exported the PATH of the session to the shell commands of this eval run"
 
-run_hook CLAUDE_ENV_FILE="$tmp/env-file.sh"
+run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh" \
+  EVAL_EXPORT_LIMIT_IN_DAYS="it's 365 days" EVAL_OTHER=kept-back
+check "eval run: a variable named EVAL_EXPORT_<NAME> reaches a command in zsh as <NAME>" \
+  equals "$(after_env_file zsh LIMIT_IN_DAYS)" "it's 365 days"
+check "eval run: a variable named EVAL_EXPORT_<NAME> reaches a command in bash as <NAME>" \
+  equals "$(after_env_file bash LIMIT_IN_DAYS)" "it's 365 days"
+check "eval run: a variable of another name reaches no command" \
+  equals "$(after_env_file zsh OTHER)" "unset"
+check "eval run: the PATH of the session is exported beside the variable" \
+  equals "$(after_env_file zsh PATH)" "$session_path"
+
+run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh" EVAL_EXPORT_1ST=one EVAL_EXPORT_SECOND=two
+check "eval run: a name that no shell can export is left out, and the others arrive" \
+  equals "$(after_env_file zsh SECOND)" "two"
+check "eval run: the name that was left out is on stderr" \
+  equals "$code|$out|$err" "0||devkit plugin: left out EVAL_EXPORT_1ST, because 1ST is no name of a variable
+devkit plugin: exported the PATH of the session to the shell commands of this eval run"
+
+run_hook CLAUDE_ENV_FILE="$tmp/env-file.sh" EVAL_EXPORT_LIMIT_IN_DAYS=365
 check "outside an eval run: writes no environment file" \
   test ! -e "$tmp/env-file.sh"
 check "outside an eval run: exits 0 and prints nothing" \
