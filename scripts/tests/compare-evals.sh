@@ -1188,10 +1188,9 @@ for option in --output-dir --json --report --publish-report; do
 done
 
 # A value reaches the harness as a word of its own, and one that starts with a
-# dash could be an option to it. No case, model, tool or number of runs starts
-# with one.
+# dash could be an option to it. No case, model or tool starts with one.
 repo=$(two_commits)
-for argument in --case=--publish-report --allow-tools=--publish-report --model=--output-dir=/elsewhere --runs=-1; do
+for argument in --case=--publish-report --allow-tools=--publish-report --model=--output-dir=/elsewhere; do
   compare "$repo" main~1 "$argument"
   check "a value that starts with a dash, $argument: is a usage error" equals "$code" 2
   check "a value that starts with a dash, $argument: says so" \
@@ -1205,13 +1204,44 @@ compare "$repo" main~1 --case -1
 check "a negative number after a space: is a usage error" equals "$code" 2
 check "a negative number after a space: runs nothing" equals "$calls" ""
 
-# The harness gets a number of runs as digits, without the white space that
-# may stand in front of them on the command line.
-compare "$repo" main~1 --runs=' -1'
-check "a negative number after white space: is a usage error" equals "$code" 2
-check "a negative number after white space: says so" \
-  contains "$err" "compare-evals: error: argument --runs: a value cannot start with a dash: '-1'"
-check "a negative number after white space: runs nothing" equals "$calls" ""
+# Nor does the harness get a value that names nothing: an empty one, which is
+# what --model=$MODEL gives where the variable is not set, or one that opens
+# or ends with white space. No case, model or tool has such a name.
+for argument in --case= --model= --allow-tools=; do
+  compare "$repo" main~1 "$argument"
+  check "an empty value, $argument: is a usage error" equals "$code" 2
+  check "an empty value, $argument: says so" \
+    contains "$err" "compare-evals: error: argument ${argument%=}: a value cannot be empty"
+  check "an empty value, $argument: runs nothing" equals "$calls" ""
+done
+for argument in "--case= --publish-report" "--model=sonnet " "--allow-tools= Write"; do
+  compare "$repo" main~1 "$argument"
+  check "a value with white space at an end, $argument: is a usage error" equals "$code" 2
+  check "a value with white space at an end, $argument: says so" \
+    contains "$err" "compare-evals: error: argument ${argument%%=*}: a value cannot open or end with white space: '${argument#*=}'"
+  check "a value with white space at an end, $argument: runs nothing" equals "$calls" ""
+done
+compare "$repo" main~1 $'--case=\tred-then-green'
+check "a value with a tab at an end: is a usage error" equals "$code" 2
+check "a value with a tab at an end: says so, and shows the tab" \
+  contains "$err" "compare-evals: error: argument --case: a value cannot open or end with white space: '\\tred-then-green'"
+check "a value with a tab at an end: runs nothing" equals "$calls" ""
+
+# No comparison has fewer than 1 run. The harness gets a number of runs as
+# digits, without the white space that may stand in front of them on the
+# command line.
+for runs in 0 -1 ' -1'; do
+  compare "$repo" main~1 "--runs=$runs"
+  check "a number of runs below 1, '$runs': is a usage error" equals "$code" 2
+  check "a number of runs below 1, '$runs': says so" \
+    contains "$err" "compare-evals: error: argument --runs: a number of runs must be 1 or more: '$runs'"
+  check "a number of runs below 1, '$runs': runs nothing" equals "$calls" ""
+done
+compare "$repo" main~1 --runs 0
+check "a number of runs below 1 after a space: is a usage error" equals "$code" 2
+check "a number of runs below 1 after a space: runs nothing" equals "$calls" ""
+compare "$repo" main~1 --runs ' 3'
+check "a number of runs after white space: reaches the harness as digits" contains "$calls" "--scaffold --runs 3"$'\n'
 
 path=$without_claude
 repo=$(two_commits)
