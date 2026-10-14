@@ -930,6 +930,11 @@ for argument in "--case= --publish-report" "--model=sonnet " "--allow-tools= Wri
     contains "$err" "compare-evals: error: argument ${argument%%=*}: a value cannot open or end with white space: '${argument#*=}'"
   check "a value with white space at an end, $argument: runs nothing" equals "$calls" ""
 done
+compare "$repo" main~1 $'--case=\tred-then-green'
+check "a value with a tab at an end: is a usage error" equals "$code" 2
+check "a value with a tab at an end: says so, and shows the tab" \
+  contains "$err" "compare-evals: error: argument --case: a value cannot open or end with white space: '\\tred-then-green'"
+check "a value with a tab at an end: runs nothing" equals "$calls" ""
 
 # No comparison has fewer than 1 run. The harness gets a number of runs as
 # digits, without the white space that may stand in front of them on the

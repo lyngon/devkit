@@ -106,9 +106,9 @@ def value(text: str) -> str:
     if not text:
         raise argparse.ArgumentTypeError("a value cannot be empty")
     if text != text.strip():
-        raise argparse.ArgumentTypeError(f"a value cannot open or end with white space: '{text}'")
+        raise argparse.ArgumentTypeError(f"a value cannot open or end with white space: {text!r}")
     if text.startswith("-"):
-        raise argparse.ArgumentTypeError(f"a value cannot start with a dash: '{text}'")
+        raise argparse.ArgumentTypeError(f"a value cannot start with a dash: {text!r}")
     return text
 
 
@@ -122,14 +122,14 @@ def number(text: str) -> str:
     """
     runs = int(text)
     if runs < 1:
-        raise argparse.ArgumentTypeError(f"a number of runs must be 1 or more: '{text}'")
+        raise argparse.ArgumentTypeError(f"a number of runs must be 1 or more: {text!r}")
     return str(runs)
 
 
 def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     """Read the command line. The options that reach `claude plugin eval` are named here, and
-    each of their values names a case, a model, a tool or a number of runs, so that no word of
-    the command line can publish a report, move the result this program reads, or leave the
+    each of their values can name a case, a model, a tool or a number of runs, so that no word
+    of the command line can publish a report, move the result this program reads, or leave the
     harness to guess what an empty word means."""
     parser = argparse.ArgumentParser(
         prog="compare-evals",
