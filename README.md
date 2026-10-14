@@ -295,6 +295,13 @@ compare-evals origin/main --allow-tools Write
 The working tree counts as head, uncommitted changes included.
 The comparison opens with the two commits and the gated tools that both runs were granted.
 A grader that expects that something did not happen is no proof when the tool that would do it is not among them, whether the case lists the tool or not.
+The harness refuses an entry of `--allow-tools` that it cannot grant, and the runs go on without the tool.
+The comparison then repeats the harness's line below the table, with its commit (measured on Claude Code 2.1.283):
+
+```text
+the eval run at head said --allow-tools: refused entry: malformed, a wildcard tool name the child does not support, or a tool never available in an evaluation (Monitor, EnterWorktree, ExitWorktree): Monitor
+```
+
 In the table a dash stands for a case that the commit does not have, which means that the directory of the case holds no `prompt.md` there.
 The words `no result` stand for a case that the commit has and that the eval run at that commit gave no result for.
 A case without a result at both commits has no row.
@@ -306,6 +313,9 @@ the eval run at head was cut short (interrupted): the table may lack cases
 ```
 
 An interrupt at the terminal gives no such line, because it ends `compare-evals` too and no comparison is printed.
+When the run in the working tree writes no result that `compare-evals` can read after the run at the base commit gave one, the table holds the column of the base run, which was paid for.
+`compare-evals` then names the run that gave no result on stderr and ends with status 1, since there is no comparison.
+When the run at the base commit writes no result, `compare-evals` ends before the run in the working tree starts.
 The harness leaves a case whose file it failed to load out of its result, and names the case and the error on stderr, by the path of its directory or of its `case.yaml` where it has one.
 The comparison repeats that line below the table, with its commit and the path from the root (measured on Claude Code 2.1.283):
 

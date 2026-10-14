@@ -12,7 +12,10 @@ case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
 that itself: a tool that a suite lacked, an error that ended a run of a
 case, a case that the commit has and its suite gave no result for, a case
-file that a suite failed to load, and a suite that the harness cut short.
+file that a suite failed to load, a grant that the harness refused, and a
+suite that the harness cut short. When the run in the working tree gives no
+result after the run at the base commit gave one, it prints the table of the
+base run, which was paid for, and exits 1, since there is no comparison.
 """
 
 import argparse
@@ -66,12 +69,13 @@ class Case:
 class Result:
     """The cases of one run of the suite, by their directory, what the run cost, the
     harness's reason when it cut the suite short, and what it said about each case file
-    that it failed to load."""
+    that it failed to load and each entry of `--allow-tools` that it refused to grant."""
 
     cases: ct.Mapping[str, Case]
     cost_usd: float
     cut_short_reason: str | None
     load_failures: tuple[str, ...]
+    grant_refusals: tuple[str, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -90,6 +94,16 @@ class Column:
     side: str
     result: Result
     present: frozenset[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Comparison:
+    """What the program prints: the lines of the comparison on stdout, and the reason there
+    is none on stderr. When the run in the working tree gave no result after the run at the
+    base commit finished, the lines hold the table of the base run, which was paid for."""
+
+    lines: tuple[str, ...]
+    error: str | None
 
 
 def value(text: str) -> str:
@@ -204,9 +218,10 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     error, so the run gets a temporary directory inside the scratch directory
     and the sandbox goes with it.
 
-    Raises CompareError when the run writes no result this program can read,
-    unless it found no case. The exit status of `claude` does not decide that:
-    it is 1 for a case below the threshold too.
+    A run that found no case writes no result, and is read as a result
+    without a case. Raises CompareError when any other run writes no result
+    that this program can read. The exit status of `claude` alone does not
+    decide that: it is 1 for a case below the threshold too.
     """
     output, temporary = scratch / side, scratch / "tmp"
     temporary.mkdir(exist_ok=True)
@@ -232,16 +247,16 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
             run.kill()
             raise
     result = output / "aggregate-result.json"
-    if not result.is_file():
-        if found_no_case(progress, run.returncode):
-            load_failures = load_failures_in(checkout, progress)
-            return Result(cases={}, cost_usd=0.0, cut_short_reason=None, load_failures=load_failures)
+    if result.is_file():
+        try:
+            data: object = json.loads(result.read_text())
+        except json.JSONDecodeError as error:
+            raise CompareError(f"the result at {side} is not JSON: {error}") from error
+    elif found_no_case(progress, run.returncode):
+        data = {"cases": [], "costUsd": 0.0, "partial": False}
+    else:
         raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})")
-    try:
-        data = json.loads(result.read_text())
-    except json.JSONDecodeError as error:
-        raise CompareError(f"the result at {side} is not JSON: {error}") from error
-    return parse_result(data, side, progress, load_failures_in(checkout, progress))
+    return parse_result(data, side, checkout, progress)
 
 
 def found_no_case(progress: ct.Iterable[str], status: int) -> bool:
@@ -287,10 +302,23 @@ def load_failures_in(checkout: pathlib.Path, progress: ct.Iterable[str]) -> tupl
     return tuple(line.removeprefix(opening) for line in progress if line.startswith(opening))
 
 
-def parse_result(data: object, side: str, progress: ct.Sequence[str], load_failures: tuple[str, ...]) -> Result:
-    """Turn the result that `claude plugin eval` wrote, what it said about each case in its
-    progress and what it said about each case file that it failed to load into a Result, or
-    raise CompareError when the result has another shape than the one this program was written
+def grant_refusals_in(progress: ct.Iterable[str]) -> tuple[str, ...]:
+    """What the run said about each entry of `--allow-tools` that it refused to grant, in the
+    harness's words from the option on.
+
+    The harness names such an entry in a line of its own that opens with a
+    cross, a space and `--allow-tools:`, and the runs go on without the tool
+    (measured on Claude Code 2.1.283). None of the words after the option are
+    read.
+    """
+    opening = "✗ --allow-tools: "
+    return tuple(line.removeprefix("✗ ") for line in progress if line.startswith(opening))
+
+
+def parse_result(data: object, side: str, checkout: pathlib.Path, progress: ct.Sequence[str]) -> Result:
+    """Turn the result that `claude plugin eval` wrote in a checkout, and what it said in its
+    progress about each case and about the suite as a whole, into a Result, or raise
+    CompareError when the result has another shape than the one this program was written
     against."""
     if not isinstance(data, dict):
         raise CompareError(f"the result at {side} is not a JSON object")
@@ -314,7 +342,8 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], load_failu
             cases=parsed,
             cost_usd=float(data["costUsd"]),
             cut_short_reason=str(data["partialReason"]) if data["partial"] else None,
-            load_failures=load_failures,
+            load_failures=load_failures_in(checkout, progress),
+            grant_refusals=grant_refusals_in(progress),
         )
     except (KeyError, TypeError, ValueError) as error:
         raise CompareError(f"the result at {side} holds a field this program cannot read: {error!r}") from error
@@ -353,21 +382,25 @@ def reasons(case: Case) -> list[str]:
 
 def about_suite(side: str, result: Result) -> list[str]:
     """What the run at a commit said about its suite as a whole: each case file that it failed
-    to load, and the reason it was cut short. Either leaves a case without a result."""
+    to load, each entry of `--allow-tools` that it refused to grant, and the reason it was cut
+    short. The first and the last leave a case without a result, and a refused grant leaves a
+    run without a tool that the header names."""
     run = f"the eval run at {side}"
     lines = [f"{run} failed to load {failure}" for failure in result.load_failures]
+    lines += [f"{run} said {refusal}" for refusal in result.grant_refusals]
     if result.cut_short_reason is not None:
         lines.append(f"{run} was cut short ({result.cut_short_reason}): the table may lack cases")
     return lines
 
 
-def report(base: Column, head: Column) -> list[str]:
-    """The table of every case that either run gave a result for, what each run said about
-    its suite as a whole, what stands behind each score, and what the two runs cost."""
-    columns = (base, head)
-    names = sorted(base.result.cases.keys() | head.result.cases.keys())
-    rows = [("case", base.side, head.side), *((name, cell(base, name), cell(head, name)) for name in names)]
-    widths = [max(len(row[index]) for row in rows) for index in range(3)]
+def report(columns: ct.Sequence[Column]) -> list[str]:
+    """The table of every case that a run gave a result for, with a column for each run, what
+    each run said about its suite as a whole, what stands behind each score, and what the runs
+    cost."""
+    names = sorted({name for column in columns for name in column.result.cases})
+    header = ("case", *(column.side for column in columns))
+    rows = [header, *((name, *(cell(column, name) for column in columns)) for name in names)]
+    widths = [max(len(row[index]) for row in rows) for index in range(len(header))]
     lines = ["  ".join(text.ljust(width) for text, width in zip(row, widths, strict=True)).rstrip() for row in rows]
     about_suites = [line for column in columns for line in about_suite(column.side, column.result)]
     behind = [
@@ -384,16 +417,19 @@ def report(base: Column, head: Column) -> list[str]:
     return [*lines, "", f"cost: {costs}"]
 
 
-def compare(options: Options) -> list[str]:
-    """Run the suite at the base commit and in the working tree, and return the lines to print.
+def compare(options: Options) -> Comparison:
+    """Run the suite at the base commit and in the working tree, and return what to print.
 
-    Raises CompareError outside a git repository, for a base that names no
-    commit, without `claude` on the PATH, when a run writes no readable
-    result, when no case ran at either commit, with what each run said about
-    its suite, and when the head result names a case that the working tree
-    does not hold. The cases are looked up by the paths that the results
-    give, so a path in another form would bring back the dash for a case that
-    did not run.
+    When the run in the working tree writes no result that this program can
+    read after the base run gave one, the comparison holds the table of the
+    base run and the reason. Raises CompareError outside a git repository,
+    for a base that names no commit, without `claude` on the PATH, when the
+    base run writes no readable result, which spares the cost of the run in
+    the working tree, when no case ran at either commit, with what each run
+    said about its suite, and when the head result names a case that the
+    working tree does not hold. The cases are looked up by the paths that the
+    results give, so a path in another form would bring back the dash for a
+    case that did not run.
     """
     toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
@@ -406,12 +442,23 @@ def compare(options: Options) -> list[str]:
         raise CompareError("claude is not on the PATH")
     head_commit = git(root, "rev-parse", "HEAD").stdout.strip()
     uncommitted = git(root, "status", "--porcelain").stdout.strip() != ""
+    header = (
+        f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
+        f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
+        f"granted tools: {', '.join(options.granted) or 'none'}",
+        "",
+    )
 
     with tempfile.TemporaryDirectory(prefix="compare-evals-") as directory:
         scratch = pathlib.Path(directory)
         with checkout_of(root, base_commit, scratch / "checkout") as checkout:
             base = run_suite(checkout, "base", scratch, options.eval_options)
-        head = run_suite(root, "head", scratch, options.eval_options)
+        try:
+            head = run_suite(root, "head", scratch, options.eval_options)
+        except CompareError as error:
+            if not base.cases:
+                raise CompareError("\n".join([str(error), *about_suite("base", base)])) from error
+            return Comparison((*header, *report([Column("base", base, frozenset())])), str(error))
     if not base.cases and not head.cases:
         why = [*about_suite("base", base), *about_suite("head", head)]
         raise CompareError("\n".join(["no eval case ran at either commit", *why]))
@@ -419,28 +466,27 @@ def compare(options: Options) -> list[str]:
         if not working_tree_has_case(root, name):
             raise CompareError(f"the result at head names the case {name}, which holds no prompt.md in the working tree")
     only_base, only_head = base.cases.keys() - head.cases.keys(), head.cases.keys() - base.cases.keys()
-    return [
-        f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
-        f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
-        f"granted tools: {', '.join(options.granted) or 'none'}",
-        "",
-        *report(
-            Column("base", base, frozenset(name for name in only_head if commit_has_case(root, base_commit, name))),
-            Column("head", head, frozenset(name for name in only_base if working_tree_has_case(root, name))),
-        ),
+    columns = [
+        Column("base", base, frozenset(name for name in only_head if commit_has_case(root, base_commit, name))),
+        Column("head", head, frozenset(name for name in only_base if working_tree_has_case(root, name))),
     ]
+    return Comparison((*header, *report(columns)), None)
 
 
 def main(arguments: ct.Sequence[str]) -> int:
-    """Print the comparison and return the exit status: 0 for a comparison, 1 for none."""
+    """Print the comparison and return the exit status: 0 for a comparison, 1 for none, after
+    the table of the base run when that run gave a result."""
     options = parse_arguments(arguments)
     try:
-        lines = compare(options)
+        comparison = compare(options)
     except CompareError as error:
-        print(f"compare-evals: {error}", file=sys.stderr)
-        return 1
-    print("\n".join(lines))
-    return 0
+        comparison = Comparison((), str(error))
+    if comparison.lines:
+        print("\n".join(comparison.lines), flush=True)
+    if comparison.error is None:
+        return 0
+    print(f"compare-evals: {comparison.error}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
