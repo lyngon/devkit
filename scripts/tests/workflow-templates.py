@@ -28,7 +28,7 @@ WORKFLOWS: str = ".github/workflows"
 
 
 def templates(markdown: str) -> dict[str, str]:
-    """The text of every workflow template in the document, by the path of its workflow."""
+    """Return the text of every workflow template in the document, by the path of its workflow."""
     tokens = markdown_it.MarkdownIt().parse(markdown)
     found: dict[str, str] = {}
     for lead_in, closing, block in zip(tokens, tokens[1:], tokens[2:], strict=False):
@@ -45,7 +45,7 @@ def templates(markdown: str) -> dict[str, str]:
 
 
 def workflows(root: pathlib.Path) -> dict[str, str]:
-    """The text of every workflow of the repository, by its path from the root."""
+    """Return the text of every workflow of the repository, by its path from the root."""
     return {
         path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
         for path in sorted((root / WORKFLOWS).iterdir())
@@ -53,7 +53,7 @@ def workflows(root: pathlib.Path) -> dict[str, str]:
 
 
 def difference(path: str, template: str | None, workflow: str | None) -> str | None:
-    """What sets the template of a workflow apart from the workflow, or None when they read the same."""
+    """Return what sets the template of a workflow apart from the workflow, or None when they read the same."""
     if template is None:
         return (
             f"{path} has no template in {REFERENCE}: a template is a fenced block right after a paragraph "
