@@ -502,6 +502,15 @@ check "a base that names no commit: says so" contains "$err" "compare-evals: 'no
 check "a base that names no commit: runs nothing" equals "$calls" ""
 check "a base that names no commit: nothing is left behind" nothing_left "$repo"
 
+# git gets the base as a revision, never as an option, and the base run gets
+# the commit that the base names. Only `git update-ref` makes a branch whose
+# name starts with a dash, and only after `--` is such a name the base.
+repo=$(two_commits)
+git -C "$repo" update-ref refs/heads/--force base
+compare "$repo" -- --force
+check "a base that starts with a dash: names its commit" contains "$out" "base: $(sha "$repo" base) (--force)"$'\n'
+check "a base that starts with a dash: is what the base run checks out" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
+
 repo=$(two_commits)
 compare "$repo"
 check "no base: is a usage error" equals "$code" 2
@@ -522,6 +531,24 @@ for option in --output-dir --json --report --publish-report; do
   check "an option of the harness, $option: is a usage error" equals "$code" 2
   check "an option of the harness, $option: runs nothing" equals "$calls" ""
 done
+
+# A value reaches the harness as a word of its own, and one that starts with a
+# dash could be an option to it. No case, model, tool or number of runs starts
+# with one.
+repo=$(two_commits)
+for argument in --case=--publish-report --allow-tools=--publish-report --model=--output-dir=/elsewhere --runs=-1; do
+  compare "$repo" main~1 "$argument"
+  check "a value that starts with a dash, $argument: is a usage error" equals "$code" 2
+  check "a value that starts with a dash, $argument: says so" \
+    contains "$err" "compare-evals: error: argument ${argument%%=*}: a value cannot start with a dash: '${argument#*=}'"
+  check "a value that starts with a dash, $argument: runs nothing" equals "$calls" ""
+done
+
+# argparse refuses most such values after a space, and takes one that looks
+# like a negative number.
+compare "$repo" main~1 --case -1
+check "a negative number after a space: is a usage error" equals "$code" 2
+check "a negative number after a space: runs nothing" equals "$calls" ""
 
 path=$without_claude
 repo=$(two_commits)

@@ -66,9 +66,29 @@ class Result:
     cost_usd: float
 
 
+def value(text: str) -> str:
+    """A value of an option that reaches `claude plugin eval`, as it stands.
+
+    The harness gets each value as a word of its own, and could read one that
+    starts with a dash as an option. No case, model, tool or number of runs
+    starts with one, so such a value raises argparse.ArgumentTypeError, which
+    makes it a usage error.
+    """
+    if text.startswith("-"):
+        raise argparse.ArgumentTypeError(f"a value cannot start with a dash: '{text}'")
+    return text
+
+
+def number(text: str) -> int:
+    """A value that is a whole number. Raises ValueError for any other text, which is a
+    usage error as well."""
+    return int(value(text))
+
+
 def parse_arguments(arguments: ct.Sequence[str]) -> Options:
-    """Read the command line. The options that reach `claude plugin eval` are named here, so
-    that none of them can publish a report or move the result this program reads."""
+    """Read the command line. The options that reach `claude plugin eval` are named here, and
+    none of their values starts with a dash, so that no word of the command line can publish a
+    report or move the result this program reads."""
     parser = argparse.ArgumentParser(
         prog="compare-evals",
         # The base comes first: the list of tools takes every word that follows it.
@@ -78,11 +98,16 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         "and a case that seeds its working directory runs its script as you, at both commits.",
     )
     parser.add_argument("base", help="the commit to compare the working tree with, such as origin/main")
-    parser.add_argument("--case", metavar="GLOB", help="run only the cases whose name matches")
-    parser.add_argument("--runs", type=int, metavar="N", help="runs per case, in place of each case's own number")
-    parser.add_argument("--model", help="the model for every case, in place of each case's own")
+    parser.add_argument("--case", type=value, metavar="GLOB", help="run only the cases whose name matches")
+    parser.add_argument("--runs", type=number, metavar="N", help="runs per case, in place of each case's own number")
+    parser.add_argument("--model", type=value, help="the model for every case, in place of each case's own")
     parser.add_argument(
-        "--allow-tools", nargs="+", default=[], metavar="TOOL", help="grant gated tools, such as Write, to every case"
+        "--allow-tools",
+        nargs="+",
+        type=value,
+        default=[],
+        metavar="TOOL",
+        help="grant gated tools, such as Write, to every case",
     )
     parsed = parser.parse_args(arguments)
     eval_options: list[str] = []
