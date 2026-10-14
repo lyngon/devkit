@@ -34,6 +34,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import typing as t
 
 # The directories of a plugin whose files reach an agent.
 COMPONENTS: tuple[str, ...] = ("skills", "commands", "agents", "hooks")
@@ -141,8 +142,11 @@ class ValidationError(Exception):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Marketplace:
-    """The plugins that the manifest lists: the directory of each local one by
-    its name, and the names of the pinned ones, whose files the tree does not hold."""
+    """The plugins that the manifest lists.
+
+    These are the directory of each local one by its name, and the names of the
+    pinned ones, whose files the tree does not hold.
+    """
 
     local: ct.Mapping[str, pathlib.Path]
     pinned: frozenset[str]
@@ -158,7 +162,7 @@ class Finding:
 
 
 def repository_root() -> pathlib.Path:
-    """The root of the git repository that holds the working directory."""
+    """Return the root of the git repository that holds the working directory."""
     found = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
     if found.returncode != 0:
         raise ValidationError("not inside a git repository")
@@ -169,22 +173,24 @@ def read_marketplace(root: pathlib.Path) -> Marketplace:
     """Read the manifest. Raises ValidationError when it is missing, is not JSON or has no list of plugins."""
     manifest = root / ".claude-plugin" / "marketplace.json"
     try:
-        data = json.loads(manifest.read_text())
+        data = t.cast("object", json.loads(manifest.read_text()))
     except (OSError, json.JSONDecodeError) as error:
         raise ValidationError(f"cannot read .claude-plugin/marketplace.json: {error}") from error
-    entries = data.get("plugins") if isinstance(data, dict) else None
+    # The keys of a JSON object are strings.
+    entries = t.cast("dict[str, object]", data).get("plugins") if isinstance(data, dict) else None
     if not isinstance(entries, list):
         raise ValidationError(".claude-plugin/marketplace.json has no list 'plugins'")
     local: dict[str, pathlib.Path] = {}
     pinned: set[str] = set()
-    for entry in entries:
-        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
+    for entry in t.cast("list[object]", entries):
+        fields = t.cast("dict[str, object]", entry) if isinstance(entry, dict) else {}
+        name, source = fields.get("name"), fields.get("source")
+        if not isinstance(name, str):
             continue
-        source = entry.get("source")
         if isinstance(source, str):
-            local[entry["name"]] = root / source
+            local[name] = root / source
         else:
-            pinned.add(entry["name"])
+            pinned.add(name)
     return Marketplace(local=local, pinned=frozenset(pinned))
 
 
@@ -199,25 +205,28 @@ def files_below(directory: pathlib.Path) -> list[pathlib.Path]:
 
 
 def plugin_files(directory: pathlib.Path) -> list[pathlib.Path]:
-    """The files of one plugin that hold shipped text, by their paths inside the plugin."""
+    """Return the files of one plugin that hold shipped text, by their paths inside the plugin."""
     return [path for component in COMPONENTS for path in files_below(directory / component)]
 
 
 def shipped_files(root: pathlib.Path, marketplace: Marketplace) -> list[pathlib.Path]:
-    """The files that hold shipped text, each once: a document that plugins link is
-    the one file under shared/, however many links lead to it."""
+    """Return the files that hold shipped text, each once.
+
+    A document that plugins link is the one file under shared/, however many
+    links lead to it.
+    """
     found = [path.resolve() for directory in marketplace.local.values() for path in plugin_files(directory)]
     found += [path.resolve() for path in files_below(root / "shared") if not path.name.startswith("LICENSE")]
     return sorted(set(found))
 
 
 def displayed(path: pathlib.Path, root: pathlib.Path) -> str:
-    """The path as a message names it: from the repository root, also for a file that a link leads out of it."""
+    """Return the path as a message names it: from the repository root, also for a file that a link leads out of it."""
     return pathlib.Path(os.path.relpath(path, root)).as_posix()
 
 
 def read_lines(path: pathlib.Path) -> list[str]:
-    """The lines of a text file, and none for a file that is not text."""
+    """Return the lines of a text file, and none for a file that is not text."""
     try:
         return path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
@@ -225,7 +234,7 @@ def read_lines(path: pathlib.Path) -> list[str]:
 
 
 def references(line: str, marketplace: Marketplace) -> ct.Iterator[tuple[str, str]]:
-    """The skill references of a line, each as its plugin and its skill."""
+    """Yield the skill references of a line, each as its plugin and its skill."""
     for match in REFERENCE.finditer(line):
         plugin, skill = match.group(1), match.group(2)
         if plugin in NAMESPACES and plugin not in marketplace.local and plugin not in marketplace.pinned:
@@ -252,7 +261,7 @@ def unresolved(plugin: str, skill: str, root: pathlib.Path, marketplace: Marketp
 
 
 def check_references(root: pathlib.Path, marketplace: Marketplace) -> list[Finding]:
-    """A finding for every skill reference in shipped text that names no skill."""
+    """Return a finding for every skill reference in shipped text that names no skill."""
     return [
         Finding(path=displayed(path, root), line=number, message=reason)
         for path in shipped_files(root, marketplace)
@@ -263,9 +272,12 @@ def check_references(root: pathlib.Path, marketplace: Marketplace) -> list[Findi
 
 
 def check_standalone(root: pathlib.Path, marketplace: Marketplace) -> list[Finding]:
-    """A finding for every skill of another plugin, and for the first development
-    term of every line, in the text of the plugin that stands alone. A document it
-    links from shared/ counts as its text, and no heading makes a line conditional."""
+    """Return the findings in the text of the plugin that stands alone.
+
+    A finding is every skill of another plugin, and the first development term
+    of every line. A document it links from shared/ counts as its text, and no
+    heading makes a line conditional.
+    """
     directory = marketplace.local.get(STANDALONE)
     if directory is None:
         return []
@@ -274,22 +286,26 @@ def check_standalone(root: pathlib.Path, marketplace: Marketplace) -> list[Findi
     for path in plugin_files(directory):
         for number, line in enumerate(read_lines(path), 1):
             reasons = [
-                f"names the skill '{plugin}:{skill}', and {STANDALONE} assumes no other plugin, "
-                "so its text names only its own skills"
+                (
+                    f"names the skill '{plugin}:{skill}', and {STANDALONE} assumes no other plugin, "
+                    "so its text names only its own skills"
+                )
                 for plugin, skill in references(line, marketplace)
                 if plugin != STANDALONE
             ]
             if (term := next((term for term in terms if term in line), None)) is not None:
                 reasons.append(
-                    f"names '{term}', a term of a Lyngon development repository, "
-                    f"and {STANDALONE} assumes nothing about the repository it is installed in"
+                    (
+                        f"names '{term}', a term of a Lyngon development repository, "
+                        f"and {STANDALONE} assumes nothing about the repository it is installed in"
+                    ),
                 )
             findings += [Finding(path=displayed(path, root), line=number, message=reason) for reason in reasons]
     return findings
 
 
 def unconditional_lines(path: pathlib.Path) -> ct.Iterator[tuple[int, str]]:
-    """The lines of a file that no structure section holds, each with its number.
+    """Yield the lines of a file that no structure section holds, each with its number.
 
     The frontmatter of a SKILL.md is left out: its name, description and paths
     say when a skill loads, not what an agent does. A heading inside a fenced
@@ -315,15 +331,19 @@ def unconditional_lines(path: pathlib.Path) -> ct.Iterator[tuple[int, str]]:
 
 
 def check_structure(root: pathlib.Path, marketplace: Marketplace) -> list[Finding]:
-    """A finding for the first structure term of every line outside a structure
-    section, in the text of every plugin that does not assume the structure. The
-    plugin that stands alone is left to its own check, which no section satisfies."""
+    """Return a finding for the first structure term of every line outside a structure section.
+
+    The lines are those of every plugin that does not assume the structure. The
+    plugin that stands alone is left to its own check, which no section satisfies.
+    """
     return [
         Finding(
             path=displayed(path, root),
             line=number,
-            message=f"names '{term}' outside a section '{STRUCTURE_HEADING}'; the structure is a choice per "
-            f"repository, so only {' and '.join(STRUCTURE_ASSUMED)} write about it anywhere else",
+            message=(
+                f"names '{term}' outside a section '{STRUCTURE_HEADING}'; the structure is a choice per "
+                f"repository, so only {' and '.join(STRUCTURE_ASSUMED)} write about it anywhere else"
+            ),
         )
         for name, directory in marketplace.local.items()
         if name not in STRUCTURE_ASSUMED and name != STANDALONE
