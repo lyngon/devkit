@@ -234,7 +234,8 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     result = output / "aggregate-result.json"
     if not result.is_file():
         if found_no_case(progress):
-            return Result(cases={}, cost_usd=0.0, cut_short_reason=None, load_failures=())
+            load_failures = load_failures_in(checkout, progress)
+            return Result(cases={}, cost_usd=0.0, cut_short_reason=None, load_failures=load_failures)
         raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})")
     try:
         data = json.loads(result.read_text())
@@ -247,10 +248,12 @@ def found_no_case(progress: ct.Iterable[str]) -> bool:
     """Whether the run said that its suite has no case, or none that the filter matches.
 
     The harness then writes no result, as it does when it dies, and only its
-    words tell the two apart (measured on Claude Code 2.1.283). When they
-    change, a commit without a case counts as a run that died.
+    words tell the two apart (measured on Claude Code 2.1.283). It says `No
+    eval cases found`, unless a case file failed to load: then it prints the
+    summary of a suite in which no case ran, which opens with `0 case(s)`.
+    When the words change, a commit without a case counts as a run that died.
     """
-    return any(line.startswith("No eval cases found") for line in progress)
+    return any(line.startswith(("No eval cases found", "0 case(s) ")) for line in progress)
 
 
 def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
@@ -382,10 +385,11 @@ def compare(options: Options) -> list[str]:
 
     Raises CompareError outside a git repository, for a base that names no
     commit, without `claude` on the PATH, when a run writes no readable
-    result, when no case ran at either commit, and when the head result names
-    a case that the working tree does not hold. The cases are looked up by the
-    paths that the results give, so a path in another form would bring back
-    the dash for a case that did not run.
+    result, when no case ran and no case file failed to load at either
+    commit, and when the head result names a case that the working tree does
+    not hold. The cases are looked up by the paths that the results give, so
+    a path in another form would bring back the dash for a case that did not
+    run.
     """
     toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
@@ -404,7 +408,7 @@ def compare(options: Options) -> list[str]:
         with checkout_of(root, base_commit, scratch / "checkout") as checkout:
             base = run_suite(checkout, "base", scratch, options.eval_options)
         head = run_suite(root, "head", scratch, options.eval_options)
-    if not base.cases and not head.cases:
+    if not (base.cases or head.cases or base.load_failures or head.load_failures):
         raise CompareError("no eval case ran at either commit")
     for name in head.cases:
         if not working_tree_has_case(root, name):

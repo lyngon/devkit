@@ -33,9 +33,11 @@ failures=0
 # ended in an error leaves its sandbox in the temporary directory, read-only,
 # unless --json names a file.
 #
-# A checkout without a canned result stands for a run that dies before it
-# writes one. A canned result without a case stands for a filter that matches
-# none: the stub says so and writes a result only where --json names a file.
+# A checkout without a canned result stands for a run that writes none: the
+# stub prints the canned progress and the file canned-stdout of the checkout,
+# where it has them and --json names no file, and exits 1. A canned result
+# without a case stands for a filter that matches none: the stub says so and
+# writes a result only where --json names a file.
 # So no canned result can stand for a partial result without a case, which
 # the harness was not measured to treat like that filter.
 # A checkout with the file canned-hang stands for a run that never ends: the
@@ -67,17 +69,26 @@ if [[ -f canned-hang ]]; then
   echo "$$" >"$FAKE_CLAUDE_PID"
   exec sleep 1000
 fi
-[[ -f canned-result.json ]] || exit 1
+print_progress() {
+  [[ -f canned-progress ]] || return 0
+  local progress
+  progress=$(<canned-progress)
+  echo "${progress//<checkout>/"$(pwd -P)"}" >&2
+}
+if [[ ! -f canned-result.json ]]; then
+  if [[ -z $json ]]; then
+    print_progress
+    [[ ! -f canned-stdout ]] || echo "$(<canned-stdout)"
+  fi
+  exit 1
+fi
 if jq -e '.cases == []' canned-result.json >/dev/null 2>&1; then
   echo "No eval cases found$filter under $PWD." >&2
   [[ -z $json ]] || cp canned-result.json "$json"
   exit 1
 fi
 if [[ -z $json ]]; then
-  if [[ -f canned-progress ]]; then
-    progress=$(<canned-progress)
-    echo "${progress//<checkout>/"$(pwd -P)"}" >&2
-  fi
+  print_progress
   if jq -e '[.cases[]?.arms.with[]?.error // empty] != []' canned-result.json >/dev/null 2>&1; then
     kept=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
     mkdir -p "$kept/sealed/home"
@@ -175,6 +186,20 @@ failed_to_load() {
 }
 invalid_yaml="prompt.md: invalid YAML frontmatter: YAML Parse error: Unexpected token"
 no_graders="invalid case.yaml:   graders: Required"
+
+# no_case_ran: what the real command prints on stdout when a case file failed
+# to load and no case that the filter matches loads, copied from a run on
+# Claude Code 2.1.283: an empty table and its summary. It writes no result
+# then, exits with status 1 and does not say `No eval cases found`. A last
+# line, which counts the files that failed to load, is left out.
+no_case_ran() {
+  cat <<'EOF'
+
+CASE  SCORE PASS% RUNS COST    NOTES
+
+0 case(s) · 0s · $0.00
+EOF
+}
 
 # commit <repo> <message> [<case>...]: commit the fixture as it stands. The
 # commit has the cases that its canned result names and the cases named here,
@@ -451,6 +476,55 @@ check "no case at the base commit: exits 0" equals "$code" 0
 check "no case at the base commit: the case has a dash there" contains "$out" "plugins/two/evals/new-at-head  -     1.00 (1 run)"
 check "no case at the base commit: the base run cost nothing" contains "$out" "cost: base 0.00 USD, head 0.50 USD"
 check "no case at the base commit: nothing is left behind" nothing_left "$repo"
+
+# Nor is it one when a case file of that commit fails to load. The harness
+# then prints an empty table and its summary in place of the words, and
+# writes no result. Under --case it names a file whose case the filter leaves
+# out, as here at the base commit (measured on Claude Code 2.1.283).
+repo=$(two_commits)
+rm "$repo/canned-result.json"
+failed_to_load plugins/one/evals/stays-green "$invalid_yaml" >"$repo/canned-progress"
+no_case_ran >"$repo/canned-stdout"
+commit "$repo" "chore: a commit without the case and with a file that fails to load" plugins/one/evals/stays-green
+git -C "$repo" tag without-the-case
+result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" >"$repo/canned-result.json"
+rm "$repo/canned-progress" "$repo/canned-stdout"
+commit "$repo" "chore: the case" plugins/one/evals/stays-green
+compare "$repo" without-the-case --case 'new-*'
+check "no case at the base commit, and a file that fails to load there: exits 0" equals "$code" 0
+check "no case at the base commit, and a file that fails to load there: the case has a dash there, and the file is named" equals "$out" "base: $(sha "$repo" without-the-case) (without-the-case)
+head: $(sha "$repo" main)
+granted tools: none
+
+case                           base  head
+plugins/two/evals/new-at-head  -     1.00 (1 run)
+
+the eval run at base failed to load plugins/one/evals/stays-green: $invalid_yaml
+
+cost: base 0.00 USD, head 0.50 USD"
+check "no case at the base commit, and a file that fails to load there: nothing is left behind" nothing_left "$repo"
+
+# When the one case that the filter matches fails to load, no case runs at
+# either commit, and the comparison still names the file.
+repo=$(two_commits)
+result 0 >"$repo/canned-result.json"
+commit "$repo" "chore: a commit without the case"
+git -C "$repo" tag without-the-case
+rm "$repo/canned-result.json"
+failed_to_load plugins/two/evals/new-at-head "$invalid_yaml" >"$repo/canned-progress"
+no_case_ran >"$repo/canned-stdout"
+commit "$repo" "chore: the case, whose file fails to load" plugins/two/evals/new-at-head
+compare "$repo" without-the-case --case 'new-*'
+check "no case at either commit, and a file that fails to load at head: exits 0" equals "$code" 0
+check "no case at either commit, and a file that fails to load at head: the file is named below an empty table" equals "$out" "base: $(sha "$repo" without-the-case) (without-the-case)
+head: $(sha "$repo" main)
+granted tools: none
+
+case  base  head
+
+the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml
+
+cost: base 0.00 USD, head 0.00 USD"
 
 # A run error is the harness's word for a run it refused or cut short. Three
 # runs of one case ended in two of them here, for the same reason.
