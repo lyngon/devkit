@@ -267,14 +267,14 @@ def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
 
 def load_failures_in(checkout: pathlib.Path, progress: ct.Iterable[str]) -> tuple[str, ...]:
     """What the run said about each case file of the checkout that it failed to load, in the
-    harness's words from the directory of the case on, which is given from the root.
+    harness's words from the path of the case on, which is given from the root.
 
     The harness leaves such a case out of its result and names it in a line
-    of its own: a cross, a space, the absolute path of the directory of the
-    case without symbolic links, a colon and the error (measured on Claude
-    Code 2.1.283). The checkout of the base commit is gone when the comparison
-    is read, so the path of the checkout is dropped. None of the words after
-    it are read.
+    of its own: a cross, a space, the absolute path without symbolic links of
+    the directory of the case, or of its case.yaml where it has one, a colon
+    and the error (measured on Claude Code 2.1.283). The checkout of the base
+    commit is gone when the comparison is read, so the path of the checkout
+    is dropped. None of the words after it are read.
     """
     opening = f"✗ {checkout.resolve()}/"
     return tuple(line.removeprefix(opening) for line in progress if line.startswith(opening))

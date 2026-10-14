@@ -306,8 +306,8 @@ the eval run at head was cut short (interrupted): the table may lack cases
 ```
 
 An interrupt at the terminal gives no such line, because it ends `compare-evals` too and no comparison is printed.
-The harness leaves a case whose file it failed to load out of its result, and names the directory of the case and the error on stderr.
-The comparison repeats that line below the table, with its commit and the directory from the root (measured on Claude Code 2.1.283):
+The harness leaves a case whose file it failed to load out of its result, and names the case and the error on stderr, by the path of its directory or of its `case.yaml` where it has one.
+The comparison repeats that line below the table, with its commit and the path from the root (measured on Claude Code 2.1.283):
 
 ```text
 the eval run at head failed to load plugins/discover/evals/brainstorm-no-docs: prompt.md: invalid YAML frontmatter: YAML Parse error: Unexpected token

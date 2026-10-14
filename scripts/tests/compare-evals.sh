@@ -76,7 +76,7 @@ fi
 if [[ -z $json ]]; then
   if [[ -f canned-progress ]]; then
     progress=$(<canned-progress)
-    echo "${progress//<checkout>/$(pwd -P)}" >&2
+    echo "${progress//<checkout>/"$(pwd -P)"}" >&2
   fi
   if jq -e '[.cases[]?.arms.with[]?.error // empty] != []' canned-result.json >/dev/null 2>&1; then
     kept=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
@@ -165,11 +165,11 @@ progress_of() {
 EOF
 }
 
-# failed_to_load <dir> <error>: what the real command prints on stderr for a
+# failed_to_load <path> <error>: what the real command prints on stderr for a
 # case whose file it failed to load, copied from a run on Claude Code 2.1.283.
-# It names the case by the absolute path of its directory, which the stub
-# puts in place of <checkout>, and leaves the case out of its result. These
-# are two of its errors.
+# It names the case by the absolute path of its directory, or of its
+# case.yaml where it has one, and leaves the case out of its result. The stub
+# puts the checkout in place of <checkout>. These are two of its errors.
 failed_to_load() {
   echo "✗ <checkout>/$1: $2"
 }
@@ -543,14 +543,14 @@ plugins/one/evals/stays-green     no result     1.00 (3 runs)
 # A whole result can lack a case that the commit has too: the harness leaves
 # out each case whose file it failed to load, says so on stderr and exits
 # with status 1 (measured on Claude Code 2.1.283). Here the file of a case
-# that the base run scored fails to load at head, and so does the file of the
-# case that is new at head, which then has a result at neither commit and no
-# row.
+# that the base run scored fails to load at head, and so does the case.yaml
+# of the case that is new at head, which then has a result at neither commit
+# and no row.
 repo=$(two_commits)
 result 0.4 "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
 {
   failed_to_load plugins/one/evals/stays-green "$invalid_yaml"
-  failed_to_load plugins/two/evals/new-at-head "$no_graders"
+  failed_to_load plugins/two/evals/new-at-head/case.yaml "$no_graders"
 } >"$repo/canned-progress"
 echo 1 >"$repo/canned-exit"
 commit "$repo" "chore: a head with case files that fail to load" \
@@ -567,7 +567,7 @@ plugins/one/evals/removed-at-head  1.00 (1 run)   -
 plugins/one/evals/stays-green      1.00 (3 runs)  no result
 
 the eval run at head failed to load plugins/one/evals/stays-green: $invalid_yaml
-the eval run at head failed to load plugins/two/evals/new-at-head: $no_graders
+the eval run at head failed to load plugins/two/evals/new-at-head/case.yaml: $no_graders
 
 plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
 
@@ -603,6 +603,21 @@ the eval run at base failed to load plugins/one/evals/red-then-green: $invalid_y
 
 cost:"
 check "a case file that failed to load at the base commit: nothing is left behind" nothing_left "$repo"
+
+# A suite can fail to load a file and be cut short too. Both lines name its
+# commit, in the order the harness met the two: the file before the runs.
+repo=$(two_commits)
+result 0.4 "$(case_of plugins/one/evals/red-then-green 1 1)" | cut_short interrupted >"$repo/canned-result.json"
+failed_to_load plugins/two/evals/new-at-head "$invalid_yaml" >"$repo/canned-progress"
+echo 130 >"$repo/canned-exit"
+commit "$repo" "chore: a head that fails to load a file and is cut short" plugins/two/evals/new-at-head
+compare "$repo" base
+check "a case file that failed to load in a suite cut short: comes first" contains "$out" "
+
+the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml
+the eval run at head was cut short (interrupted): the table may lack cases
+
+"
 
 # The program looks a case up by the path that a result gives it. A result
 # whose path names no case in the working tree has another shape than the one
