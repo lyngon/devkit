@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Run the eval suite at a base commit and in the working tree, and print each case's score at both.
 
-The base commit is checked out into a detached worktree in a temporary
-directory. Both runs are `claude plugin eval .` from the root of their
-checkout: a model call on the account of whoever runs this, with the report
-kept off claude.ai and no baseline arm. A case that seeds its working
-directory does so with a script of its own, which runs as whoever runs this,
-at both commits. The worktree and everything a run writes are removed again.
+The base commit is checked out into a clone in a temporary directory, which
+borrows the objects of this repository. Both runs are `claude plugin eval .`
+from the root of their checkout: a model call on the account of whoever runs
+this, with the report kept off claude.ai and no baseline arm. The run at the
+base commit starts with `devenv shell`, so it gets the commands of that
+commit's environment, and the run in the working tree keeps the devenv shell
+that this program starts from. A case that seeds its working directory does
+so with a script of its own, which runs as whoever runs this, at both
+commits. The clone and everything a run writes are removed again.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
@@ -20,12 +23,12 @@ base run, which was paid for, and exits 1, since there is no comparison.
 
 import argparse
 import collections.abc as ct
-import contextlib
 import dataclasses
 import json
 import os
 import pathlib
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -223,21 +226,56 @@ def working_tree_has_case(root: pathlib.Path, directory: str) -> bool:
     return (root / directory / "prompt.md").is_file()
 
 
-@contextlib.contextmanager
-def checkout_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> ct.Iterator[pathlib.Path]:
-    """A detached worktree of the commit at the path, removed again on the way out."""
-    added = git(root, "worktree", "add", "--detach", str(path), commit)
-    if added.returncode != 0:
-        raise CompareError(f"cannot check out {commit}: {added.stderr.strip()}")
-    try:
-        yield path
-    finally:
-        removed = git(root, "worktree", "remove", "--force", str(path))
-        if removed.returncode != 0:
-            print(f"compare-evals: cannot remove the worktree {path}: {removed.stderr.strip()}", file=sys.stderr)
+def clone_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> pathlib.Path:
+    """A checkout of the commit at the path, in a repository of its own that borrows the
+    objects of the root's, and goes with the directory that holds it.
+
+    Entering the environment of the commit writes its git hook shims into the
+    hooks of the repository that holds the checkout. Before 7e4605f the
+    baseline had them name the checkout by its absolute path, so in a
+    worktree of the root's repository they would outlive the checkout and
+    fail every commit of the root's clone. In a repository of its own they go
+    with it.
+    """
+    cloned = subprocess.run(
+        ["git", "clone", "--quiet", "--shared", "--no-checkout", "--", str(root), str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    checked = git(path, "checkout", "--quiet", "--detach", commit) if cloned.returncode == 0 else cloned
+    if checked.returncode != 0:
+        raise CompareError(f"cannot check out {commit}: {checked.stderr.strip()}")
+    return path
 
 
-def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_options: ct.Sequence[str]) -> Result:
+def without_nix_shell(environment: ct.Mapping[str, str]) -> dict[str, str]:
+    """The environment with the entries of its PATH that lie in the Nix store left out.
+
+    A Nix shell, such as the devenv shell of the working tree that this
+    program starts from, puts the directories of its commands in the store,
+    and the system keeps its own in profiles outside it. A run that enters the
+    environment of another commit then finds that commit's commands and the
+    system's, and none that only the working tree has.
+    """
+    store = environment.get("NIX_STORE", "/nix/store").rstrip("/") + "/"
+    kept = [entry for entry in environment.get("PATH", "").split(os.pathsep) if not entry.startswith(store)]
+    return {**environment, "PATH": os.pathsep.join(kept)}
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Launcher:
+    """How a run starts the harness: the words in front of its options, what an error calls
+    them, and the environment that the run starts in."""
+
+    name: str
+    words: tuple[str, ...]
+    environment: ct.Mapping[str, str]
+
+
+def run_suite(
+    checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher: Launcher, eval_options: ct.Sequence[str]
+) -> Result:
     """Run the suite of a checkout and read its result.
 
     The harness prints the progress of a run only when no `--json` names a
@@ -255,26 +293,27 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     """
     output, temporary = scratch / side, scratch / "tmp"
     temporary.mkdir(exist_ok=True)
-    command = ["claude", "plugin", "eval", ".", "--output-dir", str(output)]
+    command = [*launcher.words, "plugin", "eval", ".", "--output-dir", str(output)]
     command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *eval_options]
     print(f"compare-evals: running the suite at {side}", file=sys.stderr)
     progress: list[str] = []
     with subprocess.Popen(
         command,
         cwd=checkout,
-        env={**os.environ, "TMPDIR": str(temporary)},
+        env={**launcher.environment, "TMPDIR": str(temporary)},
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         encoding="utf-8",
         errors="replace",
+        process_group=0,
     ) as run:
         try:
             for line in run.stdout or ():  # a pipe, which the type of the attribute cannot say
                 print(line, end="", file=sys.stderr)
                 progress.append(line.rstrip("\n"))
-        except BaseException:  # an interrupt too: the run must not outlive the scratch directory
-            run.kill()
+        except BaseException:  # an interrupt too: no process of the run may outlive the scratch directory
+            os.killpg(run.pid, signal.SIGKILL)
             raise
     said = Said(load_failures_in(checkout, progress), grant_refusals_in(progress))
     result = output / "aggregate-result.json"
@@ -286,7 +325,8 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     elif found_no_case(progress, run.returncode):
         data = {"cases": [], "costUsd": 0.0, "partial": False}
     else:
-        raise RunError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})", said)
+        status = f"{launcher.name} exited with status {run.returncode}"
+        raise RunError(f"the eval run at {side} wrote no result ({status})", said)
     return parse_result(data, side, progress, said)
 
 
@@ -453,28 +493,43 @@ def report(columns: ct.Sequence[Column], without_result: ct.Sequence[str] = ()) 
 def compare(options: Options) -> Comparison:
     """Run the suite at the base commit and in the working tree, and return what to print.
 
-    When the run in the working tree writes no result that this program can
-    read after the base run gave one, the comparison holds the table of the
-    base run, which was paid for, and below it what the other run said and
-    the reason. Raises CompareError outside a git repository, for a base that
-    names no commit, without `claude` on the PATH, when the base run writes
-    no readable result, which spares the cost of the run in the working tree,
-    and when no case ran at either commit, each with what the runs said about
-    their suites. Raises it too when the head result names a case that the
-    working tree does not hold. The cases are looked up by the paths that the
-    results give, so such a result means that the program reads the harness
-    wrongly, and no table it prints, the base column included, could be
-    trusted.
+    The run at the base commit enters that commit's environment, and the run
+    in the working tree keeps the one this program starts in, which must be
+    the devenv shell of the working tree. When the run in the working tree
+    writes no result that this program can read after the base run gave one,
+    the comparison holds the table of the base run, which was paid for, and
+    below it what the other run said and the reason.
+
+    Raises CompareError outside a git repository, outside the devenv shell of
+    the working tree, for a base that names no commit, without `claude` or
+    `devenv` on the PATH, when the base run writes no readable result, which
+    spares the cost of the run in the working tree, and when no case ran at
+    either commit, each with what the runs said about their suites. Raises it
+    too when the head result names a case that the working tree does not
+    hold. The cases are looked up by the paths that the results give, so such
+    a result means that the program reads the harness wrongly, and no table
+    it prints, the base column included, could be trusted.
     """
     toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
         raise CompareError("not inside a git repository")
     root = pathlib.Path(toplevel.stdout.strip())
+    shell = os.environ.get("DEVENV_ROOT")
+    if not shell or pathlib.Path(shell).resolve() != root.resolve():
+        where = f"the devenv shell of {shell}" if shell else "a shell without devenv"
+        raise CompareError(f"start compare-evals from the devenv shell of the working tree {root}, not from {where}")
     base_commit = commit_of(root, options.base)
     if base_commit is None:
         raise CompareError(f"'{options.base}' names no commit")
-    if shutil.which("claude") is None:
+    claude, devenv = shutil.which("claude"), shutil.which("devenv")
+    if claude is None:
         raise CompareError("claude is not on the PATH")
+    if devenv is None:
+        raise CompareError("devenv is not on the PATH")
+    # Both runs start the same harness. The base run enters the environment of the base
+    # commit, and the head run keeps the one it was started from, the working tree's.
+    at_base = Launcher("devenv shell", (devenv, "shell", "--", claude), without_nix_shell(os.environ))
+    at_head = Launcher("claude", (claude,), os.environ)
     head_commit = git(root, "rev-parse", "HEAD").stdout.strip()
     uncommitted = git(root, "status", "--porcelain").stdout.strip() != ""
     header = (
@@ -486,13 +541,13 @@ def compare(options: Options) -> Comparison:
 
     with tempfile.TemporaryDirectory(prefix="compare-evals-") as directory:
         scratch = pathlib.Path(directory)
-        with checkout_of(root, base_commit, scratch / "checkout") as checkout:
-            try:
-                base = run_suite(checkout, "base", scratch, options.eval_options)
-            except RunError as error:
-                raise CompareError("\n".join([str(error), *about_suite("base", error.said)])) from error
+        checkout = clone_of(root, base_commit, scratch / "checkout")
         try:
-            head = run_suite(root, "head", scratch, options.eval_options)
+            base = run_suite(checkout, "base", scratch, at_base, options.eval_options)
+        except RunError as error:
+            raise CompareError("\n".join([str(error), *about_suite("base", error.said)])) from error
+        try:
+            head = run_suite(root, "head", scratch, at_head, options.eval_options)
         except RunError as error:
             base_said = about_suite("base", base.said, base.cut_short_reason)
             if not base.cases:
