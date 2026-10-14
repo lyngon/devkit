@@ -8,10 +8,10 @@
 #   headings  the body's second-level headings are exactly the seven sections,
 #             each once, in order; a line inside a fenced code block is no heading
 #   scope     the section ## Scope ends with the line "Met on the way:", then
-#             "nothing" or each issue and pull request the work filed or opened
-#             for a problem it met, as #12 or owner/repository#12; only the form
-#             is checked, since the check runs without a network, and the forge
-#             shows a reference to nothing as plain text
+#             "nothing" or each issue and pull request for a problem the work
+#             met, as #12 or owner/repository#12; only the form is checked,
+#             since the check runs without a network, and the forge shows a
+#             reference to nothing as plain text
 #   length    the body's content lines (neither blank nor one of the seven
 #             headings) stay within the limit, the target plus the headroom;
 #             above the target they get a warning
@@ -204,8 +204,8 @@ def check_met_on_the_way(scope_end: tuple[int, str] | None) -> list[str]:
     if scope_end is None or not scope_end[1].startswith(MET_ON_THE_WAY):
         return [
             f"body: '{SCOPE}' does not end with a line that says what the work met on the way: end the section with "
-            f'"{MET_ON_THE_WAY} nothing." or with each issue and pull request the work filed or opened for a problem '
-            f'it met, as "{MET_ON_THE_WAY} #12 and #15."',
+            f'"{MET_ON_THE_WAY} nothing." or with each issue and pull request for a problem the work met, '
+            f'as "{MET_ON_THE_WAY} #12 and #15."',
         ]
     number, line = scope_end
     if MET_ON_THE_WAY_LINE.fullmatch(line) is None:

@@ -24,7 +24,7 @@ good_title="feat(orders): reject a negative quantity"
 sections=("Why" "Decisions" "What changed" "Scope" "Blast radius" "Verified" "Not verified")
 ways_out="move a decision into a decision record, move evidence into a pull request comment, or split the change"
 met="Met on the way: nothing."
-no_met_line="error: body: '## Scope' does not end with a line that says what the work met on the way: end the section with \"Met on the way: nothing.\" or with each issue and pull request the work filed or opened for a problem it met, as \"Met on the way: #12 and #15.\""
+no_met_line="error: body: '## Scope' does not end with a line that says what the work met on the way: end the section with \"Met on the way: nothing.\" or with each issue and pull request for a problem the work met, as \"Met on the way: #12 and #15.\""
 bad_met_line="the line \"Met on the way:\" says neither \"nothing\" nor a list of issues and pull requests: write \"Met on the way: nothing.\" or name each one as #12 or owner/repository#12, joined by commas and \"and\""
 
 # body_of <section>...: a body with one content line under each section, in
