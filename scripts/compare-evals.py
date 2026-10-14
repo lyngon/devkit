@@ -102,10 +102,14 @@ def value(text: str) -> str:
     return text
 
 
-def number(text: str) -> int:
-    """A value that is a whole number. Raises ValueError for any other text, which is a
-    usage error as well."""
-    return int(value(text))
+def number(text: str) -> str:
+    """A value that is a whole number, as the digits that the harness gets in its place.
+
+    The digits can differ from the text, which may open with white space, so
+    they are what `value` reads. Raises ValueError for text that is no whole
+    number, which is a usage error as well.
+    """
+    return value(str(int(text)))
 
 
 def parse_arguments(arguments: ct.Sequence[str]) -> Options:
@@ -126,6 +130,7 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     parser.add_argument("--model", type=value, help="the model for every case, in place of each case's own")
     parser.add_argument(
         "--allow-tools",
+        action="extend",
         nargs="+",
         type=value,
         default=[],
@@ -137,7 +142,7 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     if parsed.case is not None:
         eval_options += ["--case", parsed.case]
     if parsed.runs is not None:
-        eval_options += ["--runs", str(parsed.runs)]
+        eval_options += ["--runs", parsed.runs]
     if parsed.model is not None:
         eval_options += ["--model", parsed.model]
     if parsed.allow_tools:

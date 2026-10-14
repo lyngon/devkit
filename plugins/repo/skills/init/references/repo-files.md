@@ -238,6 +238,9 @@ There are two workflows, each a file of its own.
 ```yaml
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -258,7 +261,12 @@ jobs:
         run: devenv test
 ```
 
+The `permissions` block gives every job a read-only token, whatever the default of the repository is.
+
 Add delivery jobs (image build, package publish) only for artifacts whose delivery the user named, as separate jobs that depend on `test`.
+A job that publishes needs more than a read-only token, so give it a `permissions` block of its own.
+That block replaces the one at the top, and every permission that it leaves out is `none`.
+List everything that the job needs: `contents: read` to check out the repository, and for example `packages: write` to publish a package or an image to GitHub Packages.
 
 `.github/workflows/pull-request.yml` checks the title and the body of every pull request, which become the subject and the message of the commit it lands as.
 `check-pull-request` comes from the baseline and is on the PATH of the devenv shell:
