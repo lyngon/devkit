@@ -11,8 +11,8 @@ Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
 that itself: a tool that a suite lacked, an error that ended a run of a
-case, a case that the commit has and its suite gave no result for, and a
-suite that the harness cut short.
+case, a case that the commit has and its suite gave no result for, a case
+file that a suite failed to load, and a suite that the harness cut short.
 """
 
 import argparse
@@ -64,12 +64,14 @@ class Case:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Result:
-    """The cases of one run of the suite, by their directory, what the run cost, and the
-    harness's reason when it cut the suite short."""
+    """The cases of one run of the suite, by their directory, what the run cost, the
+    harness's reason when it cut the suite short, and what it said about each case file
+    that it failed to load."""
 
     cases: ct.Mapping[str, Case]
     cost_usd: float
     cut_short_reason: str | None
+    load_failures: tuple[str, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -78,8 +80,9 @@ class Column:
     commit, and the cases present at the commit that the run gave no result for.
 
     A result does not say why it lacks a case. A suite that was cut short
-    leaves out each case that it did not reach, and no result holds a case
-    that the commit does not have. The files of the commit tell the two apart.
+    leaves out each case that it did not reach, a suite leaves out each case
+    whose file it failed to load, and no result holds a case that the commit
+    does not have. The files of the commit tell the last from the others.
     Only the cases that the other run gave a result for are looked up, since
     the program knows of no other.
     """
@@ -230,24 +233,31 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
             raise
     result = output / "aggregate-result.json"
     if not result.is_file():
-        if found_no_case(progress):
-            return Result(cases={}, cost_usd=0.0, cut_short_reason=None)
+        if found_no_case(progress, run.returncode):
+            load_failures = load_failures_in(checkout, progress)
+            return Result(cases={}, cost_usd=0.0, cut_short_reason=None, load_failures=load_failures)
         raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})")
     try:
         data = json.loads(result.read_text())
     except json.JSONDecodeError as error:
         raise CompareError(f"the result at {side} is not JSON: {error}") from error
-    return parse_result(data, side, progress)
+    return parse_result(data, side, progress, load_failures_in(checkout, progress))
 
 
-def found_no_case(progress: ct.Iterable[str]) -> bool:
-    """Whether the run said that its suite has no case, or none that the filter matches.
+def found_no_case(progress: ct.Iterable[str], status: int) -> bool:
+    """Whether a run that wrote no result said that its suite has no case, or none that the
+    filter matches and that loads.
 
-    The harness then writes no result, as it does when it dies, and only its
-    words tell the two apart (measured on Claude Code 2.1.283). When they
-    change, a commit without a case counts as a run that died.
+    The harness writes no result then, as it does when it dies, and only its
+    words and its exit status tell the two apart (measured on Claude Code
+    2.1.283). It exits with status 1 and says `No eval cases found`, unless a
+    case file failed to load: then it prints the summary of a suite in which
+    no case ran, which opens with `0 case(s)`. A suite that it ended before
+    its first case finished prints that summary too, marked partial, and
+    exits with another status. When the words change, a commit without a
+    case counts as a run that died.
     """
-    return any(line.startswith("No eval cases found") for line in progress)
+    return status == 1 and any(line.startswith(("No eval cases found", "0 case(s) ")) for line in progress)
 
 
 def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
@@ -262,10 +272,26 @@ def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
     return tuple(line.removeprefix(opening) for line in progress if line.startswith(opening))
 
 
-def parse_result(data: object, side: str, progress: ct.Sequence[str]) -> Result:
-    """Turn the result that `claude plugin eval` wrote, and what it said about each case in its
-    progress, into a Result, or raise CompareError when the result has another shape than the one
-    this program was written against."""
+def load_failures_in(checkout: pathlib.Path, progress: ct.Iterable[str]) -> tuple[str, ...]:
+    """What the run said about each case file of the checkout that it failed to load, in the
+    harness's words from the path of the case on, which is given from the root.
+
+    The harness leaves such a case out of its result and names it in a line
+    of its own: a cross, a space, the absolute path without symbolic links of
+    the directory of the case, or of its case.yaml where it has one, a colon
+    and the error (measured on Claude Code 2.1.283). The checkout of the base
+    commit is gone when the comparison is read, so the path of the checkout
+    is dropped. None of the words after it are read.
+    """
+    opening = f"✗ {checkout.resolve()}/"
+    return tuple(line.removeprefix(opening) for line in progress if line.startswith(opening))
+
+
+def parse_result(data: object, side: str, progress: ct.Sequence[str], load_failures: tuple[str, ...]) -> Result:
+    """Turn the result that `claude plugin eval` wrote, what it said about each case in its
+    progress and what it said about each case file that it failed to load into a Result, or
+    raise CompareError when the result has another shape than the one this program was written
+    against."""
     if not isinstance(data, dict):
         raise CompareError(f"the result at {side} is not a JSON object")
     cases = data.get("cases")
@@ -288,6 +314,7 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str]) -> Result:
             cases=parsed,
             cost_usd=float(data["costUsd"]),
             cut_short_reason=str(data["partialReason"]) if data["partial"] else None,
+            load_failures=load_failures,
         )
     except (KeyError, TypeError, ValueError) as error:
         raise CompareError(f"the result at {side} holds a field this program cannot read: {error!r}") from error
@@ -324,19 +351,25 @@ def reasons(case: Case) -> list[str]:
     ]
 
 
+def about_suite(side: str, result: Result) -> list[str]:
+    """What the run at a commit said about its suite as a whole: each case file that it failed
+    to load, and the reason it was cut short. Either leaves a case without a result."""
+    run = f"the eval run at {side}"
+    lines = [f"{run} failed to load {failure}" for failure in result.load_failures]
+    if result.cut_short_reason is not None:
+        lines.append(f"{run} was cut short ({result.cut_short_reason}): the table may lack cases")
+    return lines
+
+
 def report(base: Column, head: Column) -> list[str]:
-    """The table of every case that either run gave a result for, each suite that was cut
-    short, what stands behind each score, and what the two runs cost."""
+    """The table of every case that either run gave a result for, what each run said about
+    its suite as a whole, what stands behind each score, and what the two runs cost."""
     columns = (base, head)
     names = sorted(base.result.cases.keys() | head.result.cases.keys())
     rows = [("case", base.side, head.side), *((name, cell(base, name), cell(head, name)) for name in names)]
     widths = [max(len(row[index]) for row in rows) for index in range(3)]
     lines = ["  ".join(text.ljust(width) for text, width in zip(row, widths, strict=True)).rstrip() for row in rows]
-    suites_cut_short = [
-        f"the eval run at {column.side} was cut short ({column.result.cut_short_reason}): the table may lack cases"
-        for column in columns
-        if column.result.cut_short_reason is not None
-    ]
+    about_suites = [line for column in columns for line in about_suite(column.side, column.result)]
     behind = [
         f"{name} at {column.side}: {reason}"
         for name in names
@@ -344,7 +377,7 @@ def report(base: Column, head: Column) -> list[str]:
         if (case := column.result.cases.get(name)) is not None
         for reason in reasons(case)
     ]
-    for block in (suites_cut_short, behind):
+    for block in (about_suites, behind):
         if block:
             lines += ["", *block]
     costs = ", ".join(f"{column.side} {column.result.cost_usd:.2f} USD" for column in columns)
@@ -356,10 +389,11 @@ def compare(options: Options) -> list[str]:
 
     Raises CompareError outside a git repository, for a base that names no
     commit, without `claude` on the PATH, when a run writes no readable
-    result, when no case ran at either commit, and when the head result names
-    a case that the working tree does not hold. The cases are looked up by the
-    paths that the results give, so a path in another form would bring back
-    the dash for a case that did not run.
+    result, when no case ran at either commit, with what each run said about
+    its suite, and when the head result names a case that the working tree
+    does not hold. The cases are looked up by the paths that the results
+    give, so a path in another form would bring back the dash for a case that
+    did not run.
     """
     toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
@@ -379,7 +413,8 @@ def compare(options: Options) -> list[str]:
             base = run_suite(checkout, "base", scratch, options.eval_options)
         head = run_suite(root, "head", scratch, options.eval_options)
     if not base.cases and not head.cases:
-        raise CompareError("no eval case ran at either commit")
+        why = [*about_suite("base", base), *about_suite("head", head)]
+        raise CompareError("\n".join(["no eval case ran at either commit", *why]))
     for name in head.cases:
         if not working_tree_has_case(root, name):
             raise CompareError(f"the result at head names the case {name}, which holds no prompt.md in the working tree")
