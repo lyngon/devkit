@@ -64,15 +64,28 @@ class Case:
 @dataclasses.dataclass(frozen=True, slots=True)
 class Result:
     """The cases of one run of the suite, by their directory, what the run cost, and the
-    harness's reason when it cut the suite short.
-
-    A suite that was cut short leaves out each case that it did not reach, so its
-    result does not tell whether the commit has a case that is missing from it.
-    """
+    harness's reason when it cut the suite short."""
 
     cases: ct.Mapping[str, Case]
     cost_usd: float
     cut_short_reason: str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Column:
+    """One column of the table: its heading, the result of the run at that commit, and the
+    cases that the commit has and the run gave no result for.
+
+    A result does not say why it lacks a case. A suite that was cut short
+    leaves out each case that it did not reach, and no result holds a case
+    that the commit does not have. The files of the commit tell the two apart.
+    Only the cases that the other run gave a result for are looked up, since
+    the program knows of no other.
+    """
+
+    heading: str
+    result: Result
+    without_result: frozenset[str]
 
 
 def value(text: str) -> str:
@@ -134,6 +147,17 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
 def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     """Run git in a directory and hand back its exit status and output, without raising."""
     return subprocess.run(["git", "-C", str(directory), *arguments], capture_output=True, text=True, check=False)
+
+
+def commit_has_case(root: pathlib.Path, commit: str, name: str) -> bool:
+    """Whether the commit holds the case of that name. A case is a directory with a
+    `prompt.md`, as the README defines one."""
+    return git(root, "cat-file", "-e", f"{commit}:{name}/prompt.md").returncode == 0
+
+
+def working_tree_has_case(root: pathlib.Path, name: str) -> bool:
+    """The same for the working tree, which counts as head with its uncommitted changes."""
+    return (root / name / "prompt.md").is_file()
 
 
 @contextlib.contextmanager
@@ -257,14 +281,14 @@ def counted(number: int, noun: str) -> str:
     return f"{number} {noun}" if number == 1 else f"{number} {noun}s"
 
 
-def cell(result: Result, name: str) -> str:
+def cell(column: Column, name: str) -> str:
     """One cell of the table: the score of the case with the number of runs behind it, how
     many notes the harness left about the case and how many of the runs ended in an error.
-    A case without a result has a dash, for a case the commit does not have, or a question
-    mark where the suite was cut short, since it may have ended before the case."""
-    case = result.cases.get(name)
+    A case without a result has a dash when the commit does not have the case, and the
+    words `no result` when it has."""
+    case = column.result.cases.get(name)
     if case is None:
-        return "-" if result.cut_short_reason is None else "?"
+        return "no result" if name in column.without_result else "-"
     counts = [counted(case.runs, "run")]
     if case.notes:
         counts.append(counted(len(case.notes), "note"))
@@ -283,31 +307,31 @@ def reasons(case: Case) -> list[str]:
     ]
 
 
-def report(base: Result, head: Result) -> list[str]:
-    """The table of every case of either run, each suite that was cut short, what stands
-    behind each score, and what the two runs cost."""
-    sides = (("base", base), ("head", head))
-    names = sorted(base.cases.keys() | head.cases.keys())
-    rows = [("case", "base", "head"), *((name, cell(base, name), cell(head, name)) for name in names)]
-    widths = [max(len(row[column]) for row in rows) for column in range(3)]
+def report(base: Column, head: Column) -> list[str]:
+    """The table of every case that either run gave a result for, each suite that was cut
+    short, what stands behind each score, and what the two runs cost."""
+    columns = (base, head)
+    names = sorted(base.result.cases.keys() | head.result.cases.keys())
+    rows = [("case", base.heading, head.heading), *((name, cell(base, name), cell(head, name)) for name in names)]
+    widths = [max(len(row[index]) for row in rows) for index in range(3)]
     lines = ["  ".join(text.ljust(width) for text, width in zip(row, widths, strict=True)).rstrip() for row in rows]
     suites_cut_short = [
-        f"the eval run at {side} was cut short ({result.cut_short_reason}): the table may lack cases, "
-        "and ? stands for a case that the run did not reach or that the commit does not have"
-        for side, result in sides
-        if result.cut_short_reason is not None
+        f"the eval run at {column.heading} was cut short ({column.result.cut_short_reason}): the table may lack cases"
+        for column in columns
+        if column.result.cut_short_reason is not None
     ]
     behind = [
-        f"{name} at {side}: {reason}"
+        f"{name} at {column.heading}: {reason}"
         for name in names
-        for side, result in sides
-        if (case := result.cases.get(name)) is not None
+        for column in columns
+        if (case := column.result.cases.get(name)) is not None
         for reason in reasons(case)
     ]
     for block in (suites_cut_short, behind):
         if block:
             lines += ["", *block]
-    return [*lines, "", f"cost: base {base.cost_usd:.2f} USD, head {head.cost_usd:.2f} USD"]
+    costs = ", ".join(f"{column.heading} {column.result.cost_usd:.2f} USD" for column in columns)
+    return [*lines, "", f"cost: {costs}"]
 
 
 def compare(options: Options) -> list[str]:
@@ -337,12 +361,16 @@ def compare(options: Options) -> list[str]:
         head = run_suite(root, "head", scratch, options.eval_options)
     if not base.cases and not head.cases:
         raise CompareError("no eval case ran at either commit")
+    only_base, only_head = base.cases.keys() - head.cases.keys(), head.cases.keys() - base.cases.keys()
     return [
         f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
         f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
         f"granted tools: {', '.join(options.granted) or 'none'}",
         "",
-        *report(base, head),
+        *report(
+            Column("base", base, frozenset(name for name in only_head if commit_has_case(root, base_commit, name))),
+            Column("head", head, frozenset(name for name in only_base if working_tree_has_case(root, name))),
+        ),
     ]
 
 

@@ -295,16 +295,16 @@ compare-evals origin/main --allow-tools Write
 The working tree counts as head, uncommitted changes included.
 The comparison opens with the two commits and the gated tools that both runs were granted.
 A grader that expects that something did not happen is no proof when the tool that would do it is not among them, whether the case lists the tool or not.
-In the table a dash stands for a case that the commit does not have.
+In the table a dash stands for a case that the commit does not have, which means that the directory of the case holds no `prompt.md` there.
+The words `no result` stand for a case that the commit has and that its run gave no result for.
+A case without a result at both commits has no row.
 When the harness ends a suite before every run started, its result says that it is partial and gives a reason (from the documentation of the harness, not measured here).
-The comparison then names the commit in a line below the table, with that reason:
+The cases that the suite did not reach then have `no result`, and the comparison names the commit in a line below the table, with that reason:
 
 ```text
-the eval run at head was cut short (interrupted): the table may lack cases, and ? stands for a case that the run did not reach or that the commit does not have
+the eval run at head was cut short (interrupted): the table may lack cases
 ```
 
-In the column of that commit a case without a result has a question mark in place of the dash, because a partial result does not tell a case that did not run from a case that the commit does not have.
-A case without a result at both commits has no row.
 An interrupt at the terminal gives no such line, because it ends `compare-evals` too and no comparison is printed.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run of a case that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
