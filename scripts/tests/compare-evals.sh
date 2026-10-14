@@ -46,11 +46,15 @@ failures=0
 # the harness was not measured to treat like that filter.
 # A checkout with the file canned-hang stands for a run that never ends: the
 # stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
-mkdir "$tmp/bin" "$tmp/tools" "$tmp/empty"
+# The stub also writes to the file that FAKE_BUILD_LOG names what the command
+# check-pull-request that it finds says, or `none`, which tells the build of
+# the environment that it runs in.
+mkdir "$tmp/bin" "$tmp/devenv" "$tmp/tools" "$tmp/empty" "$tmp/store"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
+printf '%s\t%s\n' "$PWD" "$(check-pull-request 2>/dev/null || echo none)" >>"$FAKE_BUILD_LOG"
 json="" output=evals/results/stub filter=""
 while (($# > 0)); do
   case "$1" in
@@ -115,15 +119,40 @@ echo "Report: $output/report.html" >&2
 [[ ! -f canned-exit ]] || exit "$(<canned-exit)"
 EOF
 chmod +x "$tmp/bin/claude"
-export FAKE_CLAUDE_LOG=$tmp/claude.log FAKE_CLAUDE_PID=$tmp/claude.pid
+export FAKE_CLAUDE_LOG=$tmp/claude.log FAKE_CLAUDE_PID=$tmp/claude.pid FAKE_BUILD_LOG=$tmp/build.log
 
-# The program and the stub run with these tools and no others, so that no test
-# can reach the real Claude Code, whatever the PATH of the shell that runs it.
+# The stub of devenv does what `devenv shell -- <command>` of devenv 2.4.0 was
+# measured to do in a checkout: it writes the git hook shims of the checkout's
+# environment into the hooks directory that git names there, puts that
+# environment in front of the PATH and replaces itself with the command. The
+# shim is the file canned-shim of the checkout, copied from one that devenv
+# wrote, with the path of the checkout without symbolic links in place of
+# <checkout>. The environment is the directory baseline of the checkout. A
+# checkout with the file canned-devenv-exit stands for an environment that
+# does not build.
+cat >"$tmp/devenv/devenv" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# -gt 2 && $1 == shell && $2 == -- ]] || exit 2
+shift 2
+if [[ -f canned-shim ]]; then
+  shim=$(<canned-shim)
+  echo "${shim//<checkout>/"$(pwd -P)"}" >"$(git rev-parse --path-format=absolute --git-path hooks)/pre-commit"
+fi
+[[ ! -f canned-devenv-exit ]] || exit "$(<canned-devenv-exit)"
+PATH=$PWD/baseline:$PATH exec "$@"
+EOF
+chmod +x "$tmp/devenv/devenv"
+
+# The program and the stubs run with these tools and no others, so that no
+# test can reach the real Claude Code or devenv, whatever the PATH of the shell
+# that runs it.
 for tool in bash chmod cp env git jq mkdir mktemp python3 sleep; do
   ln -s "$(command -v "$tool")" "$tmp/tools/$tool"
 done
-with_claude=$tmp/bin:$tmp/tools
+with_claude=$tmp/bin:$tmp/devenv:$tmp/tools
 without_claude=$tmp/tools
+without_devenv=$tmp/bin:$tmp/tools
 path=$with_claude
 
 # --- Fixture helpers ---------------------------------------------------------
@@ -299,19 +328,23 @@ gone() {
 }
 
 # compare <repo> <argument>...: run the program in the repository, capturing
-# stdout, stderr and the exit code in out, err and code, and the stub's calls
-# in calls. Temporary files go to an empty directory of their own, which the
-# program finds where temporary says.
+# stdout, stderr and the exit code in out, err and code, the stub's calls in
+# calls and the builds that its runs found in builds. Temporary files go to an
+# empty directory of their own, which the program finds where temporary says.
+# The Nix store of the shell that starts the program is $tmp/store.
 temporary=$tmp/scratch
 compare() {
   local repo=$1
   shift
   remove "$tmp/scratch" && mkdir "$tmp/scratch"
   : >"$FAKE_CLAUDE_LOG"
+  : >"$FAKE_BUILD_LOG"
   code=0
-  out=$(cd "$repo" && TMPDIR=$temporary PATH=$path "$program" "$@" 2>"$tmp/stderr" </dev/null) || code=$?
+  out=$(cd "$repo" && TMPDIR=$temporary NIX_STORE=$tmp/store PATH=$path "$program" "$@" 2>"$tmp/stderr" </dev/null) ||
+    code=$?
   err=$(<"$tmp/stderr")
   calls=$(<"$FAKE_CLAUDE_LOG")
+  builds=$(<"$FAKE_BUILD_LOG")
 }
 
 # The stub's calls from inside the repository, and from outside it.
@@ -321,6 +354,54 @@ calls_in() {
 
 calls_outside() {
   grep -vF -- "$1"$'\t' <<<"$calls" || true
+}
+
+# The build that the run inside the repository found, and the one that the
+# run outside it found.
+build_in() {
+  grep -F -- "$1"$'\t' <<<"$builds" | cut -f 2
+}
+
+build_outside() {
+  grep -vF -- "$1"$'\t' <<<"$builds" | cut -f 2
+}
+
+# hooks <repo>: the git hooks of the repository, each with its content.
+hooks() {
+  local hook
+  for hook in "$1"/.git/hooks/*; do
+    printf '%s %s\n' "$(basename "$hook")" "$(sha256sum <"$hook" | cut -c 1-16)"
+  done
+}
+
+# shim_of <config>: a git hook shim as devenv 2.4.0 writes it, copied from one
+# that it wrote, with the configuration that it names. Before 7e4605f the
+# baseline had it name the configuration by an absolute path, which here says
+# <checkout>.
+shim_of() {
+  cat <<EOF
+#!/bin/sh
+# File generated by prek: https://github.com/j178/prek
+# ID: 182c10f181da4464a3eec51b83331688
+
+HERE="\$(cd "\$(dirname "\$0")" && pwd)"
+PREK="/nix/store/n7cq6kxkq64jgm1bs952ibl64l0181x1-prek-0.4.14/bin/prek"
+
+# Check if the full path to prek is executable, otherwise fallback to PATH
+if [ ! -x "\$PREK" ]; then
+    PREK="prek"
+fi
+
+exec "\$PREK" hook-impl --hook-dir "\$HERE" --script-version 4 --hook-type=pre-commit --config="$1" -- "\$@"
+EOF
+}
+
+# with_build <repo> <words>: the commit in the repository gets an environment
+# whose check-pull-request says the words.
+with_build() {
+  mkdir -p "$1/baseline"
+  printf '#!/usr/bin/env bash\necho "%s"\n' "$2" >"$1/baseline/check-pull-request"
+  chmod +x "$1/baseline/check-pull-request"
 }
 
 nothing_left() {
@@ -852,10 +933,75 @@ git -C "$repo" checkout -q main
 compare "$repo" dead-base
 check "no result at base: exits 1" equals "$code" 1
 check "no result at base: says which run and how it ended, and what it said" contains "$err" "
-compare-evals: the eval run at base wrote no result (claude exited with status 1)
+compare-evals: the eval run at base wrote no result (devenv shell exited with status 1)
 the eval run at base failed to load plugins/one/evals/stays-green: $invalid_yaml"
 check "no result at base: prints no table" equals "$out" ""
 check "no result at base: runs nothing at head" equals "$(calls_in "$repo")" ""
+
+# Each run gets the commands of its own commit. The base run enters the
+# environment of the base commit with devenv shell, in its checkout; the head
+# run keeps the environment that it was started from, the working tree's,
+# whose commands lie in the Nix store. The base run finds none of those, so a
+# command that the base commit lacks is missing there, as it was then.
+mkdir -p "$tmp/store/working-tree-environment/bin"
+printf '#!/usr/bin/env bash\necho "check-pull-request of the working tree"\n' \
+  >"$tmp/store/working-tree-environment/bin/check-pull-request"
+chmod +x "$tmp/store/working-tree-environment/bin/check-pull-request"
+path=$tmp/store/working-tree-environment/bin:$with_claude
+repo=$(two_commits)
+compare "$repo" base
+check "a command that the base commit lacks: is not found at base" equals "$(build_outside "$repo")" none
+check "a command that the base commit lacks: is found at head, in the environment of the working tree" \
+  equals "$(build_in "$repo")" "check-pull-request of the working tree"
+with_build "$repo" "check-pull-request of the base commit"
+commit "$repo" "chore: a commit with an environment of its own"
+git -C "$repo" tag with-build
+with_build "$repo" "check-pull-request of the head commit"
+commit "$repo" "chore: a head that changes the environment"
+compare "$repo" with-build
+check "a command that both commits have: the base run gets the base commit's build" \
+  equals "$(build_outside "$repo")" "check-pull-request of the base commit"
+check "a command that both commits have: the head run gets the working tree's environment" \
+  equals "$(build_in "$repo")" "check-pull-request of the working tree"
+check "a command that both commits have: nothing is left behind" nothing_left "$repo"
+path=$with_claude
+
+# Entering the environment of a commit writes git hook shims. Before 7e4605f
+# the baseline had them name its configuration by the absolute path of the
+# checkout, which compare-evals removes, so a shim in the hooks of the working
+# tree would then fail every commit. The base checkout is a repository of its
+# own, and the hooks of the working tree stay as they were, whichever form
+# the base writes.
+for config in '<checkout>/.pre-commit-config.yaml' './.pre-commit-config.yaml'; do
+  repo=$(two_commits)
+  shim_of "$config" >"$repo/canned-shim"
+  commit "$repo" "chore: a commit whose environment writes a shim"
+  git -C "$repo" tag writes-a-shim
+  rm "$repo/canned-shim"
+  commit "$repo" "chore: a head whose environment the shell entered"
+  shim_of ./.pre-commit-config.yaml >"$repo/.git/hooks/pre-commit"
+  chmod +x "$repo/.git/hooks/pre-commit"
+  found=$(hooks "$repo")
+  compare "$repo" writes-a-shim
+  check "a base whose environment writes a shim naming $config: exits 0" equals "$code" 0
+  check "a base whose environment writes a shim naming $config: the hooks of the working tree stay as they were" \
+    equals "$(hooks "$repo")" "$found"
+done
+
+# An environment that does not build gives no result either. The base run
+# starts as devenv shell, which then becomes the harness, so the error names
+# devenv shell, whichever of the two ended the run.
+repo=$(two_commits)
+echo 1 >"$repo/canned-devenv-exit"
+commit "$repo" "chore: a commit whose environment does not build"
+git -C "$repo" tag broken-environment
+rm "$repo/canned-devenv-exit"
+commit "$repo" "chore: a head whose environment builds"
+compare "$repo" broken-environment
+check "an environment that does not build at base: exits 1" equals "$code" 1
+check "an environment that does not build at base: says so" \
+  contains "$err" "compare-evals: the eval run at base wrote no result (devenv shell exited with status 1)"
+check "an environment that does not build at base: runs nothing" equals "$calls" ""
 
 # An interrupt ends the run as well. The run here never ends by itself, and
 # the signal reaches the program alone. A command that a script starts in the
@@ -1014,6 +1160,11 @@ compare "$repo" main~1
 check "claude is not on the PATH: exits 1" equals "$code" 1
 check "claude is not on the PATH: says so" contains "$err" "compare-evals: claude is not on the PATH"
 check "claude is not on the PATH: nothing is left behind" nothing_left "$repo"
+path=$without_devenv
+compare "$repo" main~1
+check "devenv is not on the PATH: exits 1" equals "$code" 1
+check "devenv is not on the PATH: says so" contains "$err" "compare-evals: devenv is not on the PATH"
+check "devenv is not on the PATH: runs nothing" equals "$calls" ""
 path=$with_claude
 
 compare "$tmp/empty" main
