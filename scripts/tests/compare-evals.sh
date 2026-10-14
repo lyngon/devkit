@@ -450,7 +450,7 @@ plugins/one/evals/removed-at-head  1.00 (1 run)   ?
 plugins/one/evals/stays-green      1.00 (3 runs)  ?
 plugins/two/evals/new-at-head      -              1.00 (1 run)
 
-the run at head was cut short (interrupted): $legend
+the eval run at head was cut short (interrupted): $legend
 
 plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
 
@@ -470,8 +470,8 @@ commit "$repo" "chore: a head whose run is cut short too"
 compare "$repo" cut-short
 check "both runs cut short: each has its line, the base first" contains "$out" "
 
-the run at base was cut short (cost_ceiling): $legend
-the run at head was cut short (interrupted): $legend
+the eval run at base was cut short (cost_ceiling): $legend
+the eval run at head was cut short (interrupted): $legend
 
 cost:"
 check "both runs cut short: a case that the base run lacks has a question mark there" contains "$out" "
