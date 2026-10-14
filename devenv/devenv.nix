@@ -141,12 +141,12 @@ let
   };
 
   # Checks the title and the body of a pull request: a Conventional Commits
-  # title, the seven headings of the body, its length and the marks prose-lint
-  # flags. A pull request lands as one commit with the two as its message, so
-  # the baseline has no hook on the message of a commit on a branch. The two
-  # length values are written into the command, so a local shell and CI check
-  # against the same numbers, and it takes no arguments, so neither can be
-  # raised from outside.
+  # title, the seven headings of the body, the line that ends its section
+  # Scope, its length and the marks prose-lint flags. A pull request lands as
+  # one commit with the two as its message, so the baseline has no hook on the
+  # message of a commit on a branch. The two length values are written into
+  # the command, so a local shell and CI check against the same numbers, and it
+  # takes no arguments, so neither can be raised from outside.
   checkPullRequest = pkgs.writeShellApplication {
     name = "check-pull-request";
     runtimeInputs = [

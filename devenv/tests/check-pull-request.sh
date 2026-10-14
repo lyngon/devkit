@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Exercise check-pull-request on fixture titles and bodies: a pair that passes,
-# and for each rule one that fails (the title, the seven headings, the marks
-# prose-lint flags, the length). The built command is the one argument, so the
-# fixtures run what the baseline module built, with the target and the headroom
-# it wrote into the command. Other values of the two go to the Python file
-# directly. Run through `devenv test`.
+# and for each rule one that fails (the title, the seven headings, the line
+# that ends Scope, the marks prose-lint flags, the length). The built command
+# is the one argument, so the fixtures run what the baseline module built, with
+# the target and the headroom it wrote into the command. Other values of the
+# two go to the Python file directly. Run through `devenv test`.
 set -euo pipefail
 
 built=${1:?usage: check-pull-request.sh <the built check-pull-request command>}
@@ -23,18 +23,27 @@ ln -s "$baseline/prose-lint.sh" "$tmp/bin/prose-lint"
 good_title="feat(orders): reject a negative quantity"
 sections=("Why" "Decisions" "What changed" "Scope" "Blast radius" "Verified" "Not verified")
 ways_out="move a decision into a decision record, move evidence into a pull request comment, or split the change"
+met="Met on the way: nothing."
+no_met_line="error: body: '## Scope' does not end with a line that says what the work met on the way: end the section with \"Met on the way: nothing.\" or with each issue and pull request the work filed or opened for a problem it met, as \"Met on the way: #12 and #15.\""
+bad_met_line="the line \"Met on the way:\" says neither \"nothing\" nor a list of issues and pull requests: write \"Met on the way: nothing.\" or name each one as #12 or owner/repository#12, joined by commas and \"and\""
 
 # body_of <section>...: a body with one content line under each section, in
-# the order given. Every section takes four lines.
+# the order given, where the line under Scope is $met. Every section takes
+# four lines, so the line under Scope is line 15 when Scope is the fourth.
 body_of() {
-  local section
+  local section line
   for section in "$@"; do
-    printf '## %s\n\n%s\n\n' "$section" "One line under this heading."
+    line="One line under this heading."
+    if [[ $section == "Scope" ]]; then
+      line=$met
+    fi
+    printf '## %s\n\n%s\n\n' "$section" "$line"
   done
 }
 
 # body <count>: a body with the seven sections and <count> content lines, seven
-# at least.
+# at least. $met is one of them, so the length cases below also show that the
+# line counts like any other.
 body() {
   local i
   body_of "${sections[@]}"
@@ -154,8 +163,12 @@ else
 fi
 
 # The headings
+check "$good_title" "$(body_of "Why" "Decisions" "What changed" "Scope" "Verified" "Not verified")" "$built"
+expect "a missing heading fails" 1 1 "error: body: '## Blast radius' is missing: add the section"
+
 check "$good_title" "$(body_of "Why" "Decisions" "What changed" "Blast radius" "Verified" "Not verified")" "$built"
-expect "a missing heading fails" 1 1 "error: body: '## Scope' is missing: add the section"
+expect "a body without Scope also lacks the line that ends it" 1 2 \
+  "error: body: '## Scope' is missing: add the section" $'\n'"$no_met_line"
 
 check "$good_title" "$(body_of "${sections[@]}" "Notes")" "$built"
 expect "an extra heading fails" 1 1 "error: body:29: '## Notes' is not one of the seven headings"
@@ -190,6 +203,50 @@ expect "with neither variable set, the title and the body each fail" 1 2 \
 
 check "$good_title" "${good//$'\n'/$'\r\n'}" "$built"
 expect_silent "a body with the line endings of a web form passes"
+
+# The line that ends Scope
+# shellcheck disable=SC2016  # the backticks are Markdown, not a command
+scope_of_56='`compare-evals` and its fixture test.
+The README stays as it is, since the usage error names the option and the value.'
+check "$good_title" "${good/"$met"/"$scope_of_56"}" "$built"
+expect "a Scope without the line fails, as the Scope of pull request 56 would have" 1 1 "$no_met_line"
+
+check "$good_title" "${good/"$met"/"Met on the way:"}" "$built"
+expect "a line with nothing after the colon fails" 1 1 "error: body:15: $bad_met_line"
+
+check "$good_title" "${good/"$met"/"Met on the way:   "}" "$built"
+expect "a line with only spaces after the colon fails" 1 1 "error: body:15: $bad_met_line"
+
+check "$good_title" "${good/"$met"/"Met on the way: nothing"}" "$built"
+expect_silent "a line that says nothing passes, with or without the period"
+
+check "$good_title" "${good/"$met"/"Met on the way: #60, #61, and lyngon/devkit#63."}" "$built"
+expect_silent "a line that lists issues and pull requests passes"
+
+check "$good_title" "${good/"$met"/"Met on the way: #60 and #63"}" "$built"
+expect_silent "a list of two joined by and passes"
+
+check "$good_title" "${good/"$met"/"Met on the way: a stale commit-msg shim, which is harmless."}" "$built"
+expect "a remark in place of a list fails" 1 1 "error: body:15: $bad_met_line"
+
+check "$good_title" "${good/"$met"/"Met on the way: #60 for the values that name nothing."}" "$built"
+expect "a reference with a remark after it fails" 1 1 "error: body:15: $bad_met_line"
+
+check "$good_title" "${good/"$met"/"Met on the way: None."}" "$built"
+expect "None in place of nothing fails" 1 1 "error: body:15: $bad_met_line"
+
+check "$good_title" "${good/"$met"/"$met"$'\n\nLeaves out the README.'}" "$built"
+expect "a line that does not end Scope fails" 1 1 "$no_met_line"
+
+check "$good_title" "${good/"$met"/$'```text\n'"$met"$'\n```'}" "$built"
+expect "a line inside a fenced code block at the end of Scope fails" 1 1 "$no_met_line"
+
+check "$good_title" "${good/"$met"/"Met on the way: ::warning::forged ##[error]forged"}" "$built"
+if holds_command; then
+  fail "a line that is not well formed is named without its text" "no workflow command"
+else
+  expect "a line that holds a workflow command fails" 1 1 "error: body:15: $bad_met_line"
+fi
 
 # The marks prose-lint flags
 check "$good_title"$' \xe2\x80\x94 at last' "$good" "$built"
