@@ -306,6 +306,18 @@ the eval run at head was cut short (interrupted): the table may lack cases
 ```
 
 An interrupt at the terminal gives no such line, because it ends `compare-evals` too and no comparison is printed.
+The harness leaves a case whose file it failed to load out of its result, and names the case and the error on stderr, by the path of its directory or of its `case.yaml` where it has one.
+The comparison repeats that line below the table, with its commit and the path from the root (measured on Claude Code 2.1.283):
+
+```text
+the eval run at head failed to load plugins/discover/evals/brainstorm-no-docs: prompt.md: invalid YAML frontmatter: YAML Parse error: Unexpected token
+```
+
+In the table such a case has `no result` where the other run scored it, and no row where neither run did, as for a case that is new at head.
+Under `--case` the harness can name a file whose case the filter leaves out.
+When a file failed to load and no case that the filter matches loads, the harness writes no result and prints an empty table, where it would otherwise say `No eval cases found`.
+`compare-evals` reads such a run as one in which no case ran, not as one that died, and repeats the line all the same.
+When no case ran at either commit, it prints no comparison and ends with status 1, naming each file that failed to load.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run of a case that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
 A line that the harness printed about a case as a whole is counted as a note beside the score, and listed in the harness's words.
