@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Run the eval suite at a base commit and in the working tree, and print each case's score at both.
 
-The base commit is checked out into a detached worktree in a temporary
-directory. Both runs are `claude plugin eval .` from the root of their
-checkout: a model call on the account of whoever runs this, with the report
-kept off claude.ai and no baseline arm. A case that seeds its working
-directory does so with a script of its own, which runs as whoever runs this,
-at both commits. The worktree and everything a run writes are removed again.
+The base commit is checked out into a clone in a temporary directory, which
+borrows the objects of this repository. Both runs are `claude plugin eval .`
+from the root of their checkout: a model call on the account of whoever runs
+this, with the report kept off claude.ai and no baseline arm. The run at the
+base commit starts with `devenv shell`, so it gets the commands of that
+commit's environment, and the run in the working tree keeps the devenv shell
+that this program starts from. A case that seeds its working directory does
+so with a script of its own, which runs as whoever runs this, at both
+commits. The clone and everything a run writes are removed again.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
@@ -25,6 +28,7 @@ import json
 import os
 import pathlib
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -290,13 +294,14 @@ def run_suite(
         stderr=subprocess.STDOUT,
         encoding="utf-8",
         errors="replace",
+        process_group=0,
     ) as run:
         try:
             for line in run.stdout or ():  # a pipe, which the type of the attribute cannot say
                 print(line, end="", file=sys.stderr)
                 progress.append(line.rstrip("\n"))
-        except BaseException:  # an interrupt too: the run must not outlive the scratch directory
-            run.kill()
+        except BaseException:  # an interrupt too: no process of the run may outlive the scratch directory
+            os.killpg(run.pid, signal.SIGKILL)
             raise
     said = Said(load_failures_in(checkout, progress), grant_refusals_in(progress))
     result = output / "aggregate-result.json"
@@ -476,23 +481,31 @@ def report(columns: ct.Sequence[Column], without_result: ct.Sequence[str] = ()) 
 def compare(options: Options) -> Comparison:
     """Run the suite at the base commit and in the working tree, and return what to print.
 
-    When the run in the working tree writes no result that this program can
-    read after the base run gave one, the comparison holds the table of the
-    base run, which was paid for, and below it what the other run said and
-    the reason. Raises CompareError outside a git repository, for a base that
-    names no commit, without `claude` on the PATH, when the base run writes
-    no readable result, which spares the cost of the run in the working tree,
-    and when no case ran at either commit, each with what the runs said about
-    their suites. Raises it too when the head result names a case that the
-    working tree does not hold. The cases are looked up by the paths that the
-    results give, so such a result means that the program reads the harness
-    wrongly, and no table it prints, the base column included, could be
-    trusted.
+    The run at the base commit enters that commit's environment, and the run
+    in the working tree keeps the one this program starts in, which must be
+    the devenv shell of the working tree. When the run in the working tree
+    writes no result that this program can read after the base run gave one,
+    the comparison holds the table of the base run, which was paid for, and
+    below it what the other run said and the reason.
+
+    Raises CompareError outside a git repository, outside the devenv shell of
+    the working tree, for a base that names no commit, without `claude` or
+    `devenv` on the PATH, when the base run writes no readable result, which
+    spares the cost of the run in the working tree, and when no case ran at
+    either commit, each with what the runs said about their suites. Raises it
+    too when the head result names a case that the working tree does not
+    hold. The cases are looked up by the paths that the results give, so such
+    a result means that the program reads the harness wrongly, and no table
+    it prints, the base column included, could be trusted.
     """
     toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
         raise CompareError("not inside a git repository")
     root = pathlib.Path(toplevel.stdout.strip())
+    shell = os.environ.get("DEVENV_ROOT")
+    if not shell or pathlib.Path(shell).resolve() != root.resolve():
+        where = f"the devenv shell of {shell}" if shell else "a shell without devenv"
+        raise CompareError(f"start compare-evals from the devenv shell of the working tree {root}, not from {where}")
     base_commit = commit_of(root, options.base)
     if base_commit is None:
         raise CompareError(f"'{options.base}' names no commit")

@@ -120,16 +120,20 @@ echo "Report: $output/report.html" >&2
 EOF
 chmod +x "$tmp/bin/claude"
 export FAKE_CLAUDE_LOG=$tmp/claude.log FAKE_CLAUDE_PID=$tmp/claude.pid FAKE_BUILD_LOG=$tmp/build.log
+export FAKE_TASK_PID=$tmp/task.pid
 
 # The stub of devenv does what `devenv shell -- <command>` of devenv 2.4.0 was
 # measured to do in a checkout: it writes the git hook shims of the checkout's
-# environment into the hooks directory that git names there, puts that
-# environment in front of the PATH and replaces itself with the command. The
-# shim is the file canned-shim of the checkout, copied from one that devenv
-# wrote, with the path of the checkout without symbolic links in place of
-# <checkout>. The environment is the directory baseline of the checkout. A
-# checkout with the file canned-devenv-exit stands for an environment that
-# does not build.
+# environment into the hooks directory that git names there, prints the tasks
+# it runs on stderr, in lines copied from a real run, puts that environment in
+# front of the PATH and replaces itself with the command. The shim is the file
+# canned-shim of the checkout, copied from one that devenv wrote, with the path
+# of the checkout without symbolic links in place of <checkout>. The
+# environment is the directory baseline of the checkout. A checkout with the
+# file canned-devenv-exit stands for an environment that does not build, and
+# one with the file canned-devenv-hang for a task that never ends: the stub
+# starts it, writes its own process ID to the file that FAKE_CLAUDE_PID names
+# and the task's to the one that FAKE_TASK_PID names, and waits.
 cat >"$tmp/devenv/devenv" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -139,7 +143,23 @@ if [[ -f canned-shim ]]; then
   shim=$(<canned-shim)
   echo "${shim//<checkout>/"$(pwd -P)"}" >"$(git rev-parse --path-format=absolute --git-path hooks)/pre-commit"
 fi
+if [[ -f canned-devenv-hang ]]; then
+  sleep 1000 &
+  echo "$!" >"$FAKE_TASK_PID"
+  echo "$$" >"$FAKE_CLAUDE_PID"
+  wait
+fi
 [[ ! -f canned-devenv-exit ]] || exit "$(<canned-devenv-exit)"
+echo "• Running devenv:files:cleanup
+✓ Running devenv:files:cleanup in 32.2ms
+• Running devenv:files
+✓ Running devenv:files in 39.5ms
+• Running devenv:git-hooks:install
+✓ Running devenv:git-hooks:install in 61.8ms
+• Running lyngon:git-hooks:refresh-unused-shims
+✓ Running lyngon:git-hooks:refresh-unused-shims in 29.7ms
+• Running devenv:enterShell
+✓ Running devenv:enterShell in 35.7ms" >&2
 PATH=$PWD/baseline:$PATH exec "$@"
 EOF
 chmod +x "$tmp/devenv/devenv"
@@ -331,17 +351,20 @@ gone() {
 # stdout, stderr and the exit code in out, err and code, the stub's calls in
 # calls and the builds that its runs found in builds. Temporary files go to an
 # empty directory of their own, which the program finds where temporary says.
-# The Nix store of the shell that starts the program is $tmp/store.
+# The shell that starts the program is the devenv shell of the repository,
+# unless shell_root names another directory, and its Nix store is $tmp/store.
 temporary=$tmp/scratch
+shell_root=""
 compare() {
-  local repo=$1
+  local repo=$1 root
   shift
+  root=${shell_root:-$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null || echo "$repo")}
   remove "$tmp/scratch" && mkdir "$tmp/scratch"
   : >"$FAKE_CLAUDE_LOG"
   : >"$FAKE_BUILD_LOG"
   code=0
-  out=$(cd "$repo" && TMPDIR=$temporary NIX_STORE=$tmp/store PATH=$path "$program" "$@" 2>"$tmp/stderr" </dev/null) ||
-    code=$?
+  out=$(cd "$repo" && TMPDIR=$temporary NIX_STORE=$tmp/store DEVENV_ROOT=$root PATH=$path "$program" "$@" \
+    2>"$tmp/stderr" </dev/null) || code=$?
   err=$(<"$tmp/stderr")
   calls=$(<"$FAKE_CLAUDE_LOG")
   builds=$(<"$FAKE_BUILD_LOG")
@@ -954,6 +977,12 @@ check "a command that the base commit lacks: is not found at base" equals "$(bui
 check "a command that the base commit lacks: is found at head, in the environment of the working tree" \
   equals "$(build_in "$repo")" "check-pull-request of the working tree"
 with_build "$repo" "check-pull-request of the base commit"
+cat >"$repo/baseline/claude" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\tthe claude of an environment\n' "$PWD" >>"$FAKE_CLAUDE_LOG"
+exit 1
+EOF
+chmod +x "$repo/baseline/claude"
 commit "$repo" "chore: a commit with an environment of its own"
 git -C "$repo" tag with-build
 with_build "$repo" "check-pull-request of the head commit"
@@ -963,6 +992,8 @@ check "a command that both commits have: the base run gets the base commit's bui
   equals "$(build_outside "$repo")" "check-pull-request of the base commit"
 check "a command that both commits have: the head run gets the working tree's environment" \
   equals "$(build_in "$repo")" "check-pull-request of the working tree"
+check "a claude in the environment of the base commit: both runs start the claude that the program found" \
+  lacks "$calls" "the claude of an environment"
 check "a command that both commits have: nothing is left behind" nothing_left "$repo"
 path=$with_claude
 
@@ -1010,7 +1041,8 @@ repo=$(two_commits)
 : >"$repo/canned-hang"
 commit "$repo" "chore: a run that never ends"
 remove "$tmp/scratch" && mkdir "$tmp/scratch"
-(cd "$repo" && TMPDIR=$tmp/scratch PATH=$path exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
+(cd "$repo" && TMPDIR=$tmp/scratch DEVENV_ROOT=$repo PATH=$path \
+  exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
 program_pid=$!
 for _ in {1..100}; do
   [[ ! -s $FAKE_CLAUDE_PID ]] || break
@@ -1025,6 +1057,33 @@ check "an interrupt: ends the program the way a signal does" equals "$code" 130
 check "an interrupt: ends the run" gone "$run_pid"
 check "an interrupt: nothing is left behind" nothing_left "$repo"
 kill "$run_pid" 2>/dev/null || true
+
+# An interrupt can come while devenv still enters the environment of the base
+# commit, and a task of that environment, such as an old baseline's run of its
+# git hooks over the checkout, ends with it too.
+repo=$(two_commits)
+: >"$repo/canned-devenv-hang"
+commit "$repo" "chore: an environment whose task never ends"
+: >"$FAKE_CLAUDE_PID"
+: >"$FAKE_TASK_PID"
+remove "$tmp/scratch" && mkdir "$tmp/scratch"
+(cd "$repo" && TMPDIR=$tmp/scratch DEVENV_ROOT=$repo PATH=$path \
+  exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
+program_pid=$!
+for _ in {1..100}; do
+  [[ ! -s $FAKE_TASK_PID ]] || break
+  sleep 0.1
+done
+check "an interrupt during devenv: comes while a task runs" test -s "$FAKE_TASK_PID"
+run_pid=$(<"$FAKE_CLAUDE_PID") task_pid=$(<"$FAKE_TASK_PID")
+kill -INT "$program_pid"
+code=0
+wait "$program_pid" || code=$?
+check "an interrupt during devenv: ends the program the way a signal does" equals "$code" 130
+check "an interrupt during devenv: ends devenv" gone "$run_pid"
+check "an interrupt during devenv: ends its task" gone "$task_pid"
+check "an interrupt during devenv: nothing is left behind" nothing_left "$repo"
+kill "$run_pid" "$task_pid" 2>/dev/null || true
 
 repo=$(two_commits)
 echo '{"schemaVersion": 2, "suites": []}' >"$repo/canned-result.json"
@@ -1166,6 +1225,16 @@ check "devenv is not on the PATH: exits 1" equals "$code" 1
 check "devenv is not on the PATH: says so" contains "$err" "compare-evals: devenv is not on the PATH"
 check "devenv is not on the PATH: runs nothing" equals "$calls" ""
 path=$with_claude
+
+# The run in the working tree keeps the environment that the program starts
+# from, so that has to be the devenv shell of the working tree.
+shell_root=$tmp/empty
+compare "$repo" main~1
+check "the devenv shell of another directory: exits 1" equals "$code" 1
+check "the devenv shell of another directory: says so" contains "$err" \
+  "compare-evals: start compare-evals from the devenv shell of the working tree $repo, not from the devenv shell of $tmp/empty"
+check "the devenv shell of another directory: runs nothing" equals "$calls" ""
+shell_root=""
 
 compare "$tmp/empty" main
 check "outside a repository: exits 1" equals "$code" 1

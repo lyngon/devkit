@@ -47,8 +47,9 @@ let
     text = ''exec "${config.devenv.root}/scripts/validate-shipped-text.py" "$@"'';
   };
   # The eval suite at a base commit and in the working tree, side by side.
-  # The program also runs `claude`, which no file declares: it is the harness,
-  # and comes from the PATH of whoever runs an eval.
+  # The program also runs `claude` and `devenv`, which no file declares: the
+  # harness, and the tool that made the shell the program starts from. Both
+  # come from the PATH of whoever runs an eval.
   compareEvals = pkgs.writeShellApplication {
     name = "compare-evals";
     runtimeInputs = [
@@ -71,8 +72,9 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/tests/validate-marketplace.sh" "$@"'';
   };
-  # Fixture tests for compare-evals, with a stub in place of `claude`, so that
-  # the full check never calls a model.
+  # Fixture tests for compare-evals, with stubs in place of `claude` and
+  # `devenv`, so that the full check never calls a model or builds an
+  # environment.
   testCompareEvals = pkgs.writeShellApplication {
     name = "test-compare-evals";
     runtimeInputs = [

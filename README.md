@@ -294,9 +294,11 @@ compare-evals origin/main --allow-tools Write
 `compare-evals` checks the base commit out into a temporary clone, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
 The working tree counts as head, uncommitted changes included.
 Each run gets the commands of its own commit's environment, such as `check-pull-request`.
-The run at the base commit starts with `devenv shell` in its clone, and the run in the working tree keeps the devenv shell that `compare-evals` was started from.
+The run at the base commit starts with `devenv shell` in its clone, and the run in the working tree keeps the devenv shell that `compare-evals` was started from, which must be the working tree's.
 The base run leaves out the entries of the PATH that lie in the Nix store, so a command that only the working tree has is not found there.
-Entering the environment of the base commit made a comparison of one case that costs nothing take about 21 seconds where it took about 6, and about 27 seconds for a base with another `devenv.lock` (three runs each, measured on 2026-10-14).
+Entering the environment of the base commit made a comparison of one case that costs nothing take about 21 seconds where it took about 6, with that environment in the Nix store already (three runs each, measured on 2026-10-14).
+A base from before `44142a0` took about 27 seconds, because its shell runs every git hook over its checkout when it starts, and the fixers among them could change that checkout before the run.
+An environment that is not in the store yet is downloaded or built on its first comparison, which these measurements do not cover.
 The clone is a repository of its own, so the git hook shims that entering an environment writes go with it, and the hooks of the working tree's repository stay as they were.
 The comparison opens with the two commits and the gated tools that both runs asked the harness to grant.
 A grader that expects that something did not happen is no proof when the tool that would do it is not among them, whether the case lists the tool or not.
