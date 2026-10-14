@@ -502,6 +502,15 @@ check "a base that names no commit: says so" contains "$err" "compare-evals: 'no
 check "a base that names no commit: runs nothing" equals "$calls" ""
 check "a base that names no commit: nothing is left behind" nothing_left "$repo"
 
+# git gets the base as a revision, never as an option, and the base run gets
+# the commit that the base names. Only `git update-ref` makes a branch whose
+# name starts with a dash, and only after `--` is such a name the base.
+repo=$(two_commits)
+git -C "$repo" update-ref refs/heads/--force base
+compare "$repo" -- --force
+check "a base that starts with a dash: names its commit" contains "$out" "base: $(sha "$repo" base) (--force)"$'\n'
+check "a base that starts with a dash: is what the base run checks out" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
+
 repo=$(two_commits)
 compare "$repo"
 check "no base: is a usage error" equals "$code" 2
