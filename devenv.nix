@@ -227,6 +227,20 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/prune-mistakes.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
+  # Fixture tests for the stand-in for gh that the eval cases of build:finish
+  # run, in a workspace that their seed script writes.
+  testEvalForge = pkgs.writeShellApplication {
+    name = "test-eval-forge";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.jq
+      pkgs.python3
+    ];
+    text = ''exec "${config.devenv.root}/plugins/build/tests/eval-forge.sh" "$@"'';
+  };
+
   # The workflow templates that repo:init ships, against this repository's own
   # workflows. A run of the workflows here counts as proof of the templates,
   # which holds only while the two read the same. markdown-it-py reads the
@@ -310,6 +324,7 @@ in
     declared_tools_only ${lib.getExe testDevkitHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
     declared_tools_only ${lib.getExe testPruneMistakes}
+    declared_tools_only ${lib.getExe testEvalForge}
     declared_tools_only ${lib.getExe testWorkflowTemplates}
   '';
 }

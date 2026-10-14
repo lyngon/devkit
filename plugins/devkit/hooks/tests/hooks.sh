@@ -84,6 +84,27 @@ check "eval run: the name that was left out is on stderr" \
   equals "$code|$out|$err" "0||devkit plugin: left out EVAL_EXPORT_1ST, because 1ST is no name of a variable
 devkit plugin: exported the PATH of the session to the shell commands of this eval run"
 
+run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh" \
+  CLAUDE_PROJECT_DIR="$tmp/with space" EVAL_PREPEND_TO_PATH=".git/forge/bin"
+check "eval run: EVAL_PREPEND_TO_PATH puts that directory of the project in front of the PATH, in zsh" \
+  equals "$(after_env_file zsh PATH)" "$tmp/with space/.git/forge/bin:$session_path"
+check "eval run: EVAL_PREPEND_TO_PATH puts that directory of the project in front of the PATH, in bash" \
+  equals "$(after_env_file bash PATH)" "$tmp/with space/.git/forge/bin:$session_path"
+
+(cd "$tmp/it's" && run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh" EVAL_PREPEND_TO_PATH=bin)
+check "eval run: without CLAUDE_PROJECT_DIR, EVAL_PREPEND_TO_PATH is a directory of the working directory" \
+  equals "$(after_env_file zsh PATH)" "$tmp/it's/bin:$session_path"
+
+for outside in "/usr/local/bin" "../bin" "bin/../../bin"; do
+  run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh" \
+    CLAUDE_PROJECT_DIR="$tmp/with space" EVAL_PREPEND_TO_PATH="$outside"
+  check "eval run: EVAL_PREPEND_TO_PATH=$outside leaves the PATH of the session as it is" \
+    equals "$(after_env_file zsh PATH)" "$session_path"
+  check "eval run: EVAL_PREPEND_TO_PATH=$outside is named on stderr" \
+    equals "$code|$out|$err" "0||devkit plugin: left out EVAL_PREPEND_TO_PATH, because $outside is no directory inside the project
+devkit plugin: exported the PATH of the session to the shell commands of this eval run"
+done
+
 run_hook CLAUDE_ENV_FILE="$tmp/env-file.sh" EVAL_EXPORT_LIMIT_IN_DAYS=365
 check "outside an eval run: writes no environment file" \
   test ! -e "$tmp/env-file.sh"

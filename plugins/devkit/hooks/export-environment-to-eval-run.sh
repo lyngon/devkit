@@ -12,6 +12,11 @@
 # variable EVAL_EXPORT_<NAME> of the session as <NAME>, which is how a case
 # gives its commands a variable that a shipped script reads.
 #
+# EVAL_PREPEND_TO_PATH names a directory inside the project, relative to it,
+# that goes in front of that PATH. That is how a case gives its commands a
+# stand-in for a tool that would reach outside the run, such as the forge CLI,
+# which its scaffold script copies into the working directory.
+#
 # The hook prints its lines on stderr and exits 0.
 set -euo pipefail
 
@@ -22,8 +27,17 @@ if [[ -z ${CLAUDE_ENV_FILE-} ]]; then
   exit 0
 fi
 
+path=$PATH
+if [[ -n ${EVAL_PREPEND_TO_PATH-} ]]; then
+  if [[ $EVAL_PREPEND_TO_PATH =~ ^/|(^|/)\.\.(/|$) ]]; then
+    echo "devkit plugin: left out EVAL_PREPEND_TO_PATH, because $EVAL_PREPEND_TO_PATH is no directory inside the project" >&2
+  else
+    path=${CLAUDE_PROJECT_DIR:-$PWD}/$EVAL_PREPEND_TO_PATH:$path
+  fi
+fi
+
 {
-  printf 'export PATH=%q\n' "$PATH"
+  printf 'export PATH=%q\n' "$path"
   for carrier in "${!EVAL_EXPORT_@}"; do
     name=${carrier#EVAL_EXPORT_}
     if [[ $name =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
