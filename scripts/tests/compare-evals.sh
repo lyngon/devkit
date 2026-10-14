@@ -34,6 +34,8 @@ failures=0
 # A checkout without a canned result stands for a run that dies before it
 # writes one. A canned result without a case stands for a filter that matches
 # none: the stub says so and writes a result only where --json names a file.
+# So no canned result can stand for a partial result without a case, which
+# the harness was not measured to treat like that filter.
 # A checkout with the file canned-hang stands for a run that never ends: the
 # stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
 mkdir "$tmp/bin" "$tmp/tools" "$tmp/empty"
@@ -131,6 +133,14 @@ result() {
   printf '%s\n' "$@" | jq -s --argjson cost "$cost" '{schemaVersion: 1, costUsd: $cost, partial: false, cases: .}'
 }
 
+# cut_short <reason>: the result on stdin as the harness writes it for a suite
+# that it ended before every run started, with its reason. The two fields are
+# the ones that the documentation of the harness names; no run here produced
+# such a result.
+cut_short() {
+  jq --arg reason "$1" '.partial = true | .partialReason = $reason'
+}
+
 # progress_of <case name> [<line about the case as a whole>...]: what the real
 # command prints on stderr for a case with one run, copied from a run on
 # Claude Code 2.1.283. Its lines about the case as a whole come first, such
@@ -150,16 +160,32 @@ progress_of() {
 EOF
 }
 
+# commit <repo> <message> [<case>...]: commit the fixture as it stands. The
+# commit has the cases that its canned result names and the cases named here,
+# which its run gives no result for. A case is a directory with a prompt.md,
+# as in a real checkout.
 commit() {
-  git -C "$1" add -A
-  git -C "$1" commit -q -m "$2"
+  local repo=$1 message=$2 dir
+  shift 2
+  rm -rf "$repo/plugins"
+  {
+    printf '%s\n' "$@"
+    jq -r '.cases[]?.dir // empty' "$repo/canned-result.json" 2>/dev/null || true
+  } | while IFS= read -r dir; do
+    [[ -n $dir ]] || continue
+    mkdir -p "$repo/$dir"
+    echo "A case of the fixture." >"$repo/$dir/prompt.md"
+  done
+  git -C "$repo" add -A
+  git -C "$repo" commit -q -m "$message"
 }
 
 # A repository of two commits, each with its own canned result: a case that
 # goes from red to green, one that exists only at the first commit, one whose
 # score drops over three runs as its graders start to fail, and one that
-# exists only at the second. Neither run says anything about a case as a
-# whole. The tag `base` names the first commit.
+# exists only at the second. Each commit has the cases that its result names.
+# Neither run says anything about a case as a whole. The tag `base` names the
+# first commit.
 two_commits() {
   local repo
   repo=$(mktemp -d "$tmp/repo.XXXXXX")
@@ -320,14 +346,25 @@ check "a second list of tools: the comparison names every tool" contains "$out" 
 granted tools: Write, Bash(git:*), Edit
 "
 
+# The working tree here gives another score for one case and has lost the
+# prompt.md of another case, which keeps only a workspace, and none of it is
+# committed.
 repo=$(two_commits)
-result 0.125 "$(case_of plugins/one/evals/red-then-green 0.5 2)" >"$repo/canned-result.json"
+result 0.125 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 0.5 2)" >"$repo/canned-result.json"
+rm -r "$repo/plugins/one/evals/stays-green"
+mkdir -p "$repo/plugins/one/evals/stays-green/workspace"
+echo "A file that a later case reads." >"$repo/plugins/one/evals/stays-green/workspace/notes.md"
 echo "# Draft" >"$repo/draft.md"
 compare "$repo" main~1
 check "uncommitted changes: head is the working tree as it stands" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.50 (2 runs)"
+check "uncommitted changes: a case that the working tree lost has a dash at head" contains "$out" "
+plugins/one/evals/stays-green      1.00 (3 runs)  -
+"
 check "uncommitted changes: the head line says so" contains "$out" "head: $(sha "$repo" main) with uncommitted changes"
 check "uncommitted changes: the working tree is as it was" equals "$(git -C "$repo" status --porcelain)" " M canned-result.json
-?? draft.md"
+ D plugins/one/evals/stays-green/prompt.md
+?? draft.md
+?? plugins/one/evals/stays-green/workspace/"
 
 # A run has no gated tool that it does not grant, whatever the case lists, and
 # the harness says so about a case that lists one. A grader that expects that
@@ -379,10 +416,15 @@ plugins/two/evals/new-at-head at head: the Artifact tool is not available inside
 check "a line in other words: is counted like the other" contains "$out" "plugins/two/evals/new-at-head     1.00 (1 run)   1.00 (1 run, 2 notes)"
 
 # A filter that matches no case at a commit is not a run that died: the
-# harness says so, and writes no result.
+# harness says so, and writes no result. The directory of the case is there
+# already, with a workspace and without a prompt.md, so it is no case yet.
 repo=$(two_commits)
 result 0 >"$repo/canned-result.json"
 commit "$repo" "chore: a commit without the case"
+mkdir -p "$repo/plugins/two/evals/new-at-head/workspace"
+echo "A file that a later case reads." >"$repo/plugins/two/evals/new-at-head/workspace/notes.md"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m "chore: a workspace for a later case"
 git -C "$repo" tag without-the-case
 result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" >"$repo/canned-result.json"
 commit "$repo" "chore: the case"
@@ -426,6 +468,103 @@ commit "$repo" "chore: a suite with a case below the threshold"
 compare "$repo" base
 check "a suite below the threshold: still prints the table" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
 check "a suite below the threshold: exits 0" equals "$code" 0
+
+# The harness ends a suite before every run started when it is interrupted,
+# when its credential is rejected and at a cost ceiling. Its result then says
+# that it is partial and why, and lacks each case that did not run. The dash
+# is for a case that the commit does not have, so a case that the commit has
+# and its run did not reach gets words of its own. Here the head run reached
+# two of the three cases of the head commit, and that commit does not have a
+# fourth case, which the base run scored.
+repo=$(two_commits)
+result 0.4 \
+  "$(case_of plugins/two/evals/new-at-head 1 1 | with_grader writes-the-file p)" \
+  "$(case_of plugins/one/evals/red-then-green 1 1 | with_grader writes-the-file p)" | cut_short interrupted >"$repo/canned-result.json"
+echo 130 >"$repo/canned-exit"
+commit "$repo" "chore: a head whose run is cut short" plugins/one/evals/stays-green
+compare "$repo" base
+check "a suite cut short: exits 0" equals "$code" 0
+check "a suite cut short: a line below the table names the commit and the harness's reason, and a case that the run did not reach is told from one that the commit does not have" equals "$out" "base: $(sha "$repo" base) (base)
+head: $(sha "$repo" main)
+granted tools: none
+
+case                               base           head
+plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)
+plugins/one/evals/removed-at-head  1.00 (1 run)   -
+plugins/one/evals/stays-green      1.00 (3 runs)  no result
+plugins/two/evals/new-at-head      -              1.00 (1 run)
+
+the eval run at head was cut short (interrupted): the table may lack cases
+
+plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+
+cost: base 0.25 USD, head 0.40 USD"
+
+# Both suites cut short, each for its own reason. The program reads none of the
+# reasons, and repeats the harness's word.
+repo=$(two_commits)
+result 0.1 "$(case_of plugins/one/evals/red-then-green 0 1)" | cut_short cost_ceiling >"$repo/canned-result.json"
+echo 2 >"$repo/canned-exit"
+commit "$repo" "chore: a commit whose run is cut short" plugins/one/evals/stays-green
+git -C "$repo" tag cut-short
+result 0.3 "$(case_of plugins/one/evals/red-then-green 1 1)" "$(case_of plugins/one/evals/stays-green 1 3)" |
+  cut_short interrupted >"$repo/canned-result.json"
+echo 130 >"$repo/canned-exit"
+commit "$repo" "chore: a head whose run is cut short too"
+compare "$repo" cut-short
+check "both suites cut short: each has its line, the base first" contains "$out" "
+
+the eval run at base was cut short (cost_ceiling): the table may lack cases
+the eval run at head was cut short (interrupted): the table may lack cases
+
+cost:"
+check "both suites cut short: a case that the base commit has and its run did not reach has no dash there" contains "$out" "
+plugins/one/evals/stays-green     no result     1.00 (3 runs)
+"
+
+# A whole result can lack a case that the commit has too, such as a case
+# whose file failed to load (read from the binary of the harness, not
+# measured). The harness then exits with status 1.
+repo=$(two_commits)
+result 0.4 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+echo 1 >"$repo/canned-exit"
+commit "$repo" "chore: a head with a case that gives no result" plugins/one/evals/stays-green
+compare "$repo" base
+check "a case without a result in a whole run: is told from a case that the commit does not have" contains "$out" "
+plugins/one/evals/removed-at-head  1.00 (1 run)   -
+plugins/one/evals/stays-green      1.00 (3 runs)  no result
+"
+check "a case without a result in a whole run: no run is said to be cut short" lacks "$out" "was cut short"
+compare "$repo/plugins" base
+check "a case without a result in a whole run: is found from a directory below the root too" contains "$out" "
+plugins/one/evals/stays-green      1.00 (3 runs)  no result
+"
+
+# The program looks a case up by the path that a result gives it. A result
+# whose path names no case in the working tree has another shape than the one
+# the program was written against.
+repo=$(two_commits)
+result 0.5 "$(case_of one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+compare "$repo" base
+check "a path that names no case at head: exits 1" equals "$code" 1
+check "a path that names no case at head: names the path" contains "$err" "compare-evals: the result at head names the case one/evals/red-then-green, which holds no prompt.md in the working tree"
+
+# A result that does not say whether it is partial is not taken for a whole
+# one.
+repo=$(two_commits)
+result 0.5 "$(case_of plugins/one/evals/red-then-green 1 1)" | jq 'del(.partial)' >"$repo/canned-result.json"
+commit "$repo" "chore: a result that does not say whether it is partial"
+compare "$repo" base
+check "a result without the field partial: exits 1" equals "$code" 1
+check "a result without the field partial: names the field" contains "$err" "compare-evals: the result at head holds a field this program cannot read: KeyError('partial')"
+
+# Nor does a partial result without a reason get a line that names none.
+repo=$(two_commits)
+result 0.5 "$(case_of plugins/one/evals/red-then-green 1 1)" | jq '.partial = true' >"$repo/canned-result.json"
+commit "$repo" "chore: a partial result without a reason"
+compare "$repo" base
+check "a partial result without a reason: exits 1" equals "$code" 1
+check "a partial result without a reason: names the field" contains "$err" "compare-evals: the result at head holds a field this program cannot read: KeyError('partialReason')"
 
 repo=$(two_commits)
 git -C "$repo" rm -q canned-result.json
@@ -520,6 +659,19 @@ git -C "$repo" update-ref refs/heads/--force base
 compare "$repo" -- --force
 check "a base that starts with a dash: names its commit" contains "$out" "base: $(sha "$repo" base) (--force)"$'\n'
 check "a base that starts with a dash: is what the base run checks out" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
+
+# A case is looked up in the base commit by its hash, never by the name that
+# the operator gave, which git could read as an option.
+repo=$(two_commits)
+result 0.25 "$(case_of plugins/one/evals/red-then-green 0 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: a base that has a case without a result" plugins/two/evals/new-at-head
+git -C "$repo" update-ref refs/heads/--force HEAD
+result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: the case gives a result at head"
+compare "$repo" -- --force
+check "a base that starts with a dash: a case that it has and gave no result for has no dash" contains "$out" "
+plugins/two/evals/new-at-head     no result     1.00 (1 run)
+"
 
 repo=$(two_commits)
 compare "$repo"
