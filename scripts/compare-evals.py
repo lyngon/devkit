@@ -132,6 +132,17 @@ def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess
     return subprocess.run(["git", "-C", str(directory), *arguments], capture_output=True, text=True, check=False)
 
 
+def commit_of(root: pathlib.Path, revision: str) -> str | None:
+    """The hash of the commit that a revision names, or None when it names none, such as a
+    file. The revision is resolved before it is peeled to a commit, since after `:/` a
+    suffix such as `^{commit}` would become part of the text that git searches for."""
+    named = git(root, "rev-parse", "--verify", "--quiet", "--end-of-options", revision)
+    if named.returncode != 0:
+        return None
+    peeled = git(root, "rev-parse", "--verify", "--quiet", f"{named.stdout.strip()}^{{commit}}")
+    return peeled.stdout.strip() if peeled.returncode == 0 else None
+
+
 @contextlib.contextmanager
 def checkout_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> ct.Iterator[pathlib.Path]:
     """A detached worktree of the commit at the path, removed again on the way out."""
@@ -303,10 +314,9 @@ def compare(options: Options) -> list[str]:
     if toplevel.returncode != 0:
         raise CompareError("not inside a git repository")
     root = pathlib.Path(toplevel.stdout.strip())
-    resolved = git(root, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{options.base}^{{commit}}")
-    if resolved.returncode != 0:
+    base_commit = commit_of(root, options.base)
+    if base_commit is None:
         raise CompareError(f"'{options.base}' names no commit")
-    base_commit = resolved.stdout.strip()
     if shutil.which("claude") is None:
         raise CompareError("claude is not on the PATH")
     head_commit = git(root, "rev-parse", "HEAD").stdout.strip()

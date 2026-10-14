@@ -499,6 +499,12 @@ git -C "$repo" tag -a -m "the first release" release base
 compare "$repo" release
 check "a base given as an annotated tag: is named by its commit" contains "$out" "base: $(sha "$repo" base) (release)"$'\n'
 
+# Git reads everything after `:/` as the text to search the messages for.
+repo=$(two_commits)
+compare "$repo" ':/chore: base'
+check "a base given as a search of the messages: exits 0" equals "$code" 0
+check "a base given as a search of the messages: is named by its commit" contains "$out" "base: $(sha "$repo" base) (:/chore: base)"$'\n'
+
 repo=$(two_commits)
 compare "$repo" main:canned-result.json
 check "a base that names a file: exits 1" equals "$code" 1
