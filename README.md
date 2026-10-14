@@ -375,6 +375,18 @@ A case whose commands need a variable names it with the prefix `EVAL_EXPORT_` in
 env: { EVAL_EXPORT_LYNGON_MISTAKES_MAX_AGE_DAYS: "365" }
 ```
 
+A case whose commands would reach a service outside the run, such as a forge through `gh`, gives them a stand-in instead.
+Its scaffold script copies the stand-in into the working directory, and the variable `EVAL_PREPEND_TO_PATH` names that directory, relative to the working directory, for the hook to put in front of the PATH:
+
+```yaml
+env: { EVAL_PREPEND_TO_PATH: ".git/forge/bin" }
+```
+
+The cases of `build:finish` run `forge/gh` of the case `finish-says-it-met-nothing` this way.
+It answers the commands that filing an issue and opening a pull request take, and records both under `.git/forge`, where the graders read them.
+Without a stand-in, a command of a run finds whichever `gh` the PATH holds.
+The sandbox of a run refuses every write to `.git/config`, so `git push -u` pushes the branch and then fails to record its upstream (measured on Claude Code 2.1.283).
+
 When an eval cannot run, the pull request says so and makes no claim about the behaviour.
 
 ## Adding a plugin
