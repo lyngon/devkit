@@ -13,7 +13,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 - `INTENT.md`, the rule files under `.claude/rules/`, `CONCEPTS.md` and decision records carry purpose, principles, terms and decisions, in that division and no other.
 - Agents apply named principles with judgment. The organization's principles come from the `principles` plugin and are never copied into a repository.
 - Work is reviewed on its pull request, which the agent opens without asking; planned work is also reviewed at the plan. Not commit by commit.
-- A pull request lands as one commit, with its title as the subject in Conventional Commits form and its body as the message under seven fixed headings, where Scope ends with a line that names each issue and pull request for a problem the work met on the way, or says it met none; `check-pull-request` checks both, locally and in CI, and commits on the branch are free-form.
+- A pull request lands as one commit, with its title as the subject in Conventional Commits form and its body as the message under seven fixed headings, where Scope ends with a line that names each issue and pull request for a problem the work met on the way, whether or not the change caused it, or says it met none; `check-pull-request` checks both, locally and in CI, and commits on the branch are free-form.
 - A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
 ## The pieces
