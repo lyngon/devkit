@@ -226,6 +226,18 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/build/tests/prune-mistakes.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
+
+  # The workflow templates that repo:init ships, against this repository's own
+  # workflows. A run of the workflows here counts as proof of the templates,
+  # which holds only while the two read the same. markdown-it-py reads the
+  # templates out of the reference, whose fenced blocks nest.
+  testWorkflowTemplates = pkgs.writeShellApplication {
+    name = "test-workflow-templates";
+    runtimeInputs = [
+      (pkgs.python3.withPackages (packages: [ packages.markdown-it-py ]))
+    ];
+    text = ''exec "${config.devenv.root}/scripts/tests/workflow-templates.py" "$@"'';
+  };
 in
 {
   # Baseline hooks, MCP server file, check-pull-request, the tools of shipped
@@ -298,5 +310,6 @@ in
     declared_tools_only ${lib.getExe testDevkitHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
     declared_tools_only ${lib.getExe testPruneMistakes}
+    declared_tools_only ${lib.getExe testWorkflowTemplates}
   '';
 }
