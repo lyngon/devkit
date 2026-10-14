@@ -8,7 +8,11 @@ kept off claude.ai and no baseline arm. A case that seeds its working
 directory does so with a script of its own, which runs as whoever runs this,
 at both commits. The worktree and everything a run writes are removed again.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
-case at the base commit is the point.
+case at the base commit is the point. The status says that there is a
+comparison to read and nothing about what it is worth. The comparison says
+that itself: a tool that a suite lacked, an error that ended a run of a
+case, a case that the commit has and its suite gave no result for, and a
+suite that the harness cut short.
 """
 
 import argparse
@@ -60,10 +64,29 @@ class Case:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Result:
-    """The cases of one run of the suite, by their directory, and what the run cost."""
+    """The cases of one run of the suite, by their directory, what the run cost, and the
+    harness's reason when it cut the suite short."""
 
     cases: ct.Mapping[str, Case]
     cost_usd: float
+    cut_short_reason: str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Column:
+    """One column of the table: the side it stands for, the result of the run at that
+    commit, and the cases present at the commit that the run gave no result for.
+
+    A result does not say why it lacks a case. A suite that was cut short
+    leaves out each case that it did not reach, and no result holds a case
+    that the commit does not have. The files of the commit tell the two apart.
+    Only the cases that the other run gave a result for are looked up, since
+    the program knows of no other.
+    """
+
+    side: str
+    result: Result
+    present: frozenset[str]
 
 
 def value(text: str) -> str:
@@ -143,6 +166,17 @@ def commit_of(root: pathlib.Path, revision: str) -> str | None:
     return peeled.stdout.strip() if peeled.returncode == 0 else None
 
 
+def commit_has_case(root: pathlib.Path, commit: str, directory: str) -> bool:
+    """Whether the commit holds a case in the directory, a path from the root. A case is a
+    directory with a `prompt.md`, as the README defines one."""
+    return git(root, "cat-file", "-e", f"{commit}:{directory}/prompt.md").returncode == 0
+
+
+def working_tree_has_case(root: pathlib.Path, directory: str) -> bool:
+    """The same for the working tree, which counts as head with its uncommitted changes."""
+    return (root / directory / "prompt.md").is_file()
+
+
 @contextlib.contextmanager
 def checkout_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> ct.Iterator[pathlib.Path]:
     """A detached worktree of the commit at the path, removed again on the way out."""
@@ -197,7 +231,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     result = output / "aggregate-result.json"
     if not result.is_file():
         if found_no_case(progress):
-            return Result(cases={}, cost_usd=0.0)
+            return Result(cases={}, cost_usd=0.0, cut_short_reason=None)
         raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})")
     try:
         data = json.loads(result.read_text())
@@ -250,7 +284,11 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str]) -> Result:
                 errors=tuple(str(run["error"]) for run in runs if run["error"] is not None),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
             )
-        return Result(cases=parsed, cost_usd=float(data["costUsd"]))
+        return Result(
+            cases=parsed,
+            cost_usd=float(data["costUsd"]),
+            cut_short_reason=str(data["partialReason"]) if data["partial"] else None,
+        )
     except (KeyError, TypeError, ValueError) as error:
         raise CompareError(f"the result at {side} holds a field this program cannot read: {error!r}") from error
 
@@ -260,12 +298,14 @@ def counted(number: int, noun: str) -> str:
     return f"{number} {noun}" if number == 1 else f"{number} {noun}s"
 
 
-def cell(case: Case | None) -> str:
-    """One cell of the table: a dash for a case the commit does not have, otherwise the
-    score with the number of runs behind it, how many notes the harness left about the
-    case and how many of the runs ended in an error."""
+def cell(column: Column, name: str) -> str:
+    """One cell of the table: the score of the case with the number of runs behind it, how
+    many notes the harness left about the case and how many of the runs ended in an error.
+    A case that the run gave no result for has the words `no result` when it is present at
+    the commit, and a dash when it is not."""
+    case = column.result.cases.get(name)
     if case is None:
-        return "-"
+        return "no result" if name in column.present else "-"
     counts = [counted(case.runs, "run")]
     if case.notes:
         counts.append(counted(len(case.notes), "note"))
@@ -284,23 +324,31 @@ def reasons(case: Case) -> list[str]:
     ]
 
 
-def report(base: Result, head: Result) -> list[str]:
-    """The table of every case of either run, what stands behind each score, and what
-    the two runs cost."""
-    names = sorted(base.cases.keys() | head.cases.keys())
-    rows = [("case", "base", "head"), *((name, cell(base.cases.get(name)), cell(head.cases.get(name))) for name in names)]
-    widths = [max(len(row[column]) for row in rows) for column in range(3)]
+def report(base: Column, head: Column) -> list[str]:
+    """The table of every case that either run gave a result for, each suite that was cut
+    short, what stands behind each score, and what the two runs cost."""
+    columns = (base, head)
+    names = sorted(base.result.cases.keys() | head.result.cases.keys())
+    rows = [("case", base.side, head.side), *((name, cell(base, name), cell(head, name)) for name in names)]
+    widths = [max(len(row[index]) for row in rows) for index in range(3)]
     lines = ["  ".join(text.ljust(width) for text, width in zip(row, widths, strict=True)).rstrip() for row in rows]
+    suites_cut_short = [
+        f"the eval run at {column.side} was cut short ({column.result.cut_short_reason}): the table may lack cases"
+        for column in columns
+        if column.result.cut_short_reason is not None
+    ]
     behind = [
-        f"{name} at {side}: {reason}"
+        f"{name} at {column.side}: {reason}"
         for name in names
-        for side, result in (("base", base), ("head", head))
-        if (case := result.cases.get(name)) is not None
+        for column in columns
+        if (case := column.result.cases.get(name)) is not None
         for reason in reasons(case)
     ]
-    if behind:
-        lines += ["", *behind]
-    return [*lines, "", f"cost: base {base.cost_usd:.2f} USD, head {head.cost_usd:.2f} USD"]
+    for block in (suites_cut_short, behind):
+        if block:
+            lines += ["", *block]
+    costs = ", ".join(f"{column.side} {column.result.cost_usd:.2f} USD" for column in columns)
+    return [*lines, "", f"cost: {costs}"]
 
 
 def compare(options: Options) -> list[str]:
@@ -308,7 +356,10 @@ def compare(options: Options) -> list[str]:
 
     Raises CompareError outside a git repository, for a base that names no
     commit, without `claude` on the PATH, when a run writes no readable
-    result, and when no case ran at either commit.
+    result, when no case ran at either commit, and when the head result names
+    a case that the working tree does not hold. The cases are looked up by the
+    paths that the results give, so a path in another form would bring back
+    the dash for a case that did not run.
     """
     toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
     if toplevel.returncode != 0:
@@ -329,12 +380,19 @@ def compare(options: Options) -> list[str]:
         head = run_suite(root, "head", scratch, options.eval_options)
     if not base.cases and not head.cases:
         raise CompareError("no eval case ran at either commit")
+    for name in head.cases:
+        if not working_tree_has_case(root, name):
+            raise CompareError(f"the result at head names the case {name}, which holds no prompt.md in the working tree")
+    only_base, only_head = base.cases.keys() - head.cases.keys(), head.cases.keys() - base.cases.keys()
     return [
         f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
         f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
         f"granted tools: {', '.join(options.granted) or 'none'}",
         "",
-        *report(base, head),
+        *report(
+            Column("base", base, frozenset(name for name in only_head if commit_has_case(root, base_commit, name))),
+            Column("head", head, frozenset(name for name in only_base if working_tree_has_case(root, name))),
+        ),
     ]
 
 
