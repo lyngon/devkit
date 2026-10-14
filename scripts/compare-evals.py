@@ -9,8 +9,9 @@ directory does so with a script of its own, which runs as whoever runs this,
 at both commits. The worktree and everything a run writes are removed again.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
-comparison to read and nothing about what it is worth: a run that lacked a
-tool, ended in an error or was cut short is named in the comparison.
+comparison to read and nothing about what it is worth. The comparison says
+that itself: a tool that a suite lacked, an error that ended a run of a
+case, and a suite that the harness cut short.
 """
 
 import argparse
@@ -63,15 +64,15 @@ class Case:
 @dataclasses.dataclass(frozen=True, slots=True)
 class Result:
     """The cases of one run of the suite, by their directory, what the run cost, and the
-    harness's reason when it cut the run short.
+    harness's reason when it cut the suite short.
 
-    A run that was cut short leaves out each case that it did not reach, so its
+    A suite that was cut short leaves out each case that it did not reach, so its
     result does not tell whether the commit has a case that is missing from it.
     """
 
     cases: ct.Mapping[str, Case]
     cost_usd: float
-    cut_short: str | None
+    cut_short_reason: str | None
 
 
 def parse_arguments(arguments: ct.Sequence[str]) -> Options:
@@ -164,7 +165,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, eval_opt
     result = output / "aggregate-result.json"
     if not result.is_file():
         if found_no_case(progress):
-            return Result(cases={}, cost_usd=0.0, cut_short=None)
+            return Result(cases={}, cost_usd=0.0, cut_short_reason=None)
         raise CompareError(f"the eval run at {side} wrote no result (claude exited with status {run.returncode})")
     try:
         data = json.loads(result.read_text())
@@ -220,7 +221,7 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str]) -> Result:
         return Result(
             cases=parsed,
             cost_usd=float(data["costUsd"]),
-            cut_short=str(data["partialReason"]) if data["partial"] else None,
+            cut_short_reason=str(data["partialReason"]) if data["partial"] else None,
         )
     except (KeyError, TypeError, ValueError) as error:
         raise CompareError(f"the result at {side} holds a field this program cannot read: {error!r}") from error
@@ -235,10 +236,10 @@ def cell(result: Result, name: str) -> str:
     """One cell of the table: the score of the case with the number of runs behind it, how
     many notes the harness left about the case and how many of the runs ended in an error.
     A case without a result has a dash, for a case the commit does not have, or a question
-    mark where the run was cut short, since the run may not have reached the case."""
+    mark where the suite was cut short, since it may have ended before the case."""
     case = result.cases.get(name)
     if case is None:
-        return "-" if result.cut_short is None else "?"
+        return "-" if result.cut_short_reason is None else "?"
     counts = [counted(case.runs, "run")]
     if case.notes:
         counts.append(counted(len(case.notes), "note"))
@@ -258,18 +259,18 @@ def reasons(case: Case) -> list[str]:
 
 
 def report(base: Result, head: Result) -> list[str]:
-    """The table of every case of either run, each run that was cut short, what stands
+    """The table of every case of either run, each suite that was cut short, what stands
     behind each score, and what the two runs cost."""
     sides = (("base", base), ("head", head))
     names = sorted(base.cases.keys() | head.cases.keys())
     rows = [("case", "base", "head"), *((name, cell(base, name), cell(head, name)) for name in names)]
     widths = [max(len(row[column]) for row in rows) for column in range(3)]
     lines = ["  ".join(text.ljust(width) for text, width in zip(row, widths, strict=True)).rstrip() for row in rows]
-    cut_short = [
-        f"the eval run at {side} was cut short ({result.cut_short}): "
-        "? stands for a case that it did not reach or that the commit does not have"
+    suites_cut_short = [
+        f"the eval run at {side} was cut short ({result.cut_short_reason}): the table may lack cases, "
+        "and ? stands for a case that the run did not reach or that the commit does not have"
         for side, result in sides
-        if result.cut_short is not None
+        if result.cut_short_reason is not None
     ]
     behind = [
         f"{name} at {side}: {reason}"
@@ -278,7 +279,7 @@ def report(base: Result, head: Result) -> list[str]:
         if (case := result.cases.get(name)) is not None
         for reason in reasons(case)
     ]
-    for block in (cut_short, behind):
+    for block in (suites_cut_short, behind):
         if block:
             lines += ["", *block]
     return [*lines, "", f"cost: base {base.cost_usd:.2f} USD, head {head.cost_usd:.2f} USD"]

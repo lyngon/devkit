@@ -34,6 +34,8 @@ failures=0
 # A checkout without a canned result stands for a run that dies before it
 # writes one. A canned result without a case stands for a filter that matches
 # none: the stub says so and writes a result only where --json names a file.
+# So no canned result can stand for a partial result without a case, which
+# the harness was not measured to treat like that filter.
 # A checkout with the file canned-hang stands for a run that never ends: the
 # stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
 mkdir "$tmp/bin" "$tmp/tools" "$tmp/empty"
@@ -431,7 +433,7 @@ check "a suite below the threshold: exits 0" equals "$code" 0
 # the result tells such a case from one that the commit does not have, so in
 # the column of that run neither gets the dash. Here the head run reached two
 # of the three cases of the head commit.
-legend="? stands for a case that it did not reach or that the commit does not have"
+legend="the table may lack cases, and ? stands for a case that the run did not reach or that the commit does not have"
 repo=$(two_commits)
 result 0.4 \
   "$(case_of plugins/two/evals/new-at-head 1 1 | with_grader writes-the-file p)" \
@@ -439,8 +441,8 @@ result 0.4 \
 echo 130 >"$repo/canned-exit"
 commit "$repo" "chore: a head whose run is cut short"
 compare "$repo" base
-check "a run cut short: exits 0" equals "$code" 0
-check "a run cut short: a line below the table names the commit and the harness's reason, and a case without a result there has a question mark" equals "$out" "base: $(sha "$repo" base) (base)
+check "a suite cut short: exits 0" equals "$code" 0
+check "a suite cut short: a line below the table names the commit and the harness's reason, and a case without a result there has a question mark" equals "$out" "base: $(sha "$repo" base) (base)
 head: $(sha "$repo" main)
 granted tools: none
 
@@ -456,7 +458,7 @@ plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 
 
 cost: base 0.25 USD, head 0.40 USD"
 
-# Both runs cut short, each for its own reason. The program reads none of the
+# Both suites cut short, each for its own reason. The program reads none of the
 # reasons, and repeats the harness's word.
 repo=$(two_commits)
 result 0.1 "$(case_of plugins/one/evals/red-then-green 0 1)" | cut_short cost_ceiling >"$repo/canned-result.json"
@@ -468,13 +470,13 @@ result 0.3 "$(case_of plugins/one/evals/red-then-green 1 1)" "$(case_of plugins/
 echo 130 >"$repo/canned-exit"
 commit "$repo" "chore: a head whose run is cut short too"
 compare "$repo" cut-short
-check "both runs cut short: each has its line, the base first" contains "$out" "
+check "both suites cut short: each has its line, the base first" contains "$out" "
 
 the eval run at base was cut short (cost_ceiling): $legend
 the eval run at head was cut short (interrupted): $legend
 
 cost:"
-check "both runs cut short: a case that the base run lacks has a question mark there" contains "$out" "
+check "both suites cut short: a case that the base run lacks has a question mark there" contains "$out" "
 plugins/one/evals/stays-green     ?             1.00 (3 runs)
 "
 
@@ -486,6 +488,14 @@ commit "$repo" "chore: a result that does not say whether it is partial"
 compare "$repo" base
 check "a result without the field partial: exits 1" equals "$code" 1
 check "a result without the field partial: names the field" contains "$err" "compare-evals: the result at head holds a field this program cannot read: KeyError('partial')"
+
+# Nor does a partial result without a reason get a line that names none.
+repo=$(two_commits)
+result 0.5 "$(case_of plugins/one/evals/red-then-green 1 1)" | jq '.partial = true' >"$repo/canned-result.json"
+commit "$repo" "chore: a partial result without a reason"
+compare "$repo" base
+check "a partial result without a reason: exits 1" equals "$code" 1
+check "a partial result without a reason: names the field" contains "$err" "compare-evals: the result at head holds a field this program cannot read: KeyError('partialReason')"
 
 repo=$(two_commits)
 git -C "$repo" rm -q canned-result.json
