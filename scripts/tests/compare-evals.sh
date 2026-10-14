@@ -550,6 +550,14 @@ compare "$repo" main~1 --case -1
 check "a negative number after a space: is a usage error" equals "$code" 2
 check "a negative number after a space: runs nothing" equals "$calls" ""
 
+# The harness gets a number of runs as digits, without the white space that
+# may stand in front of them on the command line.
+compare "$repo" main~1 --runs=' -1'
+check "a negative number after white space: is a usage error" equals "$code" 2
+check "a negative number after white space: says so" \
+  contains "$err" "compare-evals: error: argument --runs: a value cannot start with a dash: '-1'"
+check "a negative number after white space: runs nothing" equals "$calls" ""
+
 path=$without_claude
 repo=$(two_commits)
 compare "$repo" main~1
