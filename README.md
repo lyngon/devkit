@@ -315,8 +315,9 @@ the eval run at head failed to load plugins/discover/evals/brainstorm-no-docs: p
 
 In the table such a case has `no result` where the other run scored it, and no row where neither run did, as for a case that is new at head.
 Under `--case` the harness can name a file whose case the filter leaves out.
-When no case that the filter matches loads, the harness writes no result and prints an empty table.
-`compare-evals` reads such a run as one in which no case ran, not as one that died, and repeats the line all the same, also when no case ran at either commit.
+When a file failed to load and no case that the filter matches loads, the harness writes no result and prints an empty table, where it would otherwise say `No eval cases found`.
+`compare-evals` reads such a run as one in which no case ran, not as one that died, and repeats the line all the same.
+When no case ran at either commit, it prints no comparison and ends with status 1, naming each file that failed to load.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run of a case that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
 A line that the harness printed about a case as a whole is counted as a note beside the score, and listed in the harness's words.

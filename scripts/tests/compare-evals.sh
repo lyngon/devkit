@@ -35,9 +35,10 @@ failures=0
 #
 # A checkout without a canned result stands for a run that writes none: the
 # stub prints the canned progress and the file canned-stdout of the checkout,
-# where it has them and --json names no file, and exits 1. A canned result
-# without a case stands for a filter that matches none: the stub says so and
-# writes a result only where --json names a file.
+# where it has them and --json names no file, and exits with the status the
+# checkout asks for, 1 where it asks for none. A canned result without a case
+# stands for a filter that matches none: the stub says so and writes a result
+# only where --json names a file.
 # So no canned result can stand for a partial result without a case, which
 # the harness was not measured to treat like that filter.
 # A checkout with the file canned-hang stands for a run that never ends: the
@@ -80,6 +81,7 @@ if [[ ! -f canned-result.json ]]; then
     print_progress
     [[ ! -f canned-stdout ]] || echo "$(<canned-stdout)"
   fi
+  [[ ! -f canned-exit ]] || exit "$(<canned-exit)"
   exit 1
 fi
 if jq -e '.cases == []' canned-result.json >/dev/null 2>&1; then
@@ -505,7 +507,8 @@ cost: base 0.00 USD, head 0.50 USD"
 check "no case at the base commit, and a file that fails to load there: nothing is left behind" nothing_left "$repo"
 
 # When the one case that the filter matches fails to load, no case runs at
-# either commit, and the comparison still names the file.
+# either commit. There is no comparison then, as for a filter that matches
+# nothing, and the error names the file that failed to load.
 repo=$(two_commits)
 result 0 >"$repo/canned-result.json"
 commit "$repo" "chore: a commit without the case"
@@ -515,16 +518,50 @@ failed_to_load plugins/two/evals/new-at-head "$invalid_yaml" >"$repo/canned-prog
 no_case_ran >"$repo/canned-stdout"
 commit "$repo" "chore: the case, whose file fails to load" plugins/two/evals/new-at-head
 compare "$repo" without-the-case --case 'new-*'
-check "no case at either commit, and a file that fails to load at head: exits 0" equals "$code" 0
-check "no case at either commit, and a file that fails to load at head: the file is named below an empty table" equals "$out" "base: $(sha "$repo" without-the-case) (without-the-case)
-head: $(sha "$repo" main)
-granted tools: none
+check "no case at either commit, and a file that fails to load at head: exits 1" equals "$code" 1
+check "no case at either commit, and a file that fails to load at head: prints no table" equals "$out" ""
+check "no case at either commit, and a file that fails to load at head: the error names the file" contains "$err" "
+compare-evals: no eval case ran at either commit
+the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml"
+check "no case at either commit, and a file that fails to load at head: nothing is left behind" nothing_left "$repo"
 
-case  base  head
+# The likelier case: the file of the case that the filter names fails to load
+# at head, after the base run scored it. The base score stays, and the line
+# says why head has none.
+repo=$(two_commits)
+rm "$repo/canned-result.json"
+failed_to_load plugins/one/evals/red-then-green "$invalid_yaml" >"$repo/canned-progress"
+no_case_ran >"$repo/canned-stdout"
+commit "$repo" "chore: the file of the case fails to load" plugins/one/evals/red-then-green
+compare "$repo" base --case 'red-*'
+check "the file of the filtered case fails to load at head: exits 0" equals "$code" 0
+check "the file of the filtered case fails to load at head: the base score stays, beside no result" contains "$out" "
+plugins/one/evals/red-then-green   0.00 (1 run)   no result
+"
+check "the file of the filtered case fails to load at head: the line follows the table" contains "$out" "
 
-the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml
+the eval run at head failed to load plugins/one/evals/red-then-green: $invalid_yaml
 
-cost: base 0.00 USD, head 0.00 USD"
+"
+
+# A suite that the harness ends before its first case finished prints the
+# same summary, marked partial, writes no result and exits with another
+# status: 143 here, where it got SIGTERM (measured on Claude Code 2.1.283).
+# That run died.
+repo=$(two_commits)
+rm "$repo/canned-result.json"
+failed_to_load plugins/one/evals/stays-green "$invalid_yaml" >"$repo/canned-progress"
+cat >"$repo/canned-stdout" <<'EOF'
+
+CASE  SCORE PASS% RUNS COST    NOTES
+
+0 case(s) · 0s · $0.00 · ⚠ partial (interrupted)
+EOF
+echo 143 >"$repo/canned-exit"
+commit "$repo" "chore: a head whose run is ended before its first case" plugins/one/evals/stays-green
+compare "$repo" base
+check "a suite ended before its first case: exits 1" equals "$code" 1
+check "a suite ended before its first case: is a run that wrote no result" contains "$err" "compare-evals: the eval run at head wrote no result (claude exited with status 143)"
 
 # A run error is the harness's word for a run it refused or cut short. Three
 # runs of one case ended in two of them here, for the same reason.
@@ -719,8 +756,11 @@ compare "$repo" base
 check "a partial result without a reason: exits 1" equals "$code" 1
 check "a partial result without a reason: names the field" contains "$err" "compare-evals: the result at head holds a field this program cannot read: KeyError('partialReason')"
 
+# A run that dies after it named a case file that failed to load, before its
+# summary, found a case or not: the line alone does not say.
 repo=$(two_commits)
 git -C "$repo" rm -q canned-result.json
+failed_to_load plugins/two/evals/new-at-head "$invalid_yaml" >"$repo/canned-progress"
 commit "$repo" "chore: a head whose run dies"
 compare "$repo" base
 check "no result at head: exits 1" equals "$code" 1
