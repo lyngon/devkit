@@ -131,6 +131,14 @@ result() {
   printf '%s\n' "$@" | jq -s --argjson cost "$cost" '{schemaVersion: 1, costUsd: $cost, partial: false, cases: .}'
 }
 
+# cut_short <reason>: the result on stdin as the harness writes it for a suite
+# that it ended before every run started, with its reason. The two fields are
+# the ones that the documentation of the harness names; no run here produced
+# such a result.
+cut_short() {
+  jq --arg reason "$1" '.partial = true | .partialReason = $reason'
+}
+
 # progress_of <case name> [<line about the case as a whole>...]: what the real
 # command prints on stderr for a case with one run, copied from a run on
 # Claude Code 2.1.283. Its lines about the case as a whole come first, such
@@ -416,6 +424,68 @@ commit "$repo" "chore: a suite with a case below the threshold"
 compare "$repo" base
 check "a suite below the threshold: still prints the table" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
 check "a suite below the threshold: exits 0" equals "$code" 0
+
+# The harness ends a suite before every run started when it is interrupted,
+# when its credential is rejected and at a cost ceiling. Its result then says
+# that it is partial and why, and lacks each case that did not run. Nothing in
+# the result tells such a case from one that the commit does not have, so in
+# the column of that run neither gets the dash. Here the head run reached two
+# of the three cases of the head commit.
+legend="? stands for a case that it did not reach or that the commit does not have"
+repo=$(two_commits)
+result 0.4 \
+  "$(case_of plugins/two/evals/new-at-head 1 1 | with_grader writes-the-file p)" \
+  "$(case_of plugins/one/evals/red-then-green 1 1 | with_grader writes-the-file p)" | cut_short interrupted >"$repo/canned-result.json"
+echo 130 >"$repo/canned-exit"
+commit "$repo" "chore: a head whose run is cut short"
+compare "$repo" base
+check "a run cut short: exits 0" equals "$code" 0
+check "a run cut short: a line below the table names the commit and the harness's reason, and a case without a result there has a question mark" equals "$out" "base: $(sha "$repo" base) (base)
+head: $(sha "$repo" main)
+granted tools: none
+
+case                               base           head
+plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)
+plugins/one/evals/removed-at-head  1.00 (1 run)   ?
+plugins/one/evals/stays-green      1.00 (3 runs)  ?
+plugins/two/evals/new-at-head      -              1.00 (1 run)
+
+the run at head was cut short (interrupted): $legend
+
+plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+
+cost: base 0.25 USD, head 0.40 USD"
+
+# Both runs cut short, each for its own reason. The program reads none of the
+# reasons, and repeats the harness's word.
+repo=$(two_commits)
+result 0.1 "$(case_of plugins/one/evals/red-then-green 0 1)" | cut_short cost_ceiling >"$repo/canned-result.json"
+echo 2 >"$repo/canned-exit"
+commit "$repo" "chore: a commit whose run is cut short"
+git -C "$repo" tag cut-short
+result 0.3 "$(case_of plugins/one/evals/red-then-green 1 1)" "$(case_of plugins/one/evals/stays-green 1 3)" |
+  cut_short interrupted >"$repo/canned-result.json"
+echo 130 >"$repo/canned-exit"
+commit "$repo" "chore: a head whose run is cut short too"
+compare "$repo" cut-short
+check "both runs cut short: each has its line, the base first" contains "$out" "
+
+the run at base was cut short (cost_ceiling): $legend
+the run at head was cut short (interrupted): $legend
+
+cost:"
+check "both runs cut short: a case that the base run lacks has a question mark there" contains "$out" "
+plugins/one/evals/stays-green     ?             1.00 (3 runs)
+"
+
+# A result that does not say whether it is partial is not taken for a whole
+# one.
+repo=$(two_commits)
+result 0.5 "$(case_of plugins/one/evals/red-then-green 1 1)" | jq 'del(.partial)' >"$repo/canned-result.json"
+commit "$repo" "chore: a result that does not say whether it is partial"
+compare "$repo" base
+check "a result without the field partial: exits 1" equals "$code" 1
+check "a result without the field partial: names the field" contains "$err" "compare-evals: the result at head holds a field this program cannot read: KeyError('partial')"
 
 repo=$(two_commits)
 git -C "$repo" rm -q canned-result.json
