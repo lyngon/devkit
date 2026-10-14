@@ -13,7 +13,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 - `INTENT.md`, the rule files under `.claude/rules/`, `CONCEPTS.md` and decision records carry purpose, principles, terms and decisions, in that division and no other.
 - Agents apply named principles with judgment. The organization's principles come from the `principles` plugin and are never copied into a repository.
 - Work is reviewed on its pull request, which the agent opens without asking; planned work is also reviewed at the plan. Not commit by commit.
-- A pull request lands as one commit, with its title as the subject in Conventional Commits form and its body as the message under seven fixed headings; `check-pull-request` checks both, locally and in CI, and commits on the branch are free-form.
+- A pull request lands as one commit, with its title as the subject in Conventional Commits form and its body as the message under seven fixed headings, where Scope ends with a line that names each issue and pull request for a problem the work met on the way, whether or not the change caused it, or says it met none; `check-pull-request` checks both, locally and in CI, and commits on the branch are free-form.
 - A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
 ## The pieces
@@ -386,6 +386,18 @@ A case whose commands need a variable names it with the prefix `EVAL_EXPORT_` in
 ```yaml
 env: { EVAL_EXPORT_LYNGON_MISTAKES_MAX_AGE_DAYS: "365" }
 ```
+
+A case whose commands would reach a service outside the run, such as a forge through `gh`, gives them a stand-in instead.
+Its scaffold script copies the stand-in into the working directory, and the variable `EVAL_PREPEND_TO_PATH` names that directory, relative to the working directory, for the hook to put in front of the PATH:
+
+```yaml
+env: { EVAL_PREPEND_TO_PATH: ".git/forge/bin" }
+```
+
+The cases of `build:finish` run `forge/gh` of the case `finish-says-it-met-nothing` this way.
+It answers the commands that filing an issue and opening a pull request take, and records both under `.git/forge`, where the graders read them.
+Without a stand-in, a command of a run finds whichever `gh` the PATH holds.
+The sandbox of a run refuses every write to `.git/config`, so `git push -u` pushes the branch and then fails to record its upstream (measured on Claude Code 2.1.283).
 
 When an eval cannot run, the pull request says so and makes no claim about the behaviour.
 

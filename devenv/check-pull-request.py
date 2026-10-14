@@ -7,6 +7,11 @@
 #             under the repository's own commitizen configuration when it has one
 #   headings  the body's second-level headings are exactly the seven sections,
 #             each once, in order; a line inside a fenced code block is no heading
+#   scope     the section ## Scope ends with the line "Met on the way:", then
+#             "nothing" or each issue and pull request for a problem the work
+#             met, as #12 or owner/repository#12; only the form is checked,
+#             since the check runs without a network, and the forge shows a
+#             reference to nothing as plain text
 #   length    the body's content lines (neither blank nor one of the seven
 #             headings) stay within the limit, the target plus the headroom;
 #             above the target they get a warning
@@ -36,6 +41,13 @@ HEADINGS: t.Final = (
     "## Why", "## Decisions", "## What changed", "## Scope", "## Blast radius", "## Verified", "## Not verified",
 )
 ORDER: t.Final = ", ".join(HEADINGS)
+SCOPE: t.Final = "## Scope"
+MET_ON_THE_WAY: t.Final = "Met on the way:"
+# An issue or a pull request as the forge links it, in this repository or in another.
+REFERENCE: t.Final = r"(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[1-9][0-9]*"
+MET_ON_THE_WAY_LINE: t.Final = re.compile(
+    rf"{MET_ON_THE_WAY} (?:nothing|{REFERENCE}(?:(?:,| and|, and) {REFERENCE})*)\.?",
+)
 # CommonMark: up to three spaces, the two marks, then a space or the end of the line.
 SECOND_LEVEL_HEADING: t.Final = re.compile(r" {0,3}##(?:[ \t]|$)")
 # CommonMark: up to three spaces, then three or more backticks or tildes.
@@ -115,30 +127,50 @@ def closes_fence(line: str, opening: str) -> bool:
     return match is not None and not match[2].strip() and match[1][0] == opening[0] and len(match[1]) >= len(opening)
 
 
-def read_body(body: str) -> tuple[list[tuple[int, str]], int]:
-    """The body's second-level headings with their line numbers, and the number of its content lines.
+class Body(t.NamedTuple):
+    """What the checks read from a body.
 
     A line inside a fenced code block is never a heading. A content line is neither blank nor one of the
     seven headings.
     """
+
+    headings: list[tuple[int, str]]
+    """The second-level headings, with their line numbers."""
+    content: int
+    """The number of content lines."""
+    scope_end: tuple[int, str] | None
+    """The last line of the section ## Scope that is not blank, with its number; None when the section is
+    missing, holds no such line or ends in a fenced code block."""
+
+
+def read_body(body: str) -> Body:
+    """The headings, the content lines and the end of the section ## Scope of the body."""
     headings: list[tuple[int, str]] = []
     content = 0
+    scope_end: tuple[int, str] | None = None
+    in_scope = False
     fence: str | None = None
     for number, raw in enumerate(body.split("\n"), 1):
         line = raw.rstrip()
         if not line:
             continue
+        prose = False
         if fence is not None:
             if closes_fence(line, fence):
                 fence = None
         elif (opening := opens_fence(line)) is not None:
             fence = opening
         elif SECOND_LEVEL_HEADING.match(line):
+            in_scope = line == SCOPE
             headings.append((number, line))
             if line in HEADINGS:
                 continue
+        else:
+            prose = True
+        if in_scope:
+            scope_end = (number, line) if prose else None
         content += 1
-    return headings, content
+    return Body(headings, content, scope_end)
 
 
 def check_headings(headings: list[tuple[int, str]]) -> list[str]:
@@ -165,6 +197,24 @@ def check_headings(headings: list[tuple[int, str]]) -> list[str]:
     if list(first) != [heading for heading in HEADINGS if heading in first]:
         found.append(f"body: the headings are out of order: write them as {ORDER}")
     return found
+
+
+def check_met_on_the_way(scope_end: tuple[int, str] | None) -> list[str]:
+    """The section ## Scope ends with a line that says nothing, or names each issue and pull request."""
+    if scope_end is None or not scope_end[1].startswith(MET_ON_THE_WAY):
+        return [
+            f"body: '{SCOPE}' does not end with a line that says what the work met on the way: end the section with "
+            f'"{MET_ON_THE_WAY} nothing." or with each issue and pull request for a problem the work met, '
+            f'as "{MET_ON_THE_WAY} #12 and #15."',
+        ]
+    number, line = scope_end
+    if MET_ON_THE_WAY_LINE.fullmatch(line) is None:
+        return [
+            f'body:{number}: the line "{MET_ON_THE_WAY}" says neither "nothing" nor a list of issues and pull '
+            f'requests: write "{MET_ON_THE_WAY} nothing." or name each one as #12 or owner/repository#12, '
+            f'joined by commas and "and"',
+        ]
+    return []
 
 
 def check_length(content: int, target: int, headroom: int) -> tuple[list[str], list[str]]:
@@ -201,9 +251,10 @@ def main(arguments: list[str]) -> int:
         return 2
     errors += [line for line in marks if line.startswith("title:")]
     if body.strip():
-        headings, content = read_body(body)
-        errors += check_headings(headings)
-        over_limit, warnings = check_length(content, lengths.target_lines, lengths.headroom_lines)
+        read = read_body(body)
+        errors += check_headings(read.headings)
+        errors += check_met_on_the_way(read.scope_end)
+        over_limit, warnings = check_length(read.content, lengths.target_lines, lengths.headroom_lines)
         errors += over_limit
     else:
         errors.append(f"body: PR_BODY is empty: write the seven sections, in this order: {ORDER}")
