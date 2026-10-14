@@ -107,6 +107,7 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     parser.add_argument("--model", type=value, help="the model for every case, in place of each case's own")
     parser.add_argument(
         "--allow-tools",
+        action="extend",
         nargs="+",
         type=value,
         default=[],

@@ -310,6 +310,16 @@ granted tools: Write, Bash(git:*)
 
 case "
 
+# Each --allow-tools adds its list to the grant. A second one that took the
+# place of the first would leave a run without a tool that the operator named.
+repo=$(two_commits)
+compare "$repo" main~1 --allow-tools Write --case 'red-*' --allow-tools 'Bash(git:*)' Edit
+check "a second list of tools: the head run gets both lists" contains "$(calls_in "$repo")" "--allow-tools Write Bash(git:*) Edit"
+check "a second list of tools: the base run gets both lists" contains "$(calls_outside "$repo")" "--allow-tools Write Bash(git:*) Edit"
+check "a second list of tools: the comparison names every tool" contains "$out" "
+granted tools: Write, Bash(git:*), Edit
+"
+
 repo=$(two_commits)
 result 0.125 "$(case_of plugins/one/evals/red-then-green 0.5 2)" >"$repo/canned-result.json"
 echo "# Draft" >"$repo/draft.md"
