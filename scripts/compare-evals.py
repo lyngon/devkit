@@ -96,29 +96,41 @@ def value(text: str) -> str:
     """A value of an option that reaches `claude plugin eval`, as it stands.
 
     The harness gets each value as a word of its own, and could read one that
-    starts with a dash as an option. No case, model, tool or number of runs
-    starts with one, so such a value raises argparse.ArgumentTypeError, which
-    makes it a usage error.
+    starts with a dash as an option. No case, model or tool is named by an
+    empty word, by one that opens or ends with white space, or by one that
+    starts with a dash, so such a value raises argparse.ArgumentTypeError,
+    which makes it a usage error. A comparison then never depends on what the
+    harness makes of a value that names nothing, such as the empty word that
+    `--model=$MODEL` gives where the variable is not set.
     """
+    if not text:
+        raise argparse.ArgumentTypeError("a value cannot be empty")
+    if text != text.strip():
+        raise argparse.ArgumentTypeError(f"a value cannot open or end with white space: '{text}'")
     if text.startswith("-"):
         raise argparse.ArgumentTypeError(f"a value cannot start with a dash: '{text}'")
     return text
 
 
 def number(text: str) -> str:
-    """A value that is a whole number, as the digits that the harness gets in its place.
+    """A number of runs, as the digits that the harness gets in its place.
 
-    The digits can differ from the text, which may open with white space, so
-    they are what `value` reads. Raises ValueError for text that is no whole
-    number, which is a usage error as well.
+    The digits can differ from the text, which may open with white space.
+    Raises ValueError for text that is no whole number, and
+    argparse.ArgumentTypeError for a number below 1, since no comparison has
+    fewer runs. Both are usage errors.
     """
-    return value(str(int(text)))
+    runs = int(text)
+    if runs < 1:
+        raise argparse.ArgumentTypeError(f"a number of runs must be 1 or more: '{text}'")
+    return str(runs)
 
 
 def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     """Read the command line. The options that reach `claude plugin eval` are named here, and
-    none of their values starts with a dash, so that no word of the command line can publish a
-    report or move the result this program reads."""
+    each of their values names a case, a model, a tool or a number of runs, so that no word of
+    the command line can publish a report, move the result this program reads, or leave the
+    harness to guess what an empty word means."""
     parser = argparse.ArgumentParser(
         prog="compare-evals",
         # The base comes first: the list of tools takes every word that follows it.
