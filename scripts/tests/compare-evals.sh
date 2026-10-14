@@ -336,11 +336,14 @@ granted tools: Write, Bash(git:*)
 
 case "
 
-# The working tree here gives another score for one case and has lost another
-# case, and neither change is committed.
+# The working tree here gives another score for one case and has lost the
+# prompt.md of another case, which keeps only a workspace, and none of it is
+# committed.
 repo=$(two_commits)
 result 0.125 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 0.5 2)" >"$repo/canned-result.json"
 rm -r "$repo/plugins/one/evals/stays-green"
+mkdir -p "$repo/plugins/one/evals/stays-green/workspace"
+echo "A file that a later case reads." >"$repo/plugins/one/evals/stays-green/workspace/notes.md"
 echo "# Draft" >"$repo/draft.md"
 compare "$repo" main~1
 check "uncommitted changes: head is the working tree as it stands" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.50 (2 runs)"
@@ -350,7 +353,8 @@ plugins/one/evals/stays-green      1.00 (3 runs)  -
 check "uncommitted changes: the head line says so" contains "$out" "head: $(sha "$repo" main) with uncommitted changes"
 check "uncommitted changes: the working tree is as it was" equals "$(git -C "$repo" status --porcelain)" " M canned-result.json
  D plugins/one/evals/stays-green/prompt.md
-?? draft.md"
+?? draft.md
+?? plugins/one/evals/stays-green/workspace/"
 
 # A run has no gated tool that it does not grant, whatever the case lists, and
 # the harness says so about a case that lists one. A grader that expects that
@@ -402,10 +406,15 @@ plugins/two/evals/new-at-head at head: the Artifact tool is not available inside
 check "a line in other words: is counted like the other" contains "$out" "plugins/two/evals/new-at-head     1.00 (1 run)   1.00 (1 run, 2 notes)"
 
 # A filter that matches no case at a commit is not a run that died: the
-# harness says so, and writes no result.
+# harness says so, and writes no result. The directory of the case is there
+# already, with a workspace and without a prompt.md, so it is no case yet.
 repo=$(two_commits)
 result 0 >"$repo/canned-result.json"
 commit "$repo" "chore: a commit without the case"
+mkdir -p "$repo/plugins/two/evals/new-at-head/workspace"
+echo "A file that a later case reads." >"$repo/plugins/two/evals/new-at-head/workspace/notes.md"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m "chore: a workspace for a later case"
 git -C "$repo" tag without-the-case
 result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" >"$repo/canned-result.json"
 commit "$repo" "chore: the case"
@@ -516,6 +525,19 @@ plugins/one/evals/removed-at-head  1.00 (1 run)   -
 plugins/one/evals/stays-green      1.00 (3 runs)  no result
 "
 check "a case without a result in a whole run: no run is said to be cut short" lacks "$out" "was cut short"
+compare "$repo/plugins" base
+check "a case without a result in a whole run: is found from a directory below the root too" contains "$out" "
+plugins/one/evals/stays-green      1.00 (3 runs)  no result
+"
+
+# The program looks a case up by the path that a result gives it. A result
+# whose path names no case in the working tree has another shape than the one
+# the program was written against.
+repo=$(two_commits)
+result 0.5 "$(case_of one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+compare "$repo" base
+check "a path that names no case at head: exits 1" equals "$code" 1
+check "a path that names no case at head: names the path" contains "$err" "compare-evals: the result at head names the case one/evals/red-then-green, which holds no prompt.md in the working tree"
 
 # A result that does not say whether it is partial is not taken for a whole
 # one.
@@ -627,6 +649,19 @@ git -C "$repo" update-ref refs/heads/--force base
 compare "$repo" -- --force
 check "a base that starts with a dash: names its commit" contains "$out" "base: $(sha "$repo" base) (--force)"$'\n'
 check "a base that starts with a dash: is what the base run checks out" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
+
+# A case is looked up in the base commit by its hash, never by the name that
+# the operator gave, which git could read as an option.
+repo=$(two_commits)
+result 0.25 "$(case_of plugins/one/evals/red-then-green 0 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: a base that has a case without a result" plugins/two/evals/new-at-head
+git -C "$repo" update-ref refs/heads/--force HEAD
+result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
+commit "$repo" "chore: the case gives a result at head"
+compare "$repo" -- --force
+check "a base that starts with a dash: a case that it has and gave no result for has no dash" contains "$out" "
+plugins/two/evals/new-at-head     no result     1.00 (1 run)
+"
 
 repo=$(two_commits)
 compare "$repo"
