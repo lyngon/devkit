@@ -463,6 +463,31 @@ plugins/two/evals/new-at-head at head: the Artifact tool is not available inside
 "
 check "a line in other words: is counted like the other" contains "$out" "plugins/two/evals/new-at-head     1.00 (1 run)   1.00 (1 run, 2 notes)"
 
+# The harness refuses an entry of --allow-tools that it cannot grant, says so
+# in a line of its own, and the runs go on without the tool (measured on
+# Claude Code 2.1.283). Both runs get the grant, so both refuse it. The header
+# names the tools that the operator asked for, so each line follows the table
+# with its commit.
+refused_grant="--allow-tools: refused entry: malformed, a wildcard tool name the child does not support, or a tool never available in an evaluation (Monitor, EnterWorktree, ExitWorktree): Monitor"
+repo=$(two_commits)
+echo "✗ $refused_grant" >"$repo/canned-progress"
+echo 1 >"$repo/canned-exit"
+commit "$repo" "chore: a commit whose run refuses a grant"
+git -C "$repo" tag refusing
+echo "A change at head." >"$repo/notes.md"
+commit "$repo" "chore: a head whose run refuses the grant too"
+compare "$repo" refusing --allow-tools Monitor Write
+check "a refused grant: exits 0" equals "$code" 0
+check "a refused grant: the header names the tools that were asked for" contains "$out" "
+granted tools: Monitor, Write
+"
+check "a refused grant: each line follows the table, with its commit, the base first" contains "$out" "
+
+the eval run at base said $refused_grant
+the eval run at head said $refused_grant
+
+"
+
 # A filter that matches no case at a commit is not a run that died: the
 # harness says so, and writes no result. The directory of the case is there
 # already, with a workspace and without a prompt.md, so it is no case yet.
@@ -768,8 +793,69 @@ commit "$repo" "chore: a head whose run dies"
 compare "$repo" base
 check "no result at head: exits 1" equals "$code" 1
 check "no result at head: says which run and how it ended" contains "$err" "compare-evals: the eval run at head wrote no result (claude exited with status 1)"
-check "no result at head: prints no table" equals "$out" ""
+check "no result at head: prints what each case scored at the base commit, which was paid for, and what the head run said" equals "$out" "base: $(sha "$repo" base) (base)
+head: $(sha "$repo" main)
+granted tools: none
+
+case                               base
+plugins/one/evals/red-then-green   0.00 (1 run)
+plugins/one/evals/removed-at-head  1.00 (1 run)
+plugins/one/evals/stays-green      1.00 (3 runs)
+
+the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml
+the eval run at head wrote no result (claude exited with status 1)
+
+plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+
+cost: base 0.25 USD"
 check "no result at head: nothing is left behind" nothing_left "$repo"
+
+# A head result that the program cannot read is no result either.
+repo=$(two_commits)
+echo 'Usage: claude plugin eval' >"$repo/canned-result.json"
+commit "$repo" "chore: a head whose result is not JSON"
+compare "$repo" base
+check "an unreadable result at head: exits 1" equals "$code" 1
+check "an unreadable result at head: prints the table of the base run, and why there is no other" contains "$out" "
+plugins/one/evals/stays-green      1.00 (3 runs)
+
+the result at head is not JSON: "
+
+# When the base run found no case, nothing is left to print, and the error
+# names what each run said.
+repo=$(two_commits)
+rm "$repo/canned-result.json"
+failed_to_load plugins/one/evals/stays-green "$invalid_yaml" >"$repo/canned-progress"
+no_case_ran >"$repo/canned-stdout"
+commit "$repo" "chore: a commit without the case and with a file that fails to load" plugins/one/evals/stays-green
+git -C "$repo" tag without-the-case
+rm "$repo/canned-stdout"
+failed_to_load plugins/two/evals/new-at-head "$invalid_yaml" >"$repo/canned-progress"
+commit "$repo" "chore: a head whose run dies" plugins/two/evals/new-at-head
+compare "$repo" without-the-case --case 'new-*'
+check "no case at base and no result at head: exits 1" equals "$code" 1
+check "no case at base and no result at head: prints no table" equals "$out" ""
+check "no case at base and no result at head: the error names what each run said" contains "$err" "
+compare-evals: the eval run at head wrote no result (claude exited with status 1)
+the eval run at base failed to load plugins/one/evals/stays-green: $invalid_yaml
+the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml"
+
+# A base run that writes no result ends the comparison before the head run,
+# which would cost money for nothing to compare.
+repo=$(two_commits)
+git -C "$repo" checkout -q base
+git -C "$repo" rm -q canned-result.json
+failed_to_load plugins/one/evals/stays-green "$invalid_yaml" >"$repo/canned-progress"
+commit "$repo" "chore: a base whose run dies" plugins/one/evals/stays-green
+git -C "$repo" tag dead-base
+git -C "$repo" checkout -q main
+compare "$repo" dead-base
+check "no result at base: exits 1" equals "$code" 1
+check "no result at base: says which run and how it ended, and what it said" contains "$err" "
+compare-evals: the eval run at base wrote no result (claude exited with status 1)
+the eval run at base failed to load plugins/one/evals/stays-green: $invalid_yaml"
+check "no result at base: prints no table" equals "$out" ""
+check "no result at base: runs nothing at head" equals "$(calls_in "$repo")" ""
 
 # An interrupt ends the run as well. The run here never ends by itself, and
 # the signal reaches the program alone. A command that a script starts in the
