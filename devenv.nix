@@ -243,16 +243,26 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/eval-forge.sh" "$@"'';
   };
 
+  # markdown-it-py reads the workflow templates out of the reference of
+  # repo:init, whose fenced blocks nest.
+  pythonWithMarkdownIt = pkgs.python3.withPackages (packages: [ packages.markdown-it-py ]);
+
   # The workflow templates that repo:init ships, against this repository's own
   # workflows. A run of the workflows here counts as proof of the templates,
-  # which holds only while the two read the same. markdown-it-py reads the
-  # templates out of the reference, whose fenced blocks nest.
+  # which holds only while the two read the same.
   testWorkflowTemplates = pkgs.writeShellApplication {
     name = "test-workflow-templates";
-    runtimeInputs = [
-      (pkgs.python3.withPackages (packages: [ packages.markdown-it-py ]))
-    ];
+    runtimeInputs = [ pythonWithMarkdownIt ];
     text = ''exec "${config.devenv.root}/scripts/tests/workflow-templates.py" "$@"'';
+  };
+
+  # The type check of this repository's Python programs, as the table
+  # [tool.basedpyright] of pyproject.toml sets it. basedpyright resolves an
+  # import through the interpreter it is given, and the test of the workflow
+  # templates imports markdown_it.
+  basedpyright = pkgs.writeShellApplication {
+    name = "basedpyright";
+    text = ''exec ${lib.getExe' pkgs.basedpyright "basedpyright"} --pythonpath ${lib.getExe' pythonWithMarkdownIt "python3"} "$@"'';
   };
 in
 {
@@ -271,6 +281,8 @@ in
     # and nothing else, and an agent that misses ruff runs whichever one it
     # finds in the Nix store.
     pkgs.ruff
+    # The type check that the hook below runs, for a run by hand.
+    basedpyright
   ];
 
   # Eval prompts and graders have a fixed shape (frontmatter, then the prompt
@@ -303,6 +315,33 @@ in
     files = "^(\\.claude-plugin/marketplace\\.json|README\\.md|plugins/[^/]+/(\\.claude-plugin/plugin\\.json|skills/[^/]+/SKILL\\.md))$";
     pass_filenames = false;
   };
+
+  # This repository's Python programs, against ruff.toml and pyproject.toml.
+  # Here and not in the baseline: a program under devenv/ reaches another
+  # repository as a file in the Nix store, where no hook of that repository
+  # reads it. The eval cases seed their files into a run as the code of an
+  # imagined repository, some with a fault on purpose, and one carries a
+  # ruff.toml of its own, which ruff follows for a file named to it.
+  git-hooks.hooks.ruff = {
+    enable = true;
+    excludes = [ "^plugins/[^/]+/evals/" ];
+  };
+  git-hooks.hooks.ruff-format = {
+    enable = true;
+    excludes = [ "^plugins/[^/]+/evals/" ];
+  };
+  git-hooks.hooks.basedpyright = {
+    enable = true;
+    name = "basedpyright";
+    entry = lib.getExe basedpyright;
+    # One run over every program, also when the configuration changes.
+    files = "(\\.pyi?|^pyproject\\.toml)$";
+    excludes = [ "^plugins/[^/]+/evals/" ];
+    pass_filenames = false;
+  };
+  # ruff.toml names the rule CPY001, and typos reads its prefix as a
+  # misspelling of COPY.
+  git-hooks.hooks.typos.settings.ignored-words = [ "CPY" ];
 
   # `devenv test` runs every git hook on every file first, then these. Each
   # runs with an empty PATH, so a tool that a wrapper does not declare fails

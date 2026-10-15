@@ -1,0 +1,9 @@
+# The type check of the devkit's own Python programs. This repository is no
+# Python project, so the file holds this table and nothing else.
+[tool.basedpyright]
+typeCheckingMode = "all"
+# As target-version in ruff.toml: the oldest Python the programs must run on.
+pythonVersion = "3.13"
+# The first three repeat the defaults, which a list set here replaces. The
+# eval cases seed their files into a run as the code of an imagined repository.
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "plugins/*/evals"]

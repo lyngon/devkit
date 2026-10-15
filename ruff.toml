@@ -1,0 +1,50 @@
+# The rules for the devkit's own Python programs. It starts from the ruff.toml
+# that the init skill of the repo plugin writes into a repository, without the
+# entries for pydantic and FastAPI, which no program here uses, and with the
+# entries for programs that the devkit adds below.
+
+# The oldest Python the programs must run on, not the newest one: the programs
+# under devenv/ run in every Lyngon repository on that repository's own
+# python3. Python 3.14 would let the formatter write `except A, B:`, which an
+# older python3 cannot parse.
+target-version = "py313"
+# A message that a program prints stays on one line, so that a search for it
+# finds where it is written.
+line-length = 120
+# The eval cases seed these files into a run as the code of an imagined
+# repository, some of them with a fault on purpose.
+extend-exclude = ["plugins/*/evals"]
+
+[lint]
+select = ["ALL"]
+ignore = [
+  "COM812",  # conflicts with the formatter
+  "D105",    # magic methods document themselves
+  "D107",    # the class docstring covers __init__
+  "D203",    # D211 is kept: no blank line before a class docstring
+  "D213",    # D212 is kept: the summary starts on the first line
+  "EM101",   # a plain message literal in raise is readable
+  "FIX002",  # TODOs are allowed; TD checks their form
+  "SIM108",  # a ternary is not always clearer than if/else
+  "TD002",   # no author on a TODO; git blame has it
+  "TD003",   # no issue link required on a TODO
+  # The entries below are the devkit's, for programs, which is all the Python
+  # it has.
+  "CPY001",  # LICENSE at the root covers every file
+  "EM102",   # a program catches its own error and prints the message, so no traceback repeats it
+  "S603",   # flags every subprocess call without a shell, which is the form the conventions ask for
+  "S607",    # a program runs its tools by name from the PATH that its wrapper in devenv.nix declares
+  "T201",    # what a program prints is its interface; the conventions ban print only in a library
+  "TRY003",  # a program's one error type carries the sentence the user reads; a class per sentence only moves it
+]
+
+[lint.flake8-import-conventions]
+banned-from = ["collections.abc", "datetime", "typing"]
+
+[lint.flake8-import-conventions.extend-aliases]
+"collections.abc" = "ct"
+"datetime" = "dt"
+"typing" = "t"
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"

@@ -23,6 +23,7 @@ import os
 import pathlib
 import re
 import sys
+import typing as t
 
 LEDGER: pathlib.Path = pathlib.Path("docs/mistakes")
 LIMIT_VARIABLE: str = "LYNGON_MISTAKES_MAX_AGE_DAYS"
@@ -34,21 +35,25 @@ class PruneError(Exception):
 
 
 def limit_in_days(environment: ct.Mapping[str, str]) -> int:
-    """The limit from the environment. Raises PruneError when it is missing or no positive whole number."""
+    """Read the limit from the environment. Raises PruneError when it is missing or no positive whole number."""
     value = environment.get(LIMIT_VARIABLE)
     if value is None:
-        raise PruneError(
+        message = (
             f"{LIMIT_VARIABLE} is not set; the baseline sets it from lyngon.mistakes.maxAgeDays, "
             "so run this in the devenv shell of the repository, and where that shell lacks it too, "
             "the repository's baseline is older than this script: run 'devenv update lyngon'"
         )
+        raise PruneError(message)
     if not (value.isascii() and value.isdigit()) or int(value) == 0:
         raise PruneError(f"{LIMIT_VARIABLE} is '{value}', and the limit is a positive whole number of days")
     return int(value)
 
 
 def date_of(path: pathlib.Path) -> dt.date:
-    """The date of a ledger file. Raises PruneError unless the file has exactly one date line, with a day that exists."""
+    """Read the date of a ledger file.
+
+    Raises PruneError unless the file has exactly one date line, with a day that exists.
+    """
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError as error:
@@ -87,17 +92,20 @@ def main(arguments: ct.Sequence[str]) -> int:
     """Prune the ledger below the working directory and return the exit status: 0 when pruned, 1 when refused."""
     parser = argparse.ArgumentParser(
         prog="prune-mistakes",
-        description="Delete the Markdown files in docs/mistakes/ that are older than the repository's limit. "
-        "Run it from the root of the repository.",
+        description=(
+            "Delete the Markdown files in docs/mistakes/ that are older than the repository's limit. "
+            "Run it from the root of the repository."
+        ),
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--today",
         type=dt.date.fromisoformat,
         metavar="YYYY-MM-DD",
         help="the day to count the age from, in place of today",
     )
-    parsed = parser.parse_args(arguments)
-    today: dt.date = parsed.today if parsed.today is not None else dt.date.today()
+    # A namespace types every value as Any; argparse has run a given one through its type.
+    given = t.cast("dt.date | None", parser.parse_args(arguments).today)
+    today = given if given is not None else dt.datetime.now().astimezone().date()
     try:
         lines = prune(today, limit_in_days(os.environ))
     except PruneError as error:

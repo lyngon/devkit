@@ -32,6 +32,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import typing as t
 
 
 class CompareError(Exception):
@@ -40,9 +41,12 @@ class CompareError(Exception):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Said:
-    """What a run said about its suite as a whole: each case file that it failed to load and
-    each entry of `--allow-tools` that it refused to grant, in the harness's words. The
-    harness says these before any case runs, so a run that gives no result has said them too."""
+    """What a run said about its suite as a whole, in the harness's words.
+
+    That is each case file that it failed to load and each entry of
+    `--allow-tools` that it refused to grant. The harness says these before
+    any case runs, so a run that gives no result has said them too.
+    """
 
     load_failures: tuple[str, ...]
     grant_refusals: tuple[str, ...]
@@ -53,13 +57,16 @@ class RunError(CompareError):
 
     def __init__(self, message: str, said: Said) -> None:
         super().__init__(message)
-        self.said = said
+        self.said: Said = said
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Options:
-    """What the operator asked for: the base commit, the gated tools that both runs ask the
-    harness to grant, and the options both runs get, that grant among them."""
+    """What the operator asked for.
+
+    That is the base commit, the gated tools that both runs ask the harness
+    to grant, and the options both runs get, that grant among them.
+    """
 
     base: str
     granted: tuple[str, ...]
@@ -88,8 +95,11 @@ class Case:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Result:
-    """The cases of one run of the suite, by their directory, what the run cost, the
-    harness's reason when it cut the suite short, and what the run said about its suite."""
+    """The result of one run of the suite.
+
+    That is its cases by their directory, what the run cost, the harness's
+    reason when it cut the suite short, and what the run said about its suite.
+    """
 
     cases: ct.Mapping[str, Case]
     cost_usd: float
@@ -99,8 +109,10 @@ class Result:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Column:
-    """One column of the table: the side it stands for, the result of the run at that
-    commit, and the cases present at the commit that the run gave no result for.
+    """One column of the table.
+
+    It holds the side it stands for, the result of the run at that commit,
+    and the cases present at the commit that the run gave no result for.
 
     A result does not say why it lacks a case. A suite that was cut short
     leaves out each case that it did not reach, a suite leaves out each case
@@ -117,17 +129,20 @@ class Column:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Comparison:
-    """What the program prints: the lines of the comparison on stdout, and the reason there
-    is none on stderr. When the run in the working tree gave no result after the run at the
-    base commit gave one, the lines hold the table of the base run, which was paid for, and
-    below it what the other run said and the reason."""
+    """What the program prints.
+
+    That is the lines of the comparison on stdout, and the reason there is
+    none on stderr. When the run in the working tree gave no result after the
+    run at the base commit gave one, the lines hold the table of the base run,
+    which was paid for, and below it what the other run said and the reason.
+    """
 
     lines: tuple[str, ...]
     error: str | None
 
 
 def value(text: str) -> str:
-    """A value of an option that reaches `claude plugin eval`, as it stands.
+    """Return a value of an option that reaches `claude plugin eval`, as it stands.
 
     The harness gets each value as a word of its own, and could read one that
     starts with a dash as an option. No case, model or tool is named by an
@@ -147,7 +162,7 @@ def value(text: str) -> str:
 
 
 def number(text: str) -> str:
-    """A number of runs, as the digits that the harness gets in its place.
+    """Return a number of runs as the digits that the harness gets in its place.
 
     The digits can differ from the text, which may open with white space.
     Raises ValueError for text that is no whole number, and
@@ -161,23 +176,31 @@ def number(text: str) -> str:
 
 
 def parse_arguments(arguments: ct.Sequence[str]) -> Options:
-    """Read the command line. The options that reach `claude plugin eval` are named here, and
-    each of their values can name a case, a model, a tool or a number of runs, so that no word
-    of the command line can publish a report, move the result this program reads, or leave the
-    harness to guess what an empty word means."""
+    """Read the command line.
+
+    The options that reach `claude plugin eval` are named here, and each of
+    their values can name a case, a model, a tool or a number of runs, so
+    that no word of the command line can publish a report, move the result
+    this program reads, or leave the harness to guess what an empty word
+    means.
+    """
     parser = argparse.ArgumentParser(
         prog="compare-evals",
         # The base comes first: the list of tools takes every word that follows it.
         usage="%(prog)s base [-h] [--case GLOB] [--runs N] [--model MODEL] [--allow-tools TOOL [TOOL ...]]",
-        description="Run the eval suite at a base commit and in the working tree, "
-        "and print each case's score at both. Every run is a model call on your account, "
-        "and a case that seeds its working directory runs its script as you, at both commits.",
+        description=(
+            "Run the eval suite at a base commit and in the working tree, "
+            "and print each case's score at both. Every run is a model call on your account, "
+            "and a case that seeds its working directory runs its script as you, at both commits."
+        ),
     )
-    parser.add_argument("base", help="the commit to compare the working tree with, such as origin/main")
-    parser.add_argument("--case", type=value, metavar="GLOB", help="run only the cases whose name matches")
-    parser.add_argument("--runs", type=number, metavar="N", help="runs per case, in place of each case's own number")
-    parser.add_argument("--model", type=value, help="the model for every case, in place of each case's own")
-    parser.add_argument(
+    _ = parser.add_argument("base", help="the commit to compare the working tree with, such as origin/main")
+    _ = parser.add_argument("--case", type=value, metavar="GLOB", help="run only the cases whose name matches")
+    _ = parser.add_argument(
+        "--runs", type=number, metavar="N", help="runs per case, in place of each case's own number"
+    )
+    _ = parser.add_argument("--model", type=value, help="the model for every case, in place of each case's own")
+    _ = parser.add_argument(
         "--allow-tools",
         action="extend",
         nargs="+",
@@ -187,16 +210,22 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         help="grant gated tools, such as Write, to every case",
     )
     parsed = parser.parse_args(arguments)
+    # A namespace types every value as Any; argparse has run each given one through its type.
+    base = t.cast("str", parsed.base)
+    case = t.cast("str | None", parsed.case)
+    runs = t.cast("str | None", parsed.runs)
+    model = t.cast("str | None", parsed.model)
+    allow_tools = t.cast("list[str]", parsed.allow_tools)
     eval_options: list[str] = []
-    if parsed.case is not None:
-        eval_options += ["--case", parsed.case]
-    if parsed.runs is not None:
-        eval_options += ["--runs", parsed.runs]
-    if parsed.model is not None:
-        eval_options += ["--model", parsed.model]
-    if parsed.allow_tools:
-        eval_options += ["--allow-tools", *parsed.allow_tools]
-    return Options(base=parsed.base, granted=tuple(parsed.allow_tools), eval_options=tuple(eval_options))
+    if case is not None:
+        eval_options += ["--case", case]
+    if runs is not None:
+        eval_options += ["--runs", runs]
+    if model is not None:
+        eval_options += ["--model", model]
+    if allow_tools:
+        eval_options += ["--allow-tools", *allow_tools]
+    return Options(base=base, granted=tuple(allow_tools), eval_options=tuple(eval_options))
 
 
 def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -205,9 +234,12 @@ def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess
 
 
 def commit_of(root: pathlib.Path, revision: str) -> str | None:
-    """The hash of the commit that a revision names, or None when it names none, such as a
-    file. The revision is resolved before it is peeled to a commit, since after `:/` a
-    suffix such as `^{commit}` would become part of the text that git searches for."""
+    """Return the hash of the commit that a revision names, or None when it names none, such as a file.
+
+    The revision is resolved before it is peeled to a commit, since after
+    `:/` a suffix such as `^{commit}` would become part of the text that git
+    searches for.
+    """
     named = git(root, "rev-parse", "--verify", "--quiet", "--end-of-options", revision)
     if named.returncode != 0:
         return None
@@ -216,19 +248,23 @@ def commit_of(root: pathlib.Path, revision: str) -> str | None:
 
 
 def commit_has_case(root: pathlib.Path, commit: str, directory: str) -> bool:
-    """Whether the commit holds a case in the directory, a path from the root. A case is a
-    directory with a `prompt.md`, as the README defines one."""
+    """Whether the commit holds a case in the directory, a path from the root.
+
+    A case is a directory with a `prompt.md`, as the README defines one.
+    """
     return git(root, "cat-file", "-e", f"{commit}:{directory}/prompt.md").returncode == 0
 
 
 def working_tree_has_case(root: pathlib.Path, directory: str) -> bool:
-    """The same for the working tree, which counts as head with its uncommitted changes."""
+    """Whether the working tree holds a case in the directory; it counts as head with its uncommitted changes."""
     return (root / directory / "prompt.md").is_file()
 
 
 def clone_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> pathlib.Path:
-    """A checkout of the commit at the path, in a repository of its own that borrows the
-    objects of the root's, and goes with the directory that holds it.
+    """Check out the commit at the path, in a repository of its own, and return the path.
+
+    The repository borrows the objects of the root's, and goes with the
+    directory that holds it.
 
     Entering the environment of the commit writes its git hook shims into the
     hooks of the repository that holds the checkout. Before 7e4605f the
@@ -250,7 +286,7 @@ def clone_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> pathlib.Pat
 
 
 def without_nix_shell(environment: ct.Mapping[str, str]) -> dict[str, str]:
-    """The environment with the entries of its PATH that lie in the Nix store left out.
+    """Return the environment with the entries of its PATH that lie in the Nix store left out.
 
     A Nix shell, such as the devenv shell of the working tree that this
     program starts from, puts the directories of its commands in the store,
@@ -265,8 +301,11 @@ def without_nix_shell(environment: ct.Mapping[str, str]) -> dict[str, str]:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Launcher:
-    """How a run starts the harness: the words in front of its options, what an error calls
-    them, and the environment that the run starts in."""
+    """How a run starts the harness.
+
+    That is the words in front of its options, what an error calls them, and
+    the environment that the run starts in.
+    """
 
     name: str
     words: tuple[str, ...]
@@ -309,7 +348,8 @@ def run_suite(
         process_group=0,
     ) as run:
         try:
-            for line in run.stdout or ():  # a pipe, which the type of the attribute cannot say
+            # A pipe of text, which the type of the attribute cannot say.
+            for line in t.cast("ct.Iterable[str]", run.stdout or ()):
                 print(line, end="", file=sys.stderr)
                 progress.append(line.rstrip("\n"))
         except BaseException:  # an interrupt too: no process of the run may outlive the scratch directory
@@ -317,9 +357,10 @@ def run_suite(
             raise
     said = Said(load_failures_in(checkout, progress), grant_refusals_in(progress))
     result = output / "aggregate-result.json"
+    data: object
     if result.is_file():
         try:
-            data: object = json.loads(result.read_text())
+            data = t.cast("object", json.loads(result.read_text()))
         except json.JSONDecodeError as error:
             raise RunError(f"the result at {side} is not JSON: {error}", said) from error
     elif found_no_case(progress, run.returncode):
@@ -331,23 +372,23 @@ def run_suite(
 
 
 def found_no_case(progress: ct.Iterable[str], status: int) -> bool:
-    """Whether a run that wrote no result said that its suite has no case, or none that the
-    filter matches and that loads.
+    """Whether a run that wrote no result said that it found no case.
 
-    The harness writes no result then, as it does when it dies, and only its
-    words and its exit status tell the two apart (measured on Claude Code
-    2.1.283). It exits with status 1 and says `No eval cases found`, unless a
-    case file failed to load: then it prints the summary of a suite in which
-    no case ran, which opens with `0 case(s)`. A suite that it ended before
-    its first case finished prints that summary too, marked partial, and
-    exits with another status. When the words change, a commit without a
+    That is no case in its suite, or none that the filter matches and that
+    loads. The harness writes no result then, as it does when it dies, and
+    only its words and its exit status tell the two apart (measured on Claude
+    Code 2.1.283). It exits with status 1 and says `No eval cases found`,
+    unless a case file failed to load: then it prints the summary of a suite
+    in which no case ran, which opens with `0 case(s)`. A suite that it ended
+    before its first case finished prints that summary too, marked partial,
+    and exits with another status. When the words change, a commit without a
     case counts as a run that died.
     """
     return status == 1 and any(line.startswith(("No eval cases found", "0 case(s) ")) for line in progress)
 
 
 def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
-    """What the run said about a case as a whole, in the harness's own words.
+    """Return what the run said about a case as a whole, in the harness's own words.
 
     These are its lines that open with two spaces, the name of the case and a
     colon (measured on Claude Code 2.1.283), which is how it names a gated
@@ -359,8 +400,10 @@ def notes_about(name: str, progress: ct.Iterable[str]) -> tuple[str, ...]:
 
 
 def load_failures_in(checkout: pathlib.Path, progress: ct.Iterable[str]) -> tuple[str, ...]:
-    """What the run said about each case file of the checkout that it failed to load, in the
-    harness's words from the path of the case on, which is given from the root.
+    """Return what the run said about each case file of the checkout that it failed to load.
+
+    The words are the harness's from the path of the case on, which is given
+    from the root.
 
     The harness leaves such a case out of its result and names it in a line
     of its own: a cross, a space, the absolute path without symbolic links of
@@ -374,8 +417,9 @@ def load_failures_in(checkout: pathlib.Path, progress: ct.Iterable[str]) -> tupl
 
 
 def grant_refusals_in(progress: ct.Iterable[str]) -> tuple[str, ...]:
-    """What the run said about each entry of `--allow-tools` that it refused to grant, in the
-    harness's words from the option on.
+    """Return what the run said about each entry of `--allow-tools` that it refused to grant.
+
+    The words are the harness's from the option on.
 
     The harness names such an entry in a line of its own that opens with a
     cross, a space and `--allow-tools:`, and the runs go on without the tool
@@ -386,33 +430,71 @@ def grant_refusals_in(progress: ct.Iterable[str]) -> tuple[str, ...]:
     return tuple(line.removeprefix("✗ ") for line in progress if line.startswith(opening))
 
 
+def json_field(value: object, key: str) -> object:
+    """Return the member of a JSON object under the key, as indexing the object does.
+
+    Raises KeyError for a key that the object lacks, and TypeError for a value that is no object.
+    """
+    if not isinstance(value, dict):
+        raise TypeError(f"a {type(value).__name__} where an object belongs")
+    # The keys of a JSON object are strings.
+    return t.cast("dict[str, object]", value)[key]
+
+
+def json_array(value: object) -> list[object]:
+    """Return the items of a JSON array. Raises TypeError for a value that is no array."""
+    if not isinstance(value, list):
+        raise TypeError(f"a {type(value).__name__} where an array belongs")
+    return t.cast("list[object]", value)
+
+
+def json_number(value: object) -> float:
+    """Return a JSON number, or a string of one, as float() reads it.
+
+    Raises TypeError for a value of another type, and ValueError for a string that is no number.
+    """
+    if not isinstance(value, int | float | str):
+        raise TypeError(f"a {type(value).__name__} where a number belongs")
+    return float(value)
+
+
 def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said) -> Result:
-    """Turn the result that `claude plugin eval` wrote, what it said about each case in its
-    progress and what it said about its suite into a Result, or raise RunError when the result
-    has another shape than the one this program was written against."""
+    """Turn what a run of `claude plugin eval` wrote and said into a Result.
+
+    That is the result it wrote, what it said about each case in its progress
+    and what it said about its suite. The result is narrowed here, once.
+    Raises RunError when it has another shape than the one this program was
+    written against.
+    """
     if not isinstance(data, dict):
         raise RunError(f"the result at {side} is not a JSON object", said)
-    cases = data.get("cases")
+    # The keys of a JSON object are strings.
+    fields = t.cast("dict[str, object]", data)
+    cases = fields.get("cases")
     if not isinstance(cases, list):
-        schema = data.get("schemaVersion")
+        schema = fields.get("schemaVersion")
         raise RunError(f"the result at {side} has no list 'cases' (schemaVersion {schema})", said)
     parsed: dict[str, Case] = {}
     try:
-        for entry in cases:
-            runs = entry["arms"]["with"]
-            verdicts = [(str(grader["name"]), bool(grader["passed"])) for run in runs for grader in run["graders"]]
+        for entry in t.cast("list[object]", cases):
+            runs = json_array(json_field(json_field(entry, "arms"), "with"))
+            verdicts = [
+                (str(json_field(grader, "name")), bool(json_field(grader, "passed")))
+                for run in runs
+                for grader in json_array(json_field(run, "graders"))
+            ]
             failures = {name: verdicts.count((name, False)) for name, _ in verdicts}
-            parsed[str(entry["dir"])] = Case(
-                score=float(entry["aggregates"]["score"]),
+            parsed[str(json_field(entry, "dir"))] = Case(
+                score=json_number(json_field(json_field(entry, "aggregates"), "score")),
                 runs=len(runs),
-                notes=notes_about(str(entry["name"]), progress),
-                errors=tuple(str(run["error"]) for run in runs if run["error"] is not None),
+                notes=notes_about(str(json_field(entry, "name")), progress),
+                errors=tuple(str(json_field(run, "error")) for run in runs if json_field(run, "error") is not None),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
             )
         return Result(
             cases=parsed,
-            cost_usd=float(data["costUsd"]),
-            cut_short_reason=str(data["partialReason"]) if data["partial"] else None,
+            cost_usd=json_number(json_field(fields, "costUsd")),
+            cut_short_reason=str(json_field(fields, "partialReason")) if json_field(fields, "partial") else None,
             said=said,
         )
     except (KeyError, TypeError, ValueError) as error:
@@ -420,15 +502,18 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
 
 
 def counted(number: int, noun: str) -> str:
-    """A number with its noun, in the plural unless the number is 1."""
+    """Return a number with its noun, in the plural unless the number is 1."""
     return f"{number} {noun}" if number == 1 else f"{number} {noun}s"
 
 
 def cell(column: Column, name: str) -> str:
-    """One cell of the table: the score of the case with the number of runs behind it, how
-    many notes the harness left about the case and how many of the runs ended in an error.
-    A case that the run gave no result for has the words `no result` when it is present at
-    the commit, and a dash when it is not."""
+    """Return one cell of the table.
+
+    It holds the score of the case with the number of runs behind it, how
+    many notes the harness left about the case and how many of the runs ended
+    in an error. A case that the run gave no result for has the words
+    `no result` when it is present at the commit, and a dash when it is not.
+    """
     case = column.result.cases.get(name)
     if case is None:
         return "no result" if name in column.present else "-"
@@ -441,8 +526,11 @@ def cell(column: Column, name: str) -> str:
 
 
 def reasons(case: Case) -> list[str]:
-    """What stands behind a score: what the harness said about the case, each distinct
-    run error, and each grader that failed with the number of runs it failed in."""
+    """Return what stands behind a score.
+
+    That is what the harness said about the case, each distinct run error,
+    and each grader that failed with the number of runs it failed in.
+    """
     return [
         *case.notes,
         *(f"run error: {error}" for error in dict.fromkeys(case.errors)),
@@ -451,10 +539,13 @@ def reasons(case: Case) -> list[str]:
 
 
 def about_suite(side: str, said: Said, cut_short_reason: str | None = None) -> list[str]:
-    """What the run at a commit said about its suite as a whole: each case file that it failed
-    to load, each entry of `--allow-tools` that it refused to grant, and the reason it was cut
-    short. The first and the last leave a case without a result, and a refused grant leaves a
-    run without a tool that the header names."""
+    """Return what the run at a commit said about its suite as a whole.
+
+    That is each case file that it failed to load, each entry of
+    `--allow-tools` that it refused to grant, and the reason it was cut
+    short. The first and the last leave a case without a result, and a
+    refused grant leaves a run without a tool that the header names.
+    """
     run = f"the eval run at {side}"
     lines = [f"{run} failed to load {failure}" for failure in said.load_failures]
     lines += [f"{run} said {refusal}" for refusal in said.grant_refusals]
@@ -464,9 +555,13 @@ def about_suite(side: str, said: Said, cut_short_reason: str | None = None) -> l
 
 
 def report(columns: ct.Sequence[Column], without_result: ct.Sequence[str] = ()) -> list[str]:
-    """The table of every case that a run gave a result for, with a column for each run, what
-    each run said about its suite as a whole, the lines about a run that gave no result, what
-    stands behind each score, and what the runs that gave a result cost."""
+    """Return the lines of the report.
+
+    They are the table of every case that a run gave a result for, with a
+    column for each run, what each run said about its suite as a whole, the
+    lines about a run that gave no result, what stands behind each score, and
+    what the runs that gave a result cost.
+    """
     names = sorted({name for column in columns for name in column.result.cases})
     header = ("case", *(column.side for column in columns))
     rows = [header, *((name, *(cell(column, name) for column in columns)) for name in names)]
@@ -490,6 +585,41 @@ def report(columns: ct.Sequence[Column], without_result: ct.Sequence[str] = ()) 
     return [*lines, "", f"cost: {costs}"]
 
 
+def working_tree_root() -> pathlib.Path:
+    """Return the root of the working tree that this program runs in.
+
+    Raises CompareError outside a git repository, and outside the devenv
+    shell of the working tree.
+    """
+    toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
+    if toplevel.returncode != 0:
+        raise CompareError("not inside a git repository")
+    root = pathlib.Path(toplevel.stdout.strip())
+    shell = os.environ.get("DEVENV_ROOT")
+    if not shell or pathlib.Path(shell).resolve() != root.resolve():
+        where = f"the devenv shell of {shell}" if shell else "a shell without devenv"
+        raise CompareError(f"start compare-evals from the devenv shell of the working tree {root}, not from {where}")
+    return root
+
+
+def launchers() -> tuple[Launcher, Launcher]:
+    """Return how the run at the base commit and the run in the working tree start the harness.
+
+    Both runs start the same harness. The base run enters the environment of
+    the base commit, and the head run keeps the one it was started from, the
+    working tree's. Raises CompareError without `claude` or `devenv` on the
+    PATH.
+    """
+    claude, devenv = shutil.which("claude"), shutil.which("devenv")
+    if claude is None:
+        raise CompareError("claude is not on the PATH")
+    if devenv is None:
+        raise CompareError("devenv is not on the PATH")
+    at_base = Launcher("devenv shell", (devenv, "shell", "--", claude), without_nix_shell(os.environ))
+    at_head = Launcher("claude", (claude,), os.environ)
+    return at_base, at_head
+
+
 def compare(options: Options) -> Comparison:
     """Run the suite at the base commit and in the working tree, and return what to print.
 
@@ -510,26 +640,11 @@ def compare(options: Options) -> Comparison:
     a result means that the program reads the harness wrongly, and no table
     it prints, the base column included, could be trusted.
     """
-    toplevel = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
-    if toplevel.returncode != 0:
-        raise CompareError("not inside a git repository")
-    root = pathlib.Path(toplevel.stdout.strip())
-    shell = os.environ.get("DEVENV_ROOT")
-    if not shell or pathlib.Path(shell).resolve() != root.resolve():
-        where = f"the devenv shell of {shell}" if shell else "a shell without devenv"
-        raise CompareError(f"start compare-evals from the devenv shell of the working tree {root}, not from {where}")
+    root = working_tree_root()
     base_commit = commit_of(root, options.base)
     if base_commit is None:
         raise CompareError(f"'{options.base}' names no commit")
-    claude, devenv = shutil.which("claude"), shutil.which("devenv")
-    if claude is None:
-        raise CompareError("claude is not on the PATH")
-    if devenv is None:
-        raise CompareError("devenv is not on the PATH")
-    # Both runs start the same harness. The base run enters the environment of the base
-    # commit, and the head run keeps the one it was started from, the working tree's.
-    at_base = Launcher("devenv shell", (devenv, "shell", "--", claude), without_nix_shell(os.environ))
-    at_head = Launcher("claude", (claude,), os.environ)
+    at_base, at_head = launchers()
     head_commit = git(root, "rev-parse", "HEAD").stdout.strip()
     uncommitted = git(root, "status", "--porcelain").stdout.strip() != ""
     header = (
@@ -562,7 +677,9 @@ def compare(options: Options) -> Comparison:
         raise CompareError("\n".join(["no eval case ran at either commit", *why]))
     for name in head.cases:
         if not working_tree_has_case(root, name):
-            raise CompareError(f"the result at head names the case {name}, which holds no prompt.md in the working tree")
+            raise CompareError(
+                f"the result at head names the case {name}, which holds no prompt.md in the working tree",
+            )
     only_base, only_head = base.cases.keys() - head.cases.keys(), head.cases.keys() - base.cases.keys()
     columns = [
         Column("base", base, frozenset(name for name in only_head if commit_has_case(root, base_commit, name))),
@@ -572,8 +689,11 @@ def compare(options: Options) -> Comparison:
 
 
 def main(arguments: ct.Sequence[str]) -> int:
-    """Print the comparison and return the exit status: 0 for a comparison, 1 for none, after
-    the table of the base run when that run gave a result."""
+    """Print the comparison and return the exit status.
+
+    The status is 0 for a comparison, and 1 for none, after the table of the
+    base run when that run gave a result.
+    """
     options = parse_arguments(arguments)
     try:
         comparison = compare(options)
