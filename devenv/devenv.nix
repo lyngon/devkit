@@ -215,8 +215,8 @@ in
 
     # devenv generates .mcp.json (gitignored). .claude/settings.json is a
     # committed, hand-maintained file.
-    files.".mcp.json".json = lib.mkIf cfg.mcp.enable {
-      mcpServers.devenv = {
+    files.".mcp.json" = lib.mkIf cfg.mcp.enable {
+      json.mcpServers.devenv = {
         type = "stdio";
         command = "devenv";
         args = [ "mcp" ];
