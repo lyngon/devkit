@@ -1,6 +1,7 @@
-# The Lyngon baseline for every repository: git hooks, the devenv MCP server
-# file, the check-pull-request command, the tools of the scripts that skills
-# ship, and the languages every Lyngon repository has (Nix, shell).
+# The Lyngon baseline for every repository: git hooks, the check-pull-request
+# command, the tools of the scripts that skills ship, the languages every Lyngon
+# repository has (Nix, shell), and the devenv MCP server file for a repository
+# that turns it on.
 #
 # Consumers add this repository as an input and import this directory:
 #
@@ -169,9 +170,13 @@ in
   options.lyngon = {
     enable = lib.mkEnableOption "the Lyngon baseline";
 
+    # Off unless a repository turns it on: each Claude Code session starts a
+    # `devenv mcp` of its own, and devenv 2.4.0's evaluates all of nixpkgs at
+    # start, about 100 CPU seconds and up to 4.8 GB held until the session
+    # ends. `devenv search` in the shell answers the same questions.
     mcp.enable = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      default = false;
       description = "Generate .mcp.json with the devenv MCP server for Claude Code.";
     };
 

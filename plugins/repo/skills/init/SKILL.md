@@ -117,7 +117,7 @@ Run, and fix what fails without disabling hooks:
 devenv test
 ```
 
-Also confirm that `.mcp.json` was generated and that `git status` shows exactly the planned files.
+Also confirm that `git status` shows exactly the planned files.
 Report the result faithfully, including hooks that could not run.
 
 ### 7. Commit and hand off

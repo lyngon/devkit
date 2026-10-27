@@ -53,9 +53,9 @@ Add the `secretspec` section when the repository needs secrets (see below).
   ...
 }:
 {
-  # Baseline git hooks, the devenv MCP server file, and the Nix and shell
-  # languages come from the lyngon input. Override a baseline hook only with
-  # a comment saying why, e.g. `git-hooks.hooks.typos.enable = false;`.
+  # Baseline git hooks and the Nix and shell languages come from the lyngon
+  # input. Override a baseline hook only with a comment saying why, e.g.
+  # `git-hooks.hooks.typos.enable = false;`.
   lyngon.enable = true;
   # The repository follows the Lyngon structure; enables the validate-structure hook.
   lyngon.structure.enable = true; # {only when the repository adopts the structure}
@@ -87,6 +87,7 @@ No hook checks a commit message: a pull request lands as one commit with its tit
 The options `lyngon.pullRequest.body.targetLines` and `lyngon.pullRequest.body.headroomLines` set how long a body may be, 40 and 20 content lines by default.
 The option `lyngon.mistakes.maxAgeDays` sets how long a file of the mistake ledger, `docs/mistakes/`, is kept, 365 days by default.
 The option `lyngon.scriptTools` lists the tools that the scripts of skills run, Python by default, and the baseline adds them to the shell.
+The option `lyngon.mcp.enable` writes `.mcp.json` with the devenv MCP server; it is off by default, because each Claude Code session then starts a server of its own.
 
 Write `lyngon.structure.enable = true;` on a line of its own, exactly so: that line is the marker the `repo` plugin's session hook and `add-package` look for.
 
