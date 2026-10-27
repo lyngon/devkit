@@ -289,8 +289,9 @@ let
   };
 in
 {
-  # Baseline hooks, MCP server file, check-pull-request, the tools of shipped
-  # scripts and languages come from ./devenv.
+  # Baseline hooks, check-pull-request, the tools of shipped scripts and
+  # languages come from ./devenv. The devenv MCP server stays off as in any
+  # repository: sessions here are many at once and barely use its tools.
   lyngon.enable = true;
 
   # A session started from this shell loads every plugin of this checkout, each

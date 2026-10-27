@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Check that lyngon.mcp.enable decides whether entering devenv writes .mcp.json.
 # A throwaway repository imports the baseline and enters devenv with the
-# default, which must write the file with the devenv server, and then with the
-# option off, which must evaluate and remove the file it wrote before. Run
-# through `devenv test`.
+# option on, which must write the file with the devenv server, and then without
+# setting it, which must remove the file it wrote before: the server is off
+# unless a repository turns it on. Run through `devenv test`.
 #
 # Usage: mcp-file-follows-its-option.sh <devenv> <devenv.lock>
 #
@@ -72,8 +72,8 @@ imports:
 EOF
 cp "$lock" "$repo/devenv.lock"
 
-label="by default, entering devenv writes .mcp.json with the devenv server"
-configure ""
+label="with lyngon.mcp.enable = true, entering devenv writes .mcp.json with the devenv server"
+configure "lyngon.mcp.enable = true;"
 enter
 if ((status != 0)); then
   fail "$label: devenv shell exited $status"
@@ -84,8 +84,8 @@ else
   echo "ok: $label"
 fi
 
-label="with lyngon.mcp.enable = false, entering devenv evaluates and removes .mcp.json"
-configure "lyngon.mcp.enable = false;"
+label="by default, entering devenv removes the .mcp.json it wrote before and writes none"
+configure ""
 enter
 if ((status != 0)); then
   fail "$label: devenv shell exited $status"

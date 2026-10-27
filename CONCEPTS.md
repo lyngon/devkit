@@ -28,7 +28,7 @@ The part of the devkit described by `.claude-plugin/marketplace.json`, listing e
 _Avoid_: using "marketplace" for the whole repository
 
 **Baseline**:
-The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the MCP server file, the `check-pull-request` command, the tools of the scripts that skills ship and the languages every repository has.
+The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the `check-pull-request` command, the tools of the scripts that skills ship, the languages every repository has, and the MCP server file for a repository that turns it on.
 
 **In-house skill**:
 A skill authored by Lyngon.
