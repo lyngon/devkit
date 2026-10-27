@@ -235,7 +235,26 @@ PR_TITLE="feat(devenv): add a thing" PR_BODY="$(cat tmp/pull-request-body.md)" c
 It prints nothing when both pass.
 The workflow `pull-request` runs the same command on every pull request.
 
-This repository registers itself as the marketplace `lyngon` from the working tree in `.claude/settings.json`, so a Claude Code session opened here installs the plugins from this checkout. Project marketplaces are applied once per Claude Code process start, so a new registration needs a fresh session, not `/reload-plugins`.
+A Claude Code session started from the devenv shell loads every plugin of this checkout, because the shell sets `CLAUDE_CODE_PLUGIN_DIRS` to its `plugins/` (read by Claude Code 2.1.280 and later).
+For that session, each plugin there takes the place of the installed plugin of its name, and nothing is installed or registered.
+`.claude/settings.json` declares the marketplace `lyngon` from GitHub, as every Lyngon repository does.
+Claude Code keeps one registration of a marketplace per user, so a second source here would move it each time a session starts here or elsewhere, and each session would load the copies of whichever source held it last.
+A session started outside the shell, such as from an editor that has not loaded it, gets the installed plugins, as in any other Lyngon repository.
+The variable holds an absolute path, so a session started with `claude --worktree` loads the plugins of the checkout whose shell started it.
+
+To see what a session started from the shell loads:
+
+```sh
+claude plugin list --json
+```
+
+It lists each plugin of this checkout as `<plugin>@inline`, with the scope `session` and an `installPath` under `plugins/`.
+
+A nested `claude -p` that names a plugin with `--plugin-dir` also loads the copy of the same name from the variable, so start it without the variable:
+
+```sh
+env -u CLAUDE_CODE_PLUGIN_DIRS claude -p "<prompt>" --plugin-dir "<plugin directory>"
+```
 
 ### Evals
 
