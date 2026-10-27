@@ -266,7 +266,7 @@ The command that runs them is documented at <https://code.claude.com/docs/en/plu
 Run the suite of a checkout from its root:
 
 ```sh
-claude plugin eval . --no-publish --ablation none --trust-plugin --scaffold --allow-tools Write
+claude plugin eval . --no-publish --ablation none --trust-plugin --scaffold --allow-tools Write "Read(/$(pwd -P)/shared/**)"
 ```
 
 Without `--no-publish` the command publishes its report to claude.ai.
@@ -275,6 +275,20 @@ Without `--no-publish` the command publishes its report to claude.ai.
 A case lists the tools it wants in `allowed_tools`.
 A gated tool, such as `Write` or `Bash`, is removed from a run unless `--allow-tools` grants it, and a grant holds for every case of the run.
 The report lands under `evals/results/`, which git ignores.
+
+The grant of `Read` lets a run read the shared documents.
+A run may read the plugins that it loads, and `shared/` lies outside every plugin.
+A read through a link is allowed only where the file that the link leads to may be read too.
+So without the grant the harness refuses every read of a document that a skill links into `shared/`, and the case measures the skill without that document (measured on Claude Code 2.1.283):
+
+```text
+Permission to use Read has been denied because Claude Code is running in don't ask mode.
+```
+
+A link to a file in a plugin that the run loads needs no grant.
+The rule names `shared/` by its path without symbolic links, since it has to match the path that a link resolves to.
+A rule opens an absolute path with `//`, so it writes one slash before the path that `pwd -P` prints.
+The grant reaches `shared/` and nothing else of the checkout or of your home.
 
 The target is the root because a case can only name plugins inside the target, and a case here names the plugins directory.
 Its frontmatter line `plugins: ["../../.."]` loads every plugin under `plugins/` from the checkout, so a case of one plugin can use the skills of another.
@@ -311,6 +325,7 @@ compare-evals origin/main --allow-tools Write
 ```
 
 `compare-evals` checks the base commit out into a temporary clone, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
+Each run is granted the `shared/` of its own checkout.
 The working tree counts as head, uncommitted changes included.
 Each run gets the commands of its own commit's environment, such as `check-pull-request`.
 The run at the base commit starts with `devenv shell` in its clone, and the run in the working tree keeps the devenv shell that `compare-evals` was started from, which must be the working tree's.

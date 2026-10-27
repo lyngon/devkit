@@ -4,12 +4,13 @@
 The base commit is checked out into a clone in a temporary directory, which
 borrows the objects of this repository. Both runs are `claude plugin eval .`
 from the root of their checkout: a model call on the account of whoever runs
-this, with the report kept off claude.ai and no baseline arm. The run at the
-base commit starts with `devenv shell`, so it gets the commands of that
-commit's environment, and the run in the working tree keeps the devenv shell
-that this program starts from. A case that seeds its working directory does
-so with a script of its own, which runs as whoever runs this, at both
-commits. The clone and everything a run writes are removed again.
+this, with the report kept off claude.ai, no baseline arm, and a grant to
+read the shared documents of that checkout. The run at the base commit
+starts with `devenv shell`, so it gets the commands of that commit's
+environment, and the run in the working tree keeps the devenv shell that
+this program starts from. A case that seeds its working directory does so
+with a script of its own, which runs as whoever runs this, at both commits.
+The clone and everything a run writes are removed again.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
@@ -65,7 +66,7 @@ class Options:
     """What the operator asked for.
 
     That is the base commit, the gated tools that both runs ask the harness
-    to grant, and the options both runs get, that grant among them.
+    to grant, and the other options both runs get.
     """
 
     base: str
@@ -223,8 +224,6 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         eval_options += ["--runs", runs]
     if model is not None:
         eval_options += ["--model", model]
-    if allow_tools:
-        eval_options += ["--allow-tools", *allow_tools]
     return Options(base=base, granted=tuple(allow_tools), eval_options=tuple(eval_options))
 
 
@@ -299,6 +298,19 @@ def without_nix_shell(environment: ct.Mapping[str, str]) -> dict[str, str]:
     return {**environment, "PATH": os.pathsep.join(kept)}
 
 
+def shared_documents(checkout: pathlib.Path) -> str:
+    """Return the grant that lets a run of the checkout read its shared documents.
+
+    A skill links a document in `shared/`, which lies outside every plugin,
+    and a run may read through a link only where it may read the file that
+    the link leads to. Without the grant the harness refuses every read of
+    such a document (measured on Claude Code 2.1.283). The rule names the
+    directory by its absolute path, which `//` opens, and without symbolic
+    links, since it must match the path that a link resolves to.
+    """
+    return f"Read(/{checkout.resolve()}/shared/**)"
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class Launcher:
     """How a run starts the harness.
@@ -312,10 +324,12 @@ class Launcher:
     environment: ct.Mapping[str, str]
 
 
-def run_suite(
-    checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher: Launcher, eval_options: ct.Sequence[str]
-) -> Result:
+def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher: Launcher, options: Options) -> Result:
     """Run the suite of a checkout and read its result.
+
+    The run gets the options and the tools that the operator asked for, and
+    the shared documents of the checkout. The list of tools comes last, since
+    it takes every word that follows it.
 
     The harness prints the progress of a run only when no `--json` names a
     file for the result, so the result is read from the output directory
@@ -333,7 +347,8 @@ def run_suite(
     output, temporary = scratch / side, scratch / "tmp"
     temporary.mkdir(exist_ok=True)
     command = [*launcher.words, "plugin", "eval", ".", "--output-dir", str(output)]
-    command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *eval_options]
+    command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *options.eval_options]
+    command += ["--allow-tools", *options.granted, shared_documents(checkout)]
     print(f"compare-evals: running the suite at {side}", file=sys.stderr)
     progress: list[str] = []
     with subprocess.Popen(
@@ -658,11 +673,11 @@ def compare(options: Options) -> Comparison:
         scratch = pathlib.Path(directory)
         checkout = clone_of(root, base_commit, scratch / "checkout")
         try:
-            base = run_suite(checkout, "base", scratch, at_base, options.eval_options)
+            base = run_suite(checkout, "base", scratch, at_base, options)
         except RunError as error:
             raise CompareError("\n".join([str(error), *about_suite("base", error.said)])) from error
         try:
-            head = run_suite(root, "head", scratch, at_head, options.eval_options)
+            head = run_suite(root, "head", scratch, at_head, options)
         except RunError as error:
             base_said = about_suite("base", base.said, base.cut_short_reason)
             if not base.cases:

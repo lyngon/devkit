@@ -354,6 +354,7 @@ gone() {
 # The shell that starts the program is the devenv shell of the repository,
 # unless shell_root names another directory, and its Nix store is $tmp/store.
 temporary=$tmp/scratch
+ln -s scratch "$tmp/scratch-link"
 shell_root=""
 compare() {
   local repo=$1 root
@@ -377,6 +378,23 @@ calls_in() {
 
 calls_outside() {
   grep -vF -- "$1"$'\t' <<<"$calls" || true
+}
+
+# grant_of <call>: what one call of the stub grants, which is every word after
+# its --allow-tools, or `none` where it has no such option or more than one.
+grant_of() {
+  local words=${1#*$'\t'}
+  if [[ $words != *" --allow-tools "* || $words == *" --allow-tools "*" --allow-tools "* ]]; then
+    echo none
+    return
+  fi
+  echo "${words##* --allow-tools }"
+}
+
+# shared_of <directory>: the grant to read the shared documents of the
+# checkout in the directory, as a run of that checkout gets it.
+shared_of() {
+  echo "Read(/$1/shared/**)"
 }
 
 # The build that the run inside the repository found, and the one that the
@@ -471,8 +489,16 @@ for flag in "--no-publish" "--ablation none" "--trust-plugin" "--scaffold"; do
   check "two commits: the head run passes $flag" contains "$(calls_in "$repo")" "$flag"
   check "two commits: the base run passes $flag" contains "$(calls_outside "$repo")" "$flag"
 done
-check "two commits: no filter and no grant unless asked" lacks "$calls" "--case"
-check "two commits: no grant unless asked" lacks "$calls" "--allow-tools"
+check "two commits: no filter unless asked" lacks "$calls" "--case"
+# A skill links a document in shared/, outside every plugin, and a run may
+# read through a link only where it may read the file that the link leads to
+# (measured on Claude Code 2.1.283). So each run is granted the shared
+# documents of its own checkout, and no tool unless asked.
+check "two commits: the head run is granted the shared documents of the working tree alone" \
+  equals "$(grant_of "$(calls_in "$repo")")" "$(shared_of "$(cd "$repo" && pwd -P)")"
+call=$(calls_outside "$repo")
+check "two commits: the base run is granted the shared documents of its own checkout alone" \
+  equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
 check "two commits: nothing is left behind" nothing_left "$repo"
 
 repo=$(two_commits)
@@ -492,11 +518,27 @@ case "
 # place of the first would leave a run without a tool that the operator named.
 repo=$(two_commits)
 compare "$repo" main~1 --allow-tools Write --case 'red-*' --allow-tools 'Bash(git:*)' Edit
-check "a second list of tools: the head run gets both lists" contains "$(calls_in "$repo")" "--allow-tools Write Bash(git:*) Edit"
-check "a second list of tools: the base run gets both lists" contains "$(calls_outside "$repo")" "--allow-tools Write Bash(git:*) Edit"
+check "a second list of tools: the head run gets both lists, then its shared documents, as one" \
+  equals "$(grant_of "$(calls_in "$repo")")" "Write Bash(git:*) Edit $(shared_of "$(cd "$repo" && pwd -P)")"
+call=$(calls_outside "$repo")
+check "a second list of tools: the base run gets both lists, then its shared documents, as one" \
+  equals "$(grant_of "$call")" "Write Bash(git:*) Edit $(shared_of "${call%%$'\t'*}")"
 check "a second list of tools: the comparison names every tool" contains "$out" "
 granted tools: Write, Bash(git:*), Edit
 "
+
+# A rule that grants a read is matched against the file that a link leads to,
+# a path without symbolic links, so the grant names the checkout by that path.
+# Here the temporary directory of the base checkout is reached through a link.
+repo=$(two_commits)
+temporary=$tmp/scratch-link
+compare "$repo" main~1
+temporary=$tmp/scratch
+call=$(calls_outside "$repo")
+check "a checkout behind a symbolic link: its run is granted its shared documents by the path without the link" \
+  equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
+check "a checkout behind a symbolic link: the path is not the one through the link" \
+  lacks "$(grant_of "$call")" "scratch-link"
 
 # The working tree here gives another score for one case and has lost the
 # prompt.md of another case, which keeps only a workspace, and none of it is
@@ -836,7 +878,6 @@ git -C "$repo" tag fails-to-load
 result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
 rm "$repo/canned-progress" "$repo/canned-exit"
 commit "$repo" "chore: the file loads again"
-ln -s scratch "$tmp/scratch-link"
 temporary=$tmp/scratch-link
 compare "$repo" fails-to-load
 temporary=$tmp/scratch
@@ -1241,7 +1282,7 @@ compare "$repo" main~1 --runs 0
 check "a number of runs below 1 after a space: is a usage error" equals "$code" 2
 check "a number of runs below 1 after a space: runs nothing" equals "$calls" ""
 compare "$repo" main~1 --runs ' 3'
-check "a number of runs after white space: reaches the harness as digits" contains "$calls" "--scaffold --runs 3"$'\n'
+check "a number of runs after white space: reaches the harness as digits" contains "$calls" "--scaffold --runs 3 --allow-tools "
 
 path=$without_claude
 repo=$(two_commits)
