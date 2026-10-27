@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: architect-stops-at-the-design-gate
+context:
+  scaffold_script: seed-workspace.sh
