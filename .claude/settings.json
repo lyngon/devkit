@@ -5,8 +5,8 @@
   "extraKnownMarketplaces": {
     "lyngon": {
       "source": {
-        "source": "directory",
-        "path": "."
+        "source": "github",
+        "repo": "lyngon/devkit"
       }
     }
   },

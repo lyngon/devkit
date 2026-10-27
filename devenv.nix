@@ -256,6 +256,15 @@ let
     text = ''exec "${config.devenv.root}/scripts/tests/workflow-templates.py" "$@"'';
   };
 
+  # The marketplace declaration in .claude/settings.json against the settings
+  # template of repo:init, and the plugin folder that this shell hands Claude
+  # Code against this checkout, which `enterTest` passes as an argument.
+  testCheckoutPlugins = pkgs.writeShellApplication {
+    name = "test-checkout-plugins";
+    runtimeInputs = [ pythonWithMarkdownIt ];
+    text = ''exec "${config.devenv.root}/scripts/tests/checkout-plugins.py" "$@"'';
+  };
+
   # The type check of this repository's Python programs, as the table
   # [tool.basedpyright] of pyproject.toml sets it. basedpyright resolves an
   # import through the interpreter it is given, and the test of the workflow
@@ -269,6 +278,15 @@ in
   # Baseline hooks, MCP server file, check-pull-request, the tools of shipped
   # scripts and languages come from ./devenv.
   lyngon.enable = true;
+
+  # A session started from this shell loads every plugin of this checkout, each
+  # in place of the installed plugin of its name. Claude Code keeps one
+  # registration of the marketplace lyngon per user, and every Lyngon
+  # repository declares it from GitHub, so a declaration from this working tree
+  # moved that registration back and forth between sessions here and elsewhere
+  # (issue 83). Project settings cannot set this variable; Claude Code 2.1.280
+  # and later read it.
+  env.CLAUDE_CODE_PLUGIN_DIRS = "${config.devenv.root}/plugins";
 
   packages = [
     validateMarketplace
@@ -367,5 +385,6 @@ in
     declared_tools_only ${lib.getExe testPruneMistakes}
     declared_tools_only ${lib.getExe testEvalForge}
     declared_tools_only ${lib.getExe testWorkflowTemplates}
+    declared_tools_only ${lib.getExe testCheckoutPlugins} "''${CLAUDE_CODE_PLUGIN_DIRS-}"
   '';
 }
