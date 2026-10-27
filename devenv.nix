@@ -161,6 +161,20 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/hooks-follow-their-worktree.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
+  # The baseline's .mcp.json in a throwaway repository, entered as the hooks
+  # test above enters its own.
+  testMcpFileFollowsItsOption = pkgs.writeShellApplication {
+    name = "test-mcp-file-follows-its-option";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.jq
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/mcp-file-follows-its-option.sh" "$@" "${config.devenv.root}/devenv.lock"'';
+  };
   testValidateShippedText = pkgs.writeShellApplication {
     name = "test-validate-shipped-text";
     runtimeInputs = [
@@ -378,6 +392,7 @@ in
     declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"
     declared_tools_only ${lib.getExe testValidateStructure}
     declared_tools_only ${lib.getExe testHooksFollowTheirWorktree} "$(command -v devenv)"
+    declared_tools_only ${lib.getExe testMcpFileFollowsItsOption} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testDevkitHooks}
