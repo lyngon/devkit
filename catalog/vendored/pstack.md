@@ -4,7 +4,7 @@
 - **Upstream commit**: 9f451cf875ad1239912762f67741e8e5ba6ac0f1
 - **Upstream version**: 0.15.15 (`pstack/.cursor-plugin/plugin.json`)
 - **Upstream license**: MIT (see [LICENSE-pstack](../../shared/LICENSE-pstack))
-- **Reviewed**: 2026-10-13 by Anders Åström
+- **Reviewed**: 2026-10-27 by Anders Åström
 
 ## Why it is here
 
@@ -56,6 +56,25 @@ An agent reports in the vocabulary of the work it just did, and the person who r
 This skill gives the request "say that again so that I follow" a name: the last message, restated shorter and without jargon.
 It is three sentences, and it is vendored so that the request works the same in every repository.
 
+### `plugins/build/skills/architect`
+
+An agent that goes from a task straight to code builds the first shape it thought of, and a wrong shape shows only once code depends on it.
+This skill puts the design first.
+It grounds the design in the code it touches, sketches at least two whole shapes, screens them against red flags written for a codebase that agents change, and builds against the chosen sketch, with a rule for when to throw the sketch away.
+It is where `exhaust-the-design-space`, `foundational-thinking` and `redesign-from-first-principles` become a procedure, and it ends at the gate on the design when the owner asks for one.
+
+### `plugins/build/skills/arena`
+
+One attempt at an artifact is one sample, and nothing tells the agent how good it was.
+This skill runs several attempts at once, scores them against a rubric written before any was read, checks the scores against a judge on another model, and grafts the best parts of the others into the strongest.
+`architect` sketches its candidates through it, and the operator can ask for it for any artifact.
+
+### `plugins/build/skills/review`
+
+An agent that reviews its own change shares its own blind spots, and a reviewer on the same model shares most of them.
+This skill gives one change to reviewers on different models, with the same rubric and code-quality lens, and judges their findings into one verdict that says what to act on and what was dismissed, and why.
+It runs only when the operator asks for it or `build:architect` puts a design under pressure, for a contested design or a change with a large blast radius.
+
 ## What was taken
 
 | Upstream path | Destination |
@@ -68,6 +87,9 @@ It is three sentences, and it is vendored so that the request works the same in 
 | `pstack/skills/correct` | `plugins/build/skills/correction` |
 | `pstack/skills/technical-writing` | `plugins/writing/skills/technical` |
 | `pstack/skills/bro` | `plugins/writing/skills/simpler` |
+| `pstack/skills/architect` | `plugins/build/skills/architect` |
+| `pstack/skills/arena` | `plugins/build/skills/arena` |
+| `pstack/skills/interrogate` | `plugins/build/skills/review` |
 
 The 8 principles of the group steering in `plugins/principles/skills/index` are written by Lyngon and have no upstream.
 So is `scripts/prune-mistakes.py` in `plugins/build/skills/correction`.
@@ -223,6 +245,94 @@ The index, `SKILL.md`:
 - Added the heading "Simpler", which markdownlint demands of the first line of a file.
 - The body is reflowed to one sentence per line.
 
+### `plugins/build/skills/architect`
+
+All four files (`SKILL.md`, `references/runner-prompt.md`, `references/rationale-template.md` and `references/design-red-flags.md`):
+
+- Paragraphs are reflowed to one sentence per line, with blank lines around lists and headings. The italic notes of the rationale template keep their emphasis around all their sentences.
+- A principle is named as in "the principle `boundary-discipline`", where upstream wrote "the **boundary-discipline** principle skill".
+
+`SKILL.md`:
+
+- The description says what the skill does and when to use it, and keeps upstream's trigger phrases "architect this" and "design this", with "sketch the types first" added. "Use for /architect" is gone, since the slash command has another name here. Upstream's "or non-trivial work where jumping to code would lock in the wrong shape" became "Use only when the operator asks for it or for a design", followed by "Asking for a design counts as asking for this skill" and "Not on your own initiative for a task that asks for no design". `disable-model-invocation: true` is removed, so that the agent can start the skill when the operator asks for a design in words. Without the flag, upstream's last clause would have let the agent start the skill, and with it several subagents, on most coding tasks. Added an `argument-hint`.
+- The section "Start" and its todo list are removed.
+- The headings lose "Phase A:" to "Phase E:", and the text names a step where upstream named its letter. "Phase A evidence" became "grounding evidence", "Re-ground and re-run Phase B" became "Ground the problem again and sketch again", "Return to Phase B and re-run arena" became "Return to "Sketch" and invoke `build:arena` again", and the tell "Two or more independent Phase D deviations" lost "Phase D". The heading "Agree (opt-in)" lost its parenthesis.
+- Added the two sentences that say that the principles the skill names are files of `principles:index`, to be read before they are applied.
+- Added the paragraph on the design file, which holds the sketch and its rationale, is committed on the branch, and is removed by the build plugin when the work is finished. It is the branch's own file under `docs/plans/` when the branch has one, such as the file of a `discover:approach` session, and a new `docs/plans/YYYY-MM-DD-<slug>.md` otherwise. Upstream said that the rationale "ships alongside" and named no place. The owner chose the design file over a scratch file under `tmp/` in the review of this change, so that the rationale has one place with a gate and without one. "Sketch" ends with "Write the package into the design file, then continue with "Agree" below", and "Outputs" says that the rationale ships alongside "in the design file".
+- "Run the **how** skill over the relevant subsystems" became "Have a subagent of its own invoke `discover:how` over the relevant subsystems, started in the foreground (`run_in_background: false`). What it returns is your grounding, never the reply." The same holds for `discover:why`, and two subagents started together go "in a single message and in the foreground (`run_in_background: false` on each call)". A skill invoked in the agent's own context takes the session over, as `discover:why` did in the evals of `discover:explanation`, and here that would end the skill after its first step. "Produce the traced model `how` prescribes" became "The grounding is the traced model that `discover:how` prescribes", since the subagent produces it. The first step of "When you scrap" follows: "Have a subagent invoke `discover:how` over what's been built, started in the foreground (`run_in_background: false`), as in "Ground the problem"", where upstream wrote "Re-run the **how** skill over what's been built". Why the foreground is named, with its parameter, is under `plugins/discover/skills/how`.
+- `build:arena` and `build:review` run in the lead's own context, where `discover:how` and `discover:why` go to subagents. The lead starts the runners and the judge of an arena itself, and continues from its synthesized package, and a review's verdict changes the sketch that the lead holds. What keeps the lead in this skill afterwards is the sentence that ends each of the two steps, "then continue with "Agree" below" and "then continue here", and the eval case `architect-stops-at-the-design-gate` grades the steps after the arena: the design file written and committed, and one question.
+- The paragraph on the `architect runners` line of the `pstack-models.mdc` rule, its two model names and its rules for alias and rejected entries are removed. The runners follow the rules of `build:arena`.
+- "Run the **arena** skill with the design-sketch task and the Phase A grounding artifacts" became "Invoke `build:arena` with the design-sketch task and the path of the grounding", after the added sentence "Write the grounding to `tmp/arena/<task>/grounding.md`, in the directory `tmp/` at the root of the repository." `build:arena` gives each candidate "the path to the shared grounding", and upstream named no file for it. "Arena returns" became "`build:arena` returns", and "the rationale's "Synthesis decision" section" became "the rationale's section "Synthesis decision"".
+- "Pass `references/runner-prompt.md` as each runner's prompt." became "Pass the part of `references/runner-prompt.md` below its line `---` unchanged as each runner's prompt, with the task, the grounding and the paths filled in around it." The runner prompt says that the orchestrator passes it through, and in `build:arena` the same prompt for every candidate is the contract. The reason for the line is under `references/runner-prompt.md` below.
+- The checkpoint that the invoker opted into ("/architect with checkpoint," "stop and show me before implementing," or similar) became the gate that the workflow design names: stop when the owner asked for a gate on the design, "as in "show me the design before you implement" or "stop and show me before implementing"". "Then surface the synthesized design and pause for sign-off" became the sentences that take its place: until the owner approves, the sketch lives in the design file only and nothing else in the repository changes, and the agent commits the design file on the branch and stops with one question, "the last sentence of your reply", whether the owner approves the design. Without those words 1 of 10 runs of the eval case `architect-stops-at-the-design-gate` ended on "Let me know if this design has your approval", with no question. "Default: proceed directly to implementation with the synthesized design. No human checkpoint." became "By default, go on to implementation with the synthesized design, without stopping.", since `CONCEPTS.md` lists "checkpoint" as a term to avoid. "The synthesis can ship as its own commit either way" became "After the gate, or at once when there is none, the sketch can ship as its own commit".
+- "For adversarial pressure on the design before implementing, run the **interrogate** skill on the synthesized sketch." became "For adversarial pressure on the design before implementing, when the design is contested or its blast radius is large, invoke `build:review` on the synthesized sketch. Fold the findings you act on into the sketch and the design file, then continue here." The condition is the one the workflow design gives for `build:review`. That skill applies no change, so the added sentence says what becomes of its verdict.
+- "If the human pushes back on the shape (in a checkpoint or after the fact)" became "If the owner or the operator pushes back on the shape, at the gate or after the fact".
+- "the whole repo" became "the whole repository", and the link to `design-red-flags.md` has the file's name as its text.
+
+`references/runner-prompt.md`:
+
+- "Read the **architect** skill in full first. That's the workflow you're inside." became "The lead runs that skill and `build:arena`, so invoke neither: your job is this one candidate." In Claude Code a runner reads a skill by invoking it, and an invoked `build:architect` would start the whole workflow inside the runner, an arena of its own included.
+- "during Phase B" became "during the step "Sketch"".
+- Added a line `---` between the paragraph for the orchestrator and the text for the runner, as the reviewer prompt of `build:review` has, and "passes this file through to every parallel candidate runner" became "passes the part of this file below the line to every parallel candidate runner ..., unchanged". Upstream's file holds both with nothing between them. In 2 of 7 runs of the eval case `architect-stops-at-the-design-gate` whose traces were kept, the lead wrote the runners a prompt of its own: once with the discipline reworded for the task, once with the paragraph for the orchestrator dropped and the runner's opening sentences reworded (sonnet, 2026-10-27).
+- What the orchestrator fills in is "the grounding", where upstream wrote "the Phase A grounding artifacts", "the candidate's own working directory", where it wrote "the isolated working directory", and also the path of `rationale-template.md`, since a subagent cannot follow a link relative to a file that it was never given. The link to that file became its name.
+- The working directory is "a git worktree or a directory of its own under `tmp/arena/` at the root of the repository, as `build:arena` decides", where upstream wrote "a git worktree when available, otherwise a per-runner subdirectory under the sketch dir".
+- "in architect's parallel exploration" became "in the parallel exploration of `build:architect`", and "each on a different model" gained "where the harness offers more than one".
+- Added "The principles named below are files of `principles:index`; read each one you apply."
+
+`references/rationale-template.md`:
+
+- The link "[Phase A](../SKILL.md#phase-a-ground-the-problem)" became "[grounding the problem](../SKILL.md#ground-the-problem)", and "Filled in by [arena](../../arena/SKILL.md)" became "Filled in by `build:arena`".
+- "the human" and "the human's answer" name the owner.
+- "(or after Phase D sign-off, if a checkpoint was opted into)" became ", or after the owner approved the design when they asked for a gate". Upstream's checkpoint is its Phase C, and its Phase D is the implementation.
+
+`references/design-red-flags.md`: only the reflow.
+
+### `plugins/build/skills/arena`
+
+- Paragraphs are reflowed to one sentence per line, with blank lines around lists and headings. A numbered step keeps its sentences on one line.
+- The description says what the skill does, with the judge, and keeps upstream's trigger phrases "arena this" and "throw it in the arena". "Use for /arena" is gone. Upstream's "or when one attempt at a non-trivial artifact would lock in the wrong shape" became "Use only when the operator asks for it, ..., or when build:architect sketches a design. Not on your own initiative." `disable-model-invocation: true` is removed, because `build:architect` invokes the skill and the Skill tool refuses a flagged one. Added an `argument-hint`.
+- The section "Start" and its todo list are removed.
+- The headings lose "Phase A:" to "Phase F:", and the text names a step where upstream named its letter: "in Phase D" became "in "Pick a base"", "Phase A was under-specified" and "Phase A was wrong" name the framing, "Reframe and re-run" and "re-frame and re-run" became "Frame again and run again", and "go back to Phase E" became "go back to "Graft"".
+- Added the two sentences that say that the principles the skill names are files of `principles:index`. A principle is named as in "the principle `boundary-discipline`", and "per the Laziness Protocol" became "per the principle `laziness-protocol`".
+- "3-6 concrete gradeable criteria" became "3 to 6".
+- The step "Pick the runners" lost the `arena runners` line of `~/.cursor/rules/pstack-models.mdc`, its two default models, the meaning of `auto` and `inherit-parent`, and the fallbacks for a rejected entry. It says "By default there are two, each on a different model where the harness offers more than one (the Agent tool's `model`), and none on a weaker model than yours." Upstream's two default runners and its judges are of the strongest tier of two families, `claude-opus-5-5-xhigh` and `grok-4.7-xhigh-fast`. Without the words on strength, a trial run of the eval case `arena-picks-a-base-and-grafts` put the judge on haiku while the lead ran on sonnet, and so did one of `architect-stops-at-the-design-gate` (2026-10-27). "Same model N times" became "Use the same model for every runner".
+- The step "Assign output paths" became "Give each candidate a place of its own". A candidate whose artifact is a change to the repository's files works in a git worktree of its own, which the Agent tool's `isolation: "worktree"` gives it, and every other candidate, "a draft or a sketch among them", writes to `tmp/arena/<task>/candidate-<n>/`, as does one whose harness offers no worktree. Upstream wrote to `/tmp/arena-<slug>/candidate-<n>/`, outside the repository, where `tmp/` is the agent scratch directory that a Lyngon repository ignores. Added "That `tmp/` is the directory at the root of the repository that holds agent scratch, never the system's temporary directory." Without it, the trial run of `arena-picks-a-base-and-grafts` read `tmp/arena/` as the system's temporary directory, looked up `TMPDIR`, and wrote the candidates and the synthesis note there.
+- "Spawn all N subagents in one message with `run_in_background: true`" became "Spawn all N candidates in a single message and in the foreground (`run_in_background: false` on each call), so that they run concurrently and every candidate is back before you go on." The skill builds its result from its subagents, and the reason is the one given for the same patch under `plugins/discover/skills/how`. "the synthesis record" became "the synthesis note".
+- Added to "Fan out": "When the skill that invoked this one names a prompt for the candidates, as `build:architect` does with its runner prompt, each candidate gets that prompt's text unchanged, with these inputs filled in around it." With the sentence in `build:architect` alone, the eval grader that looks for the runner prompt in the candidates' prompts still failed in 1 of 3 runs. The candidates are started while this skill's text is the latest in the context, and its own list of what each candidate gets reads as the whole prompt.
+- Upstream starts the cross-judge, a readonly subagent on a model from the line `arena cross-judge pool` (or one of two defaults) of another family than the parent's, while the parent reads the candidates for Phase D, and says not to start it while candidates are still writing. Here the lead reads every candidate end to end first, scores each against the rubric and starts the synthesis note with the scores, and then starts the judge in the foreground (`run_in_background: false`), "on a different model than yours that is no weaker, where the harness offers one". Why "no weaker" is under the step "Pick the runners" above. Upstream kept the two verdicts apart by running them at the same time. A judge in the foreground returns before the lead reads on, so the lead would score with the judge's verdict in view, and the order keeps them apart instead. "Read every candidate end to end before picking" and "Score each candidate against the rubric criterion by criterion, not on holistic feel" moved here from "Pick a base". The sentence on the judge running "in parallel with the parent's reading" is gone, and "readonly" became the sentence "The judge reads and changes nothing", since the Agent tool has no such parameter.
+- "Compare against the cross-judge" became "Compare your scores with the judge's", and the pick is recorded "in the synthesis note, including the judge's verdict", where upstream wrote "in a short synthesis note alongside the base artifact, including the cross-judge's verdict".
+- The synthesis note is `tmp/arena/<task>/synthesis.md`, scratch that is never committed, and the reply gives what it says. Upstream put it "alongside" the artifact. Added the paragraph on the worktree and the branch that the harness keeps for a candidate that changed something: the lead removes both once the synthesized artifact is verified.
+
+### `plugins/build/skills/review`
+
+All five files (`SKILL.md`, `references/reviewer-prompt.md`, `references/rubric.md`, `references/code-quality-review.md` and `references/lead-judgment.md`):
+
+- Paragraphs are reflowed to one sentence per line, with blank lines around lists and headings. A bullet or a numbered item keeps its sentences on one line.
+- Headings are in sentence case, and so are the names of the buckets and sections where the text mentions them ("Act on", "Agreement map").
+- "PR" became "pull request".
+
+`SKILL.md`:
+
+- The skill is named `review`, where upstream's is `interrogate`, because a skill's name is a noun that reads after its plugin's. The title follows.
+- Upstream's description is its trigger phrases and the sentence "Multiple LLM reviewers challenge changes from independent angles." It became what the skill does (reviewer subagents on different models with the same prompt, rubric and code-quality lens, one verdict in four buckets, no change applied) and when: "Use only when the operator asks for it", with all seven upstream trigger phrases, "or when build:architect puts a design under pressure", and "Not the routine review of every change". `disable-model-invocation: true` is removed, because `build:architect` invokes the skill and the Skill tool refuses a flagged one. Added an `argument-hint`.
+- The headings lose "Step 1," to "Step 5,", and "from Step 2" in the output format became "from "State the intent"". "Determine Scope" became "Determine the scope", and "PR description" became "The pull request description".
+- "the user" became the operator, in "Determine the scope", "State the intent" and the bucket "Consider".
+- "Spawn one reviewer per configured model" became "Spawn one reviewer per model", and "Each model gets the same prompt and rubric" became "Each reviewer gets the same prompt and rubric".
+- Added "The design file under `docs/plans/` if the branch has one" to the sources of the intent.
+- The step "Spawn reviewers" lost the `interrogate reviewers` line of `~/.cursor/rules/pstack-models.mdc`, the table of default models (Reviewer A on `claude-opus-5-5-xhigh`, Reviewer B on `grok-4.7-xhigh-fast`), the Task tool's parameters `subagent_type`, `model` and `readonly`, the fallbacks for a rejected entry, and the instruction to "open a separate PR to update the default table". It says: spawn two reviewers in a single message and in the foreground (`run_in_background: false` on each call), give each a different model where the harness offers more than one (the Agent tool's `model`), none of them weaker than the model that did the work and at least one of them different from it, and "Reviewers read and search, and they change nothing". The foreground has the reason given under `plugins/discover/skills/how`, and "none of them weaker" the one given under `plugins/build/skills/arena`: upstream's two default reviewers are of the strongest tier of their families.
+- The line of the output format "Reviewer [label]: [model name], [N findings]" became "[Model name]: [N findings]", since the labels A and B went with the table.
+
+`references/reviewer-prompt.md`:
+
+- Added "You read and search, and you change nothing: no file, no commit." Upstream held a reviewer to that with the Task parameter `readonly: true`.
+- The example of the output names its language, `markdown`.
+
+`references/lead-judgment.md`:
+
+- "The configured reviewers" became "The reviewers", and "the user" became the operator.
+
+`references/rubric.md` and `references/code-quality-review.md`: only the patches of all five files.
+
 ## Review notes
 
 ### `plugins/discover/skills/why`
@@ -293,5 +403,38 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-13, the one upstream file r
 - Security: none found. The file is three sentences of prose, with no scripts, hooks, agents, network access, credential reads, tool permissions or encoded content, and it writes nothing.
 - Quality: upstream's description says what the skill does and not when, and upstream sets `disable-model-invocation: true`, so that only `/bro` starts it. Here the description carries the trigger phrases and the agent may start the skill (patched). Trigger check: "bro, what?" after a dense answer must trigger it, "simplify this function" must not. No dependencies. Scope: the last message of the conversation, which the text makes obvious.
 - Fit: no line carries a term of a development repository, shown by the same search. No em or en dashes and no curly quotes. Writes no file. No devkit skill overlaps: `unslop` edits prose that is about to be handed over, and this skill restates an answer that was already given.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/architect`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-27, all 4 upstream files read in full.
+Read by Anders Åström on 2026-10-27.
+
+- Security: Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The skill writes code on purpose, since it builds what it sketched, and through `build:arena` it starts subagents that write. Upstream's candidates wrote under `/tmp/`, outside the repository (patched, see `plugins/build/skills/arena`). Instruction hijacking: upstream proceeds to implementation with "No human checkpoint" by default, which is the behaviour `never-block-on-the-human` asks for and hides nothing; its checkpoint is patched to the gate on the design. No encoded content. Persistence: nothing outside the repository after the patch.
+- Quality: the description states what and when. Trigger check: "architect this: a plugin loader for the CLI, sketch the types before any code" must trigger it, "add a --verbose flag to the CLI" must not. Upstream never let the agent start the skill, and its "non-trivial work where jumping to code would lock in the wrong shape" fits most coding tasks once the flag is gone (patched). `SKILL.md` is 83 lines upstream with three references, the runner prompt, the rationale template and the red flags. Dependencies: the skills `discover:how`, `discover:why`, `build:arena` and `build:review`, and twelve principles of `principles:index` (six named in `SKILL.md` and six in the runner prompt), all in the bundle. Upstream's rationale template sends the reader to "Phase D sign-off" for the checkpoint, which is Phase C (patched).
+- Fit: reads no glossary of its own and reaches the decision records through `discover:why`. Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. Writes no `AGENTS.md`, `CLAUDE.md`, file under `.claude/` or `.mcp.json` of its own; the harness puts a worktree that `build:arena` asks for under `.claude/worktrees/`, which git ignores. Upstream named no place for the rationale, and here it is the design file under `docs/plans/` (patched). No line carries a term that `scripts/validate-shipped-text.py` lists. Overlap: `discover:approach` settles a design with the owner in an interview and writes the design file, `build:plan` turns a settled design into tasks, and this skill explores whole shapes through candidates and then builds. All three stay until the workflow piece decides otherwise.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/arena`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-27, the one upstream file read in full.
+Read by Anders Åström on 2026-10-27.
+
+- Security: Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The skill starts several subagents that write, upstream in the background (patched to the foreground) and under `/tmp/arena-<slug>/`, outside the repository (patched to a worktree or `tmp/arena/`). Upstream held the judge to reading with the Task parameter `readonly`; here that is a sentence, and nothing but the sentence keeps the judge from writing. Instruction hijacking: none in the text. A candidate's output is text the lead reads and the judge scores, and it could address either; the rubric is written before any candidate is read. No encoded content. Persistence: a worktree and a branch per candidate that changed something, kept by the harness, which the lead removes once the result is verified (patched).
+- Quality: the description states what and when. Trigger check: "arena this: the quickstart section of the README" must trigger it, "write the quickstart section of the README" must not. Upstream's "when one attempt at a non-trivial artifact would lock in the wrong shape" would let the agent start several subagents on most tasks once the flag is gone (patched). `SKILL.md` is 71 lines with no references. Dependencies: a harness that spawns subagents and, for the judge and the runners, a choice of models. Upstream draws its runners and its judge from two model families; Claude Code offers Claude models only, so the candidates and the judge differ less than upstream's. No patch can restore that, and the skill still works with one model, as upstream allows for generation-bound work.
+- Fit: reads no glossary and no decision record. Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. No line carries a term that `scripts/validate-shipped-text.py` lists. Writes nothing it commits: the candidates and the synthesis note are scratch. Overlap: none in the devkit.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/review`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-27, all 5 upstream files read in full.
+Read by Anders Åström on 2026-10-27.
+
+- Security: the skill reads and never writes, and says "Do NOT auto-apply changes". Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`; the lead runs `git diff`. Upstream held its reviewers to reading with the Task parameter `readonly: true`; here that is a sentence in `SKILL.md` and in the reviewer prompt (patched), and nothing but the sentences keeps a reviewer from writing. Instruction hijacking: the diff under review is text from whoever wrote it, and a comment in it could address a reviewer. Upstream told the agent to "open a separate PR to update the default table" when a model name was rejected, an outward action as a side effect of a review (left out with the table). No encoded content, no persistence.
+- Quality: the description states what and when. Trigger check: "interrogate the changes on this branch" must trigger it, "summarize what this branch changes" must not. Upstream's description is its trigger phrases and one sentence on what it does (patched). `SKILL.md` is 109 lines upstream; the rubric, the code-quality lens, the reviewer prompt and the lead's framework are references. Dependencies: git, a harness that spawns subagents, and a choice of models. The adversarial signal comes "from model diversity, not assigned personas", and upstream's two reviewers are of two model families. Claude Code offers Claude models only, so the reviewers differ less than upstream's, which no patch can restore.
+- Fit: reads no glossary and no decision record, and reads the design file of the branch for the intent (patched). Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. No line carries a term that `scripts/validate-shipped-text.py` lists. Writes no file. Overlap: `review:request` sends one reviewer over a commit range before every pull request, and `review:receive` weighs review feedback, which the lead does here for the reviewers' findings. Both stay until the workflow piece removes the plugin `review`, and this skill runs only when the operator asks for it or `build:architect` puts a design under pressure. Until then `build:review` and the plugin `review` share a word.
 - License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
 - Verdict: clear with patches, all applied.
