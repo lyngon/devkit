@@ -56,7 +56,7 @@
     {
       "name": "build",
       "source": "./plugins/build",
-      "description": "From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check.",
+      "description": "From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. On request, a design sketched as competing candidates and built against the chosen one, several attempts at one task grafted into the best, and an adversarial review by reviewers on different models. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check.",
       "category": "engineering",
       "keywords": [
         "plan",
@@ -66,7 +66,10 @@
         "review",
         "branch",
         "correction",
-        "mistakes"
+        "mistakes",
+        "design",
+        "arena",
+        "adversarial"
       ],
       "license": "Apache-2.0"
     },

@@ -9,6 +9,12 @@ From an approved design to an open pull request.
 - `/build:execute`: execute a plan yourself in the session, task by task, with one whole-branch review at the end. The cheap mode.
 - `/build:finish`: run the full check, remove the plan file, push the branch and open the pull request (asking once first, unless the user's standing instructions cover it, as the `conventions` plugin's do), then offer the deferred findings for `docs/TODO.md`; merging locally or keeping the branch only on request.
 - `/build:correction [mistake]`: record a mistake in the mistake ledger, one file under `docs/mistakes/`, and fix a mistake that repeats at the highest level that works: architecture, then types, then a lint, then a test, and a rule file last. The agent invokes it when the operator corrects it, a review finding is accepted or a change is reverted.
+- `/build:architect <task>`: design before code. Ground the design with `discover:how`, sketch at least two structurally distinct candidates through `arena`, write the chosen sketch and its rationale into the design file under `docs/plans/`, then build against it, or stop there when the owner asked for a gate on the design.
+- `/build:arena <task>`: run two or more candidates at the same task in parallel, score them against a rubric beside a judge on another model, pick a base and graft the best of the others into it. The candidates and the synthesis note live in a worktree or under `tmp/arena/` and are never committed.
+- `/build:review [change]`: an adversarial review of a change by reviewers on different models, each with the same prompt, rubric and code-quality lens, judged into one verdict (act on, consider, noted, dismissed). It changes nothing.
+
+The agent starts `architect`, `arena` and `review` only when the operator asks for one of them, or when `architect` runs the other two.
+Each of the three spawns several subagents.
 
 The user reviews at two review gates: the plan before execution, and the pull request afterwards, starting from the executor's "Rulings I made", "Deferred minors" and "Owner gates" lists in its description.
 Between them the executor commits per task on a feature branch and stops only at owner gates: the ones the plan declares, each of which the user may pre-approve by its ID when approving the plan, and the stop conditions every executor carries.
@@ -16,7 +22,7 @@ Every task with an owner gate ends with a record commit that holds its evidence.
 The execution ledger and the task briefs live under `tmp/build/<plan>/`, the agent scratch directory; when a run pauses, the ledger is copied into the plan, so a later session resumes it.
 See the decision records [Planned work is reviewed at two gates](../../docs/decisions/planned-work-is-reviewed-at-two-gates.md), [Owner gates are declared in the plan and pre-approved by name](../../docs/decisions/owner-gates-are-declared-in-the-plan-and-pre-approved-by-name.md) and [Plans carry decisions and facts; the implementer writes the tests and the code](../../docs/decisions/plans-carry-decisions-and-facts-the-implementer-writes-the-tests-and-the-code.md).
 
-`plan`, `delegate`, `execute` and `finish` are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), and `correction` from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), where it is called `correct`.
+`plan`, `delegate`, `execute` and `finish` are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), and `correction`, `architect`, `arena` and `review` from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), where `correction` is called `correct` and `review` is called `interrogate`.
 The licenses are `LICENSE-superpowers` and `LICENSE-pstack` in this plugin, and the provenance records are [superpowers.md](../../catalog/vendored/superpowers.md) and [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, skills of two other members of the `all` bundle.
 
