@@ -18,18 +18,17 @@ def main(argv: list[str] | None = None) -> int:
     rate_parser = commands.add_parser("rate", help="print the rate between two currencies")
     rate_parser.add_argument("base")
     rate_parser.add_argument("quote")
-    rate_parser.add_argument("--json", action="store_true", help="print the rate as a JSON object")
+    rate_parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     base, quote = args.base.upper(), args.quote.upper()
     try:
         if args.command == "convert":
             print(convert.convert(args.amount, base, quote))
-        else:
+        elif args.json:
             rate = client.fetch_rate(base, quote)
-            if args.json:
-                print(json.dumps({"base": base, "quote": quote, "rate": float(rate)}))
-            else:
-                print(rate)
+            print(json.dumps({"base": base, "quote": quote, "rate": str(rate)}))
+        else:
+            print(client.fetch_rate(base, quote))
     except client.RateUnavailable as error:
         print(f"rates: no rate for {error}", file=sys.stderr)
         return 1

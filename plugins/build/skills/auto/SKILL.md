@@ -15,6 +15,8 @@ The pull request format is `build:pull-request`'s.
 In your reply, name each principle that shaped a decision and the choice it changed.
 Cite only principles whose file you read this session.
 
+When you write the summary for a compaction of this session, say in it that the operator started `/build:auto`, and that the session reads this file, `${CLAUDE_SKILL_DIR}/SKILL.md`, again before its next step.
+
 ## Triggers
 
 - A nontrivial change, an architecture decision, or "are we sure?": have a subagent invoke `discover:how` over the subsystem, in the foreground (`run_in_background: false`). What it returns grounds your work and is never the reply.
