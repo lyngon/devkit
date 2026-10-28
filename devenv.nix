@@ -46,6 +46,19 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-shipped-text.py" "$@"'';
   };
+  # The commit hooks of the two validators above run them on a checkout of
+  # the index, because prek leaves untracked files in the working tree while
+  # the hooks run, and a file that a commit leaves out must not decide it
+  # (issue 94).
+  onTheIndex = pkgs.writeShellApplication {
+    name = "on-the-index";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+    ];
+    text = ''exec "${config.devenv.root}/scripts/on-the-index.sh" "$@"'';
+  };
   # The eval suite at a base commit and in the working tree, side by side.
   # The program also runs `claude` and `devenv`, which no file declares: the
   # harness, and the tool that made the shell the program starts from. Both
@@ -174,6 +187,20 @@ let
       pkgs.jq
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/mcp-file-follows-its-option.sh" "$@" "${config.devenv.root}/devenv.lock"'';
+  };
+  # The commit hooks of the two validators, as the configuration defines
+  # them, in throwaway repositories that commit through prek, which
+  # `enterTest` hands over with the configuration.
+  testValidatorsCheckTheCommit = pkgs.writeShellApplication {
+    name = "test-validators-check-the-commit";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.jq
+    ];
+    text = ''exec "${config.devenv.root}/scripts/tests/validators-check-the-commit.sh" "$@"'';
   };
   testValidateShippedText = pkgs.writeShellApplication {
     name = "test-validate-shipped-text";
@@ -341,14 +368,14 @@ in
   git-hooks.hooks.validate-marketplace = {
     enable = true;
     name = "validate marketplace";
-    entry = lib.getExe validateMarketplace;
+    entry = "${lib.getExe onTheIndex} ${lib.getExe validateMarketplace}";
     files = "^(\\.claude-plugin/|plugins/|catalog/|shared/)";
     pass_filenames = false;
   };
   git-hooks.hooks.validate-shipped-text = {
     enable = true;
     name = "validate shipped text";
-    entry = lib.getExe validateShippedText;
+    entry = "${lib.getExe onTheIndex} ${lib.getExe validateShippedText}";
     files = "^(\\.claude-plugin/marketplace\\.json$|plugins/|shared/)";
     pass_filenames = false;
   };
@@ -395,9 +422,12 @@ in
       env -i HOME="$HOME" "$@"
     }
     declared_tools_only ${lib.getExe validateMarketplace}
+    declared_tools_only ${lib.getExe onTheIndex} ${lib.getExe validateMarketplace}
     declared_tools_only ${lib.getExe renderPluginList}
     declared_tools_only ${lib.getExe validateShippedText}
+    declared_tools_only ${lib.getExe onTheIndex} ${lib.getExe validateShippedText}
     declared_tools_only ${lib.getExe testValidateMarketplace}
+    declared_tools_only ${lib.getExe testValidatorsCheckTheCommit} ${lib.getExe config.git-hooks.package} "${config.devenv.root}/${config.git-hooks.configPath}"
     declared_tools_only ${lib.getExe testCompareEvals}
     declared_tools_only ${lib.getExe testValidateDocuments}
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
