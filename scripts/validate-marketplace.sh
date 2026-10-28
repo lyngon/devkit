@@ -276,6 +276,28 @@ elif [[ -d plugins/principles ]]; then
   done
 fi
 
+# The eval tool takes every directory below a plugin's evals/ that holds a
+# prompt.md or a case.yaml as a case, at any depth, and looks no further into
+# a case (measured on Claude Code 2.1.283). A case may seed its run with files
+# under its workspace/, the eval cases of an imagined plugin among them, and
+# those are no case of this marketplace.
+case_files=$(find plugins -regextype posix-extended -regex 'plugins/[^/]+/evals/.+/(prompt\.md|case\.yaml)' | sort)
+declare -A case_dirs=()
+while IFS= read -r file; do
+  [[ -z "$file" ]] || case_dirs["${file%/*}"]=1
+done <<<"$case_files"
+
+# inside_a_case <directory>: whether a directory above it, below the evals/ of
+# its plugin, is a case.
+inside_a_case() {
+  local dir=${1%/*}
+  while [[ "$dir" == plugins/*/evals/* ]]; do
+    [[ -z "${case_dirs[$dir]:-}" ]] || return 0
+    dir=${dir%/*}
+  done
+  return 1
+}
+
 # An eval case runs with the plugins that its frontmatter names, and with its
 # own plugin alone when it names none. A plugin assumes every other plugin of
 # the checkout, so its case names the plugins directory, which loads them all.
@@ -288,6 +310,8 @@ fi
 # would hold its keys out of that check's sight, fails. The eval tool takes
 # the name of the case from this file, so the name is that of the directory.
 while IFS= read -r file; do
+  [[ -n "$file" ]] || continue
+  inside_a_case "${file%/*}" && continue
   if [[ "$file" == */case.yaml ]]; then
     case_dir=$(dirname "$file")
     if [[ ! -f "$case_dir/prompt.md" ]]; then
@@ -315,7 +339,7 @@ while IFS= read -r file; do
     expected="plugins: [\"$(dirname "$inside" | sed -E 's|[^/]+|..|g')\"]"
     [[ "$line" == "$expected" ]] || fail "$file: an eval case loads every plugin of the checkout, so its frontmatter needs the line '$expected'; without it the case runs with its own plugin alone"
   fi
-done < <(find plugins -regextype posix-extended -regex 'plugins/[^/]+/evals/.+/(prompt\.md|case\.yaml)' | sort)
+done <<<"$case_files"
 
 # Every plugin directory must be listed.
 for dir in plugins/*/; do
