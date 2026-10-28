@@ -23,7 +23,11 @@ Three checks:
   headed `With the Lyngon structure`. An agent reads such a section as "only
   where the repository adopted the structure".
 
-Runs from anywhere inside the repository. Exits 1 when a check fails.
+Usage: validate-shipped-text.py [<root>]
+
+Checks the tree at <root>, which the commit hook sets to a checkout of the
+index, or else the working tree of the repository around the working
+directory, untracked files included. Exits 1 when a check fails.
 """
 
 import collections.abc as ct
@@ -363,10 +367,10 @@ def check_structure(root: pathlib.Path, marketplace: Marketplace) -> list[Findin
     ]
 
 
-def main() -> int:
-    """Print what fails and return the exit status: 0 when nothing does, 1 otherwise."""
+def main(arguments: ct.Sequence[str]) -> int:
+    """Check the tree at the one argument, or the repository's; print what fails and return 1 then, else 0."""
     try:
-        root = repository_root()
+        root = pathlib.Path(arguments[0]).resolve() if arguments else repository_root()
         marketplace = read_marketplace(root)
         findings = [
             *check_references(root, marketplace),
@@ -386,4 +390,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

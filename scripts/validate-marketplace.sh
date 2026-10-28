@@ -10,9 +10,16 @@
 # upstream licenses shared through symlinks into shared/, one line and one
 # file per principle, and an eval case that runs with the plugins its plugin
 # assumes.
+#
+# Usage: validate-marketplace.sh [<root>]
+#
+# Checks the tree at <root>, which the commit hook sets to a checkout of the
+# index, or else the working tree of the repository around the working
+# directory, untracked files included.
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+# -P, so that $PWD is the path that readlink -f gives for the links below.
+cd -P "${1:-$(git rev-parse --show-toplevel)}"
 
 manifest=.claude-plugin/marketplace.json
 errors=0
