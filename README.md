@@ -453,7 +453,7 @@ Its scaffold script copies the stand-in into the working directory, and the vari
 env: { EVAL_PREPEND_TO_PATH: ".git/forge/bin" }
 ```
 
-The cases of `build:finish` run `forge/gh` of the case `finish-says-it-met-nothing` this way.
+The cases of `build:finish` and the case `add-skill-finishes-a-planned-change` run `forge/gh` of the case `finish-says-it-met-nothing` this way.
 It answers the commands that filing an issue and opening a pull request take, and records both under `.git/forge`, where the graders read them.
 Without a stand-in, a command of a run finds whichever `gh` the PATH holds.
 The sandbox of a run refuses every write to `.git/config`, so `git push -u` pushes the branch and then fails to record its upstream (measured on Claude Code 2.1.283).

@@ -1,0 +1,27 @@
+{
+  "name": "lyngon",
+  "owner": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "metadata": {
+    "description": "A small stand-in for the Lyngon devkit.",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "all",
+      "source": "./plugins/all",
+      "description": "Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own.",
+      "category": "bundle",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "writing",
+      "source": "./plugins/writing",
+      "description": "Skills for prose, which work in any repository.",
+      "category": "writing",
+      "license": "Apache-2.0"
+    }
+  ]
+}

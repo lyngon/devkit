@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: add-skill-finishes-a-planned-change
+context:
+  scaffold_script: seed-workspace.sh

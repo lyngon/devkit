@@ -43,6 +43,10 @@ grep -rl '<name>' catalog/
 If the skill is already there, stop as described above.
 If only its upstream is there, the skill joins that upstream's record.
 
+When the request names a change of a design file under `docs/plans/`, read that change's row, and the sections of the design that it points at, before anything else.
+The row settles the names, the destinations, the patches, the branch and the proof owed: take each from it and ask about none of them again.
+Ask only where the row and what you find upstream disagree.
+
 ## Case A: an existing skill
 
 ### A.1 Find it
@@ -80,7 +84,7 @@ Derive the kind, do not ask for it:
 - **Vendor** when the upstream is a bare skill directory with no `plugin.json`, when only a subset of a plugin is wanted, or when a patch is needed to fit the devkit.
 - **Pin** when the upstream is a plugin used whole and unmodified.
 
-Then propose the concern of each path: an existing plugin under `plugins/` whose concern the skill serves, or a new one. Give a recommendation, list the alternatives, and wait.
+Then propose the concern of each path, unless the change's row settles it: an existing plugin under `plugins/` whose concern the skill serves, or a new one. Give a recommendation, list the alternatives, and wait.
 
 The concern also settles what the skill may assume.
 A skill for development goes into a member of `all` and may assume a Lyngon development repository (Nix, devenv, the baseline, the documents and the workflow) and every other member of `all`.
@@ -93,7 +97,8 @@ Membership of `all` is never a question: the validator puts every plugin outside
 
 Follow [references/install.md](references/install.md) for the exact files.
 Run `devenv test` and fix what fails without disabling anything.
-Commit the result as one commit on the feature branch (on the default branch, create one first), with the message from [references/install.md](references/install.md); do not push, since the push comes when the whole piece of work is done.
+Commit the result as one commit on the feature branch (on the default branch, create one first), with the message from [references/install.md](references/install.md).
+Then finish the change, as below.
 
 ## Case B: a new skill
 
@@ -115,4 +120,15 @@ Present the two options with a recommendation:
 - **Install an existing one**: say what it does and does not do relative to the settled design. If agreed, continue at A.3 with that upstream.
 - **Create a new one**: if agreed, follow [references/create.md](references/create.md).
 
-Commit the result as one commit on the feature branch (on the default branch, create one first), with the message from the reference you followed; do not push, since the push comes when the whole piece of work is done.
+Commit the result as one commit on the feature branch (on the default branch, create one first), with the message from the reference you followed.
+Then finish the change, as below.
+
+## Finish the change
+
+The commit holds the skill, and the change owes more before it is done.
+Each skill that it adds owes an eval case for the behaviour it claims, and the suite's score at the base commit and at head, as the README's section "Evals" describes.
+A change of a design file also owes everything else that its row lists.
+
+When nothing more is owed, invoke `build:finish`, which runs the full check, pushes the branch and opens the pull request.
+The description names every upstream path with its commit, and who read the text there.
+The design file that the request named stays: it covers more than this change, and only the change that the design names removes it.

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# A stand-in for claude and compare-evals in an eval run, so that the run
+# starts no eval run of its own, which would be a model call on the account.
+set -euo pipefail
+
+echo "$(basename "$0") $*: eval runs are not available in this environment" >&2
+exit 1
