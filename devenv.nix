@@ -364,19 +364,22 @@ in
     "^plugins/[^/]+/evals/"
   ];
 
-  # Repository-specific hooks.
+  # Repository-specific hooks. The two validators run on every commit, with no
+  # filter on files: a commit that only deletes files or only stages links
+  # hands a hook no file to match, and can still break what they check
+  # (issue 97).
   git-hooks.hooks.validate-marketplace = {
     enable = true;
     name = "validate marketplace";
     entry = "${lib.getExe onTheIndex} ${lib.getExe validateMarketplace}";
-    files = "^(\\.claude-plugin/|plugins/|catalog/|shared/)";
+    always_run = true;
     pass_filenames = false;
   };
   git-hooks.hooks.validate-shipped-text = {
     enable = true;
     name = "validate shipped text";
     entry = "${lib.getExe onTheIndex} ${lib.getExe validateShippedText}";
-    files = "^(\\.claude-plugin/marketplace\\.json$|plugins/|shared/)";
+    always_run = true;
     pass_filenames = false;
   };
   git-hooks.hooks.render-plugin-list = {
