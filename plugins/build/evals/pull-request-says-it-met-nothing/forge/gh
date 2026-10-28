@@ -9,6 +9,8 @@ read it:
                     "issue #<n> <title>" or "pull #<n> <head branch> <title>"
   issues/<n>.md     the title of the issue as a heading, then its body
   pulls/<head>.md   the body of the pull request from that branch, as it was last created or edited
+  pulls/<head>.comments.md
+                    its comments in order, each after a line "<!-- comment <n> -->"
   state.json        all of it, which the next call reads back
 
 It reaches no network. A command that it does not answer fails with a message that says so.
@@ -61,6 +63,10 @@ def save(state: dict[str, t.Any]) -> None:
             pull = FORGE / "pulls" / f"{item['head']}.md"
             pull.parent.mkdir(parents=True, exist_ok=True)
             pull.write_text(item["body"])
+            comments = pull.with_name(f"{pull.stem}.comments.md")
+            comments.write_text(
+                "".join(f"<!-- comment {n} -->\n{body}\n" for n, body in enumerate(item["comments"], start=1))
+            )
     (FORGE / "created.log").write_text("".join(f"{line}\n" for line in lines))
 
 

@@ -27,6 +27,10 @@ devenv.local.yaml
 # Eval runs, of the whole checkout and of one plugin
 /evals/results/
 plugins/*/evals/results/
+# The session that a run resumes from a case's history_file, which Claude Code
+# goes on writing beside that file, named by the session's ID
+plugins/*/evals/*/*-*-*-*-*.jsonl
+plugins/*/evals/*/*-*-*-*-*/
 
 # Python bytecode caches from the validators
 __pycache__/
