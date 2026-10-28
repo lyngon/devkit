@@ -6,4 +6,6 @@ typeCheckingMode = "all"
 pythonVersion = "3.13"
 # The first three repeat the defaults, which a list set here replaces. The
 # eval cases seed their files into a run as the code of an imagined repository.
-exclude = ["**/node_modules", "**/__pycache__", "**/.*", "plugins/*/evals"]
+# tmp/ is the agent scratch directory, which git ignores and basedpyright,
+# unlike ruff, would still read.
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "plugins/*/evals", "tmp"]
