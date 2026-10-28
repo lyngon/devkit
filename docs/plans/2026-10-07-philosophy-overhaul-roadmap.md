@@ -14,7 +14,6 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `workflow` | Design written, twelve changes to build | [design](2026-10-12-workflow.md) |
 | `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/004-agent-identity.md) |
 | `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/005-issue-pipeline.md) |
 | `github-repository-setup` | Inputs settled, no design | [seed prompt](../seed-prompts/006-github-repository-setup.md) |
@@ -22,7 +21,7 @@ Consult it only where this file is silent.
 
 The order is the order of the table.
 `agent-identity` depends on nothing and may move earlier.
-`issue-pipeline` needs `agent-identity` and `workflow`.
+`issue-pipeline` needs `agent-identity`.
 `github-repository-setup` needs `steering-documents`, `agent-identity` and `issue-pipeline`.
 `rules-as-checks` is a long tail and may interleave.
 
@@ -120,35 +119,6 @@ An agent that decides alone lists the decision in the pull request.
 - An age limit for the ledger set by a variable on one machine.
 - Twenty-four separate principle skills.
 - The name `whoopsie`.
-
-## workflow
-
-Replace the two review gates, plans, owner gates and the ledger with a thin flow: a prompt or an issue in, proof and a pull request out.
-
-Settled:
-
-- The nine superpowers skills go: `build:plan`, `build:delegate`, `build:execute`, `build:finish`, `practice:tdd`, `practice:debug`, `practice:verify`, `review:request`, `review:receive`. The pstack skills above replace them by job: route (`poteto-mode`, `figure-it-out`, `feature`, `refactoring`, `autonomous-run`), understand (`how`, `teach`), design (`architect`, `arena`, `prototype`), prove (`tdd`, `show-me-your-work`, `benchmark-checklist`, `bug-fix`), review (`interrogate`, `no-comments`), learn (`correct`), write (`technical-writing`, `bro`), hand over (`opening-a-pr`).
-- `poteto-mode` is patched heavily into Lyngon's own mode. Its autonomy section becomes the gate above. Every step in a vendored playbook must pass `prescribe-proof-not-steps`.
-- The flow has no approval gate by default. It supports a gate on requirements, a specification, a plan or tasks when the owner asks for one explicitly, and only then.
-- Scripts in skills and checks follow `use-purpose-built-tools`: the tool built for the task, declared through Nix and pinned, nothing from the ambient PATH, and Python shipped as source for highly custom logic.
-- Test-first follows pstack's `tdd`: a failing test first for a bug when a cheap test path exists, and no test rather than a bad one. The rule "no production code without a failing test" goes.
-- The mistake ledger. One file per mistake in a directory, named, holding the date, what happened and the pull request where it was caught. `correct` is its skill, patched from pstack's rule table to this ledger, and the agent invokes it itself on a correction from the operator, an accepted review finding or a revert. A failing check does not trigger it. On a repeat the check is written and the ledger file deleted. A repeat that no tool can decide becomes a file under `.claude/rules/`. A script prunes entries older than a limit that lives in the baseline module, 365 days by default.
-- The pull request body has the sections Why, Decisions, What changed, Scope, Blast radius and Verification, in that order, and stays near 40 lines because it becomes the commit body. A Decisions entry names what was decided, the alternatives and how they were compared, the trade-off accepted and the steering document changed. "None" is written out. An entry that replaces a decision record says `replaces <name>`. pstack's Tradeoffs section folds into Decisions, and the "Rulings I made" list goes.
-- The change is the unit. Squash is the only merge method, the pull request title is the commit subject in Conventional Commits form checked in CI, branch commits are free-form, and the commit-message hooks go.
-- The interview skill's template gives each question a name.
-- `encode-lessons-in-structure` is patched again to route a first occurrence to the ledger. `explain-the-number` and `prove-it-works` get back their pointers to `benchmark-checklist` and `show-me-your-work`, and `discover:why` its pointer to `how`. The sentence in `review-results-not-plans` about the gated skills is removed.
-- These go with the piece: the three decision records about gates and plans, the terms Plan, Review gate, Owner gate, Pre-approval, Acceptance line, Dictated text and Mandated check, a new definition of Workflow, and `shared/WORKFLOW.md`. The lines of `conventions:engineering` are sorted into principles, rules and text a vendored skill already carries.
-- These `docs/TODO.md` items become moot: the adversarial design review before planning, rehearsing a protocol early, one mechanism per plan, rehearsing `build:execute`, and the session hold in the build ledger.
-
-Open, for the design to settle:
-
-- Where the version bump happens. A bump inside each pull request conflicts once changes run in parallel. The proposal is one fragment file per change, folded into the version and changelog on the default branch.
-- The provenance unit. The validator demands an `UPSTREAM.md` and a license per vendored skill, which is 14 pairs for one upstream commit.
-- Which plugin holds which vendored skill, and how the mode gets into every session.
-- What becomes of `discover:approach`, `discover:interview`, `discover:domain-model` and `discover:brainstorm`. `architect` replaces the design half of `approach`. The owner asked only for the superpowers skills to go.
-- How a change to a skill is proven. The `eval` playbook is on the shelf for this.
-- How a script shipped inside a plugin declares its tools through Nix, pinned: through the baseline module, whose pin is the consumer's `devenv.lock`, or in the script itself.
-- What remains of the prerequisite system. Every development repository is now assumed to have Nix and devenv, so the `With devenv` sections lose their purpose for development plugins, while `writing` must still assume nothing.
 
 ## agent-identity
 
