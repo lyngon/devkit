@@ -5,7 +5,8 @@
 # frontmatter breaks a rule, agent files whose frontmatter or place breaks one,
 # the flag that only a conventions skill carries, vendored records and license
 # links that break a rule, a principles index that disagrees with its files,
-# and eval cases that load the wrong plugins.
+# eval cases that load the wrong plugins, and files of a case's workspace that
+# are no case.
 # Run through `devenv test`.
 set -euo pipefail
 
@@ -522,6 +523,21 @@ expect_ok "eval case one directory deeper, with the longer path" "$repo"
 repo=$(clean_marketplace)
 eval_case "$repo" one naming/names-the-service "$whole_bundle"
 expect_error "eval case one directory deeper, with the shorter path" "$repo" "plugins/one/evals/naming/names-the-service/prompt.md: $needs_bundle 'plugins: [\"../../../..\"]'"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+eval_case "$repo" one names-the-service/workspace/plugins/writing/evals/plain-words "runs: 1"
+expect_ok "prompt.md in the workspace of a case, which the eval tool loads as no case" "$repo"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one names-the-service "$whole_bundle"
+mkdir -p "$repo/plugins/one/evals/names-the-service/workspace/evals/seeded"
+printf 'schema_version: "1.1"\nname: another-name\n' >"$repo/plugins/one/evals/names-the-service/workspace/evals/seeded/case.yaml"
+expect_ok "case.yaml in the workspace of a case, which the eval tool loads as no case" "$repo"
+
+repo=$(clean_marketplace)
+eval_case "$repo" one workspace/names-the-service "runs: 1"
+expect_error "eval case below a directory named workspace that is no case" "$repo" "plugins/one/evals/workspace/names-the-service/prompt.md: $needs_bundle 'plugins: [\"../../../..\"]'"
 
 repo=$(writing_marketplace)
 eval_case "$repo" writing plain-words "runs: 1"
