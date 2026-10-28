@@ -13,6 +13,7 @@ Planned: `bump-skill` (compare what is vendored from one upstream with it and ca
 
 - `SessionStart` (`hooks/export-environment-to-eval-run.sh`): in a run of `claude plugin eval`, writes the PATH of the session to `$CLAUDE_ENV_FILE`, so that a shell command of the run finds the tools of the devenv shell that the run was started from.
   It writes each variable `EVAL_EXPORT_<NAME>` of the session there as `<NAME>` too, so that a case can give its commands a variable.
+  It puts the directory that `EVAL_PREPEND_TO_PATH` names, relative to the working directory, in front of that PATH, so that a case can give its commands a stand-in for a tool such as `gh`.
   In any other session it does nothing.
   Why a run needs it is in the section "Evals" of the [root README](../../README.md#evals).
 
