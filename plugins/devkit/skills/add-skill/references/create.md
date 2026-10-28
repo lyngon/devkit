@@ -26,14 +26,8 @@ What the skill says about the structure goes under a `With the Lyngon structure`
 ## Evals
 
 Create at least one case under `plugins/<concern>/evals/<case>/`: a `prompt.md` with the must-trigger prompt and one grader (`regex`, `tool_used`, `file_exists` or `llm`) that checks the skill's observable effect.
-Run once, cheaply:
-
-```sh
-claude plugin eval plugins/<concern> --case <case> --runs 1 --ablation none --no-publish
-```
-
+Score it as the skill's step "Finish the change" says.
 Report the result faithfully; a failing eval is a finding, not a reason to delete the case.
-Evals are not wired into CI yet (token cost); note that in the commit message if it is the plugin's first eval.
 
 ## Bookkeeping
 
@@ -41,4 +35,4 @@ Evals are not wired into CI yet (token cost); note that in the commit message if
 - New concern plugin: same files as in `install.md`.
 - A member of `all` declares no `dependencies`: its skills name the skills of other members as `<plugin>:<skill>`, and `validate-shipped-text` fails a name that no skill has.
 - Run `devenv test`.
-- Commit as one commit on the feature branch, `feat(<concern>): add <name> skill`; do not push, since the push comes when the whole piece of work is done.
+- Commit as one commit on the feature branch, `feat(<concern>): add <name> skill`.
