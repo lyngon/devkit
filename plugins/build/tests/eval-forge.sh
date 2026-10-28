@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Exercise the stand-in for gh that the eval cases of build:finish put in front
-# of the PATH, in a workspace that the seed script of finish-says-it-met-nothing
+# Exercise the stand-in for gh that the eval cases of build:pull-request put in front
+# of the PATH, in a workspace that the seed script of pull-request-says-it-met-nothing
 # writes: what it prints for each command, and what it records in .git/forge
 # for the graders. Run through `devenv test`.
 set -euo pipefail
@@ -11,7 +11,7 @@ trap 'rm -rf "$tmp"' EXIT
 failures=0
 
 cd "$tmp"
-bash "$evals/finish-says-it-met-nothing/seed-workspace.sh" >/dev/null
+bash "$evals/pull-request-says-it-met-nothing/seed-workspace.sh" >/dev/null
 forge=$tmp/.git/forge
 branch=feat/reject-negative-quantity
 

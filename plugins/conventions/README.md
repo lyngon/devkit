@@ -13,7 +13,6 @@ The `decision-record` and `documents` skills carry format documents adapted from
 
 | Skill | Invoke before working on |
 | --- | --- |
-| `engineering` | every file |
 | `python` | `*.py`, `*.pyi`, `*.ipynb` |
 | `typescript` | `*.ts`, `*.tsx`, `*.mts`, `*.cts`, `*.js`, `*.jsx`, `*.mjs`, `*.cjs` |
 | `nix` | `*.nix`, `devenv.yaml` |

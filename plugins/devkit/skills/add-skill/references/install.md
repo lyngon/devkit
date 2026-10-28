@@ -5,7 +5,7 @@ Everything below is checked by `scripts/validate-marketplace.sh` and `scripts/va
 ## Vendored skills
 
 Target: `plugins/<concern>/skills/<name>/` for each path, and one record for their upstream, `catalog/vendored/<upstream>.md`.
-`<upstream>` is a short name for the upstream in kebab-case (`pstack`, `superpowers`), the same in the name of the record and of the license.
+`<upstream>` is a short name for the upstream in kebab-case (`pstack`, `mattpocock`), the same in the name of the record and of the license.
 
 1. Copy each upstream skill directory, minus files for other agents (`agents/openai.yaml` and similar) and minus anything the review blocked.
 2. Copy the upstream license file to `shared/LICENSE-<upstream>` (repository-level license if the skill has none of its own), and link it under the same name into the root of every plugin that receives a path. No skill directory holds a license file.

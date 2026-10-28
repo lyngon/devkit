@@ -9,7 +9,7 @@
 # repository at tmp/forge/acme-brevity, made from upstream/, where git ignores
 # it; under .git/ the harness would refuse a command that copies from it. The
 # forge is the
-# stand-in for GitHub of the cases of build:finish: the remote is a bare
+# stand-in for GitHub of the cases of build:pull-request: the remote is a bare
 # repository under .git/forge, and their gh records the pull requests there.
 # The case puts .git/forge/bin in front of the PATH, which also holds a devenv
 # whose `devenv test` runs scripts/check.sh, and a claude and a compare-evals
@@ -34,7 +34,7 @@ git add -A
 git commit -q -m "feat(writing): add simpler skill"
 
 mkdir -p "$forge/bin"
-cp "$root/plugins/build/evals/finish-says-it-met-nothing/forge/gh" "$forge/bin/gh"
+cp "$root/plugins/build/evals/pull-request-says-it-met-nothing/forge/gh" "$forge/bin/gh"
 cp "$case_dir/forge/devenv" "$forge/bin/devenv"
 cp "$case_dir/forge/no-eval-runs" "$forge/bin/claude"
 cp "$case_dir/forge/no-eval-runs" "$forge/bin/compare-evals"

@@ -1,13 +1,9 @@
 # build
 
-From an approved design to an open pull request.
+How a change is built and handed over in a Lyngon repository: a prompt or an issue in, proof and a pull request out.
 
 ## Skills
 
-- `/build:plan`: write the implementation plan for a settled design as the tasks in order with their interfaces, acceptance lines and dictated text, written for an implementer who writes the tests and the code, appended to the design file under `docs/plans/`, and hand it to the user for review.
-- `/build:delegate`: execute a plan with a fresh implementer subagent per task, a spec-and-quality review after each task and a whole-branch review at the end. The default for more than a handful of tasks.
-- `/build:execute`: execute a plan yourself in the session, task by task, with one whole-branch review at the end. The cheap mode.
-- `/build:finish`: run the full check, remove the plan file, push the branch and open the pull request (asking once first, unless the user's standing instructions cover it, as the `conventions` plugin's do), then offer the deferred findings for `docs/TODO.md`; merging locally or keeping the branch only on request.
 - `/build:auto <task>`: the mode for one task, which only the operator starts. It routes the task to a playbook under `skills/auto/playbooks/` (feature, refactoring, bug fix, prototype, autonomous run) or to `figure-it-out`, delegates code to the agent `build:implementer` (`agents/implementer.md`) and holds every claim of the reply to its evidence.
 - `/build:pull-request [change]`: hand a finished change over as one pull request, with the comments cleaned, the full check green on the pushed head, a title and a body that `check-pull-request` accepts, and the branch's work trace posted on it. The agent invokes it whenever a change is done.
 - `/build:tdd [bug]`: fix a bug test first when a cheap test path exists, with the failing test committed before the fix and kept, and no test rather than a bad one.
@@ -16,22 +12,18 @@ From an approved design to an open pull request.
 - `/build:arena <task>`: run two or more candidates at the same task in parallel, score them against a rubric beside a judge on another model, pick a base and graft the best of the others into it. The candidates and the synthesis note live in a worktree or under `tmp/arena/` and are never committed.
 - `/build:review [change]`: an adversarial review of a change by reviewers on different models, each with the same prompt, rubric and code-quality lens, judged into one verdict (act on, consider, noted, dismissed). It changes nothing.
 - `/build:figure-it-out <task>`: for work that no narrower skill fits, such as a large migration. Frame a falsifiable definition of done and a rigor level, write a phase list with the verification harness first into the design file under `docs/plans/`, then run each unit as an experiment that is kept or reverted, with the trail in `work-trace`.
-- `/build:work-trace [task]`: keep a decision trail of long or unattended work, one row per decision with its evidence, in `tmp/work-trace/<task>.tsv`, written by the script `skills/work-trace/scripts/trace.py`. It is checked against the session's transcript, scanned by a reviewer on another model, and posted on the pull request when a reviewer needs it, never committed.
+- `/build:work-trace [task]`: keep a decision trail of long or unattended work, one row per decision with its evidence, in `tmp/work-trace/<branch>.tsv`, written by the script `skills/work-trace/scripts/trace.py`. It is checked against the session's transcript and scanned by a reviewer on another model, whose Attention section lies beside it. It is never committed, and `pull-request` posts both on the pull request.
 - `/build:benchmark [claim]`: vet a performance number before it is reported or acted on, with seven questions answered from runs (the limiter, tuning, limits, errors, repeatability, relevance, and whether the work happened), and report the verdict with the run count, the range and the limiter.
 - `/build:clean-comments [scope]`: before a change goes to a pull request, have the agent `build:comment-auditor` (`agents/comment-auditor.md`) delete the comments of the change that its exceptions do not protect and flag the code they covered for, then vet its work, fix the flags at their root and encode each constraint a comment claimed.
 
-The agent starts `architect`, `arena`, `review` and `figure-it-out` only when the operator asks for one of them, or when `architect` runs `arena` and `review`.
+The agent never starts `auto`, which carries `disable-model-invocation: true`.
+It starts `architect`, `arena`, `review` and `figure-it-out` only when the operator asks for one of them, or when `auto` routes there or `architect` runs `arena` and `review`.
 Each of the four spawns several subagents, directly or through the others.
+The agent starts every other skill on its own trigger.
 
-The user reviews at two review gates: the plan before execution, and the pull request afterwards, starting from the executor's "Rulings I made", "Deferred minors" and "Owner gates" lists in its description.
-Between them the executor commits per task on a feature branch and stops only at owner gates: the ones the plan declares, each of which the user may pre-approve by its ID when approving the plan, and the stop conditions every executor carries.
-Every task with an owner gate ends with a record commit that holds its evidence.
-The execution ledger and the task briefs live under `tmp/build/<plan>/`, the agent scratch directory; when a run pauses, the ledger is copied into the plan, so a later session resumes it.
-See the decision records [Planned work is reviewed at two gates](../../docs/decisions/planned-work-is-reviewed-at-two-gates.md), [Owner gates are declared in the plan and pre-approved by name](../../docs/decisions/owner-gates-are-declared-in-the-plan-and-pre-approved-by-name.md) and [Plans carry decisions and facts; the implementer writes the tests and the code](../../docs/decisions/plans-carry-decisions-and-facts-the-implementer-writes-the-tests-and-the-code.md).
-
-`plan`, `delegate`, `execute` and `finish` are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), and `correction`, `architect`, `arena`, `review`, `figure-it-out`, `work-trace`, `benchmark`, `clean-comments` and the agent `comment-auditor` from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), where `correction` is called `correct`, `review` `interrogate`, `work-trace` `show-me-your-work`, `benchmark` `benchmark-checklist`, `clean-comments` `no-comments` and `comment-auditor` Comment Sicko.
-The licenses are `LICENSE-superpowers` and `LICENSE-pstack` in this plugin, and the provenance records are [superpowers.md](../../catalog/vendored/superpowers.md) and [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
-The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, skills of two other members of the `all` bundle.
+The skills and the agents are vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), all but the script of `correction`, and the hook is written by Lyngon.
+Upstream, `auto` is called `poteto-mode`, `pull-request` is its playbook `opening-a-pr`, `correction` is `correct`, `review` `interrogate`, `work-trace` `show-me-your-work`, `benchmark` `benchmark-checklist`, `clean-comments` `no-comments`, `implementer` poteto-agent and `comment-auditor` Comment Sicko.
+The license is `LICENSE-pstack` in this plugin, and the provenance record is [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 
 ## Hooks
 

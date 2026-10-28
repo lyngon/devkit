@@ -181,8 +181,6 @@ The key under `extraKnownMarketplaces` must equal the marketplace manifest name 
     "repo@lyngon": true,
     "discover@lyngon": true,
     "build@lyngon": true,
-    "practice@lyngon": true,
-    "review@lyngon": true,
     "writing@lyngon": true,
     "conventions@lyngon": true,
     "principles@lyngon": true
