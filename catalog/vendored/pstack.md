@@ -90,6 +90,11 @@ It runs only when the operator asks for it or `build:architect` puts a design un
 | `pstack/skills/architect` | `plugins/build/skills/architect` |
 | `pstack/skills/arena` | `plugins/build/skills/arena` |
 | `pstack/skills/interrogate` | `plugins/build/skills/review` |
+| `pstack/skills/show-me-your-work/` | `plugins/build/skills/show-me-your-work/` |
+| `pstack/skills/figure-it-out/` | `plugins/build/skills/figure-it-out/` |
+| `pstack/skills/no-comments/` | `plugins/build/skills/no-comments/` |
+| `pstack/agents/comment-sicko.md` | `plugins/build/agents/comment-sicko.md` |
+| `pstack/skills/benchmark-checklist/` | `plugins/practice/skills/benchmark-checklist/` |
 
 The 8 principles of the group steering in `plugins/principles/skills/index` are written by Lyngon and have no upstream.
 So is `scripts/prune-mistakes.py` in `plugins/build/skills/correction`.
@@ -438,3 +443,58 @@ Read by Anders Åström on 2026-10-27.
 - Fit: reads no glossary and no decision record, and reads the design file of the branch for the intent (patched). Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. No line carries a term that `scripts/validate-shipped-text.py` lists. Writes no file. Overlap: `review:request` sends one reviewer over a commit range before every pull request, and `review:receive` weighs review feedback, which the lead does here for the reviewers' findings. Both stay until the workflow piece removes the plugin `review`, and this skill runs only when the operator asks for it or `build:architect` puts a design under pressure. Until then `build:review` and the plugin `review` share a word.
 - License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
 - Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/show-me-your-work`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file and supporting files read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: none found. Network: none. Credentials: none read. Execution surface: `scripts/log.sh` is a shell script that appends rows to a TSV file; it runs no external commands and defensively escapes spreadsheet formula prefixes (=, +, -, @) by prepending a single quote. No hooks, no `allowed-tools`. Instruction hijacking: none. The log is user-supplied data only when the user writes cells; the script handles them safely. No encoded content. Persistence: the log is kept locally by default and committed only when the work is ambitious enough that a reviewer needs the trail.
+- Quality: the description states what and when clearly. Trigger check: "/show-me-your-work" or "keep an audit trail" must trigger it, "commit every change" must not. `SKILL.md` is 83 lines, with two supporting files: a TSV template and the log helper script. Dependencies: bash, date utility. The script is simple and self-contained.
+- Fit: no glossary references. Assumes no layout. No em or en dashes. Writes no file of its own outside the work directory where the log lives. The skill does not duplicate existing devkit skills.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan.
+- Verdict: clear with patches. Patches: updated `writing:unslop` and `principles:encode-lessons-in-structure` namespacing.
+
+### `plugins/build/skills/figure-it-out`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: none found. Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The skill invokes `build:architect`, `build:arena`, `show-me-your-work` and principle skills; it changes nothing itself. Instruction hijacking: none in the text. No encoded content. Persistence: the decision log is committed only when ambitious.
+- Quality: the description states what and when. Trigger check: "figure it out: a large migration" must trigger it, "write the feature" must not. The skill is 54 lines, proportionate for a complex workflow. Dependencies: the skills `build:architect`, `build:show-me-your-work`, and the principles `poteto-mode`, `prove-it-works`, `never-block-on-the-human`, `foundational-thinking`, `laziness-protocol`, `separate-before-serializing-shared-state`, `sequence-verifiable-units`, `encode-lessons-in-structure`.
+- Fit: no glossary references. Assumes no layout. No em or en dashes. Writes no file of its own. The skill does not duplicate existing devkit skills; it complements `build:architect` and `build:plan`.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan.
+- Verdict: clear with patches. Patches: namespaced all principle and skill references to Lyngon form throughout.
+
+### `plugins/build/skills/no-comments`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: the skill invokes the Comment Sicko agent and does not change code itself; the agent removes comments and identifies refactor targets. Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The agent touches comments only and identifies refactor targets; it does not write code. Instruction hijacking: none in the text. No encoded content, no persistence.
+- Quality: the description states what and when. Trigger check: "no comments" must trigger it, "write cleaner code" must not. The skill is 25 lines, proportionate for a workflow that delegates the hard work to an agent. Dependencies: the Comment Sicko agent, the skills `build:architect`, `discover:how`, `discover:why`, and the principles `principles:fix-root-causes`, `principles:redesign-from-first-principles`.
+- Fit: no glossary references. Assumes no layout. No em or en dashes. Writes no file of its own. The skill does not duplicate existing devkit skills.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan.
+- Verdict: clear with patches. Patches: namespaced `build:architect`, `discover:how`, `discover:why`, and principle references to Lyngon form.
+
+### `plugins/build/agents/comment-sicko.md`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: the agent reads code and comments only; it never writes code. Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The agent identifies comments to remove and refactor targets; it does not touch code. Instruction hijacking: none in the text. No encoded content, no persistence.
+- Quality: the agent describes its personality and rules clearly. It does not write code, only identifies issues. The rules are clear and self-enforcing: legal headers, API contracts, vendor constraints, lint rules are kept; everything else is evaluated for removal. 32 lines of prose.
+- Fit: no glossary references. Assumes no layout. No em or en dashes. Writes no file. The agent is a support tool for `build:skills/no-comments` and does not duplicate existing devkit agents.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan.
+- Verdict: clear with patches. Patches: namespaced `discover:how` and `discover:why` to `discover:how` and `discover:why`.
+
+### `plugins/practice/skills/benchmark-checklist`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: none found. Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The skill asks questions about how a measurement was made; it does not run any tests or benchmarks itself. Instruction hijacking: none. No encoded content, no persistence.
+- Quality: the description states what and when. Trigger check: "benchmark-checklist before I report this speedup" must trigger it, "my code is slow" must not. The skill is 40 lines, proportionate for a detailed checklist. Dependencies: the principle `principles:explain-the-number`.
+- Fit: references three playbooks (Opening a PR, Perf issue, Hillclimb) that do not exist in the devkit yet; these are forward references that will be resolved when those playbooks are written. No glossary references. Assumes no layout. No em or en dashes. Writes no file of its own. The skill does not duplicate existing devkit skills.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan.
+- Verdict: clear with patches. Patches: updated principle reference from broken relative path to namespaced `principles:explain-the-number`.

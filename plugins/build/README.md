@@ -12,6 +12,9 @@ From an approved design to an open pull request.
 - `/build:architect <task>`: design before code. Ground the design with `discover:how`, sketch at least two structurally distinct candidates through `arena`, write the chosen sketch and its rationale into the design file under `docs/plans/`, then build against it, or stop there when the owner asked for a gate on the design.
 - `/build:arena <task>`: run two or more candidates at the same task in parallel, score them against a rubric beside a judge on another model, pick a base and graft the best of the others into it. The candidates and the synthesis note live in a worktree or under `tmp/arena/` and are never committed.
 - `/build:review [change]`: an adversarial review of a change by reviewers on different models, each with the same prompt, rubric and code-quality lens, judged into one verdict (act on, consider, noted, dismissed). It changes nothing.
+- `/build:show-me-your-work`: keep a reviewable decision trail for long-running or unattended work as a TSV log with one row per decision (what, why, evidence, result). Local by default; commit it when a reviewer needs the trail to trust the result.
+- `/build:figure-it-out`: design an auditable playbook when no narrower one fits: a large migration, an ambitious multi-part change, or work a human reviews after stepping away. Scales rigor to the task, runs a hypothesis loop, and logs decisions via `show-me-your-work`.
+- `/build:no-comments`: spawn Comment Sicko agent to remove unnecessary comments and fix code quality issues. Fixes trivial findings directly, architects shape for non-trivial ones, and offers encodings for constraint comments before deleting them.
 
 The agent starts `architect`, `arena` and `review` only when the operator asks for one of them, or when `architect` runs the other two.
 Each of the three spawns several subagents.
@@ -22,7 +25,7 @@ Every task with an owner gate ends with a record commit that holds its evidence.
 The execution ledger and the task briefs live under `tmp/build/<plan>/`, the agent scratch directory; when a run pauses, the ledger is copied into the plan, so a later session resumes it.
 See the decision records [Planned work is reviewed at two gates](../../docs/decisions/planned-work-is-reviewed-at-two-gates.md), [Owner gates are declared in the plan and pre-approved by name](../../docs/decisions/owner-gates-are-declared-in-the-plan-and-pre-approved-by-name.md) and [Plans carry decisions and facts; the implementer writes the tests and the code](../../docs/decisions/plans-carry-decisions-and-facts-the-implementer-writes-the-tests-and-the-code.md).
 
-`plan`, `delegate`, `execute` and `finish` are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), and `correction`, `architect`, `arena` and `review` from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), where `correction` is called `correct` and `review` is called `interrogate`.
+`plan`, `delegate`, `execute` and `finish` are vendored from [obra/superpowers](https://github.com/obra/superpowers) (MIT), and `correction`, `architect`, `arena`, `review`, `show-me-your-work`, `figure-it-out` and `no-comments` from [cursor/plugins](https://github.com/cursor/plugins) (MIT), where `correction` is called `correct`, `review` is called `interrogate` and `no-comments` routes to the Comment Sicko agent.
 The licenses are `LICENSE-superpowers` and `LICENSE-pstack` in this plugin, and the provenance records are [superpowers.md](../../catalog/vendored/superpowers.md) and [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, skills of two other members of the `all` bundle.
 
