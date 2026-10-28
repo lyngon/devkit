@@ -1,0 +1,10 @@
+{
+  "name": "all",
+  "description": "Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "license": "Apache-2.0",
+  "dependencies": ["writing"]
+}

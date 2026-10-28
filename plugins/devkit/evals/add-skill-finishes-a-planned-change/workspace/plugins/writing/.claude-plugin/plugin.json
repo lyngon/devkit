@@ -1,0 +1,9 @@
+{
+  "name": "writing",
+  "description": "Skills for prose, which work in any repository.",
+  "author": {
+    "name": "Lyngon",
+    "url": "https://lyngon.com"
+  },
+  "license": "Apache-2.0"
+}

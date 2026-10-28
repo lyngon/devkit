@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# A stand-in for devenv in an eval run: `devenv test` runs the full check of
+# the repository, scripts/check.sh, and every other command fails, so that a
+# run never builds an environment.
+set -euo pipefail
+
+if [[ $# -eq 1 && $1 == test ]]; then
+  exec "$(git rev-parse --show-toplevel)/scripts/check.sh"
+fi
+echo "devenv $*: this stand-in answers only 'devenv test'" >&2
+exit 1
