@@ -2,9 +2,10 @@
 # Exercise validate-marketplace.sh against throwaway marketplaces: a clean
 # one, one without the `all` bundle, a member of it that declares
 # dependencies, a local plugin with a version or a changelog, skills whose
-# frontmatter breaks a rule, the flag that only a conventions skill carries,
-# vendored records and license links that break a rule, a principles index
-# that disagrees with its files, and eval cases that load the wrong plugins.
+# frontmatter breaks a rule, agent files whose frontmatter or place breaks one,
+# the flag that only a conventions skill carries, vendored records and license
+# links that break a rule, a principles index that disagrees with its files,
+# and eval cases that load the wrong plugins.
 # Run through `devenv test`.
 set -euo pipefail
 
@@ -300,6 +301,35 @@ expect_error "frontmatter below line 1" "$repo" "plugins/one/skills/main/SKILL.m
 repo=$(clean_marketplace)
 printf -- '---\nname: main\n---\n\n# Main\n' >"$(skill "$repo")"
 expect_error "skill without a description" "$repo" "plugins/one/skills/main/SKILL.md: frontmatter needs a non-empty description"
+
+# agent <repo> <path under agents/> <frontmatter line...>: an agent file of
+# plugin one.
+agent() {
+  local file="$1/plugins/one/agents/$2"
+  shift 2
+  mkdir -p "$(dirname "$file")"
+  printf -- '%s\n' --- "$@" --- "" "Audit the scope." >"$file"
+}
+
+repo=$(clean_marketplace)
+agent "$repo" auditor.md "name: auditor" "description: Test agent."
+expect_ok "agent named after its file" "$repo"
+
+repo=$(clean_marketplace)
+agent "$repo" auditor.md "description: Test agent."
+expect_error "agent without a name" "$repo" "plugins/one/agents/auditor.md: frontmatter needs a name equal to the file name 'auditor'"
+
+repo=$(clean_marketplace)
+agent "$repo" auditor.md "name: Comment Auditor" "description: Test agent."
+expect_error "agent named differently from its file" "$repo" "plugins/one/agents/auditor.md: frontmatter name 'Comment Auditor' differs from file name 'auditor'"
+
+repo=$(clean_marketplace)
+agent "$repo" auditor.md "name: auditor"
+expect_error "agent without a description" "$repo" "plugins/one/agents/auditor.md: frontmatter needs a non-empty description"
+
+repo=$(clean_marketplace)
+agent "$repo" review/auditor.md "name: auditor" "description: Test agent."
+expect_error "agent in a folder below agents/" "$repo" "plugins/one/agents/review/auditor.md: an agent file lies directly in plugins/one/agents/, since Claude Code joins the names of the folders below it into the agent's name"
 
 expect_ok "conventions skill without a slash command" "$(conventions_marketplace)"
 

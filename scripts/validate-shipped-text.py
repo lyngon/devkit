@@ -9,11 +9,11 @@ shipped text: a README is read in this repository, by a person.
 
 Three checks:
 
-- A skill reference names a skill that exists. A plugin assumes every other
-  plugin of the bundle, so its text names their skills freely, and nothing else
-  fails when a skill is renamed or removed and a pointer to it stays. The
-  skills of a pinned plugin are not in this tree, so a reference to one passes
-  when the marketplace lists the plugin.
+- A skill reference names a skill or an agent that exists. A plugin assumes
+  every other plugin of the bundle, so its text names their skills and agents
+  freely, and nothing else fails when one is renamed or removed and a pointer
+  to it stays. The skills of a pinned plugin are not in this tree, so a
+  reference to one passes when the marketplace lists the plugin.
 - `writing` stands alone. It is the one plugin that is installed outside a
   Lyngon development repository, so its text names no skill of another plugin
   and no term of such a repository.
@@ -41,7 +41,8 @@ COMPONENTS: tuple[str, ...] = ("skills", "commands", "agents", "hooks")
 
 # A skill reference is two names in kebab-case, each starting with a letter,
 # joined by a colon with nothing around it: `<plugin>:<skill>`. A slash may
-# stand before it, as in a slash command.
+# stand before it, as in a slash command. Claude Code names an agent of a
+# plugin the same way, `<plugin>:<agent>`, so the right side may be an agent.
 #
 # A key and its value, a URL and a path have the same shape. Two rules tell
 # them apart, and both lean toward failing, since a reference that is taken
@@ -242,32 +243,41 @@ def references(line: str, marketplace: Marketplace) -> ct.Iterator[tuple[str, st
         yield plugin, skill
 
 
-def unresolved(plugin: str, skill: str, root: pathlib.Path, marketplace: Marketplace) -> str | None:
-    """Why the reference names no skill, or None when it names one."""
+def unresolved(plugin: str, name: str, root: pathlib.Path, marketplace: Marketplace) -> str | None:
+    """Why the reference names neither a skill nor an agent, or None when it names one.
+
+    An agent resolves by its file, agents/<name>.md directly in the plugin,
+    because validate-marketplace holds the name in its frontmatter to the name
+    of its file, and Claude Code names it after the frontmatter.
+    """
     directory = marketplace.local.get(plugin)
     if directory is not None:
-        skill_file = directory / "skills" / skill / "SKILL.md"
-        if skill_file.is_file():
+        skill_file = directory / "skills" / name / "SKILL.md"
+        agent_file = directory / "agents" / f"{name}.md"
+        if skill_file.is_file() or agent_file.is_file():
             return None
-        return f"names the skill '{plugin}:{skill}', and {displayed(skill_file, root)} does not exist"
+        return (
+            f"names '{plugin}:{name}', and neither the skill {displayed(skill_file, root)} "
+            f"nor the agent {displayed(agent_file, root)} exists"
+        )
     # The skills of a pinned plugin are in its upstream, not in this tree, so
     # a reference to one is taken on trust once the plugin is listed.
     if plugin in marketplace.pinned:
         return None
     return (
-        f"names the skill '{plugin}:{skill}', and the marketplace has no plugin '{plugin}'; if this is not a skill, "
+        f"names '{plugin}:{name}', and the marketplace has no plugin '{plugin}'; if this is no skill or agent, "
         "write it another way or add its left side to NAMESPACES in scripts/validate-shipped-text.py"
     )
 
 
 def check_references(root: pathlib.Path, marketplace: Marketplace) -> list[Finding]:
-    """Return a finding for every skill reference in shipped text that names no skill."""
+    """Return a finding for every skill reference in shipped text that names neither a skill nor an agent."""
     return [
         Finding(path=displayed(path, root), line=number, message=reason)
         for path in shipped_files(root, marketplace)
         for number, line in enumerate(read_lines(path), 1)
-        for plugin, skill in references(line, marketplace)
-        if (reason := unresolved(plugin, skill, root, marketplace)) is not None
+        for plugin, name in references(line, marketplace)
+        if (reason := unresolved(plugin, name, root, marketplace)) is not None
     ]
 
 

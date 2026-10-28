@@ -81,7 +81,7 @@ expect_error() {
 
 # --- Skill references --------------------------------------------------------
 
-no_plugin="if this is not a skill, write it another way or add its left side to NAMESPACES in scripts/validate-shipped-text.py"
+no_plugin="if this is no skill or agent, write it another way or add its left side to NAMESPACES in scripts/validate-shipped-text.py"
 
 repo=$(new_repo)
 plugin "$repo" one
@@ -91,52 +91,68 @@ expect_ok "references to skills that exist, in the plugin and in another" "$repo
 
 repo=$(new_repo)
 plugin "$repo" one
+plugin "$repo" two
+mkdir "$repo/plugins/two/agents"
+printf -- '---\nname: auditor\ndescription: Test agent.\n---\n' >"$repo/plugins/two/agents/auditor.md"
+echo "Spawn the agent two:auditor over the diff." >>"$(skill "$repo" one)"
+echo "Spawn two:auditor again." >>"$(skill "$repo" two)"
+expect_ok "references to an agent that exists, in its plugin and in another" "$repo"
+
+repo=$(new_repo)
+plugin "$repo" one
+mkdir -p "$repo/plugins/one/agents/review"
+printf -- '---\nname: auditor\ndescription: Test agent.\n---\n' >"$repo/plugins/one/agents/review/auditor.md"
+echo "Spawn the agent one:auditor over the diff." >>"$(skill "$repo" one)"
+expect_error "agent in a folder below agents/, which Claude Code names after the folder too" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'one:auditor', and neither the skill plugins/one/skills/auditor/SKILL.md nor the agent plugins/one/agents/auditor.md exists" 1
+
+repo=$(new_repo)
+plugin "$repo" one
 echo "Invoke one:gone first." >>"$(skill "$repo" one)"
-expect_error "skill that its plugin does not have" "$repo" "plugins/one/skills/main/SKILL.md:7: names the skill 'one:gone', and plugins/one/skills/gone/SKILL.md does not exist"
+expect_error "skill that its plugin does not have" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'one:gone', and neither the skill plugins/one/skills/gone/SKILL.md nor the agent plugins/one/agents/gone.md exists"
 
 repo=$(new_repo)
 plugin "$repo" one
 echo "Write the test first, as practice:tdd says." >>"$(skill "$repo" one)"
-expect_error "skill of a plugin that the marketplace does not have" "$repo" "plugins/one/skills/main/SKILL.md:7: names the skill 'practice:tdd', and the marketplace has no plugin 'practice'; $no_plugin"
+expect_error "skill of a plugin that the marketplace does not have" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'practice:tdd', and the marketplace has no plugin 'practice'; $no_plugin"
 
 repo=$(new_repo)
 plugin "$repo" one
 echo "Run /one:gone when the branch is done." >>"$(skill "$repo" one)"
-expect_error "slash command of a skill that does not exist" "$repo" "plugins/one/skills/main/SKILL.md:7: names the skill 'one:gone'"
+expect_error "slash command of a skill that does not exist" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
 printf -- '---\nname: main\ndescription: Not for a plan (that is one:gone).\n---\n\n# Main\n' >"$(skill "$repo" one)"
-expect_error "stale reference in a description" "$repo" "plugins/one/skills/main/SKILL.md:3: names the skill 'one:gone'"
+expect_error "stale reference in a description" "$repo" "plugins/one/skills/main/SKILL.md:3: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
 echo "Then one:gone, and one:gone again, or two:main." >>"$(skill "$repo" one)"
-expect_error "every stale reference of a line is reported" "$repo" "plugins/one/skills/main/SKILL.md:7: names the skill 'two:main', and the marketplace has no plugin 'two'" 3
+expect_error "every stale reference of a line is reported" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'two:main', and the marketplace has no plugin 'two'" 3
 
 repo=$(new_repo)
 plugin "$repo" one
 mkdir "$repo/plugins/one/skills/main/references"
 echo "See one:gone." >"$repo/plugins/one/skills/main/references/method.md"
-expect_error "stale reference in a reference file" "$repo" "plugins/one/skills/main/references/method.md:1: names the skill 'one:gone'"
+expect_error "stale reference in a reference file" "$repo" "plugins/one/skills/main/references/method.md:1: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
 mkdir "$repo/plugins/one/skills/main/scripts"
 printf '#!/usr/bin/env bash\necho "continue with one:gone"\n' >"$repo/plugins/one/skills/main/scripts/next"
-expect_error "stale reference in a script beside a skill" "$repo" "plugins/one/skills/main/scripts/next:2: names the skill 'one:gone'"
+expect_error "stale reference in a script beside a skill" "$repo" "plugins/one/skills/main/scripts/next:2: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
 mkdir "$repo/plugins/one/hooks"
 echo "Invoke one:gone before any work." >"$repo/plugins/one/hooks/session-start.txt"
-expect_error "stale reference in a hook text" "$repo" "plugins/one/hooks/session-start.txt:1: names the skill 'one:gone'"
+expect_error "stale reference in a hook text" "$repo" "plugins/one/hooks/session-start.txt:1: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
 mkdir "$repo/plugins/one/agents"
 echo "Read the text of one:gone in full." >"$repo/plugins/one/agents/implementer.md"
-expect_error "stale reference in an agent file" "$repo" "plugins/one/agents/implementer.md:1: names the skill 'one:gone'"
+expect_error "stale reference in an agent file" "$repo" "plugins/one/agents/implementer.md:1: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
@@ -144,12 +160,12 @@ plugin "$repo" two
 echo "The flow starts with one:gone." >"$repo/shared/FLOW.md"
 ln -s ../../../../shared/FLOW.md "$repo/plugins/one/skills/main/FLOW.md"
 ln -s ../../../../shared/FLOW.md "$repo/plugins/two/skills/main/FLOW.md"
-expect_error "stale reference in a shared document, reported once whatever links it" "$repo" "shared/FLOW.md:1: names the skill 'one:gone'" 1
+expect_error "stale reference in a shared document, reported once whatever links it" "$repo" "shared/FLOW.md:1: names 'one:gone'" 1
 
 repo=$(new_repo)
 plugin "$repo" one
 echo "The flow starts with one:gone." >"$repo/shared/FLOW.md"
-expect_error "stale reference in a shared document that nothing links" "$repo" "shared/FLOW.md:1: names the skill 'one:gone'"
+expect_error "stale reference in a shared document that nothing links" "$repo" "shared/FLOW.md:1: names 'one:gone'"
 
 repo=$(new_repo)
 plugin "$repo" one
@@ -185,13 +201,13 @@ expect_ok "text of the same shape that is no skill reference" "$repo"
 repo=$(new_repo)
 plugin "$repo" one
 echo "Each entry is a key:value pair." >>"$(skill "$repo" one)"
-expect_error "pair that is neither a skill nor a listed namespace" "$repo" "plugins/one/skills/main/SKILL.md:7: names the skill 'key:value', and the marketplace has no plugin 'key'; $no_plugin"
+expect_error "pair that is neither a skill nor a listed namespace" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'key:value', and the marketplace has no plugin 'key'; $no_plugin"
 
 repo=$(new_repo)
 plugin "$repo" one
 plugin "$repo" file
 echo "Cite the place as file:line." >>"$(skill "$repo" one)"
-expect_error "namespace that a plugin of the marketplace takes" "$repo" "plugins/one/skills/main/SKILL.md:7: names the skill 'file:line', and plugins/file/skills/line/SKILL.md does not exist"
+expect_error "namespace that a plugin of the marketplace takes" "$repo" "plugins/one/skills/main/SKILL.md:7: names 'file:line', and neither the skill plugins/file/skills/line/SKILL.md nor the agent plugins/file/agents/line.md exists"
 
 repo=$(new_repo)
 plugin "$repo" one

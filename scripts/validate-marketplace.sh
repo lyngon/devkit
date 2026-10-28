@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Validate the marketplace manifest, every plugin directory, every SKILL.md,
-# every catalog record, pinned and vendored, the plugins enabled by the
-# settings template of /repo:init, the principles index and the plugins that
-# every eval case loads.
+# Validate the marketplace manifest, every plugin directory, every SKILL.md and
+# agent file, every catalog record, pinned and vendored, the plugins enabled by
+# the settings template of /repo:init, the principles index and the plugins
+# that every eval case loads.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
 # the commit as the version of a local plugin, a slash command for every skill
 # outside conventions, pinning per plugin and vendoring per upstream, the
@@ -74,6 +74,28 @@ check_skill() {
   done
 }
 
+# Claude Code names an agent of a plugin `<plugin>:<name>` after the name in
+# its frontmatter, and joins the names of the folders between agents/ and the
+# file into it. Shipped text names an agent by `<plugin>:<file name>`, and
+# validate-shipped-text resolves it by that file, which holds only for a file
+# directly in agents/ whose frontmatter name is its file name.
+check_agent() {
+  local dir=$1 agent=$2
+  local file meta name
+  file=$(basename "$agent" .md)
+  [[ "$(dirname "$agent")" == "$dir/agents" ]] || fail "$agent: an agent file lies directly in $dir/agents/, since Claude Code joins the names of the folders below it into the agent's name"
+  [[ "$file" =~ $kebab ]] || fail "$agent: file name '$file' is not kebab-case"
+  [[ "$(head -n 1 "$agent")" == "---" ]] || fail "$agent: frontmatter must start on line 1"
+  meta=$(frontmatter "$agent")
+  grep -qE '^description:[[:space:]]*[^[:space:]]' <<<"$meta" || fail "$agent: frontmatter needs a non-empty description"
+  name=$(sed -nE 's/^name:[[:space:]]*//p' <<<"$meta" | head -n 1)
+  if [[ -z "$name" ]]; then
+    fail "$agent: frontmatter needs a name equal to the file name '$file'"
+  elif [[ "$name" != "$file" ]]; then
+    fail "$agent: frontmatter name '$name' differs from file name '$file'"
+  fi
+}
+
 check_local_plugin() {
   local entry_name=$1 source=$2
   local dir="${source#./}" pj
@@ -124,6 +146,9 @@ check_local_plugin() {
       fail "$skill: only a conventions skill sets user-invocable: false; the operator can invoke every other skill as a slash command"
     fi
   done < <(find "$dir/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null)
+  while IFS= read -r agent; do
+    check_agent "$dir" "$agent"
+  done < <(find "$dir/agents" -name '*.md' 2>/dev/null)
   if [[ -f "catalog/$entry_name.md" ]]; then
     fail "$entry_name: local plugins do not get catalog records; vendored skills are recorded per upstream in catalog/vendored/<upstream>.md"
   fi
