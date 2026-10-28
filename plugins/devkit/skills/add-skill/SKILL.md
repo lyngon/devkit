@@ -1,6 +1,6 @@
 ---
 name: add-skill
-description: Add a skill to the Lyngon devkit. Given a third-party skill name or URL, or several paths of one upstream, find them, vet them against the review checklist, and install them as a pinned plugin or as vendored skills under the right concerns. Given a description of a skill that should exist, search for prior art, design it with discover:approach, then install an existing one or create a new one. User-invoked only, devkit repository only.
+description: Add a skill to the Lyngon devkit. Given a third-party skill name or URL, or several paths of one upstream, find them, vet them against the review checklist, and install them as a pinned plugin or as vendored skills under the right concerns. Given a description of a skill that should exist, search for prior art, design it in an interview through discover:interview, then install an existing one or create a new one. User-invoked only, devkit repository only.
 disable-model-invocation: true
 argument-hint: "<skill name, URL, paths of one upstream, or description of the skill you want>"
 ---
@@ -109,8 +109,8 @@ Keep every plausible hit with upstream, path, license and a one-line summary.
 
 ### B.2 Design it
 
-Invoke `discover:approach` with the user's description and the prior-art list as context.
-The interview must settle: the skill's name (a noun that reads after the concern, as in `/discover:approach`), the concern it belongs to, whether it is for development or must work anywhere, what it does and does not do, user-invoked or model-invoked, inputs and outputs, and the one prompt that must trigger it and one that must not.
+Invoke `discover:interview` with the user's description and the prior-art list as context.
+The interview must settle: the skill's name (a noun that reads after the concern, as in `/discover:interview`), the concern it belongs to, whether it is for development or must work anywhere, what it does and does not do, user-invoked or model-invoked, inputs and outputs, and the one prompt that must trigger it and one that must not.
 Whenever a prior-art hit covers a settled requirement, say so in the interview.
 
 ### B.3 Decide
@@ -129,6 +129,6 @@ The commit holds the skill, and the change owes more before it is done.
 Each skill that it adds owes an eval case for the behaviour it claims, and the suite's score at the base commit and at head, as the README's section "Evals" describes.
 A change of a design file also owes everything else that its row lists.
 
-When nothing more is owed, invoke `build:finish`, which runs the full check, pushes the branch and opens the pull request.
+When nothing more is owed, invoke `build:pull-request`, which runs the full check, pushes the branch and opens the pull request.
 The description names every upstream path with its commit, and who read the text there.
 The design file that the request named stays: it covers more than this change, and only the change that the design names removes it.

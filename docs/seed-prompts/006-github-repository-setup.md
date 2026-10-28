@@ -2,7 +2,7 @@
 
 Seed prompt for a fresh Claude Code session in the devkit repository.
 
-Start by invoking the `discover:approach` skill with this brief as the request, and let it classify the work.
+Start the session with `/discover:approach`, with this file as its argument: only the operator can start that skill.
 `steering-documents`, `agent-identity` and `issue-pipeline` must have landed.
 
 ## The request

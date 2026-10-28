@@ -10,7 +10,7 @@
 
 ### `plugins/discover/skills/approach`
 
-The entry point that combines `interview` and `domain-model`, so a design session writes its docs as it goes.
+The owner's gate on a design: an interview that combines `interview` and `domain-model`, so that a design session writes its terms and decision records as it goes, and ends at the owner's approval of the design file.
 
 ### `plugins/discover/skills/domain-model`
 
@@ -37,31 +37,18 @@ Their reason, their patches and their review notes are under `plugins/discover/s
 
 ### `plugins/discover/skills/approach`
 
-The list covers the whole skill, the text adapted from obra/superpowers included, in the order the patches were made.
-[superpowers.md](superpowers.md) records that upstream, and its license is [LICENSE-superpowers](../../shared/LICENSE-superpowers).
+Upstream's skill is two lines: a description and "Call the Skill tool twice, for "grilling" and "domain-modeling"."
+Everything else in the skill is written by Lyngon.
 
 - Renamed `grill-with-docs` to `approach`.
 - Skill calls are namespaced (`discover:interview`, `discover:domain-model`) so they resolve inside this plugin.
-- Added the `--no-docs` argument, replacing upstream's separate `grill-me` skill.
-- 2026-09-23: the classification into spike, bounded and architectural work with its one-way ratchet, the approval gate, the design file with its self-review and user review, the "Design for isolation and clarity" and "Working in existing codebases" lists and the red-flags table are adapted from obra/superpowers `skills/brainstorming` at commit `5bf4e78011075bcfc0dc295f0724994cd123ee71` (MIT, see [LICENSE-superpowers](../../shared/LICENSE-superpowers)).
-- Removed `disable-model-invocation: true`.
-  The repo plugin's session hook tells the agent to invoke this skill before building anything with more than one reasonable design, which the flag made impossible.
-- Rewrote the description to say what the skill does (classify, interview, write terms and decision records, gate implementation) and when to use it, keeping the upstream "grill me" trigger and pointing tossing ideas around to `discover:brainstorm`.
-- The two skill calls moved into step 1 of the architectural path; a spike or a bounded change does not run the full interview.
-- Clarifying questions are asked in whole rounds in the `discover:interview` format, replacing superpowers' one question per message; a bounded change gets one round.
-- The design goes to `docs/plans/YYYY-MM-DD-<slug>.md` under a `## Design` heading with fixed sections (goal, approach, components, data flow, error handling, testing, out of scope), replacing superpowers' `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`; the skill does not commit it, and the text says the file is transient and that purpose, rules, terms and decisions belong in the Lyngon documents.
-- `writing-plans` became `build:plan`, invoked only when the build plugin is installed; otherwise the design file is handed over.
-- `elements-of-style:writing-clearly-and-concisely` became `writing:unslop`, applied when the writing plugin is installed.
-- The bounded path's "TDD applies" became `practice:tdd` when the practice plugin is installed, followed by `review:request` and `build:finish` when those plugins are installed, so the bounded flow ends where `WORKFLOW.md` says it does.
-- Dropped superpowers' visual companion, its checklist and process graph, its "Establish shared understanding" section (the interview covers it), the "too simple to need approval" section (folded into the red flags), the "terminal states" paragraph and its references to `frontend-design` and `mcp-builder`, and the "approve after each section" rule (the user reviews the whole file).
-- The red-flags table was trimmed from seven rows to six and the "approved the spike, so the follow-up is approved" row was dropped; its point is in the gate.
-- "Your human partner" became "the user"; `<HARD-GATE>` became the heading "The gate"; em dashes were removed; prose was reflowed to one sentence per line.
+- Added the `--no-docs` argument, replacing upstream's separate `grill-me` skill: only `discover:interview` runs, and no term or decision record is written.
+- `disable-model-invocation: true` stays, as upstream has it, so that only the operator starts the skill, as `/discover:approach` with the request. The workflow design makes the skill the owner's gate on a design, which the agent must never open on its own.
+- The description says what the skill does and that only the operator starts it, where upstream's is "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go." Upstream's "ADR's and glossary" are decision records and `CONCEPTS.md`.
+- Added what must hold when the skill ends, stated as outcomes, as the principle `prescribe-proof-not-steps` asks: the interview on what only the owner can settle, with what a run can answer looked up and not asked; terms and decisions written as they settle; the design file under `docs/plans/`, committed on a branch, holding the goal and what done means, the alternatives compared, the components and the proof owed; what outlives the work in a steering document; nothing else changed; and one question at the end, whether the owner approves.
+- Added that changes the owner asks for go into the file before the question is asked again, that the approval ends the skill, and that the work then goes on under the standing instructions, and under `/build:auto` only when the operator starts it.
 - Added a closing pointer to `discover:brainstorm`.
-- Added a pointer to `WORKFLOW.md`, the shared document that lays out the flow between skills; the file is a symlink into the devkit's `shared/`.
-- Step 4 of the architectural path lets the first interview round open with the choice between approaches when that choice is the root of the design tree; step 5 then confirms the choice with the trade-offs stated. Superpowers always proposes approaches after the questions.
-- The bounded path runs `review:request` before the pull request and `build:finish` to push the branch and open it, where it said "before merging" and "to integrate the branch".
-- The self-review of the design file also checks that every value an implementer must use exactly is stated and every edge behaviour is named with its outcome, because a plan now copies them from the design and decides none.
-- 2026-10-11: decisions go to `docs/decisions/` as decision records, where the text said ADRs and `docs/adr/`, and what outlives the design file belongs in the steering documents, where it said the Lyngon documents.
+- Prose is reflowed to one sentence per line.
 
 ### `plugins/discover/skills/domain-model`
 

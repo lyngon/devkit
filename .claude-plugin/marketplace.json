@@ -37,7 +37,7 @@
     {
       "name": "discover",
       "source": "./plugins/discover",
-      "description": "Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, find out how code works and why it is the way it is, or have both explained plainly.",
+      "description": "Discovery before building: toss ideas around without writing anything, settle a design with the owner in a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and ends at the owner's approval, find out how code works and why it is the way it is, or have both explained plainly.",
       "category": "engineering",
       "keywords": [
         "discovery",

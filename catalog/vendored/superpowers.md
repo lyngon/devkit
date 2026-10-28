@@ -29,11 +29,6 @@ The discard path with a typed confirmation and the ownership rule for worktree c
 Nothing in the devkit turned a settled design into an executable plan.
 This skill's task shape (files, interfaces, no placeholders) is what lets a fresh implementer or a mid-tier model execute without the designer's context, and its self-review catches the gaps before execution starts.
 
-### `plugins/discover/skills/approach`
-
-The skill is vendored from mattpocock/skills, and [mattpocock.md](mattpocock.md) records that upstream.
-Since 2026-09-23 it also carries the classification and approval gate from superpowers `brainstorming`, so every piece of work gets a design in the smallest form it needs before anything is built.
-
 ### `plugins/practice/skills/debug`
 
 The engineering conventions say to start a bug fix by reproducing it end to end; this is the full procedure, with the three-failed-fixes rule that turns a thrashing session into an architecture question, and three techniques (backward tracing, defense in depth, condition-based waiting) that come up in every codebase.
@@ -67,7 +62,6 @@ The template gives the reviewer exactly that context and nothing of the requeste
 | `skills/executing-plans` | `plugins/build/skills/execute` |
 | `skills/finishing-a-development-branch` | `plugins/build/skills/finish` |
 | `skills/writing-plans` | `plugins/build/skills/plan` |
-| `skills/brainstorming` | `plugins/discover/skills/approach` |
 | `skills/systematic-debugging` | `plugins/practice/skills/debug` |
 | `skills/test-driven-development` | `plugins/practice/skills/tdd` |
 | `skills/verification-before-completion` | `plugins/practice/skills/verify` |
@@ -278,11 +272,6 @@ The template gives the reviewer exactly that context and nothing of the requeste
 - Self-review item 8 (dictated text) also checks that every dictated block's fence is longer than any fence inside it.
 - The execution handoff messages name the longest task by its label.
 
-### `plugins/discover/skills/approach`
-
-Every patch to this skill is in one list, in the order the patches were made, under the same destination in [mattpocock.md](mattpocock.md).
-That list names what was adapted from `skills/brainstorming`, and what was changed in it or left out of it.
-
 ### `plugins/practice/skills/debug`
 
 - Renamed `systematic-debugging` to `debug`.
@@ -430,11 +419,6 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-09-23.
 - License: MIT at the repository root.
 - Verdict: clear with patches, all applied.
 - Noticed while rewriting: the plan is committed by this skill on the feature branch (creating the branch when on main) rather than left uncommitted for the executor, because a worktree created at execution time would not see an uncommitted file in the main checkout. Upstream never says who commits the plan.
-
-### `plugins/discover/skills/approach`
-
-2026-09-23: the brainstorming text was reviewed against `shared/SKILL-REVIEW.md` before merging; pure prompt text, no scripts; its visual companion (a Node server that also fetches a logo from an external host) was left out.
-Its `spec-document-reviewer-prompt.md` (a prompt for a reviewing subagent) was also left out; the self-review step replaces it.
 
 ### `plugins/practice/skills/debug`
 
