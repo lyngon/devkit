@@ -4,7 +4,7 @@ Skills for prose, which work in any repository.
 
 ## Skills
 
-- `/writing:plain`: rewrite a text in plain words.
+- `/writing:simpler`: say the last message again, shorter and without jargon.
 
 ## Install
 

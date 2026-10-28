@@ -16,4 +16,4 @@ One branch and one pull request per change, in this order.
 | Change | Branch | Does | Proof owed |
 | --- | --- | --- | --- |
 | `001-brevity` | `feat/brevity` | `writing:brevity`, vendored from `skills/concise-replies` of acme/brevity. It is renamed, because a skill's name is a noun that reads after its plugin's. | One eval case for its trigger. |
-| `002-pointers` | `feat/brevity-pointers` | `writing:plain` names `writing:brevity`. This file is removed. | The validators. |
+| `002-pointers` | `feat/brevity-pointers` | `writing:simpler` names `writing:brevity`. This file is removed. | The validators. |
