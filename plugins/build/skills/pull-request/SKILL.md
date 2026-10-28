@@ -75,7 +75,7 @@ Push the branch and open the pull request against the branch it started from, wi
 The owner reviews the pull request and decides the merge.
 
 - Without a remote, there is nothing to push: report the title and the body, with the branch and its commits.
-- With a remote and no forge tool, or one that is not signed in, push and hand over the link the forge printed.
+- With a remote and no forge tool, or one that is not signed in, push and hand over the link the forge printed, with the title and the body in the reply, so that the operator can open the pull request with them.
 - When a pull request for the branch exists, the push updated it: edit its title and body instead of opening another.
 - A rejected push means the remote moved. Integrate the remote commits, run the full check again and push again. Never force-push without asking.
 - A change that needs one that has not merged branches from it, and its pull request targets that branch. When the parent gets fixes from its review, merge the parent into the child; nothing is force-pushed.

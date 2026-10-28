@@ -109,10 +109,13 @@ Not a redo of the work, a scan for what's suboptimal or risky:
 - Choices that look risky in hindsight (premature, scope-creeping, papering over a symptom).
 - Gaps the owner would otherwise miss on a casual skim.
 
-Write the "Attention" section to `tmp/work-trace/<branch>.md`, beside the log, and end every reply for a run that produced a trail with it.
+Every reply for a run that produced a trail ends with an "Attention" section.
 Lead with the reviewer's model on its own line (`reviewed by <model>`), then list each flag pointing to specific rows or moments.
 "No flags" is a valid value.
 The model name is not.
+
+Write the same section to `tmp/work-trace/<branch>.md`, beside the log, for `build:pull-request` to post.
+The file does not replace the section in the reply.
 A later run on the same branch writes the file again, for the whole log.
 
 ## Reviewing the trail
