@@ -1,6 +1,6 @@
 ---
 name: work-trace
-description: "Keep a reviewable decision trail of long, unattended or multi-phase work: a TSV log under tmp/work-trace/ with one row per decision (what, why, evidence, result), written by this skill's helper, checked against the session's transcript at the end and scanned by a reviewer on another model. Never committed; posted on the pull request when a reviewer needs the trail to trust the result. Use for 'show me your work' or 'keep a work trace', for long-running, autonomous or multi-phase work, and for work the owner reviews after stepping away."
+description: "Keep a reviewable decision trail of long, unattended or multi-phase work: a TSV log under tmp/work-trace/ with one row per decision (what, why, evidence, result), written by this skill's helper, checked against the session's transcript at the end and scanned by a reviewer on another model. Named after the branch and never committed; build:pull-request posts it and its Attention section on the pull request. Use for 'show me your work' or 'keep a work trace', for long-running, autonomous or multi-phase work, and for work the owner reviews after stepping away."
 argument-hint: "[the task whose decisions to log]"
 ---
 
@@ -60,11 +60,12 @@ Use phase `start` for nothing else.
 
 ## Where it lives
 
-The log is `tmp/work-trace/<task>.tsv`, with `<task>` naming the task in kebab-case.
+The log is `tmp/work-trace/<branch>.tsv`, where `<branch>` is the name of the branch the work is on, with each `/` replaced by `-`.
 That `tmp/` is the directory at the root of the repository that holds agent scratch, never the system's temporary directory.
 The log is a working artifact and is never committed.
 
-When the work goes to a pull request and is ambitious enough that a reviewer needs the trail to trust the result, post the trail as a comment on the pull request once it is open, and point at that comment from the body.
+`build:pull-request` posts the log on the pull request of the branch, with its Attention section, as one comment.
+This skill posts nothing.
 The helper's `table` prints the log as the Markdown table for that comment:
 
 ```sh
@@ -108,10 +109,11 @@ Not a redo of the work, a scan for what's suboptimal or risky:
 - Choices that look risky in hindsight (premature, scope-creeping, papering over a symptom).
 - Gaps the owner would otherwise miss on a casual skim.
 
-Every reply for a run that produced a trail ends with an "Attention" section.
+Write the "Attention" section to `tmp/work-trace/<branch>.md`, beside the log, and end every reply for a run that produced a trail with it.
 Lead with the reviewer's model on its own line (`reviewed by <model>`), then list each flag pointing to specific rows or moments.
 "No flags" is a valid value.
 The model name is not.
+A later run on the same branch writes the file again, for the whole log.
 
 ## Reviewing the trail
 
