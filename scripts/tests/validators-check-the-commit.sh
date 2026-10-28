@@ -5,7 +5,8 @@
 # repository's configuration defines them, then makes a partial commit through
 # prek beside untracked files: an untracked file that would fail a check
 # leaves the commit alone, and a staged file that needs an untracked one fails
-# it. Run through `devenv test`.
+# it. A commit that only deletes files or only stages a link is checked too
+# (issue 97). Run through `devenv test`.
 #
 # Usage: validators-check-the-commit.sh <prek> <hook configuration>
 set -euo pipefail
@@ -168,6 +169,26 @@ git -C "$repo" add plugins/one/skills/main/EXTRA.md
 stage_a_change "$repo"
 expect_refused "staged link whose target in shared/ is untracked" "$repo" \
   "plugins/one/skills/main/EXTRA.md: symlink does not resolve to a file"
+
+repo=$(marketplace)
+skill "$repo" one helper
+echo "Invoke one:helper first." >>"$repo/plugins/one/skills/main/SKILL.md"
+git -C "$repo" add plugins/one/skills
+git -C "$repo" commit -q --no-verify -m "The helper and a reference to it"
+git -C "$repo" rm -q -r plugins/one/skills/helper
+expect_refused "commit that only deletes a skill that another names" "$repo" \
+  "names 'one:helper', and neither the skill plugins/one/skills/helper/SKILL.md nor the agent plugins/one/agents/helper.md exists"
+
+repo=$(marketplace)
+git -C "$repo" rm -q plugins/principles/skills/index/references/first-principle.md
+expect_refused "commit that only deletes a principle file that the index names" "$repo" \
+  "principle 'first-principle' has no file plugins/principles/skills/index/references/first-principle.md"
+
+repo=$(marketplace)
+ln -s ../../../../shared/GONE.md "$repo/plugins/one/skills/main/GONE.md"
+git -C "$repo" add plugins/one/skills/main/GONE.md
+expect_refused "commit that only stages a link that leads nowhere" "$repo" \
+  "plugins/one/skills/main/GONE.md: symlink does not resolve to a file"
 
 if ((failures > 0)); then
   echo "test-validators-check-the-commit: $failures failure(s)" >&2

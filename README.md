@@ -229,7 +229,7 @@ Run every check the way CI does:
 devenv test
 ```
 
-The commit hooks `validate-marketplace` and `validate-shipped-text` check a checkout of the index, so a commit passes or fails on what it holds, whatever lies untracked beside it.
+The commit hooks `validate-marketplace` and `validate-shipped-text` run on every commit and check a checkout of the index, so a commit passes or fails on what it holds, whatever lies untracked beside it.
 Run by hand, as `devenv test` also runs them, they check the working tree, untracked files included.
 
 Check the title and the body of a pull request the way CI does, with the body in a file such as `tmp/pull-request-body.md`:
