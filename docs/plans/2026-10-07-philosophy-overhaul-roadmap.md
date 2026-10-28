@@ -222,6 +222,10 @@ Settled:
 - The word rules of `shared/STRUCTURE.md` are checked by `prose-lint`, which checks none of them today.
 - `readme-tree-mirrors-the-init-file-set` gets a check.
 - A mistake gets its check on its second occurrence, through the ledger. A rule that is already written down gets its check without waiting.
+- Three checks for rules that the workflow piece left as text, each of which deletes its sentence when it lands:
+  - A manifest lint that fails on an exact pin in the dependencies of a library. It deletes the sentence "A library's manifest states constraints, never pins, and the lock file pins." from the standing instructions, `plugins/build/hooks/standing-instructions.txt`.
+  - A check that refuses a hand edit of a file under `generated/` or `vendor/`. It deletes the sentence "Never edit a file under generated/ or vendor/ by hand; change its source or its generator." from the text of the `repo` hook, `plugins/repo/hooks/session-start-structure.txt`.
+  - A check that refuses an imperative install, such as `pip install` or a global `npm install`. It deletes the sentences of the standing instructions that a check then carries, from "Nothing enters the environment without a declaration that a lock file pins".
 
 This piece is a long tail.
 One check per change is the expected shape.

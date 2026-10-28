@@ -12,7 +12,7 @@ Repository setup and package creation for Lyngon.
 
 ## Hooks
 
-- `SessionStart` (`hooks/session-start.sh`): in a repository whose root `devenv.nix` sets `lyngon.structure.enable = true`, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`.
+- `SessionStart` (`hooks/session-start.sh`): in a repository whose root `devenv.nix` sets `lyngon.structure.enable = true`, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`, that an app holds main, wiring and config and no logic, and that a file under `generated/` or `vendor/` is never edited by hand.
   When the current branch is behind its upstream, it adds a line with the count and `git pull --ff-only`; it counts what the last fetch saw and never fetches.
   Otherwise it prints nothing.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
