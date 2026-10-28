@@ -9,7 +9,7 @@ Root-cause fixes are slower upfront but reduce total debugging time.
 
 **Pattern:**
 
-- Reproduce first
+- Reproduce first, end to end, as close to how a user meets the bug as possible
 - Ask "why" until you hit the root cause
 - Do not add guards (adding a nil check to silence a crash is a symptom fix)
 - If a workaround needs a paragraph-long comment to justify it, the code is wrong (fix the code, not the comment)

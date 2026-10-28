@@ -243,6 +243,17 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/prune-mistakes.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
+  # Fixture tests for the helper that the work-trace skill ships, run with the
+  # same PATH as the prune script's.
+  testWorkTrace = pkgs.writeShellApplication {
+    name = "test-work-trace";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+    ];
+    text = ''exec "${config.devenv.root}/plugins/build/tests/work-trace.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
+  };
+
   # Fixture tests for the stand-in for gh that the eval cases of build:finish
   # run, in a workspace that their seed script writes.
   testEvalForge = pkgs.writeShellApplication {
@@ -399,6 +410,7 @@ in
     declared_tools_only ${lib.getExe testDevkitHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
     declared_tools_only ${lib.getExe testPruneMistakes}
+    declared_tools_only ${lib.getExe testWorkTrace}
     declared_tools_only ${lib.getExe testEvalForge}
     declared_tools_only ${lib.getExe testWorkflowTemplates}
     declared_tools_only ${lib.getExe testCheckoutPlugins} "''${CLAUDE_CODE_PLUGIN_DIRS-}"

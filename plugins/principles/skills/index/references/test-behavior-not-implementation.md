@@ -24,4 +24,8 @@ For a constant, test the mechanism that reads it with one input instead of resta
 For a mock, assert the payload it received or the state after the call, not that it was called.
 When no such assertion exists, delete the test.
 
+**Collaborators:** prefer real collaborators and fakes over mocks of your own code, and mock only what crosses the process boundary.
+A mock of your own code asserts how the code is built, and a fake still runs the behavior.
+A flaky test is a bug: fix it or delete it, never retry it.
+
 **Keep** a test of a relation across a table's rows (a key present in two tables, a parent that exists), and a compile-time check in a `*.test-d.ts` file.

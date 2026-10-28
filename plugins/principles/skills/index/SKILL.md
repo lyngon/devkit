@@ -39,7 +39,7 @@ They are its rule files under `.claude/rules/`.
 ## Verification
 
 - **prove-it-works** (pstack). After completing a task, before declaring it done. Verify against the real artifact (run the feature, read the actual value, inspect the diff), not a proxy, a self-report, or "it compiles".
-- **fix-root-causes** (pstack). Debugging. Reproduce first, ask why until you reach the root cause and fix it there, and resist guards that silence the symptom.
+- **fix-root-causes** (pstack). Debugging. Reproduce first, end to end as a user meets the bug, ask why until you reach the root cause and fix it there, and resist guards that silence the symptom.
 - **sequence-verifiable-units** (pstack). Multi-step work (sweeps, migrations, runs of similar edits) and the order of commits inside a change. Break the work into small units that each end in a state you can check, check each before the next, and order the commits so that the sequence proves itself to a reviewer.
 - **test-behavior-not-implementation** (pstack). Writing, changing, or keeping a test. Call the code the way its users do and assert the result they observe against a literal expected value, and rewrite or delete a test that would still pass if every imported function returned nothing.
 - **explain-the-number** (pstack). Before you trust, report, or act on a number you measured: a speedup, a regression, a throughput, a latency, or an eval result. Find what limits it, and rule out that it measured something other than the work you think.
@@ -62,4 +62,5 @@ They are its rule files under `.claude/rules/`.
 - **reshape-instead-of-commenting** (Lyngon). About to write a comment that explains a surprise in your own code. Fix the surprise in the code instead.
 - **name-things** (Lyngon). Introducing or referring to a decision, a principle, a rule, a task, a step, an option or a question. Give it a name and refer to it by that name, with a three-digit prefix when it is ordered and a bare number only where a tool assigns it.
 - **prescribe-proof-not-steps** (Lyngon). Writing anything an agent will follow: a skill, a prompt for a subagent, an issue, a plan. State what must hold and what proof is owed, and give steps only where they are facts the reader cannot derive.
+- **weigh-quality-over-cost** (Lyngon). Choosing between designs, or tempted by a shortcut because it is quicker to build. Weigh toward simplicity, robustness and long-term maintainability, give the cost of building little weight, and add no abstraction or configuration that no case needs.
 - **use-purpose-built-tools** (Lyngon). Writing a script or a check. Use the tool built for the task, such as jq for JSON, declared through Nix and pinned, with nothing from the ambient PATH, and write highly custom logic as a Python program shipped as source.

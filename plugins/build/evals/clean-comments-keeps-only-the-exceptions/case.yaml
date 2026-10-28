@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: clean-comments-keeps-only-the-exceptions
+context:
+  scaffold_script: seed-workspace.sh
