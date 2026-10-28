@@ -4,7 +4,7 @@
 - **Upstream commit**: 9f451cf875ad1239912762f67741e8e5ba6ac0f1
 - **Upstream version**: 0.15.15 (`pstack/.cursor-plugin/plugin.json`)
 - **Upstream license**: MIT (see [LICENSE-pstack](../../shared/LICENSE-pstack))
-- **Reviewed**: 2026-10-27 by Anders Åström
+- **Reviewed**: 2026-10-28 by Anders Åström
 
 ## Why it is here
 
@@ -75,6 +75,35 @@ An agent that reviews its own change shares its own blind spots, and a reviewer 
 This skill gives one change to reviewers on different models, with the same rubric and code-quality lens, and judges their findings into one verdict that says what to act on and what was dismissed, and why.
 It runs only when the operator asks for it or `build:architect` puts a design under pressure, for a contested design or a change with a large blast radius.
 
+### `plugins/build/skills/work-trace`
+
+Work that runs for hours, or while the owner is away, ends in a diff and a summary, and the summary is the agent's own account of what it did.
+Nothing in it says which forks it took, which attempts it threw away, or whether a check it reports was ever run.
+This skill keeps that account as it happens, one row per decision with a pointer to its evidence, checks the rows against the session's transcript at the end, and has a reviewer on another model point out what the owner should look at.
+It is the trail that `prove-it-works` and `build:figure-it-out` send their work to.
+
+### `plugins/build/skills/benchmark`
+
+A performance number that went wrong still looks like a number: a cache that skipped the work, failed requests that came back fast, a side left on debug settings, noise wider than the gap.
+`explain-the-number` says why such a number cannot be trusted, and this skill is the procedure for one: seven questions, each answered from a run, and a report that leads with the verdict and carries the run count, the range and the limiter.
+
+### `plugins/build/skills/figure-it-out`
+
+A large migration or a change of many parts fits none of the procedures the devkit has, and an agent that starts it without a design finds the hard part last.
+This skill designs the run first: a falsifiable definition of done, a rigor level, units sequenced riskiest first with the verification harness and its baseline ahead of them, and then a loop that keeps or reverts each unit on evidence.
+It builds on `build:architect` for the one-way doors and on `build:work-trace` for the trail.
+
+### `plugins/build/skills/clean-comments`
+
+An agent comments the code it writes: it narrates what a line does, keeps the old version commented out, and explains a workaround where it should have removed it.
+`reshape-instead-of-commenting` and `record-what-the-code-cannot-show` say which comments may stay, and nothing checks a change against them.
+This skill has a fresh subagent delete every comment of a change that its list of exceptions does not protect and flag the code that a deleted comment was covering for, then vets the result and fixes the flags at their root.
+
+### `plugins/build/agents/comment-auditor.md`
+
+The subagent of `build:clean-comments` is an agent definition of its own, so that it starts from its rules and a scope, and from nothing of the session that wrote the comments.
+It deletes and flags, and leaves every change to the code to the skill that spawned it.
+
 ## What was taken
 
 | Upstream path | Destination |
@@ -90,8 +119,13 @@ It runs only when the operator asks for it or `build:architect` puts a design un
 | `pstack/skills/architect` | `plugins/build/skills/architect` |
 | `pstack/skills/arena` | `plugins/build/skills/arena` |
 | `pstack/skills/interrogate` | `plugins/build/skills/review` |
+| `pstack/skills/show-me-your-work` | `plugins/build/skills/work-trace` |
+| `pstack/skills/benchmark-checklist` | `plugins/build/skills/benchmark` |
+| `pstack/skills/figure-it-out` | `plugins/build/skills/figure-it-out` |
+| `pstack/skills/no-comments` | `plugins/build/skills/clean-comments` |
+| `pstack/agents/comment-sicko.md` | `plugins/build/agents/comment-auditor.md` |
 
-The 8 principles of the group steering in `plugins/principles/skills/index` are written by Lyngon and have no upstream.
+The 9 principles of the group steering in `plugins/principles/skills/index` are written by Lyngon and have no upstream.
 So is `scripts/prune-mistakes.py` in `plugins/build/skills/correction`.
 
 ## Local patches
@@ -203,16 +237,17 @@ Single files:
 - `encode-lessons-in-structure`: the route "One-off -> brain note. Recurring fix -> skill or lint rule. Systemic issue -> principle." became: a first occurrence that a person caught goes into the mistake ledger, as a file under `docs/mistakes/` that `build:correction` writes, one that a test or a check caught needs no file, a repeat gets the strongest check that works, and a repeat that no tool can decide becomes a principle, which in a repository is a file under `.claude/rules/`. Step 3 of the pattern follows it: "make the instruction more prominent and add an example of the failure mode" became "make it a principle and name the failure it prevents". Added the sentence "A rule without a check is debt." to the corollary. "Apply now or create a concrete todo" became "Apply now, or file an issue with the evidence", because an agent does not defer work into a file on its own. "When the human intervenes" became "When the owner or the operator intervenes", and "a brain note" in the anti-patterns became "a note".
 - `outcome-oriented-execution`: added the guardrail "Keep breakage inside a branch: the default branch and every pull request head pass the full check".
 - `sequence-verifiable-units`: in "Delivery", "Stack commits and PRs in the order that proves the work" became "The change, one concern delivered as one pull request, is the unit that lands. Inside it, commits may tell the story: stack them in the order that proves the work." The sentence "Each commit lands on its own and the sequence reads as an argument" became "The sequence reads as an argument." The two references in the form "the **name** principle skill" became links to the sibling files. In "Execution", "Rebase onto clean trunk first" became "Start from the up-to-date default branch", because a rebase of a pushed branch needs a force-push, which the gate asks about first.
-- `explain-the-number`: the sentence "For a performance number, run the full procedure with the benchmark-checklist skill." is left out, because that skill is not in the devkit.
-- `prove-it-works`: "Keep the artifact visible for the human" became "for the owner", and the parenthesis "(the **show-me-your-work** skill)" is left out, because that skill is not in the devkit.
+- `explain-the-number`: "run the full procedure with the [benchmark-checklist](../benchmark-checklist/SKILL.md) skill" became "run the full procedure with `build:benchmark`", and the sentence on an eval result that follows it starts a line of its own.
+- `prove-it-works`: "Keep the artifact visible for the human" became "for the owner". "like a big port or migration (the **show-me-your-work** skill)" became "like a big port or migration, and keep the decision trail of such work with `build:work-trace`, which is never committed". The trail is never committed here, so the parenthesis would have sent the agent to commit it.
 - `type-system-discipline`: the sentence "Skills like `typescript-best-practices` ground it in specific syntax." is left out, because that skill is not in the devkit. The two references in the form "the **name** principle skill" became links to the sibling files.
-- `fix-root-causes`: the bold line "Restart bugs: suspect state before code" became a heading, which markdownlint demands of a line that stands as one.
+- `fix-root-causes`: the bold line "Restart bugs: suspect state before code" became a heading, which markdownlint demands of a line that stands as one. "Reproduce first" became "Reproduce first, end to end, as close to how a user meets the bug as possible", the line of `conventions:engineering` that the workflow design moves here.
+- `test-behavior-not-implementation`: added the paragraph "Collaborators" before "Keep": prefer real collaborators and fakes over mocks of your own code, mock only what crosses the process boundary, and a flaky test is a bug that is fixed or deleted, never retried. These are the lines of `conventions:engineering` that the workflow design moves here, with the reason that a mock of your own code asserts how the code is built, where a fake still runs the behavior.
 
 The index, `SKILL.md`:
 
 - Its lines for the 24 principles are adapted from the section "Principles" of upstream's `poteto-mode` skill and from the descriptions of the principle skills. Each line has the form `- **<name>** (<origin>). <When it applies>. <The rule in one sentence>.`, where upstream wrote the title in bold, the skill name in parentheses and one to three sentences.
 - Upstream's groups (core, architecture, verification, delegation, meta) are kept, and the group steering is added for the Lyngon principles.
-- The lines of `never-block-on-the-human`, `encode-lessons-in-structure`, `outcome-oriented-execution` and `sequence-verifiable-units` state the patched rule.
+- The lines of `never-block-on-the-human`, `encode-lessons-in-structure`, `outcome-oriented-execution`, `sequence-verifiable-units` and `fix-root-causes` state the patched rule.
 
 ### `plugins/build/skills/correction`
 
@@ -333,6 +368,95 @@ All five files (`SKILL.md`, `references/reviewer-prompt.md`, `references/rubric.
 
 `references/rubric.md` and `references/code-quality-review.md`: only the patches of all five files.
 
+### `plugins/build/skills/work-trace`
+
+`SKILL.md`:
+
+- Renamed from `show-me-your-work` to `work-trace`, a noun that reads after the plugin's name, as in `/build:work-trace`. The title follows.
+- The description: "for long-running or unattended work" became "of long, unattended or multi-phase work", it adds that the helper writes the log, that the log is checked against the transcript and scanned by a reviewer on another model, and where it lives and that it is never committed, and "autonomous or multi-phase runs" became "long-running, autonomous or multi-phase work". "Use for /show-me-your-work" became "Use for 'show me your work' or 'keep a work trace'", since the slash command has another name here, and "work a human reviews after stepping away" became "work the owner reviews after stepping away". `disable-model-invocation: true` is removed, so that the agent starts the skill on its own trigger, as the workflow design says. Added an `argument-hint`.
+- "Columns:" became "The columns:", "ISO8601" "ISO 8601", and "PR number" "pull request number".
+- The example is the Markdown table that the helper's `table` prints, where upstream showed the TSV in a fenced block without a language. markdownlint fails a hard tab in a fenced block, and a Lyngon fenced block names its language.
+- "Copy `references/decision-log-template.tsv` (the header row) to start a clean log." is left out with the file, since the helper writes the header on first use, so the header has one home. "A bare `printf` appending a row works too, but mind those same bytes if cells come from generated or user-supplied text." is left out too, and "Use the helper" became "Write every row with this skill's helper, from the root of the repository", since the helper is the one place that keeps a cell on one line and away from a formula.
+- The helper is `${CLAUDE_SKILL_DIR}/scripts/trace.py append <logfile> ...`, in a fenced block, where upstream ran `scripts/log.sh <logfile> ...` inline. `${CLAUDE_SKILL_DIR}` is a substitution that Claude Code documents for a skill. "strips stray tabs/newlines, and prefixes any cell starting with `=`, `+`, `-`, or `@` with a single quote" became "turns tabs and line breaks inside a cell into spaces, and puts a single quote before any cell starting with `=`, `+`, `-`, or `@`, so that a spreadsheet never runs a cell as a formula", the reason that upstream's script gives in a comment.
+- "(the **unslop** skill applies to log text too)" became "(`writing:unslop` applies to log text too)".
+- "a gate fixed" became "a check fixed", since a gate is where an agent stops for the owner, and "Log decision points and checkpoints" became "Log decision points and milestones", since `CONCEPTS.md` lists "checkpoint" as a word to avoid.
+- "A run is one agent conversation, including its later turns and any summary of it. A pickup, a replacement agent, or a new chat starts a new run." became "A run is one session, including its later turns and any compaction of it. A pickup, a replacement agent, or a new session starts a new run." "its evidence names this run, such as its agent id" became "its evidence names this run by its session ID, `${CLAUDE_SESSION_ID}`", another documented substitution.
+- In "Where it lives", upstream kept the log at `decisions.tsv` in the work dir, or `.audit/<task-slug>.tsv` when several efforts run at once, out of git, and committed it "only when the work is ambitious enough that a reviewer needs the trail to trust the result". Here the log is `tmp/work-trace/<task>.tsv`, "That `tmp/` is the directory at the root of the repository that holds agent scratch, never the system's temporary directory" (the sentence that `build:arena` needed, see there), and it is never committed. When a reviewer needs the trail, it is posted as a comment on the pull request that the body points at, with the helper's `table` as the comment. The workflow design settles both.
+- "(the **encode-lessons-in-structure** principle skill)" became "(the principle `encode-lessons-in-structure`, a file of `principles:index`)".
+- "Read this run's transcript under the active workspace's `agent-transcripts/` directory (the system prompt names the path). Don't glob across `~/.cursor/projects/*/`. That reads unrelated private chats." became: read the file `${CLAUDE_SESSION_ID}.jsonl` under `projects/` in the Claude configuration directory, which is `~/.claude` unless `CLAUDE_CONFIG_DIR` names another, "Find it by that name and open no other file there. The others are other sessions, unrelated private conversations." Claude Code documents that path and that variable.
+- The heading "Cross-model review of the trail" became "Review of the trail on another model". "spawn a subagent on a different model family from the one that did the work" became "spawn a subagent on a different model than yours that is no weaker, where the harness offers one (the Agent tool's `model`), in the foreground (`run_in_background: false`)". Why "no weaker" is under `plugins/build/skills/arena`, and why the foreground is named under `plugins/discover/skills/how`. Added "Give it the paths of the log and of the transcript", since a subagent sees nothing of the session that started it. "the user" became the owner, twice.
+- "GitHub renders a committed TSV as a table. `column -s$'\t' -t decisions.tsv` renders it in a terminal." became "The helper's `table` renders the log for a terminal as well as for a pull request comment.", since the log is never committed.
+- Paragraphs are reflowed to one sentence per line, with blank lines around lists. A bullet keeps its sentences on one line.
+
+`scripts/trace.py` is written in Python from upstream's `scripts/log.sh`, as the workflow design says.
+
+- Its command `append` takes upstream's six arguments and keeps upstream's behaviour: the timestamp in UTC, the header on first use, the directory created, a tab, a line feed or a carriage return in a cell turned into a space, and a single quote before a cell that starts with `=`, `+`, `-` or `@`.
+- It tells first use by the position of the log opened for appending, where upstream tested the size with `[ -s ]` and then appended, so the test and the write can no longer see two different files. Upstream's comment on a network mount that fails the test goes with the test.
+- A cell's bytes that are no UTF-8, as a file name can hold, are written as they came, as upstream writes them, and `table` prints each as the replacement character.
+- It reads its arguments by position, so a cell may start with a dash. A wrong number of them exits 2, the status of a usage error, where upstream exits 1.
+- Added the command `table`, which prints the log as a Markdown table with `|` escaped, and refuses a missing log, a log without the header and a row of another number of cells.
+- It imports the standard library only, and `plugins/build/tests/work-trace.sh` runs it with nothing on the PATH but the tools of the baseline option `lyngon.scriptTools`.
+
+`references/decision-log-template.tsv` is left out, as above.
+
+### `plugins/build/skills/benchmark`
+
+- Renamed from `benchmark-checklist` to `benchmark`, a noun that reads after the plugin's name, as in `/build:benchmark`. The title follows.
+- The description adds what the report gives, and "Vet a perf measurement" became "Vet a performance measurement". `disable-model-invocation: true` is removed, so that the agent starts the skill on its own trigger, as the workflow design says and `explain-the-number` sends it here. Added an `argument-hint`.
+- "[Explain the Number](../principle-explain-the-number/SKILL.md) says why." became "The principle `explain-the-number`, a file of `principles:index`, says why."
+- "the user" became the operator, twice, and "a PR's before and after" "a pull request's before and after".
+- "Still check questions 4 and 7" and "could not check questions 4 and 7" name the two questions, "Did it error?" and "Did it even happen?", as the principle `name-things` asks.
+- "Keep a PR body to one primary number, per the **Opening a PR** playbook. Put the runs, the range, and the limiter evidence in a linked artifact or a notes file." became "Keep a pull request body to one primary number. Put the runs, the range, and the limiter evidence in a pull request comment that the body points at." The playbook is not in the devkit, and evidence too long for a body goes into a comment, as the workflow design says.
+- "Give the number with its unit, the run count, the range, and the limiter." became "Give the number with its unit, which is the median of the runs, the run count, the range, the limiter, and the load average and core count that `uptime` and `nproc` showed before the runs.", and the example ends ", load 0.4 on 8 cores". Without the load, sonnet left out the check of it in 5 of 7 runs of the eval case `benchmark-finds-work-that-never-ran` that ran with the skill, while it followed the rest of the procedure. With the load and without "which is the median of the runs", 1 of 3 replies gave ranges and no median, which question "Does it reproduce?" asks for (2026-10-28).
+- The section "How this fits the other perf material" is left out. It places the skill beside the playbooks "Perf issue" and "Hillclimb", which are not in the devkit.
+- Paragraphs are reflowed to one sentence per line. A question keeps its sentences on one line.
+
+### `plugins/build/skills/figure-it-out`
+
+- Upstream's description starts "Design an auditable playbook when no narrower one fits", and here "Design how the work will run before running it, when no narrower skill fits", followed by what the skill does. "Use for /figure-it-out, 'figure it out', a large migration, or when no narrower playbook applies." became "Use only when the operator asks for it: 'figure it out', 'figure-it-out'. Not on your own initiative." The workflow design lets the agent start the skill only when the operator asks for it, and a large migration as a trigger would start it, and through it `build:architect` and `build:arena`, on its own. `disable-model-invocation: true` is removed, so that the skill can start when the operator asks for it in words. Added an `argument-hint`.
+- "When the task matches no playbook, design one." became "When no narrower skill fits the task, design how the work will run.", and "The deliverable before any code is the workflow itself" "The deliverable before any code is the phase list". "Workflow" is a term of `CONCEPTS.md` for the way of working in a repository, and the devkit has no playbooks.
+- The section "Start" and its todo list, whose first item was to read the section "Principles" of `poteto-mode`, are removed. Added the two sentences that say that the principles the skill names are files of `principles:index`, as in `build:architect`. Each "the **name** principle skill" became "the principle `name`".
+- Added the paragraph on the design file, as in `build:architect`: the framing and the phase list go into the branch's file under `docs/plans/`, or a new one, committed on the branch and removed by the build plugin when the work is finished. Upstream named no place. "Write the designed phase list down. That list is what the human reviews." became "Write the phase list into the design file. That list is what the owner reviews."
+- The headings lose "Phase A:" to "Phase E:", "Design the workflow" became "Design the phases" and "Keep the audit trail" "Keep the trail". The text names a step where upstream named its letter: "the Phase C loop discipline" became "the discipline of "Run the loop"", "the Phase D log" "the trail of "Keep the trail"", and "the Phase A predicate" "the predicate from "Frame"".
+- "Present the framing and tradeoffs before committing to a long run. Reversible work proceeds (the **never-block-on-the-human** principle skill), but a multi-hour run earns one checkpoint." became "Write the framing and its trade-offs into the design file before a long run starts. Reversible work proceeds (the principles `never-block-on-the-human` and `review-results-not-plans`)." A checkpoint that the owner did not ask for is a gate that `review-results-not-plans` forbids.
+- Added, at the end of "Design the phases", the gate that the owner asks for, "as in "show me the plan first"": commit the design file on the branch and stop with one question, the last sentence of the reply, whether the owner approves the phase list, in the words that `build:architect` needed for its gate. "Otherwise go on without stopping."
+- "Decompose into atomic, independently-landable units." became "Decompose into atomic units that each end in a state you can check." A change lands as one pull request, so its units do not land on their own, as the patch to `sequence-verifiable-units` says.
+- "For one-way-door design decisions, run the **architect** skill (it runs **arena**)." became "invoke `build:architect`, which runs `build:arena`, then continue here", since a skill invoked in the lead's context takes the session over.
+- "Then execute the design. Add its steps to the todolist as concrete items, after the Phase C entry and before Phase D. Run each under the Phase C loop discipline, and weave the Phase D log through them" became "Then run the phase list. Run each step under the discipline of "Run the loop", and weave the trail of "Keep the trail" through them", without the todo list.
+- "gate" in the sense of a check became "check": "Rigor is gates and artifacts" became "Rigor is checks and artifacts", "If a worker games the gate" and "If the gate itself is wrong, fix the gate" name the check, and "Encode any recurring correction as a gate, a lint rule, a check, or a script" became "as a check, a lint rule, or a script". A gate is where an agent stops for the owner.
+- "Log the run via the **show-me-your-work** skill. figure-it-out's work is usually ambitious enough to commit the trail so the reviewer can read it in the PR." became "Log the run with `build:work-trace`. This skill's work is usually ambitious enough that the reviewer needs the trail to trust the result, so post it on the pull request as that skill says." The trail is never committed.
+- "the human" became the owner in "lets the owner come back and trust the work", "a human can audit" became "the owner can audit", and "work a human reviews after stepping away" in the description "work the owner reviews after stepping away".
+- In the reply, "the playbook you designed" became "the phase list you designed", and "the decision-trail path" "the path of the decision trail".
+- Paragraphs are reflowed to one sentence per line. A bullet keeps its sentences on one line.
+
+### `plugins/build/skills/clean-comments`
+
+- Renamed from `no-comments` to `clean-comments`, which says what the skill does and reads after the plugin's name, as in `/build:clean-comments`. The title follows.
+- Upstream's description is "Spawn Comment Sicko, fix accepted findings, and offer encodings for claimed constraints." It became what the skill does, with the agent's name, and "Use before a change goes to a pull request, and for 'no comments' or 'clean the comments'", since the workflow design has the skill run before every pull request. `disable-model-invocation: true` is removed, so that the agent starts the skill. Added an `argument-hint`.
+- "Comment Sicko" became the agent `build:comment-auditor`, and "Comment Sicko's fresh perspective" "the auditor's fresh perspective".
+- Added the two sentences that say that the principles the skill names are files of `principles:index`, as in `build:architect`.
+- "the current diff against the base branch, default `main`" became "the current diff against the base branch, the default branch unless the branch targets another".
+- Each step got a name in bold ("Spawn the auditor", "Vet its report", "Fix the trivial flags", "Fix at the root", "Encode the constraints", "Report"), and "Step 4 implements" became ""Fix at the root" implements", as the principle `name-things` asks.
+- "Spawn `Task` with `subagent_type: "Comment Sicko"`." became "Spawn the agent `build:comment-auditor` (the Agent tool's `subagent_type`) in the foreground (`run_in_background: false`)." Why the foreground is named is under `plugins/discover/skills/how`.
+- In "Vet its report", "exception-protected deletions" became "deletions that its exceptions protect". "A keep survives only with proof it is about something we cannot change" became "with proof that it is about something we cannot change" and gained "or that it states a reason or an invariant that the code cannot show and no check holds", the exception that the owner added to the agent (see `plugins/build/agents/comment-auditor.md`). "scoped lint and TypeScript suppressions" became "scoped lint and type-checker suppressions", since a Lyngon repository also holds Python. "run `/how` or `/why` on their symbol" became "have a subagent of its own invoke `discover:how` or `discover:why` on their symbol, started in the foreground (`run_in_background: false`)", as in `build:architect`, where either skill invoked in the lead's own context would take the session over. "fail `/no-comments`" became "end this skill as failed".
+- "If any fix needs a shape, run `/architect` once for the accepted set and surrounding code. Stop at the sketch. Architect shapes. Step 4 implements." became "invoke `build:architect` once for the accepted set and surrounding code. Stop at its sketch, then continue here: it shapes, and "Fix at the root" implements."
+- "The **principle-fix-root-causes** and **principle-redesign-from-first-principles** skills guide intent only." became "The principles `fix-root-causes` and `redesign-from-first-principles` guide intent only."
+- "Offer the cheapest in-scope type, runtime, test, or CI lint. Wait for interactive approval. Unattended and eval require caller pre-approval. If approved, encode then delete. Otherwise delete, report the constraint open, and sketch out-of-scope work." became: for every constraint that is not about something we cannot change, encode it as the cheapest in-scope type, runtime check, test, or CI lint, then delete the comment, "and name the encoding in your reply, so that the owner can reject it on the pull request"; "When no encoding fits in scope, delete the comment, report the constraint open, and sketch the out-of-scope work." An approval that the owner did not ask for is a gate that `review-results-not-plans` forbids, and the encoding is reviewed with the rest of the change.
+- The report names "encodings" where upstream named "encoding offers, encodings", and "the sketch of `build:architect`" where it named "architect sketch".
+
+### `plugins/build/agents/comment-auditor.md`
+
+- Renamed from `comment-sicko.md`, with the frontmatter name `comment-auditor` where upstream's is `Comment Sicko`, so that Claude Code names the agent `build:comment-auditor` and the name and the file agree, as `validate-marketplace` checks. The title follows.
+- The persona is removed, as the workflow design says: the first output "Yes... Ha ha ha... Yes!", the description "A deranged comment-hater that savors deletion and condemns workaround code", the first person and the words "meat", "crawl away", "stink", "scent", "conviction", "confession", "alibi" and "leash". The text addresses the agent as "you", and the description says what the agent does and that `build:clean-comments` spawns it.
+- "Feed me the parent scoped files or diff. If none exists, feed me the current diff against `main`." became "Your scope is the files or the diff that the parent gives you, or the current diff against the default branch when it gives none."
+- Added the exception "A reason or an invariant of our own code that the code cannot show and no check holds, which the principle `record-what-the-code-cannot-show` admits. When a reshape, a type, or a check could carry it, it goes, with the flag above." The owner chose it in the review of this change. Without it the agent deletes the comments that `record-what-the-code-cannot-show` admits and that `conventions:nix` demands ("Override a baseline value in place, with a comment saying why").
+- "I run `/how`, `/why`, or both from the **how** and **why** skills on the named symbol or call" became "have a subagent of your own invoke `discover:how`, `discover:why`, or both on the named symbol or call, started in the foreground (`run_in_background: false`)", for the reason given under `plugins/build/skills/clean-comments`.
+- "Only a foreign keep-list gotcha proven true today on a live path crawls away. Our-code surprises die with the reshape flag above. Doubt after the hunt is meat." became "Only an exception from the list, proven true today on a live path, stays. Surprises in our own code go with the flag above. Doubt after the investigation means the comment goes."
+- "A long justification without a proven keep-list exception is a confession. Kill it. Never polish meat into a shorter alibi." became "A long justification without a proven exception is an admission that the code is wrong. Delete it, and never shorten it into a briefer excuse." "My kill ends there. I do not touch the code." became "Your part ends there: you do not touch the code."
+- "Report only. Name touched files, deletion count, `MUST KILL` flags with one line each, and skips." became "Your reply is the report only: the files you touched, the number of comments you deleted, each `MUST KILL` flag in one line, and what you skipped."
+- Every "kill" of a comment became "delete", and "survive", "die" and "crawl away" became "stay" or "go": "Surprises in our own code are meat. Kill them and mark the exact symbol `MUST KILL` for rename, extract, type, or rearchitecture" became "Surprises in our own code go. Delete them and mark the exact symbol `MUST KILL` for the rename, extraction, type, or rearchitecture", "Lint suppressions survive only when" "Lint suppressions stay only when", "kill the suppression" "delete the suppression", "commented-out corpses" "commented-out code", "I want them all." "all of them go.", and "When I am not sure a keep clause applies, the comment dies." "When you are not sure an exception applies, the comment goes."
+- Paragraphs are reflowed to one sentence per line. A bullet keeps its sentences on one line. The flag `MUST KILL` keeps upstream's words.
+
 ## Review notes
 
 ### `plugins/discover/skills/why`
@@ -370,7 +494,7 @@ Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-13, the one upstream file r
 Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-11, every file read in full.
 
 - Security: none found. The 24 files are prose, with no scripts, hooks, agents, network access, credential reads, tool permissions or encoded content, and they write nothing. `never-block-on-the-human` tells the agent to proceed without asking on reversible work; that is the behaviour wanted, and its boundary is patched to the Lyngon gate.
-- Quality: every upstream description says when the principle applies. Upstream sets `disable-model-invocation: true` on each and reaches them through the inline index of its mode skill; here the index is the skill and the agent may invoke it. Trigger check: "refactor the parser so that adding a format is one file" must trigger the index, "what does this function return?" must not. Bodies are 11 to 36 lines. Three files pointed at skills that are not in the devkit (`benchmark-checklist`, `show-me-your-work`, `typescript-best-practices`); the pointers are left out.
+- Quality: every upstream description says when the principle applies. Upstream sets `disable-model-invocation: true` on each and reaches them through the inline index of its mode skill; here the index is the skill and the agent may invoke it. Trigger check: "refactor the parser so that adding a format is one file" must trigger the index, "what does this function return?" must not. Bodies are 11 to 36 lines. Three files point at other skills: `explain-the-number` and `prove-it-works` at `benchmark-checklist` and `show-me-your-work`, which are `build:benchmark` and `build:work-trace` here, and `type-system-discipline` at `typescript-best-practices`, which is not in the devkit and whose pointer is left out.
 - Fit: no em or en dashes and no curly quotes upstream. Writes no file. `encode-lessons-in-structure` routed a one-off to a "brain note", which Lyngon has no place for (patched). `sequence-verifiable-units` let each commit land on its own, where Lyngon lands one change (patched). Overlap: `prove-it-works`, `fix-root-causes` and `test-behavior-not-implementation` cover the ground of `practice:verify`, `practice:debug` and `practice:tdd`; the principles say what to judge, the skills are procedures, and both stay until the workflow is redesigned.
 - License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
 - Verdict: clear with patches, all applied.
@@ -436,5 +560,60 @@ Read by Anders Åström on 2026-10-27.
 - Security: the skill reads and never writes, and says "Do NOT auto-apply changes". Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`; the lead runs `git diff`. Upstream held its reviewers to reading with the Task parameter `readonly: true`; here that is a sentence in `SKILL.md` and in the reviewer prompt (patched), and nothing but the sentences keeps a reviewer from writing. Instruction hijacking: the diff under review is text from whoever wrote it, and a comment in it could address a reviewer. Upstream told the agent to "open a separate PR to update the default table" when a model name was rejected, an outward action as a side effect of a review (left out with the table). No encoded content, no persistence.
 - Quality: the description states what and when. Trigger check: "interrogate the changes on this branch" must trigger it, "summarize what this branch changes" must not. Upstream's description is its trigger phrases and one sentence on what it does (patched). `SKILL.md` is 109 lines upstream; the rubric, the code-quality lens, the reviewer prompt and the lead's framework are references. Dependencies: git, a harness that spawns subagents, and a choice of models. The adversarial signal comes "from model diversity, not assigned personas", and upstream's two reviewers are of two model families. Claude Code offers Claude models only, so the reviewers differ less than upstream's, which no patch can restore.
 - Fit: reads no glossary and no decision record, and reads the design file of the branch for the intent (patched). Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. No line carries a term that `scripts/validate-shipped-text.py` lists. Writes no file. Overlap: `review:request` sends one reviewer over a commit range before every pull request, and `review:receive` weighs review feedback, which the lead does here for the reviewers' findings. Both stay until the workflow piece removes the plugin `review`, and this skill runs only when the operator asks for it or `build:architect` puts a design under pressure. Until then `build:review` and the plugin `review` share a word.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/work-trace`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, all 3 upstream files read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: Network: none. Execution surface: upstream's `scripts/log.sh` appends to whatever path it is given and creates its directory; here `scripts/trace.py` does the same, from the root of the repository. No hooks and no `allowed-tools`. Credentials: the audit reads the run's transcript, which in Claude Code lies in the Claude configuration directory that the checklist names. The patched text reads one file, named by the session's ID, and opens no other file there, which keeps upstream's warning against reading other sessions. The transcript holds whatever the session read, credentials included if it read any, and the reviewer subagent reads it too, on the same machine. Instruction hijacking: none in the text. The transcript and the evidence hold text from anyone, which the reviewer reads, and the helper's quote keeps a cell from running as a formula in a spreadsheet. No encoded content. Persistence: upstream's log in the work dir or `.audit/` (patched to `tmp/work-trace/`, which a Lyngon repository ignores).
+- Quality: the description states what and when. Trigger check: "run the migration tonight and keep a trail I can check in the morning" must trigger it, "rename this function" must not. `SKILL.md` is 82 lines upstream with the helper and a one-line template. Dependencies: Python for the helper, which the baseline provides through `lyngon.scriptTools`, and a harness that spawns a subagent on another model. In an eval run the sandbox refuses the read of the transcript, and the skill logs the audit as `INCONCLUSIVE` there.
+- Fit: reads no glossary and no decision record. Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream. Writes nothing that it commits. Its example was a TSV block with hard tabs, which markdownlint fails (patched). No line carries a term that `scripts/validate-shipped-text.py` lists. Overlap: the execution ledger of `build:execute` and `build:delegate` tracks the tasks of a plan, and this log records decisions with evidence. Both stay until the workflow piece removes the ledger.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/benchmark`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: Network: none of its own; a measurement it vets may reach a server. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. It has the agent run `uptime`, `nproc`, `top`, `pidstat`, profilers and `strace -c` under the session's own permissions, and some of them need privileges. Instruction hijacking: none. No encoded content, no persistence.
+- Quality: the description states what and when. Trigger check: "measure whether the new parser is faster than the old one" must trigger it, "add a timeout to the HTTP client" must not. `SKILL.md` is 39 lines and has no references, since every measurement needs all of it. Dependencies: the tools above, which a repository declares in `devenv.nix` when it needs them, as every tool.
+- Fit: reads no glossary and no decision record. Assumes no layout. Installs nothing, and names tools that may be missing from a repository's environment, where the standing rule of the environment applies. No em or en dashes and no curly quotes upstream, and one character outside ASCII, the arrow of the example. It pointed at three playbooks that are not in the devkit (patched). No line carries a term that `scripts/validate-shipped-text.py` lists. Writes no file of its own. Overlap: `explain-the-number` says why a measured number needs vetting, and this skill is the procedure for a performance number.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/figure-it-out`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The skill writes code on purpose, since it runs the work it designed, and through `build:architect` and `build:arena` it starts subagents that write; workers that fan out get a worktree or a branch each. Instruction hijacking: upstream proceeds on reversible work without asking, which is the behaviour `never-block-on-the-human` asks for and hides nothing, and its checkpoint for a long run is patched to the gate the owner asks for. No encoded content. Persistence: nothing outside the repository.
+- Quality: the description states what and when. Trigger check: "figure it out: move every service off the old config loader" must trigger it, the same migration asked without "figure it out" must not, which the eval case `plain-task-starts-no-heavy-skill` covers for a plain task. Upstream's "a large migration" as a trigger would start the skill, and several subagents with it, on the agent's own reading (patched). `SKILL.md` is 53 lines and has no references. Dependencies: `build:architect`, `build:arena`, `build:work-trace` and eight principles of `principles:index`, all in the bundle.
+- Fit: reads no glossary of its own. Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. Its words "playbook" and "workflow" collide with `CONCEPTS.md`, its checkpoint with `review-results-not-plans`, and its "independently-landable units" with one pull request per change (all patched). It named no place for the phase list, and here it is the design file under `docs/plans/` (patched). No line carries a term that `scripts/validate-shipped-text.py` lists. Overlap: `discover:approach`, `build:plan` and the executors settle a design with the owner, turn it into tasks and run them. This skill designs and runs ambitious work in one pass, with experiments and a trail. Both stay until the workflow piece decides otherwise.
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/skills/clean-comments`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: Network: none. Credentials: none read. Execution surface: no scripts, hooks or `allowed-tools`. The skill changes code on purpose, through the agent's deletions and its own fixes and encodings. Instruction hijacking: the comments it reads are text from whoever wrote them, and a comment could address an agent. Upstream already treats "IMPORTANT" and "do not remove" as a lead to investigate, never as proof. Upstream waited for interactive approval of an encoding and required "caller pre-approval" when unattended (patched to the encoding named in the reply). No encoded content, no persistence.
+- Quality: upstream's description says what and not when (patched). Trigger check: "clean the comments out of this branch before the pull request" must trigger it, "add a docstring to `parse_rates`" must not. `SKILL.md` is 24 lines and has no references. Dependencies: the agent `build:comment-auditor`, `build:architect`, `discover:how`, `discover:why` and two principles of `principles:index`, all in the bundle.
+- Fit: reads no glossary and no decision record of its own. Assumes no layout. Installs nothing. No em or en dashes and no curly quotes upstream, and no character outside ASCII. It named Cursor's `Task` and the base branch `main` (patched). No line carries a term that `scripts/validate-shipped-text.py` lists. Writes no `AGENTS.md`, `CLAUDE.md` or file under `.claude/`. Overlap: `reshape-instead-of-commenting` and `record-what-the-code-cannot-show` say which comment may be written, and this skill checks a change against them afterwards. Its exceptions disagreed with the second (patched in the agent, see there).
+- License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
+- Verdict: clear with patches, all applied.
+
+### `plugins/build/agents/comment-auditor.md`
+
+Reviewed against `shared/SKILL-REVIEW.md` on 2026-10-28, the one upstream file read in full.
+Read by Anders Åström on 2026-10-28.
+
+- Security: Network: none. Credentials: none read. Execution surface: no `tools` list, so the agent has the tools of a general subagent, and nothing but its text keeps it to deleting comments and away from application code. The skill that spawns it rejects a report whose diff edits code. Instruction hijacking: the persona's fixed first output is harmless and removed with the persona. The comments it reads are text from anyone, as for `build:clean-comments`. No encoded content, no persistence.
+- Quality: upstream's description is the persona and says nothing of what the agent does (patched). It is spawned by `build:clean-comments` and named by no trigger of its own. 32 lines. Dependencies: `discover:how` and `discover:why`.
+- Fit: no em or en dashes and no curly quotes upstream, and no character outside ASCII. The base branch `main` (patched). Its list of exceptions deleted a reason or an invariant of our own code that the code cannot show, which `record-what-the-code-cannot-show` admits and `conventions:nix` demands; the owner chose to add that exception in the review of this change (patched). No line carries a term that `scripts/validate-shipped-text.py` lists. Overlap: none.
 - License: MIT in `pstack/LICENSE`, copyright Lauren Tan. The upstream repository has no license file at its root.
 - Verdict: clear with patches, all applied.
