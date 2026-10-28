@@ -239,6 +239,15 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/devkit/hooks/tests/hooks.sh" "$@"'';
   };
+  # Fixture tests for the build plugin's hook script, which needs bash alone.
+  testBuildHooks = pkgs.writeShellApplication {
+    name = "test-build-hooks";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+    ];
+    text = ''exec "${config.devenv.root}/plugins/build/tests/hooks.sh" "$@"'';
+  };
 
   # Fixture tests for the build plugin's scripts. perl provides shasum, so
   # the tests can run pin with each hash tool alone.
@@ -441,6 +450,7 @@ in
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testDevkitHooks}
+    declared_tools_only ${lib.getExe testBuildHooks}
     declared_tools_only ${lib.getExe testBuildScripts}
     declared_tools_only ${lib.getExe testPruneMistakes}
     declared_tools_only ${lib.getExe testWorkTrace}

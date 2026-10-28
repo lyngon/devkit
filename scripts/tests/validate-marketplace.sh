@@ -4,7 +4,8 @@
 # dependencies, a local plugin with a version or a changelog, skills whose
 # frontmatter breaks a rule, agent files whose frontmatter or place breaks one,
 # the flag that only a conventions skill carries, vendored records and license
-# links that break a rule, a principles index that disagrees with its files,
+# links that break a rule, standing instructions and a mode that are too long,
+# a mode without its flag, a principles index that disagrees with its files,
 # eval cases that load the wrong plugins, and files of a case's workspace that
 # are no case.
 # Run through `devenv test`.
@@ -588,6 +589,66 @@ repo=$(clean_marketplace)
 mkdir -p "$repo/plugins/one/evals/names-the-service"
 printf 'schema_version: "1.1"\nname: names-the-service\ncontext:\n  scaffold_script: seed-workspace.sh\n' >"$repo/plugins/one/evals/names-the-service/case.yaml"
 expect_error "case.yaml on its own" "$repo" "plugins/one/evals/names-the-service/case.yaml: an eval case is a prompt.md with its graders; a case.yaml only stands beside one"
+
+# build_marketplace: a clean marketplace with a plugin build among the members
+# of all.
+build_marketplace() {
+  local repo
+  repo=$(clean_marketplace)
+  plugin "$repo" build
+  depend "$repo" all '["one", "build"]'
+  mkdir -p "$repo/plugins/build/hooks"
+  echo "$repo"
+}
+
+# text_of <n>: n characters, the first of them two bytes long, so that a count
+# of bytes sees one more.
+text_of() {
+  printf 'é'
+  printf '%*s' "$(($1 - 1))" '' | tr ' ' x
+}
+
+# mode <repo> <flag line> <n>: the file of build:auto, n characters long, with
+# the flag line in its frontmatter.
+mode() {
+  local file="$1/plugins/build/skills/auto/SKILL.md" head
+  mkdir -p "${file%/*}"
+  printf -- '---\nname: auto\ndescription: Test mode.\n%s---\n' "$2" >"$file"
+  head=$(LC_ALL=C.UTF-8 wc -m <"$file")
+  text_of "$(($3 - head))" >>"$file"
+}
+
+flag=$'disable-model-invocation: true\n'
+standing=plugins/build/hooks/standing-instructions.txt
+
+repo=$(build_marketplace)
+text_of 4000 >"$repo/$standing"
+expect_ok "standing instructions of 4000 characters, one of them two bytes long" "$repo"
+
+repo=$(build_marketplace)
+text_of 4001 >"$repo/$standing"
+expect_error "standing instructions of 4001 characters" "$repo" "$standing: is 4001 characters long, and the standing instructions hold at most 4000"
+
+repo=$(build_marketplace)
+mode "$repo" "$flag" 15000
+expect_ok "mode of 15000 characters with the flag" "$repo"
+
+repo=$(build_marketplace)
+mode "$repo" "$flag" 15001
+expect_error "mode of 15001 characters" "$repo" "plugins/build/skills/auto/SKILL.md: is 15001 characters long, and the mode holds at most 15000"
+
+repo=$(build_marketplace)
+mode "$repo" "" 200
+expect_error "mode without the flag" "$repo" "plugins/build/skills/auto/SKILL.md: needs disable-model-invocation: true in its frontmatter"
+
+repo=$(build_marketplace)
+mode "$repo" $'disable-model-invocation: false\n' 200
+expect_error "mode with the flag set to false" "$repo" "plugins/build/skills/auto/SKILL.md: needs disable-model-invocation: true in its frontmatter"
+
+repo=$(build_marketplace)
+mode "$repo" "" 200
+printf '\n%s' "$flag" >>"$repo/plugins/build/skills/auto/SKILL.md"
+expect_error "mode with the flag in its body only" "$repo" "plugins/build/skills/auto/SKILL.md: needs disable-model-invocation: true in its frontmatter"
 
 if ((failures > 0)); then
   echo "test-validate-marketplace: $failures failure(s)" >&2

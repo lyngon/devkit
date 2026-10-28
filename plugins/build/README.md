@@ -33,6 +33,10 @@ See the decision records [Planned work is reviewed at two gates](../../docs/deci
 The licenses are `LICENSE-superpowers` and `LICENSE-pstack` in this plugin, and the provenance records are [superpowers.md](../../catalog/vendored/superpowers.md) and [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 The executors invoke `practice:tdd`, `practice:debug`, `practice:verify` and `review:request`, skills of two other members of the `all` bundle.
 
+## Hooks
+
+- `SessionStart`: prints `hooks/standing-instructions.txt`, the standing instructions, at the start of every session and again after each compaction, with the path of the mode's file filled in. `validate-marketplace` fails the text above 4,000 characters, since every session pays for it, and the mode's `SKILL.md` above 15,000 characters or without `disable-model-invocation: true`. `tests/hooks.sh` runs the hook with nothing but bash on the PATH.
+
 ## The mistake ledger
 
 `correction` keeps one file per mistake under `docs/mistakes/` of the repository it works in, and `validate-documents` of the baseline checks the shape of each.
