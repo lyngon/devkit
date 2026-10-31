@@ -7,8 +7,8 @@ import sys
 import typing as t
 
 DASH = re.compile("[\u2013\u2014]")
-INLINE_CODE = re.compile(r"`[^`]*`")
-FENCE = "```"
+INLINE_CODE = re.compile(r"(`+).*?(?<!`)\1(?!`)")
+FENCE = re.compile(r"\s*(`{3,}|~{3,})")
 
 
 def json_object(value: object, name: str) -> dict[str, object]:
@@ -21,11 +21,14 @@ def json_object(value: object, name: str) -> dict[str, object]:
 def lines_with_a_dash(reply: str) -> list[str]:
     """Return the lines of the reply whose prose, outside fenced and inline code, holds a dash."""
     found: list[str] = []
-    in_fence = False
+    opening = ""
     for line in reply.splitlines():
-        if line.lstrip().startswith(FENCE):
-            in_fence = not in_fence
-        elif not in_fence and DASH.search(INLINE_CODE.sub("", line)):
+        fence = FENCE.match(line)
+        if fence and not opening:
+            opening = fence.group(1)
+        elif fence and fence.group(1)[0] == opening[0] and len(fence.group(1)) >= len(opening):
+            opening = ""
+        elif not opening and DASH.search(INLINE_CODE.sub("", line)):
             found.append(line.strip())
     return found
 
