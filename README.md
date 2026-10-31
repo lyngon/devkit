@@ -8,11 +8,11 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 
 - Dependencies come from [`devenv`](https://devenv.sh/) and [Nix](https://nixos.org/), never from a global install.
 - A repository that adopts the structure is laid out by package kind (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`), even with one package, and a package is created with a skill, never by hand. See [STRUCTURE.md](shared/STRUCTURE.md)
-- A workflow, primarily inspired by [Superpowers](https://github.com/obra/superpowers) and [Matt Pocock's skills](https://github.com/mattpocock/skills).
+- A workflow in which a prompt or an issue comes in and proof and a pull request come out, built on [pstack](https://github.com/cursor/plugins/tree/main/pstack) and [Matt Pocock's skills](https://github.com/mattpocock/skills).
 - The same set of git hooks run everywhere and are never disabled to make a commit pass.
 - `INTENT.md`, the rule files under `.claude/rules/`, `CONCEPTS.md` and decision records carry purpose, principles, terms and decisions, in that division and no other.
 - Agents apply named principles with judgment. The organization's principles come from the `principles` plugin and are never copied into a repository.
-- Work is reviewed on its pull request, which the agent opens without asking; planned work is also reviewed at the plan. Not commit by commit.
+- Work is reviewed on its pull request, which the agent opens without asking, and not commit by commit. Nothing else waits for approval unless the owner asked for a gate.
 - A pull request lands as one commit, with its title as the subject in Conventional Commits form and its body as the message under seven fixed headings, where Scope ends with a line that names each issue and pull request for a problem the work met on the way, whether or not the change caused it, or says it met none; `check-pull-request` checks both, locally and in CI, and commits on the branch are free-form.
 - A repository can override a baseline value with a comment saying why; it cannot opt out of the baseline.
 
@@ -63,9 +63,11 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 
 ## Flows
 
-Which skills to invoke, in which order, for each kind of work, and where the human decides, is in [shared/WORKFLOW.md](shared/WORKFLOW.md).
-In short: `/discover:brainstorm` writes nothing, `/discover:approach` settles a design and gates on approval, `/build:plan` turns it into tasks, `/build:delegate` or `/build:execute` builds them without asking, and `/build:finish` pushes the branch and opens its pull request for the second and last review.
-The `practice` skills (`tdd`, `debug`, `verify`) and `review:receive` apply on their own in every flow.
+Every session starts with the standing instructions, which the hook of the `build` plugin prints: when to ask, how a change is branched, checked and handed over, and when to read the principles and record a mistake.
+Under them the agent decides and acts, and invokes each skill whose trigger matches.
+`/build:auto` with a task switches the mode on for that task, with its playbooks and its delegate, and only the operator starts it.
+`/discover:approach` is the owner's gate on a design, and `/discover:brainstorm` writes nothing.
+Every change ends with `build:pull-request`, which opens the pull request that the owner reviews and merges.
 
 ## Plugins
 
@@ -74,15 +76,13 @@ Generated from the marketplace manifest by `scripts/render-plugin-list.sh`; do n
 <!-- plugins:start -->
 | Plugin | Skills | Description |
 | --- | --- | --- |
-| `all` | bundle of `repo`, `discover`, `build`, `practice`, `review`, `writing`, `conventions`, `principles` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
+| `all` | bundle of `repo`, `discover`, `build`, `writing`, `conventions`, `principles` | Every plugin a Lyngon repository uses, installed with one command. A bundle: it has no skills of its own. |
 | `repo` | `/repo:add-package`, `/repo:init` | Set up or adopt a repository to Lyngon conventions (interview, INTENT.md, the agent file, README, CONCEPTS.md, decision records, devenv, git hooks) and create packages in the kind-first layout. |
-| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:explanation`, `/discover:how`, `/discover:interview`, `/discover:why` | Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, find out how code works and why it is the way it is, or have both explained plainly. |
-| `build` | `/build:architect`, `/build:arena`, `/build:benchmark`, `/build:clean-comments`, `/build:correction`, `/build:delegate`, `/build:execute`, `/build:figure-it-out`, `/build:finish`, `/build:plan`, `/build:review`, `/build:work-trace` | From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. On request, a design sketched as competing candidates and built against the chosen one, several attempts at one task grafted into the best, and an adversarial review by reviewers on different models. For work no narrower skill fits, a phase list designed before the run and kept honest by a decision trail. A performance number vetted before it is reported, and the comments of a change cut to those the code cannot say. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check. |
-| `practice` | `/practice:debug`, `/practice:tdd`, `/practice:verify` | Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own. |
-| `review` | `/review:receive`, `/review:request` | Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement. |
+| `discover` | `/discover:approach`, `/discover:brainstorm`, `/discover:domain-model`, `/discover:explanation`, `/discover:how`, `/discover:interview`, `/discover:why` | Discovery before building: toss ideas around without writing anything, settle a design with the owner in a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and ends at the owner's approval, find out how code works and why it is the way it is, or have both explained plainly. |
+| `build` | `/build:architect`, `/build:arena`, `/build:auto`, `/build:benchmark`, `/build:clean-comments`, `/build:correction`, `/build:figure-it-out`, `/build:pull-request`, `/build:review`, `/build:tdd`, `/build:work-trace` | How a change is built and handed over: the standing instructions in every session, a mode the operator switches on for one task with playbooks and a delegate that writes the code, bugs fixed test first, and the pull request as the one commit a change lands as. On request, a design sketched as competing candidates and built against the chosen one, several attempts at one task grafted into the best, and an adversarial review by reviewers on different models. For work no narrower skill fits, a phase list designed before the run and kept honest by a decision trail. A performance number vetted before it is reported, and the comments of a change cut to those the code cannot say. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check. |
 | `devkit` | `/devkit:add-skill` | Maintain the Lyngon devkit itself: add third-party or new skills to the marketplace with vetting, provenance and placement by concern. |
 | `writing` | `/writing:simpler`, `/writing:technical`, `/writing:unslop` | Prose quality: write technical documents to a standard that is understood on the first read, edit documentation, READMEs, posts and other non-code text so it reads as written by a person, and restate a message in plain words. |
-| `conventions` | `decision-record` (agent-invoked), `documents` (agent-invoked), `engineering` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. |
+| `conventions` | `decision-record` (agent-invoked), `documents` (agent-invoked), `markdown` (agent-invoked), `nix` (agent-invoked), `python` (agent-invoked), `shell` (agent-invoked), `typescript` (agent-invoked) | Organization-wide conventions, invoked by the agent before it works: one skill per language, and the rules for Markdown, decision records and the steering documents. |
 | `principles` | `/principles:index` | The principles Lyngon agents apply with judgment: an index the agent reads before work that takes judgment, and one file per principle, vendored from pstack or written by Lyngon. |
 | `skill-creator` | pinned, see [catalog/skill-creator.md](catalog/skill-creator.md) | Anthropic's skill authoring plugin: create, evaluate, improve and benchmark skills. Pinned; used by /devkit:add-skill to draft new in-house skills. |
 <!-- plugins:end -->
@@ -136,16 +136,20 @@ And the way of working in it, in the order things happen:
 
 - `/repo:init` once, to set the repository up or bring an existing one onto the baseline; it writes the Lyngon documents, the baseline and the workflow, and asks whether the repository adopts the structure.
 - `/repo:add-package` whenever a package is needed; it decides the directory from the package kind, writes the package files and registers the package in its workspace. Agents invoke it on their own.
-- `/discover:approach` before building anything that has more than one reasonable design; terms land in CONCEPTS.md and decisions in decision records as they settle.
+- `/discover:approach` when the owner wants to settle a design before anything is built; terms land in CONCEPTS.md and decisions in decision records as they settle, and the work waits for the owner's approval of the design file.
 - A decision record only for a decision that passes the admission test in [DECISION-RECORD-FORMAT.md](shared/DECISION-RECORD-FORMAT.md), and only while the decision holds; a decision a check can carry becomes the check.
 - `/discover:why` when a reason is needed: it answers from the decision records, the deleted ones included, and from git, pull requests and issues, and says what it found, what it inferred and what it could not find out.
 - `/discover:how` when the question is how code works, and `/discover:explanation` to have a change or a subsystem explained plainly, from what `how` and `why` find.
+- The standing instructions at the start of every session, from the hook of the `build` plugin: when to ask, how a change is branched, checked and handed over, and when to read the principles and record a mistake.
 - `principles:index` before work that takes judgment; the agent then reads the file of each principle that applies. A repository's own principles are its rule files under `.claude/rules/`.
-- Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
+- Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
+- `/build:auto` when the operator wants the mode for one task: a route to the playbook for its kind, a delegate that writes the code, and a reply whose every claim carries its proof. The agent never starts it.
+- `build:tdd` for a bug with a cheap test path: the failing test is committed before the fix and kept.
 - `/build:architect` when the operator asks for a design before code, `/build:arena` for several candidates at one task with the best grafted together, `/build:review` for an adversarial review by reviewers on different models, and `/build:figure-it-out` for work that no narrower skill fits, such as a large migration. The agent starts none of the four unasked.
-- `build:work-trace` for long or unattended work, which keeps a trail of its decisions under `tmp/work-trace/` and never commits it, `build:benchmark` before a measured performance number is reported, and `build:clean-comments` before a change goes to a pull request. The agent starts each of the three on its own.
+- `build:work-trace` for long or unattended work, which keeps a trail of its decisions under `tmp/work-trace/`, named after the branch and never committed, `build:benchmark` before a measured performance number is reported, and `build:clean-comments` before a change goes to a pull request. The agent starts each of the three on its own.
 - `build:correction` when the operator corrects the agent, a review finding is accepted or a change is reverted. A first occurrence becomes a file in the mistake ledger, `docs/mistakes/`, and a mistake that repeats becomes a check, or a rule file when no tool can decide it.
 - `/writing:technical` when a document, a pull request description or a commit message is written or reviewed, and `/writing:unslop` before any prose is handed over.
+- `build:pull-request` when a change is done and its full check passes: it pushes the branch, opens the pull request without asking and posts the branch's work trace on it.
 - `devenv test` before every push; it runs every git hook on every file, and no hook is ever disabled to make it pass.
 - `check-pull-request` before a pull request is opened, and again in CI whenever its title, its body or its branch changes; a body over the limit is shortened, and the limit is never raised to let it pass.
 
@@ -309,6 +313,12 @@ The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, s
 Its `name` is the name of the case's directory, and `validate-marketplace` fails another name and any other key.
 `context.add_dirs` does not serve here: it lets a run read a directory of the case where it lies, and nothing tells the agent where that is (measured on Claude Code 2.1.283).
 
+A case about what a session does after a compaction resumes a recorded session: `context.history_file` in its `case.yaml` names a transcript in the case directory, and the prompt is the next turn.
+The cases `mode-survives-compaction` and `mode-lost-is-reread` keep what follows the compaction boundary of a real session's transcript, with the paths of the machine that recorded it replaced, and their seed script rebuilds the repository as that session left it.
+A session resumed from that part alone goes on from the compaction (measured on Claude Code 2.1.283).
+The output of a hook in the transcript is the text that the hook prints at head.
+A path that the transcript names no longer resolves, so a run at another commit cannot read the files of the checkout that recorded it, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name.
+
 A case proves a change only when it scores the same in every run, so write it to leave the model little room:
 
 - Invoke the skill as a slash command when the case is about what the skill does. A trigger phrase tests the routing, and another skill may answer.
@@ -458,7 +468,7 @@ Its scaffold script copies the stand-in into the working directory, and the vari
 env: { EVAL_PREPEND_TO_PATH: ".git/forge/bin" }
 ```
 
-The cases of `build:finish` and the case `add-skill-finishes-a-planned-change` run `forge/gh` of the case `finish-says-it-met-nothing` this way.
+The cases of `build:pull-request` and the case `add-skill-finishes-a-planned-change` run `forge/gh` of the case `pull-request-says-it-met-nothing` this way.
 It answers the commands that filing an issue and opening a pull request take, and records both under `.git/forge`, where the graders read them.
 Without a stand-in, a command of a run finds whichever `gh` the PATH holds.
 The sandbox of a run refuses every write to `.git/config`, so `git push -u` pushes the branch and then fails to record its upstream (measured on Claude Code 2.1.283).

@@ -1,10 +1,1 @@
-This is a Lyngon repository. The devkit plugins provide skills; invoke them instead of working from memory. No skill loads on its own, the conventions skills included: a skill's text reaches you only when you invoke it.
-- conventions:engineering before any engineering work, and the conventions skill for a file's kind before editing that file.
-- principles:index before work that takes judgment; then read the file of each principle that applies.
-- /discover:brainstorm to toss ideas around without writing anything.
-- /discover:approach before building anything that has more than one reasonable design; it classifies the work and gates implementation on approval.
-- /build:plan once a design is approved, then /build:delegate (or /build:execute) to build it and /build:finish to push the branch and open the pull request.
-- practice:tdd, practice:debug, practice:verify and review:receive whenever their description matches; process skills come before implementation.
-- /writing:unslop before handing over prose.
-The flow between these skills, and where the user decides, is WORKFLOW.md next to the approach and plan skills.
-Terms are in CONCEPTS.md, decisions in docs/decisions/, this repository's principles in .claude/rules/.
+Invoke the conventions skill for a file's kind before you edit that file. No conventions skill loads on its own.

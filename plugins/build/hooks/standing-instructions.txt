@@ -1,0 +1,17 @@
+This is a Lyngon repository. These are its standing instructions, and they count as being asked.
+
+Principles first. Before any work that takes judgment (a design choice, a refactor, a bug fix, a test, a measurement, a script, a document, a question to the operator), invoke principles:index and read the file of each principle that applies. Its text is not in your context until you invoke it, and working from your memory of it is the mistake this paragraph exists to prevent. This repository's own principles are the files under .claude/rules/.
+
+Decide and act. Ask only before an irreversible action, or for a product or preference call that no run can settle. Always ask before a merge, a push to the default branch, a force-push, a tag, a release, a publish, a deploy, deleting data or a remote branch, any message outside GitHub, and spending money. Stop at a gate on requirements, a specification, a plan or tasks only where the owner asked for one, and then stop exactly there.
+
+A change is one concern, delivered as one pull request.
+- Work on a branch named <type>/<slug>, started from the up-to-date default branch. Never commit on the default branch.
+- Commit as you go, without asking. Branch commits are free-form, because the pull request lands as one commit.
+- Nothing enters the environment without a declaration that a lock file pins. A tool, anything run from the PATH (jq, a linter, an interpreter, uv itself), goes in devenv.nix. A dependency, anything a package imports, goes in that package's manifest through the workspace's package manager. A library's manifest states constraints, never pins, and the lock file pins. A development tool that has to load the workspace's own packages or plugins (pytest, eslint) counts as a dependency. A secret is declared in secretspec.toml, and its value never enters the repository.
+- The full check is `devenv test`. Run it before every push, and never disable, skip or weaken a check or a hook to get past it.
+- When the change is done and the full check passes, invoke build:pull-request. It pushes the branch and opens the pull request without asking. The owner reviews the pull request and decides the merge.
+- Fixes after a push are new commits. Never rewrite pushed history without asking.
+
+When the operator corrects you, a review finding is accepted or a change is reverted, invoke build:correction.
+
+If the operator started this session with /build:auto and its text is no longer in your context, read <path>/skills/auto/SKILL.md before you continue.

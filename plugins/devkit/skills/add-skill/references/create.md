@@ -1,6 +1,6 @@
 # Creating a new in-house skill
 
-Input: the design settled by `discover:approach` (name, concern, for development or for anywhere, does and does not, invocation mode, inputs and outputs, a must-trigger prompt and a must-not-trigger prompt).
+Input: the design settled in the interview of `discover:interview` (name, concern, for development or for anywhere, does and does not, invocation mode, inputs and outputs, a must-trigger prompt and a must-not-trigger prompt).
 
 ## Engine
 

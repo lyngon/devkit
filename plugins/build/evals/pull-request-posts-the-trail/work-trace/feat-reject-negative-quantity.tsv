@@ -1,0 +1,4 @@
+ts	phase	decision	why	evidence	result
+2026-10-20T09:02:00Z	frame	read how line_total is called before changing it	to know who sees a new exception	src/orders/pricing.py:6	two callers, both in tests
+2026-10-20T09:20:00Z	pricing	rejected a negative quantity with an exception of its own	a negative line total would refund money nobody paid	commit on feat/reject-negative-quantity	tests green
+2026-10-20T09:31:00Z	check	ran the full check before handing over	the owner reviews on the pull request	scripts/check.sh	2 tests ok

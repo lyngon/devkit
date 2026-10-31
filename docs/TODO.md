@@ -7,26 +7,20 @@ Queued items are listed in the order to implement them; a new one is placed by i
 
 ## Queued
 
-The first five are the remaining pieces of the philosophy overhaul, in order; what is settled for each is in [the roadmap](plans/2026-10-07-philosophy-overhaul-roadmap.md).
+The first four are the remaining pieces of the philosophy overhaul, in order; what is settled for each is in [the roadmap](plans/2026-10-07-philosophy-overhaul-roadmap.md).
 
-- 2026-10-07: [Workflow](seed-prompts/003-workflow.md), a design through `discover:approach`. The gated workflow and the nine superpowers skills are replaced by skills vendored from pstack.
 - 2026-10-07: [Agent identity](seed-prompts/004-agent-identity.md), a design through `discover:approach`. Agents act as an organization-owned GitHub App.
 - 2026-10-07: [Issue pipeline](seed-prompts/005-issue-pipeline.md), a design through `discover:approach`. Filing, triage and picking on GitHub Issues, replacing this file.
 - 2026-10-07: [GitHub repository setup](seed-prompts/006-github-repository-setup.md), a design through `discover:approach`. `repo:init` emits the ruleset, CODEOWNERS, labels, issue forms and merge settings.
 - 2026-10-07: [Rules as checks](seed-prompts/007-rules-as-checks.md), a design through `discover:approach`, then one bounded change per check. Every rule a tool can decide moves from prose into a check.
-- 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when `discover:approach` decomposes work, kept by `build:finish` until the last piece lands.
+- 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when a design splits work into pieces, kept until the last piece lands.
 - 2026-09-26: [Session wrap-up skill](seed-prompts/conclude-skill.md), a design through `discover:approach`. Documents up to date and a clean branch, prompts for continuing, process improvements as a paste-ready devkit prompt that extends this file, and feedback on the session; run by hand at the end of a lyngon.com session on 2026-09-27, which settled where it sits (after the integration choice, before the push).
 
 ## Deferred
 
-- 2026-09-30: An adversarial design review before planning, for work that defines a protocol or a state machine: a fresh reviewer on the most capable model gets the Design and one question, "find a sequence of events that does X twice, or two rules that contradict". In the owner gates work the whole-branch review found five such holes that were visible in the Design, hours after they could have been fixed cheaply. Likely a step in `discover:approach` or `build:plan` for work classified as architectural.
-- 2026-09-30: Rehearse a protocol as soon as its core text lands, with the default executor first, not as the plan's last task. The owner gates rehearsal was Task 12 of 13 and ran `build:execute`; the later `build:delegate` rehearsal found common-path defects (Resuming never ran on a fresh start, the evidence review's verdict was never ledgered).
-- 2026-09-30: One mechanism per plan: `discover:approach`'s scope check splits work that adds two mechanisms, even when they share a design. Owner gates and resumable runs shipped as one plan, and resume and reconcile produced most of the late findings.
-- 2026-09-30: Rehearse `build:execute` on the first real gated plan. Its owner gate text changed in the last fix waves of pull request #7 after its last rehearsal; only `build:delegate` was rehearsed against the final text.
 - 2026-09-29: Rethink the process for deferred items: possibly a skill that writes a `docs/TODO.md` entry and, for a queued item, its seed prompt with the standard lines from `.claude/rules/work-in-progress-files.md`.
 - 2026-09-27: Generalize infra in `STRUCTURE.md` for a multi-account organization: a directory of roots per environment plus a foundation tier for account-level roots (`infra/foundation/`), which the validator would then learn. The validator does not reject that directory today, only the prose disagrees; wait for a second repository with account-level roots before generalizing from one.
 - 2026-09-27: An OpenTofu convention skill (`conventions:opentofu`): a backend and provider template, lock files for `linux_amd64` and `darwin_arm64`, `*_override.tf` and module lock files ignored, `prevent_destroy`. The source is lyngon.com's `docs/conventions/roots.md`; promote it after the second infrastructure repository, when the rules have settled.
-- 2026-09-27: A session hold in the build ledger (session id and start time), so a controller that finds a live hold from another session in the same checkout stops and asks. A second session committed on a shared branch in lyngon.com; needs expiry semantics for crashed sessions.
 - 2026-09-26: Somehow make claude more cognizant to context window. I want context window usage to remain under 50% (ideally under 40%). Can Claude estimate ahead of task how much context window might be used, and suggest how and where in the process to break things up into logical "checkpoints", each starting with a clear context window. (Not sure about this one)
 - 2026-09-26: Instruct Claude to end every turn with clear suggested (options for) next actions.
 - 2026-09-15: `/devkit:bump-skill`: compare everything vendored from one upstream between the commit in its record, `catalog/vendored/<upstream>.md`, and the latest, decide what to carry over, apply it, update the record. Reviews against `shared/SKILL-REVIEW.md`.

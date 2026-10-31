@@ -17,8 +17,6 @@ A result with evidence can be judged, and a plan can only be believed.
 - Never invent a gate. "Should I proceed?" on reversible work is a gate nobody asked for.
 - The gate before an irreversible action, and for a product or preference call that no run can settle, is a different one and always holds, see [never-block-on-the-human](never-block-on-the-human.md).
 
-Until the devkit's gated skills (`discover:approach`, `build:plan`) drop their review gates, they still ask for approval, and an agent that runs one stops where the skill says.
-
 **The test:** Is the agent waiting for an approval the owner did not ask for?
 Then it proceeds.
 Did the owner ask for a gate here?

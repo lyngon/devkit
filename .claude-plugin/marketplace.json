@@ -37,7 +37,7 @@
     {
       "name": "discover",
       "source": "./plugins/discover",
-      "description": "Discovery before building: toss ideas around without writing anything, sharpen a design with a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and gates implementation on approval, find out how code works and why it is the way it is, or have both explained plainly.",
+      "description": "Discovery before building: toss ideas around without writing anything, settle a design with the owner in a relentless interview that writes CONCEPTS.md terms and decision records as they crystallise and ends at the owner's approval, find out how code works and why it is the way it is, or have both explained plainly.",
       "category": "engineering",
       "keywords": [
         "discovery",
@@ -56,15 +56,14 @@
     {
       "name": "build",
       "source": "./plugins/build",
-      "description": "From an approved design to an open pull request: a plan of test-first tasks, executed inline or with a fresh subagent per task, a ledger that survives compaction, a review after every task and a whole-branch review at the end. On request, a design sketched as competing candidates and built against the chosen one, several attempts at one task grafted into the best, and an adversarial review by reviewers on different models. For work no narrower skill fits, a phase list designed before the run and kept honest by a decision trail. A performance number vetted before it is reported, and the comments of a change cut to those the code cannot say. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check.",
+      "description": "How a change is built and handed over: the standing instructions in every session, a mode the operator switches on for one task with playbooks and a delegate that writes the code, bugs fixed test first, and the pull request as the one commit a change lands as. On request, a design sketched as competing candidates and built against the chosen one, several attempts at one task grafted into the best, and an adversarial review by reviewers on different models. For work no narrower skill fits, a phase list designed before the run and kept honest by a decision trail. A performance number vetted before it is reported, and the comments of a change cut to those the code cannot say. A correction is recorded in the mistake ledger, and a mistake that repeats becomes a check.",
       "category": "engineering",
       "keywords": [
-        "plan",
-        "execute",
-        "subagents",
-        "ledger",
-        "review",
-        "branch",
+        "standing-instructions",
+        "mode",
+        "playbooks",
+        "pull-request",
+        "tdd",
         "correction",
         "mistakes",
         "design",
@@ -74,33 +73,6 @@
         "trail",
         "benchmark",
         "comments"
-      ],
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "practice",
-      "source": "./plugins/practice",
-      "description": "Engineering discipline while changing code: test-driven development, systematic debugging and verification before any claim of done. Invoked by the agent on its own.",
-      "category": "engineering",
-      "keywords": [
-        "tdd",
-        "testing",
-        "debugging",
-        "verification",
-        "discipline"
-      ],
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "review",
-      "source": "./plugins/review",
-      "description": "Code review both ways: dispatch a reviewer subagent with a crafted brief and a commit range, and receive review feedback with technical rigour instead of performative agreement.",
-      "category": "engineering",
-      "keywords": [
-        "review",
-        "code-review",
-        "subagent",
-        "feedback"
       ],
       "license": "Apache-2.0"
     },
@@ -134,7 +106,7 @@
     {
       "name": "conventions",
       "source": "./plugins/conventions",
-      "description": "Organization-wide conventions, invoked by the agent before it works: engineering rules for every change, one skill per language, and the rules for Markdown, decision records and the steering documents.",
+      "description": "Organization-wide conventions, invoked by the agent before it works: one skill per language, and the rules for Markdown, decision records and the steering documents.",
       "category": "conventions",
       "keywords": [
         "conventions",

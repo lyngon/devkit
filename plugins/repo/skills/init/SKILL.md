@@ -143,7 +143,7 @@ Commit by concern, in an order in which each commit passes the hooks, and put tw
 3. `ci: run the full check and the pull request check in CI`: both workflows.
 4. `build: adopt the Lyngon structure`, only when the repository adopts it: the root workspace files; then one `feat(<name>): add <kind> <name>` per package.
 
-Then finish the branch with `/build:finish`.
+Then hand the branch over with `build:pull-request`.
 
 Print the next steps for the owner:
 

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# A GitHub CLI that is not signed in, so that a run has a remote and no forge
+# tool it can use. Every command fails as gh does without a login.
+set -euo pipefail
+
+echo "You are not logged into any GitHub hosts. To log in, run: gh auth login" >&2
+exit 4

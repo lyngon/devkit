@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Validate the marketplace manifest, every plugin directory, every SKILL.md and
 # agent file, every catalog record, pinned and vendored, the plugins enabled by
-# the settings template of /repo:init, the principles index and the plugins
-# that every eval case loads.
+# the settings template of /repo:init, the standing instructions and the mode,
+# the principles index and the plugins that every eval case loads.
 # These checks carry the devkit's rules on plugins: the file set of a plugin,
 # the commit as the version of a local plugin, a slash command for every skill
 # outside conventions, pinning per plugin and vendoring per upstream, the
 # bundle and its members without dependencies of their own, documents and
-# upstream licenses shared through symlinks into shared/, one line and one
-# file per principle, and an eval case that runs with the plugins its plugin
-# assumes.
+# upstream licenses shared through symlinks into shared/, the length of the
+# text that every session pays for and of the mode, a mode that only the
+# operator starts, one line and one file per principle, and an eval case that
+# runs with the plugins its plugin assumes.
 #
 # Usage: validate-marketplace.sh [<root>]
 #
@@ -239,6 +240,26 @@ if [[ -f plugins/all/.claude-plugin/plugin.json && -f "$settings_template" ]]; t
   else
     fail "$settings_template: the .claude/settings.json section needs a JSON block with an enabledPlugins object"
   fi
+fi
+
+# The build plugin's hook prints the standing instructions at the start of
+# every session and again after each compaction, so every session pays for
+# their length. The mode reaches only the sessions that the operator starts
+# with it, and a compaction keeps the first 5,000 tokens of an invoked skill
+# (from Claude Code's documentation), which the mode's limit stays under at
+# four characters to a token. The Skill tool refuses a skill with the flag,
+# so the flag keeps the agent from ever starting the mode on its own.
+standing=plugins/build/hooks/standing-instructions.txt
+if [[ -f "$standing" ]]; then
+  length=$(LC_ALL=C.UTF-8 wc -m <"$standing")
+  ((length <= 4000)) || fail "$standing: is $length characters long, and the standing instructions hold at most 4000, since every session pays for them"
+fi
+mode=plugins/build/skills/auto/SKILL.md
+if [[ -f "$mode" ]]; then
+  length=$(LC_ALL=C.UTF-8 wc -m <"$mode")
+  ((length <= 15000)) || fail "$mode: is $length characters long, and the mode holds at most 15000, so that a compaction, which keeps the first 5,000 tokens of an invoked skill, keeps all of it"
+  grep -qE '^disable-model-invocation:[[:space:]]*true[[:space:]]*$' <<<"$(frontmatter "$mode")" ||
+    fail "$mode: needs disable-model-invocation: true in its frontmatter, so that only the operator starts the mode"
 fi
 
 # The principles index and the principle files name the same principles. An

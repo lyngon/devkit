@@ -115,36 +115,27 @@ One concern, delivered as one pull request and landing on the default branch as 
 _Avoid_: task (that is an issue type), commit, PR
 
 **Workflow**:
-The way of working an owner adopts for a Lyngon repository: the agent follows the Lyngon conventions, commits each concern on a feature branch without asking, and pushes and opens a pull request once the full check passes; the owner reviews the pull request and decides the merge.
+The way of working in a Lyngon repository, where a prompt or an issue comes in, the agent decides and acts under the standing instructions, and proof and a pull request come out for the owner to review and merge.
 _Avoid_: process, flow (a flow is one path through the skills)
 
-**Plan**:
-The ordered tasks that turn an approved design into a finished branch, written for an implementer who knows the craft but not this repository.
-_Avoid_: light plan, complete plan (there is one kind), spec
+**Standing instructions**:
+The text every agent session in a Lyngon repository starts with, saying that it is a Lyngon repository, when to ask, how a change is branched, checked and handed over, and when to read the principles and record a mistake.
+_Avoid_: baseline (that is the devenv module), system prompt
 
-**Review gate**:
-One of the two points where the owner reviews planned work: the design and the plan before execution, and the pull request after it.
-_Avoid_: gate on its own, checkpoint
+**Mode**:
+A way of working that an operator switches on for one task by invoking a skill, and that adds routing, delegation and proof rules to the standing instructions.
+_Avoid_: style, persona
 
-**Owner gate**:
-A point in the execution of a plan where the executor stops until the owner decides: approves or performs one hard-to-reverse action, or answers a question the executor must not settle alone. The plan declares the ones it foresees; every stop it did not foresee is one too.
-_Avoid_: gate on its own, approval step, hold point
+**Playbook**:
+A file of a mode that says, for one kind of task, what must hold when it is done and what proof is owed.
+_Avoid_: recipe, procedure
 
-**Pre-approval**:
-The owner's explicit approval of one named owner gate, given when approving the plan, so that the executor passes that gate without stopping.
-_Avoid_: blanket approval, standing approval
+**Gate**:
+A point where an agent stops until the owner answers. One always holds, before an irreversible action and for a product or preference call that no run can settle. Any other exists only where the owner asked for it.
+_Avoid_: checkpoint, approval step, hold point
 
-**Acceptance line**:
-One behaviour a task must produce, stated in one line that can be checked on its own, with exact values where the design fixes them.
-_Avoid_: requirement, test case, acceptance criteria for a single line
-
-**Dictated text**:
-Text a plan gives word for word because its wording is the decision: a decision record, a working rule, a term's definition, or text an agent follows as a procedure.
-_Avoid_: verbatim block, copy text, boilerplate
-
-**Mandated check**:
-A command whose exact output a plan pins, shown failing when its property does not hold and passing when it does.
-_Avoid_: verification step, smoke test
+**Proof**:
+Something a reviewer can rerun or read that shows a claim holds.
 
 ## Relationships
 
@@ -159,6 +150,7 @@ _Avoid_: verification step, smoke test
 - An **Owner** approves every change to a **Steering document** of their repository.
 - An **Owner** may act as an **Operator**; an **Operator** need not be an **Owner**.
 - A mistake in the **Mistake ledger** that repeats becomes a **Rule** with its check, or a **Principle** when no tool can decide it.
-- A **Plan**'s execution lies between its two **Review gates**; its **Owner gates** lie inside it.
-- A task of a **Plan** states the behaviour it leaves to its implementer as **Acceptance lines**; it has **Dictated text** only where the wording is the decision, and a **Mandated check** only where a command's exact output is the behaviour.
-- An **Owner gate** has at most one **Pre-approval**, and only a gate whose action the executor performs can have one.
+- The **Standing instructions** reach every session, and a **Mode** reaches only a session whose **Operator** switched it on, where it adds to them.
+- A **Mode** has one **Playbook** for each kind of task it routes.
+- A **Gate** that is not the one that always holds exists only where an **Owner** asked for it.
+- A **Change** carries the **Proof** of what it claims in its pull request.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Exercise the stand-in for gh that the eval cases of build:finish put in front
-# of the PATH, in a workspace that the seed script of finish-says-it-met-nothing
+# Exercise the stand-in for gh that the eval cases of build:pull-request put in front
+# of the PATH, in a workspace that the seed script of pull-request-says-it-met-nothing
 # writes: what it prints for each command, and what it records in .git/forge
 # for the graders. Run through `devenv test`.
 set -euo pipefail
@@ -11,7 +11,7 @@ trap 'rm -rf "$tmp"' EXIT
 failures=0
 
 cd "$tmp"
-bash "$evals/finish-says-it-met-nothing/seed-workspace.sh" >/dev/null
+bash "$evals/pull-request-says-it-met-nothing/seed-workspace.sh" >/dev/null
 forge=$tmp/.git/forge
 branch=feat/reject-negative-quantity
 
@@ -86,9 +86,17 @@ gh pr view https://github.com/acme/orders/pull/71 --json title
 check "pr view takes the URL of a pull request" \
   '0|{"title": "feat(pricing): reject a negative quantity"}' "$code|$out"
 
+check "pr create records no comment yet" "" "$(<"$forge/pulls/$branch.comments.md")"
+
 gh pr comment 71 --body "Evidence."
 check "pr comment prints the URL of the comment" \
   "0|https://github.com/acme/orders/pull/71#issuecomment-7101" "$code|$out"
+
+printf '| ts | phase |\n| --- | --- |\n' >"$tmp/trail.md"
+gh pr comment "$branch" --body-file "$tmp/trail.md"
+check "pr comment records each comment under the name of the branch, numbered" \
+  $'<!-- comment 1 -->\nEvidence.\n<!-- comment 2 -->\n| ts | phase |\n| --- | --- |\n\nend' \
+  "$(cat "$forge/pulls/$branch.comments.md"; echo end)"
 
 gh pr checks
 check "pr checks says that no checks ran, as gh does" "1|no checks reported on the '$branch' branch" "$code|$err"

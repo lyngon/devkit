@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""A stand-in for the GitHub CLI in an eval run, so that a run files issues and opens pull requests offline.
+
+It answers the commands that filing an issue and opening a pull request take, for the repository
+acme/orders, and keeps what it is given in the directory above its own, where the graders of a case
+read it:
+
+  created.log       one line per issue or pull request in the order of creation, either
+                    "issue #<n> <title>" or "pull #<n> <head branch> <title>"
+  issues/<n>.md     the title of the issue as a heading, then its body
+  pulls/<head>.md   the body of the pull request from that branch, as it was last created or edited
+  pulls/<head>.comments.md
+                    its comments in order, each after a line "<!-- comment <n> -->"
+  state.json        all of it, which the next call reads back
+
+It reaches no network. A command that it does not answer fails with a message that says so.
+"""
+
+import argparse
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+import typing as t
+
+FORGE: t.Final = pathlib.Path(__file__).resolve().parent.parent
+REPOSITORY: t.Final = "acme/orders"
+URL: t.Final = f"https://github.com/{REPOSITORY}"
+FIRST_NUMBER: t.Final = 71
+NOT_INTERACTIVE: t.Final = "must provide `--title` and `--body` (or `--fill`) when not running interactively"
+ANSWERED: t.Final = (
+    "auth status, repo view, issue create, issue list, issue view, issue comment, "
+    "pr create, pr edit, pr view, pr list, pr comment, pr checks"
+)
+
+Item = dict[str, t.Any]
+
+
+class Failure(Exception):
+    """The command cannot be done; the message is what gh would print."""
+
+
+def load() -> dict[str, t.Any]:
+    path = FORGE / "state.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    return {"next": FIRST_NUMBER, "items": []}
+
+
+def save(state: dict[str, t.Any]) -> None:
+    """Write the state and the views of it that the graders read."""
+    (FORGE / "state.json").write_text(json.dumps(state, indent=2))
+    lines = []
+    for item in state["items"]:
+        if item["kind"] == "issue":
+            lines.append(f"issue #{item['number']} {item['title']}")
+            issue = FORGE / "issues" / f"{item['number']}.md"
+            issue.parent.mkdir(parents=True, exist_ok=True)
+            issue.write_text(f"# {item['title']}\n\n{item['body']}")
+        else:
+            lines.append(f"pull #{item['number']} {item['head']} {item['title']}")
+            pull = FORGE / "pulls" / f"{item['head']}.md"
+            pull.parent.mkdir(parents=True, exist_ok=True)
+            pull.write_text(item["body"])
+            comments = pull.with_name(f"{pull.stem}.comments.md")
+            comments.write_text(
+                "".join(f"<!-- comment {n} -->\n{body}\n" for n, body in enumerate(item["comments"], start=1))
+            )
+    (FORGE / "created.log").write_text("".join(f"{line}\n" for line in lines))
+
+
+def git(*arguments: str) -> str:
+    """What git printed, stripped; empty when git failed."""
+    result = subprocess.run(["git", *arguments], capture_output=True, text=True, check=False)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def body_of(arguments: argparse.Namespace) -> str | None:
+    """The body that --body or --body-file gave, where - reads standard input; None when neither did."""
+    if arguments.body_file is not None:
+        if arguments.body_file == "-":
+            return sys.stdin.read()
+        try:
+            return pathlib.Path(arguments.body_file).read_text()
+        except OSError as error:
+            raise Failure(f"open {arguments.body_file}: {error.strerror.lower()}") from error
+    return arguments.body
+
+
+def url_of(item: Item) -> str:
+    return f"{URL}/{'issues' if item['kind'] == 'issue' else 'pull'}/{item['number']}"
+
+
+def as_json(item: Item, fields: str) -> dict[str, t.Any]:
+    values = {
+        "number": item["number"],
+        "title": item["title"],
+        "body": item["body"],
+        "url": url_of(item),
+        "state": "OPEN",
+        "headRefName": item.get("head"),
+        "baseRefName": item.get("base"),
+        "comments": [{"body": comment} for comment in item["comments"]],
+    }
+    return {field: values.get(field) for field in fields.split(",")}
+
+
+def show(items: list[Item], arguments: argparse.Namespace, one: bool) -> None:
+    """Print items as gh does: JSON for --json, through jq for --jq, and otherwise a plain listing."""
+    if arguments.json is None:
+        for item in items:
+            if one:
+                print(f"title:\t{item['title']}\nstate:\tOPEN\nnumber:\t{item['number']}\nurl:\t{url_of(item)}")
+                print(f"--\n{item['body']}")
+            else:
+                print(f"{item['number']}\t{item['title']}\t{item.get('head') or ''}\tOPEN")
+        return
+    document: t.Any = as_json(items[0], arguments.json) if one else [as_json(item, arguments.json) for item in items]
+    text = json.dumps(document)
+    if arguments.jq is None:
+        print(text)
+        return
+    jq = shutil.which("jq")
+    if jq is None:
+        raise Failure("--jq needs jq on the PATH")
+    result = subprocess.run([jq, "-r", arguments.jq], input=text, capture_output=True, text=True, check=False)
+    sys.stdout.write(result.stdout)
+    if result.returncode != 0:
+        raise Failure(result.stderr.strip())
+
+
+def find(state: dict[str, t.Any], kind: str, selector: str | None) -> Item:
+    """The item of that kind that a number, a URL or, for a pull request, a branch selects.
+
+    Without a selector it is the pull request of the current branch.
+    """
+    wanted = selector if selector is not None else git("branch", "--show-current")
+    number = wanted.rstrip("/").rsplit("/", 1)[-1].lstrip("#")
+    for item in state["items"]:
+        if item["kind"] != kind:
+            continue
+        if str(item["number"]) == number or (kind == "pull" and item["head"] == wanted):
+            return item
+    if kind == "pull":
+        raise Failure(f'no pull requests found for branch "{wanted}"')
+    raise Failure(f"GraphQL: Could not resolve to an issue or pull request with the number of {number}.")
+
+
+def create(state: dict[str, t.Any], item: Item) -> None:
+    item.update(number=state["next"], comments=[])
+    state["next"] += 1
+    state["items"].append(item)
+    save(state)
+    print(url_of(item))
+
+
+def parsers() -> tuple[argparse.ArgumentParser, argparse.ArgumentParser]:
+    """The parser of the command's two words, and the parser of its selector and flags."""
+    top = argparse.ArgumentParser(prog="gh", add_help=False, allow_abbrev=False)
+    top.add_argument("group")
+    top.add_argument("command", nargs="?")
+    flags = argparse.ArgumentParser(prog="gh", add_help=False, allow_abbrev=False)
+    flags.add_argument("selector", nargs="?")
+    for short, long in (("-t", "--title"), ("-b", "--body"), ("-F", "--body-file"), ("-B", "--base"), ("-H", "--head")):
+        flags.add_argument(short, long)
+    flags.add_argument("--json")
+    flags.add_argument("-q", "--jq")
+    flags.add_argument("-f", "--fill", action="store_true")
+    # Flags that change nothing here, taken so that their values are no selector.
+    for short, long in (
+        ("-l", "--label"), ("-a", "--assignee"), ("-r", "--reviewer"), ("-R", "--repo"), ("-m", "--milestone"),
+        ("-p", "--project"), ("-s", "--state"), ("-L", "--limit"), ("-S", "--search"), ("-A", "--author"),
+    ):
+        flags.add_argument(short, long, action="append")
+    for short, long in (("-d", "--draft"), ("-w", "--web"), ("-c", "--comments")):
+        flags.add_argument(short, long, action="store_true")
+    return top, flags
+
+
+def main(arguments: list[str]) -> int:
+    top, flags = parsers()
+    head, rest = top.parse_known_args(arguments)
+    options, _ = flags.parse_known_args(rest)
+    state = load()
+    command = f"{head.group} {head.command}"
+    try:
+        if command == "auth status":
+            print("github.com\n  Logged in to github.com account acme-bot (keyring)\n  - Active account: true")
+        elif command == "repo view":
+            print(json.dumps({"nameWithOwner": REPOSITORY, "url": URL}) if options.json else REPOSITORY)
+        elif command == "issue create":
+            body = body_of(options)
+            if options.title is None or body is None:
+                raise Failure(NOT_INTERACTIVE)
+            create(state, {"kind": "issue", "title": options.title, "body": body})
+        elif command == "pr create":
+            branch = options.head or git("branch", "--show-current")
+            base = options.base or "main"
+            title, body = options.title, body_of(options)
+            if options.fill:
+                title = title or git("log", "-1", "--format=%s", branch)
+                body = body if body is not None else git("log", "-1", "--format=%b", branch)
+            if title is None or body is None:
+                raise Failure(NOT_INTERACTIVE)
+            if not git("rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}"):
+                raise Failure("aborted: you must first push the current branch to a remote, or use the --head flag")
+            for item in state["items"]:
+                if item["kind"] == "pull" and item["head"] == branch:
+                    raise Failure(
+                        f'a pull request for branch "{branch}" into branch "{base}" already exists:\n{url_of(item)}'
+                    )
+            create(state, {"kind": "pull", "title": title, "body": body, "head": branch, "base": base})
+        elif command == "pr edit":
+            item = find(state, "pull", options.selector)
+            body = body_of(options)
+            item["title"] = options.title or item["title"]
+            item["body"] = body if body is not None else item["body"]
+            save(state)
+            print(url_of(item))
+        elif head.group in ("issue", "pr") and head.command == "comment":
+            item = find(state, "issue" if head.group == "issue" else "pull", options.selector)
+            body = body_of(options)
+            if body is None:
+                raise Failure("must provide `--body` or `--body-file` when not running interactively")
+            item["comments"].append(body)
+            save(state)
+            print(f"{url_of(item)}#issuecomment-{item['number']}0{len(item['comments'])}")
+        elif head.group in ("issue", "pr") and head.command == "view":
+            show([find(state, "issue" if head.group == "issue" else "pull", options.selector)], options, one=True)
+        elif head.group in ("issue", "pr") and head.command == "list":
+            kind = "issue" if head.group == "issue" else "pull"
+            items = [item for item in state["items"] if item["kind"] == kind]
+            if options.head is not None:
+                items = [item for item in items if item["head"] == options.head]
+            show(items, options, one=False)
+        elif command == "pr checks":
+            branch = find(state, "pull", options.selector)["head"]
+            raise Failure(f"no checks reported on the '{branch}' branch")
+        else:
+            raise Failure(f"gh {command}: this forge answers only {ANSWERED}")
+    except Failure as failure:
+        print(failure, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

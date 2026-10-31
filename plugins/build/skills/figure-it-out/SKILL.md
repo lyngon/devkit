@@ -58,7 +58,7 @@ Apply the principle `sequence-verifiable-units`, verifying each unit before star
 ## Keep the trail
 
 Log the run with `build:work-trace`.
-This skill's work is usually ambitious enough that the reviewer needs the trail to trust the result, so post it on the pull request as that skill says.
+`build:pull-request` posts the trail on the pull request, where the reviewer reads it to trust the result.
 The trail plus the diff is what lets the owner come back and trust the work.
 
 ## Verify and hand back

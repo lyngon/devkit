@@ -239,22 +239,14 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/devkit/hooks/tests/hooks.sh" "$@"'';
   };
-
-  # Fixture tests for the build plugin's scripts. perl provides shasum, so
-  # the tests can run pin with each hash tool alone.
-  testBuildScripts = pkgs.writeShellApplication {
-    name = "test-build-scripts";
+  # Fixture tests for the build plugin's hook script, which needs bash alone.
+  testBuildHooks = pkgs.writeShellApplication {
+    name = "test-build-hooks";
     runtimeInputs = [
       pkgs.bash
       pkgs.coreutils
-      pkgs.diffutils
-      pkgs.gawk
-      pkgs.git
-      pkgs.gnugrep
-      pkgs.gnused
-      pkgs.perl
     ];
-    text = ''exec "${config.devenv.root}/plugins/build/tests/scripts.sh" "$@"'';
+    text = ''exec "${config.devenv.root}/plugins/build/tests/hooks.sh" "$@"'';
   };
 
   # Fixture tests for the prune script that the correction skill ships. The
@@ -281,7 +273,7 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/work-trace.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
-  # Fixture tests for the stand-in for gh that the eval cases of build:finish
+  # Fixture tests for the stand-in for gh that the eval cases of build:pull-request
   # run, in a workspace that their seed script writes.
   testEvalForge = pkgs.writeShellApplication {
     name = "test-eval-forge";
@@ -441,7 +433,7 @@ in
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testDevkitHooks}
-    declared_tools_only ${lib.getExe testBuildScripts}
+    declared_tools_only ${lib.getExe testBuildHooks}
     declared_tools_only ${lib.getExe testPruneMistakes}
     declared_tools_only ${lib.getExe testWorkTrace}
     declared_tools_only ${lib.getExe testEvalForge}
