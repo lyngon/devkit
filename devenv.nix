@@ -239,14 +239,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/devkit/hooks/tests/hooks.sh" "$@"'';
   };
-  # Fixture tests for the build plugin's hook script, which needs bash alone.
+  # Fixture tests for the build plugin's hooks. The test runs a hook in
+  # Python with a PATH of the baseline's lyngon.scriptTools and nothing else,
+  # as it runs the prune script below.
   testBuildHooks = pkgs.writeShellApplication {
     name = "test-build-hooks";
     runtimeInputs = [
       pkgs.bash
       pkgs.coreutils
+      pkgs.jq
     ];
-    text = ''exec "${config.devenv.root}/plugins/build/tests/hooks.sh" "$@"'';
+    text = ''exec "${config.devenv.root}/plugins/build/tests/hooks.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
   # Fixture tests for the prune script that the correction skill ships. The
