@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Exercise the build plugin's hooks: what the SessionStart hook prints, in
-# place and from a copy of the plugin under a root whose name a careless
-# substitution would break, and what the PreToolUse hook on the Agent tool
-# answers. A hook that runs Python gets an empty environment whose PATH is
-# this file's one argument, the directories of the tools in the baseline's
-# lyngon.scriptTools, since that list is all a shipped script may run. Run
-# through `devenv test`.
 set -euo pipefail
 
 if (($# != 1)); then
@@ -33,18 +26,14 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
-# run_tool_hook <plugin root> <tool> <tool input>: run each command that the
-# plugin's hooks.json names for the tool before it runs, through a shell as
-# Claude Code runs it, on a hook input that holds the tool input. Sets out,
-# err, code.
 run_tool_hook() {
-  local commands command
-  commands=$(jq -r --arg tool "$2" '.hooks.PreToolUse[]? | select(.matcher == $tool) | .hooks[].command' "$1/hooks/hooks.json")
-  jq -n --arg tool "$2" --argjson tool_input "$3" \
+  local plugin_root=$1 tool=$2 tool_input=$3 commands command
+  commands=$(jq -r --arg tool "$tool" '.hooks.PreToolUse[]? | select(.matcher == $tool) | .hooks[].command' "$plugin_root/hooks/hooks.json")
+  jq -n --arg tool "$tool" --argjson tool_input "$tool_input" \
     '{session_id: "s", hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"}' >"$tmp/stdin"
   code=0 out="" err=""
   while IFS= read -r command; do
-    out+=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$1" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+    out+=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$plugin_root" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
     err+=$(<"$tmp/stderr")
   done <<<"$commands"
 }
@@ -70,8 +59,6 @@ equals() {
   }
 }
 
-# json_equals <json> <expected json>: the same JSON value, whatever the key
-# order and the spacing.
 json_equals() {
   local actual
   actual=$(jq -cS . <<<"$1" 2>&1) || actual="not JSON: $1"
@@ -98,8 +85,6 @@ run_hook "$copy/hooks"
 check "copy: exits 0" equals "$code" 0
 check "copy: the last line names the copy's file of the mode" equals "${out##*$'\n'}" "If the operator started this session with /build:auto and its text is no longer in your context, read $copy/skills/auto/SKILL.md before you continue."
 check "copy: the rest of the text is unchanged" equals "${out%$'\n'*}" "${text%$'\n'*}"
-
-# --- The PreToolUse hook on the Agent tool -----------------------------------
 
 call='{"description": "Fix the bug", "prompt": "Read the brief.", "subagent_type": "build:implementer"}'
 foreground='{"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": {"description": "Fix the bug", "prompt": "Read the brief.", "subagent_type": "build:implementer", "run_in_background": false}}}'

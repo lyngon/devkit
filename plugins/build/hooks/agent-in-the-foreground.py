@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""PreToolUse hook of the build plugin on the Agent tool: a subagent starts in the foreground.
-
-A headless session starts a subagent in the background when the call leaves
-`run_in_background` out, and the lead then ends its turn to wait for it, while
-every skill of this plugin asks for the foreground. The hook answers such a
-call with its input plus `run_in_background: false`, which Claude Code runs in
-place of the input the model wrote, and with no permission decision, so the
-call still meets the session's permissions. A call that names the parameter
-runs as it is. Imports the standard library only, because the baseline
-promises a shipped script the interpreter and nothing else.
-"""
+"""PreToolUse hook of the build plugin on Agent: a call without run_in_background runs in the foreground."""
 
 import json
 import sys
 import typing as t
+
+
+def json_object(value: object, name: str) -> dict[str, object]:
+    """Return the value as a JSON object, whose keys are strings. Exits 1, naming it, when it is no object."""
+    if not isinstance(value, dict):
+        sys.exit(f"agent-in-the-foreground.py: {name} is no JSON object")
+    return t.cast("dict[str, object]", value)
 
 
 def answer(tool_input: dict[str, object]) -> dict[str, object] | None:
@@ -25,13 +22,9 @@ def answer(tool_input: dict[str, object]) -> dict[str, object] | None:
 
 
 def main() -> None:
-    """Read the hook input on stdin and print the output, if any. Exits 1 on an input without a tool input."""
-    # The keys of a JSON object are strings.
-    hook_input = t.cast("dict[str, object]", json.load(sys.stdin))
-    tool_input = hook_input.get("tool_input")
-    if not isinstance(tool_input, dict):
-        sys.exit("agent-in-the-foreground.py: the hook input holds no object tool_input")
-    output = answer(t.cast("dict[str, object]", tool_input))
+    """Read the hook input on stdin and print the output, if any."""
+    hook_input = json_object(t.cast("object", json.load(sys.stdin)), "the hook input")
+    output = answer(json_object(hook_input.get("tool_input"), "its tool_input"))
     if output is not None:
         json.dump(output, sys.stdout)
 
