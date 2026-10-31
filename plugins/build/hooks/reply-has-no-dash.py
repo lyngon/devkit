@@ -45,7 +45,7 @@ def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
         "The reply holds an em dash or an en dash, which the reply rules of /build:auto forbid, in these lines:\n"
         f"{quoted}\n"
         "Write the whole reply again, with a comma, parentheses or a new sentence in place of each dash, "
-        "and change nothing else."
+        "put a quote that must keep its dash in code font, and change nothing else."
     )
     return {"decision": "block", "reason": reason}
 

@@ -185,7 +185,7 @@ run_stop_hook() {
 sent_back() {
   local quoted
   quoted=$(printf '> %s\n' "$@")
-  jq -n --arg quoted "$quoted" '{decision: "block", reason: "The reply holds an em dash or an en dash, which the reply rules of /build:auto forbid, in these lines:\n\($quoted)\nWrite the whole reply again, with a comma, parentheses or a new sentence in place of each dash, and change nothing else."}'
+  jq -n --arg quoted "$quoted" '{decision: "block", reason: "The reply holds an em dash or an en dash, which the reply rules of /build:auto forbid, in these lines:\n\($quoted)\nWrite the whole reply again, with a comma, parentheses or a new sentence in place of each dash, put a quote that must keep its dash in code font, and change nothing else."}'
 }
 
 reply="The fix is committed.
