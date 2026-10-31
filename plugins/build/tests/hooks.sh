@@ -169,6 +169,47 @@ run_mode_hook Edit '{"file_path": "'"$repository/src/orders/pricing.py"'", "old_
 check "a delegate's Edit of src/orders/pricing.py: exits 0" equals "$code" 0
 check "a delegate's Edit of src/orders/pricing.py: prints nothing, so it runs" equals "$out$err" ""
 
+stop_command=$(yq --front-matter=extract '.hooks.Stop[].hooks[].command' "$root/skills/auto/SKILL.md")
+em_dash=$'—'
+en_dash=$'–'
+
+run_stop_hook() {
+  local reply=$1 stop_hook_active=${2:-false}
+  jq -n --arg reply "$reply" --argjson active "$stop_hook_active" --arg cwd "$repository" \
+    '{session_id: "s", cwd: $cwd, hook_event_name: "Stop", stop_hook_active: $active, last_assistant_message: $reply}' >"$tmp/stdin"
+  code=0
+  out=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$root" "$tools/bash" -c "$stop_command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+  err=$(<"$tmp/stderr")
+}
+
+# sent_back <line>...: the output that sends the reply back, quoting the lines that hold a dash.
+sent_back() {
+  local quoted
+  quoted=$(printf '> %s\n' "$@")
+  jq -n --arg quoted "$quoted" '{decision: "block", reason: "The reply holds an em dash or an en dash, which the reply rules of /build:auto forbid, in these lines:\n\($quoted)\nWrite the whole reply again, with a comma, parentheses or a new sentence in place of each dash, and change nothing else."}'
+}
+
+reply="The fix is committed.
+There is no remote, so there is nothing to push $em_dash per build:pull-request, I report the branch.
+1. \`7223821\` $en_dash the failing test."
+run_stop_hook "$reply"
+check "a reply with dashes: exits 0" equals "$code" 0
+check "a reply with dashes: sent back, quoting each line with one" json_equals "$out" \
+  "$(sent_back "There is no remote, so there is nothing to push $em_dash per build:pull-request, I report the branch." "1. \`7223821\` $en_dash the failing test.")"
+
+run_stop_hook "$reply" true
+check "a reply with dashes after the hook sent it back once: ends the turn" equals "$out$err" ""
+
+run_stop_hook "The fix is committed, and there is nothing to push."
+check "a reply without a dash: ends the turn" equals "$out$err" ""
+
+run_stop_hook "The test printed this:
+\`\`\`text
+1 passed $em_dash 0.01s
+\`\`\`
+The flag \`--range=1${en_dash}9\` stays."
+check "a reply whose dashes are all in code: ends the turn" equals "$out$err" ""
+
 if ((failures > 0)); then
   echo "test-build-hooks: $failures failure(s)" >&2
   exit 1
