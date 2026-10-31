@@ -209,6 +209,21 @@ run_stop_hook "The test printed this:
 The flag \`--range=1${en_dash}9\` stays."
 check "a reply whose dashes are all in code: ends the turn" equals "$out$err" ""
 
+run_stop_hook "The test printed this:
+~~~text
+1 passed $em_dash 0.01s
+\`\`\`
+2 passed $em_dash 0.02s
+~~~
+The span \`\`a\`b $en_dash c\`\` stays."
+check "a reply whose dashes are in a tilde fence and a span of two backticks: ends the turn" equals "$out$err" ""
+
+run_stop_hook "\`\`\`text
+1 passed
+\`\`\`
+After the block $em_dash a dash in prose."
+check "a dash in prose after a closed fence: sent back" json_equals "$out" "$(sent_back "After the block $em_dash a dash in prose.")"
+
 if ((failures > 0)); then
   echo "test-build-hooks: $failures failure(s)" >&2
   exit 1
