@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse hook of build:auto on Edit, Write and NotebookEdit: the lead writes no code.
-
-The mode's frontmatter names this hook, so Claude Code runs it only in a
-session that started /build:auto, from that turn on, and never in one of its
-subagents. In the mode a build:implementer delegate writes the code, however
-small the change. The hook refuses the lead, the session without an
-`agent_id`, a write of a file inside a repository, and leaves alone what the
-playbooks and the skills they route to have the lead write itself: the
-scratch under `tmp/` at the root of the repository (the work trace, the pull
-request body, arena and prototype files), design files under `docs/plans/`,
-ledger files under `docs/mistakes/`, and any file outside a repository. The
-repository is the nearest directory above the file that holds `.git`, so a
-file in a worktree counts by its path in that worktree. Imports the standard
-library only, because the baseline promises a shipped script the interpreter
-and nothing else.
-"""
+"""PreToolUse hook of build:auto on Edit, Write and NotebookEdit: the lead writes no code."""
 
 import json
 import pathlib
