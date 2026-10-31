@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse hook of build:auto on Edit, Write and NotebookEdit: the lead writes no code.
-
-The mode's frontmatter names this hook, so Claude Code runs it only in a
-session that started /build:auto, from that turn on, and never in one of its
-subagents. In the mode a build:implementer delegate writes the code, however
-small the change. The hook refuses the lead, the session without an
-`agent_id`, a write of a file inside a repository, and leaves alone what the
-playbooks and the skills they route to have the lead write itself: the
-scratch under `tmp/` at the root of the repository (the work trace, the pull
-request body, arena and prototype files), design files under `docs/plans/`,
-ledger files under `docs/mistakes/`, and any file outside a repository. The
-repository is the nearest directory above the file that holds `.git`, so a
-file in a worktree counts by its path in that worktree. Imports the standard
-library only, because the baseline promises a shipped script the interpreter
-and nothing else.
-"""
+"""PreToolUse hook of build:auto on Edit, Write and NotebookEdit: the lead writes no code."""
 
 import json
 import pathlib
@@ -33,13 +18,22 @@ def in_the_change(path: pathlib.Path) -> bool:
     return not any(parts[: len(directory)] == directory for directory in LEADS_DIRECTORIES)
 
 
+def json_object(value: object, name: str) -> dict[str, object]:
+    """Return the value as a JSON object, whose keys are strings. Exits 1, naming it, when it is no object."""
+    if not isinstance(value, dict):
+        sys.exit(f"lead-writes-no-code.py: {name} is no JSON object")
+    return t.cast("dict[str, object]", value)
+
+
 def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
-    """Return the hook's output for a call, or None to let it run as it is."""
+    """Return the hook's output for a call, or None to let it run as it is. Exits 1 when the call names no file."""
     if "agent_id" in hook_input:
         return None
-    tool_input = t.cast("dict[str, object]", hook_input["tool_input"])
-    target = str(tool_input["file_path"] if "file_path" in tool_input else tool_input["notebook_path"])
-    path = (pathlib.Path(str(hook_input["cwd"])) / target).resolve()
+    tool_input = json_object(hook_input.get("tool_input"), "its tool_input")
+    target = tool_input.get("file_path", tool_input.get("notebook_path"))
+    if not isinstance(target, str):
+        sys.exit("lead-writes-no-code.py: its tool_input names no file")
+    path = (pathlib.Path(str(hook_input.get("cwd", ""))) / target).resolve()
     if not in_the_change(path):
         return None
     reason = (
@@ -59,8 +53,7 @@ def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
 
 def main() -> None:
     """Read the hook input on stdin and print the output, if any."""
-    # The keys of a JSON object are strings.
-    output = answer(t.cast("dict[str, object]", json.load(sys.stdin)))
+    output = answer(json_object(t.cast("object", json.load(sys.stdin)), "the hook input"))
     if output is not None:
         json.dump(output, sys.stdout)
 
