@@ -182,7 +182,6 @@ run_stop_hook() {
   err=$(<"$tmp/stderr")
 }
 
-# sent_back <line>...: the output that sends the reply back, quoting the lines that hold a dash.
 sent_back() {
   local quoted
   quoted=$(printf '> %s\n' "$@")
