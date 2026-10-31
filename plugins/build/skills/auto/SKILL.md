@@ -3,6 +3,12 @@ name: auto
 description: "The Lyngon mode for one task: routes the task to a playbook (feature, refactoring, bug fix, prototype, autonomous run) or to build:figure-it-out, delegates code to the build:implementer agent, and holds every claim of the reply to its evidence. Only the operator starts it, as /build:auto with the task."
 argument-hint: "<the task>"
 disable-model-invocation: true
+hooks:
+  PreToolUse:
+    - matcher: "Edit|Write|NotebookEdit"
+      hooks:
+        - type: command
+          command: "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lead-writes-no-code.py"
 ---
 
 # Auto
