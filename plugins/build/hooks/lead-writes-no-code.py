@@ -33,13 +33,22 @@ def in_the_change(path: pathlib.Path) -> bool:
     return not any(parts[: len(directory)] == directory for directory in LEADS_DIRECTORIES)
 
 
+def json_object(value: object, name: str) -> dict[str, object]:
+    """Return the value as a JSON object, whose keys are strings. Exits 1, naming it, when it is no object."""
+    if not isinstance(value, dict):
+        sys.exit(f"lead-writes-no-code.py: {name} is no JSON object")
+    return t.cast("dict[str, object]", value)
+
+
 def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
-    """Return the hook's output for a call, or None to let it run as it is."""
+    """Return the hook's output for a call, or None to let it run as it is. Exits 1 when the call names no file."""
     if "agent_id" in hook_input:
         return None
-    tool_input = t.cast("dict[str, object]", hook_input["tool_input"])
-    target = str(tool_input["file_path"] if "file_path" in tool_input else tool_input["notebook_path"])
-    path = (pathlib.Path(str(hook_input["cwd"])) / target).resolve()
+    tool_input = json_object(hook_input.get("tool_input"), "its tool_input")
+    target = tool_input.get("file_path", tool_input.get("notebook_path"))
+    if not isinstance(target, str):
+        sys.exit("lead-writes-no-code.py: its tool_input names no file")
+    path = (pathlib.Path(str(hook_input.get("cwd", ""))) / target).resolve()
     if not in_the_change(path):
         return None
     reason = (
@@ -59,8 +68,7 @@ def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
 
 def main() -> None:
     """Read the hook input on stdin and print the output, if any."""
-    # The keys of a JSON object are strings.
-    output = answer(t.cast("dict[str, object]", json.load(sys.stdin)))
+    output = answer(json_object(t.cast("object", json.load(sys.stdin)), "the hook input"))
     if output is not None:
         json.dump(output, sys.stdout)
 
