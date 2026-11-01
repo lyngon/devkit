@@ -21,13 +21,14 @@ It starts `architect`, `arena`, `review` and `figure-it-out` only when the opera
 Each of the four spawns several subagents, directly or through the others.
 The agent starts every other skill on its own trigger.
 
-The skills and the agents are vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), all but the script of `correction`, and the hook is written by Lyngon.
+The skills and the agents are vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), all but the script of `correction`, and the hooks are written by Lyngon.
 Upstream, `auto` is called `poteto-mode`, `pull-request` is its playbook `opening-a-pr`, `correction` is `correct`, `review` `interrogate`, `work-trace` `show-me-your-work`, `benchmark` `benchmark-checklist`, `clean-comments` `no-comments`, `implementer` poteto-agent and `comment-auditor` Comment Sicko.
 The license is `LICENSE-pstack` in this plugin, and the provenance record is [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 
 ## Hooks
 
 - `SessionStart`: prints `hooks/standing-instructions.txt`, the standing instructions, at the start of every session and again after each compaction, with the path of the mode's file filled in. `validate-marketplace` fails the text above 4,000 characters, since every session pays for it, and the mode's `SKILL.md` above 15,000 characters or without `disable-model-invocation: true`. `tests/hooks.sh` runs the hook with nothing but bash on the PATH.
+- `PreToolUse` on `Agent`: `hooks/agent-in-the-foreground.py` gives a call that leaves `run_in_background` out the value `false`, so that its subagent starts in the foreground, where a headless session of Claude Code 2.1.283 or 2.1.299 starts it in the background. Both run the changed input in place of the one the model wrote, and the trace still shows the model's (measured). The hook gives no permission decision, so the call still meets the permissions of the session. A call that names the parameter runs as it is. With the fork subagent of an interactive session, which starts every subagent in the background, the call starts as it would without the hook (measured with `CLAUDE_CODE_FORK_SUBAGENT=1` in a headless session). `tests/hooks.sh` runs the hook with a PATH of the baseline's `lyngon.scriptTools` and nothing else.
 
 ## The mistake ledger
 
