@@ -134,7 +134,7 @@ The agent identity is the attribution, and no vendor line goes into a commit mes
 
 - `CONCEPTS.md` gains Agent identity (done on this branch).
 - Three decision records, rewritten for the machine's declaration: who an agent acts as, no `administration` for the App, and the key as a file only the operator can read.
-- `INTENT.md` gains adopters as a secondary audience, in its own pull request that lands first, with the term Adopter in `CONCEPTS.md`.
+- `INTENT.md` gains adopters as a secondary audience, with the term Adopter in `CONCEPTS.md`, in [docs(intent): serve adopters outside Lyngon, second to Lyngon](https://github.com/lyngon/devkit/pull/110), which lands first.
 - The roadmap's `issue-pipeline` section gains two open points. An adopter's App is never installed on `lyngon/devkit` and a token covers one installation, so "a mistake that belongs to every repository is filed on the devkit" needs another path from an adopter's repository. And routing by author can no longer trust one fixed bot.
 
 ## One key per machine
@@ -165,14 +165,14 @@ With the App, after the owner's steps:
 
 The work stops at each of these, prepared as exact commands and diffs:
 
-1. Merge the `INTENT.md` pull request.
+1. Merge [docs(intent): serve adopters outside Lyngon, second to Lyngon](https://github.com/lyngon/devkit/pull/110).
 2. Run `agent-identity create-app --name "Lyngon Developer" --owner lyngon --public` in a devkit shell, confirm on GitHub's page, then install the App on all repositories of `lyngon`.
 3. In `nixos-configs`: the key of each development host as its own sops file with its own rule, the secret declared in `modules/development/nixos.nix` for a host that has a key file (owner `config.my.user.name`, mode 0400), and the declaration written through home-manager. Then rebuild.
 4. Review the pull request and decide the merge.
 
 ## Order of the work
 
-1. The `INTENT.md` pull request, on its own branch.
+1. [docs(intent): serve adopters outside Lyngon, second to Lyngon](https://github.com/lyngon/devkit/pull/110), open on its own branch.
 2. On this branch, one commit per unit, each green before the next: the template and the program with its fixture tests; the option and the `prepare-commit-msg` hook; the `repo` hook; the how-to; attribution; the decision records and the roadmap.
 3. The owner's steps.
 4. The end-to-end proof, then the last commit, which removes this file, the seed prompt, its `docs/TODO.md` entry, and the roadmap's section and row for `agent-identity`.
