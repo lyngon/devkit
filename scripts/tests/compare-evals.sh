@@ -7,7 +7,8 @@
 set -euo pipefail
 
 program=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/compare-evals.py
-tmp=$(mktemp -d)
+short_root=/tmp
+tmp=$(mktemp -d "$short_root/ce.XXXXXX")
 # A sandbox that the stub kept is read-only, as the real one is.
 remove() {
   [[ ! -e "$1" ]] || chmod -R u+rwx "$1"
@@ -354,7 +355,7 @@ gone() {
 # The shell that starts the program is the devenv shell of the repository,
 # unless shell_root names another directory, and its Nix store is $tmp/store.
 temporary=$tmp/scratch
-ln -s scratch "$tmp/scratch-link"
+ln -s scratch "$tmp/link"
 shell_root=""
 compare() {
   local repo=$1 root
@@ -454,6 +455,32 @@ nothing_left() {
 
 # --- Cases -------------------------------------------------------------------
 
+directory_of() {
+  local length=$1 path=$tmp/tmpdir-
+  while ((${#path} < length)); do
+    path+=x
+  done
+  mkdir "$path"
+  echo "$path"
+}
+
+repo=$(two_commits)
+temporary=$(directory_of 23)
+compare "$repo" main~1
+check "a TMPDIR of 23 bytes: the comparison runs at both commits" equals "$code $(wc -l <<<"$calls")" "0 2"
+remove "$temporary"
+temporary=$(directory_of 24)
+compare "$repo" main~1
+check "a TMPDIR of 24 bytes: exits 1" equals "$code" 1
+check "a TMPDIR of 24 bytes: starts no run" equals "$calls" ""
+check "a TMPDIR of 24 bytes: names the length, the limit and a shorter TMPDIR" contains "$err" \
+  "bytes long, and the sandbox of a run has room for its sockets only under a TMPDIR of at most 50 bytes, without which every shell command of the run fails. Start compare-evals with a TMPDIR of at most 23 bytes, such as TMPDIR=/tmp."
+check "a TMPDIR of 24 bytes: names the TMPDIR that a run would get" contains "$err" "each run would get the TMPDIR $temporary/compare-evals-"
+check "a TMPDIR of 24 bytes: says how long it is" contains "$err" ", 51 bytes long,"
+check "a TMPDIR of 24 bytes: leaves nothing behind" equals "$(ls -A "$temporary")" ""
+remove "$temporary"
+temporary=$tmp/scratch
+
 repo=$(two_commits)
 compare "$repo" main~1
 check "two commits: exits 0" equals "$code" 0
@@ -531,14 +558,14 @@ granted tools: Write, Bash(git:*), Edit
 # a path without symbolic links, so the grant names the checkout by that path.
 # Here the temporary directory of the base checkout is reached through a link.
 repo=$(two_commits)
-temporary=$tmp/scratch-link
+temporary=$tmp/link
 compare "$repo" main~1
 temporary=$tmp/scratch
 call=$(calls_outside "$repo")
 check "a checkout behind a symbolic link: its run is granted its shared documents by the path without the link" \
   equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
 check "a checkout behind a symbolic link: the path is not the one through the link" \
-  lacks "$(grant_of "$call")" "scratch-link"
+  lacks "$(grant_of "$call")" "$tmp/link"
 
 # The working tree here gives another score for one case and has lost the
 # prompt.md of another case, which keeps only a workspace, and none of it is
@@ -878,7 +905,7 @@ git -C "$repo" tag fails-to-load
 result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
 rm "$repo/canned-progress" "$repo/canned-exit"
 commit "$repo" "chore: the file loads again"
-temporary=$tmp/scratch-link
+temporary=$tmp/link
 compare "$repo" fails-to-load
 temporary=$tmp/scratch
 check "a case file that failed to load at the base commit: is named from the root, also behind a symbolic link" contains "$out" "

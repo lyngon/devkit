@@ -11,6 +11,8 @@ environment, and the run in the working tree keeps the devenv shell that
 this program starts from. A case that seeds its working directory does so
 with a script of its own, which runs as whoever runs this, at both commits.
 The clone and everything a run writes are removed again.
+Before the first run it refuses a TMPDIR under which the sandbox of a run
+would have no room for its sockets, which would fail every shell command.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
@@ -34,6 +36,18 @@ import subprocess
 import sys
 import tempfile
 import typing as t
+
+LONGEST_RUN_TMPDIR: int = 50
+"""The most bytes that the TMPDIR of a run may hold.
+
+The sandbox of a run that grants Bash binds a socket at
+`<TMPDIR>/claude-eval-XXXXXX/tmp/claude-http-<16 hex digits>.sock`, 57 bytes
+past its TMPDIR, and Linux cuts a socket path at 108 bytes. Under a TMPDIR of
+52 bytes or more every shell command of the run fails, and the run scores like
+any other (measured on Claude Code 2.1.283). Where an external proxy port is
+configured, the sandbox also binds `claude-socks-<16 hex digits>.sock`, a byte
+longer, which leaves 50 (read from its binary, not measured).
+"""
 
 
 class CompareError(Exception):
@@ -324,6 +338,28 @@ class Launcher:
     environment: ct.Mapping[str, str]
 
 
+def run_temporary(scratch: pathlib.Path) -> pathlib.Path:
+    """Return the TMPDIR of a run: a directory in the scratch directory, so that the run's sandbox goes with it."""
+    return scratch / "tmp"
+
+
+def check_room_for_sandbox(scratch: pathlib.Path) -> None:
+    """Raise CompareError when the TMPDIR of a run is too long for the sockets of its sandbox."""
+    temporary = run_temporary(scratch)
+    length = len(os.fsencode(temporary))
+    if length <= LONGEST_RUN_TMPDIR:
+        return
+    started_with = scratch.parent
+    longest_start = LONGEST_RUN_TMPDIR - (length - len(os.fsencode(started_with)))
+    words = (
+        f"each run would get the TMPDIR {temporary}, {length} bytes long,",
+        f"and the sandbox of a run has room for its sockets only under a TMPDIR of at most {LONGEST_RUN_TMPDIR} bytes,",
+        "without which every shell command of the run fails.",
+        f"Start compare-evals with a TMPDIR of at most {longest_start} bytes, such as TMPDIR=/tmp.",
+    )
+    raise CompareError(" ".join(words))
+
+
 def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher: Launcher, options: Options) -> Result:
     """Run the suite of a checkout and read its result.
 
@@ -344,7 +380,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
     status of `claude` alone does not decide that: it is 1 for a case below
     the threshold too.
     """
-    output, temporary = scratch / side, scratch / "tmp"
+    output, temporary = scratch / side, run_temporary(scratch)
     temporary.mkdir(exist_ok=True)
     command = [*launcher.words, "plugin", "eval", ".", "--output-dir", str(output)]
     command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *options.eval_options]
@@ -671,6 +707,7 @@ def compare(options: Options) -> Comparison:
 
     with tempfile.TemporaryDirectory(prefix="compare-evals-") as directory:
         scratch = pathlib.Path(directory)
+        check_room_for_sandbox(scratch)
         checkout = clone_of(root, base_commit, scratch / "checkout")
         try:
             base = run_suite(checkout, "base", scratch, at_base, options)
