@@ -456,9 +456,10 @@ Under a `TMPDIR` longer than 51 bytes the harness refuses nothing either, the ru
 Sandbox is required but failed to initialize: Failed to create bridge sockets after 5 attempts. Restart to retry.
 ```
 
-So start a run with `TMPDIR` unset, which puts its sandbox under `/tmp`, or set to a directory of at most 51 bytes.
+Where an external proxy port is configured, the sandbox also binds `claude-socks-<16 hex digits>.sock`, a byte longer (read from its binary, not measured).
+So start a run with `TMPDIR` unset, which puts its sandbox under `/tmp`, or set to a directory of at most 50 bytes.
 A session's scratchpad is longer than that.
-`compare-evals` gives each run a `TMPDIR` 27 bytes past its own, so it refuses a `TMPDIR` longer than 24 bytes before its first run, and says how to start it instead.
+`compare-evals` gives each run a `TMPDIR` 27 bytes past its own, so it refuses a `TMPDIR` longer than 23 bytes before its first run, and says how to start it instead.
 
 A command of a run finds the tools of the shell that started the run, so start a run from the devenv shell.
 The hook of the `devkit` plugin hands that PATH over when the session starts.

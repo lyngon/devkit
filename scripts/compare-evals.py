@@ -37,14 +37,16 @@ import sys
 import tempfile
 import typing as t
 
-LONGEST_RUN_TMPDIR: int = 51
+LONGEST_RUN_TMPDIR: int = 50
 """The most bytes that the TMPDIR of a run may hold.
 
 The sandbox of a run that grants Bash binds a socket at
 `<TMPDIR>/claude-eval-XXXXXX/tmp/claude-http-<16 hex digits>.sock`, 57 bytes
-past its TMPDIR, and Linux cuts a socket path at 108 bytes. Under a longer
-TMPDIR every shell command of the run fails, and the run scores like any other
-(measured on Claude Code 2.1.283).
+past its TMPDIR, and Linux cuts a socket path at 108 bytes. Under a TMPDIR of
+52 bytes or more every shell command of the run fails, and the run scores like
+any other (measured on Claude Code 2.1.283). Where an external proxy port is
+configured, the sandbox also binds `claude-socks-<16 hex digits>.sock`, a byte
+longer, which leaves 50 (read from its binary, not measured).
 """
 
 
@@ -351,7 +353,8 @@ def check_room_for_sandbox(scratch: pathlib.Path) -> None:
     longest_start = LONGEST_RUN_TMPDIR - (length - len(os.fsencode(started_with)))
     words = (
         f"each run would get the TMPDIR {temporary}, {length} bytes long,",
-        f"and the sandbox of a run fails every shell command under a TMPDIR longer than {LONGEST_RUN_TMPDIR} bytes.",
+        f"and the sandbox of a run has room for its sockets only under a TMPDIR of at most {LONGEST_RUN_TMPDIR} bytes,",
+        "without which every shell command of the run fails.",
         f"Start compare-evals with a TMPDIR of at most {longest_start} bytes, such as TMPDIR=/tmp.",
     )
     raise CompareError(" ".join(words))

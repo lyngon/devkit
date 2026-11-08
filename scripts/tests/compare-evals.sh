@@ -465,19 +465,19 @@ directory_of() {
 }
 
 repo=$(two_commits)
+temporary=$(directory_of 23)
+compare "$repo" main~1
+check "a TMPDIR of 23 bytes: the comparison runs at both commits" equals "$code $(wc -l <<<"$calls")" "0 2"
+remove "$temporary"
 temporary=$(directory_of 24)
 compare "$repo" main~1
-check "a TMPDIR of 24 bytes: the comparison runs at both commits" equals "$code $(wc -l <<<"$calls")" "0 2"
-remove "$temporary"
-temporary=$(directory_of 25)
-compare "$repo" main~1
-check "a TMPDIR of 25 bytes: exits 1" equals "$code" 1
-check "a TMPDIR of 25 bytes: starts no run" equals "$calls" ""
-check "a TMPDIR of 25 bytes: names the length, the limit and a shorter TMPDIR" contains "$err" \
-  "bytes long, and the sandbox of a run fails every shell command under a TMPDIR longer than 51 bytes. Start compare-evals with a TMPDIR of at most 24 bytes, such as TMPDIR=/tmp."
-check "a TMPDIR of 25 bytes: names the TMPDIR that a run would get" contains "$err" "each run would get the TMPDIR $temporary/compare-evals-"
-check "a TMPDIR of 25 bytes: says how long it is" contains "$err" ", 52 bytes long,"
-check "a TMPDIR of 25 bytes: leaves nothing behind" equals "$(ls -A "$temporary")" ""
+check "a TMPDIR of 24 bytes: exits 1" equals "$code" 1
+check "a TMPDIR of 24 bytes: starts no run" equals "$calls" ""
+check "a TMPDIR of 24 bytes: names the length, the limit and a shorter TMPDIR" contains "$err" \
+  "bytes long, and the sandbox of a run has room for its sockets only under a TMPDIR of at most 50 bytes, without which every shell command of the run fails. Start compare-evals with a TMPDIR of at most 23 bytes, such as TMPDIR=/tmp."
+check "a TMPDIR of 24 bytes: names the TMPDIR that a run would get" contains "$err" "each run would get the TMPDIR $temporary/compare-evals-"
+check "a TMPDIR of 24 bytes: says how long it is" contains "$err" ", 51 bytes long,"
+check "a TMPDIR of 24 bytes: leaves nothing behind" equals "$(ls -A "$temporary")" ""
 remove "$temporary"
 temporary=$tmp/scratch
 
