@@ -9,6 +9,10 @@ hooks:
       hooks:
         - type: command
           command: "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lead-writes-no-code.py"
+  Stop:
+    - hooks:
+        - type: command
+          command: "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/reply-has-no-dash.py"
 ---
 
 # Auto
