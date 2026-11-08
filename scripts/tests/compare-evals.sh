@@ -7,9 +7,8 @@
 set -euo pipefail
 
 program=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/compare-evals.py
-# Under /tmp with a short name, whatever TMPDIR says: the program refuses a
-# TMPDIR longer than 24 bytes, and each TMPDIR below lies in this directory.
-tmp=$(mktemp -d /tmp/ce.XXXXXX)
+short_root=/tmp
+tmp=$(mktemp -d "$short_root/ce.XXXXXX")
 # A sandbox that the stub kept is read-only, as the real one is.
 remove() {
   [[ ! -e "$1" ]] || chmod -R u+rwx "$1"
@@ -456,16 +455,9 @@ nothing_left() {
 
 # --- Cases -------------------------------------------------------------------
 
-# A run's sandbox binds a socket 57 bytes past its TMPDIR, and Linux cuts a
-# socket path at 108 bytes, so under a TMPDIR longer than 51 bytes every shell
-# command of the run fails (measured on Claude Code 2.1.283). The program gives
-# each run a TMPDIR 27 bytes past its own, so one of 24 bytes is the longest it
-# takes.
-
-# directory_of <length>: a new directory in $tmp whose path is that many bytes.
 directory_of() {
-  local path=$tmp/tmpdir-
-  while ((${#path} < $1)); do
+  local length=$1 path=$tmp/tmpdir-
+  while ((${#path} < length)); do
     path+=x
   done
   mkdir "$path"

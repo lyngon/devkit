@@ -342,20 +342,17 @@ def run_temporary(scratch: pathlib.Path) -> pathlib.Path:
 
 
 def check_room_for_sandbox(scratch: pathlib.Path) -> None:
-    """Raise CompareError when the TMPDIR of a run is too long for the sockets of its sandbox.
-
-    The message names how long a TMPDIR this program may be started with,
-    which is the limit less the bytes that the scratch directory adds.
-    """
+    """Raise CompareError when the TMPDIR of a run is too long for the sockets of its sandbox."""
     temporary = run_temporary(scratch)
     length = len(os.fsencode(temporary))
     if length <= LONGEST_RUN_TMPDIR:
         return
-    added = length - len(os.fsencode(scratch.parent))
+    started_with = scratch.parent
+    longest_start = LONGEST_RUN_TMPDIR - (length - len(os.fsencode(started_with)))
     words = (
         f"each run would get the TMPDIR {temporary}, {length} bytes long,",
         f"and the sandbox of a run fails every shell command under a TMPDIR longer than {LONGEST_RUN_TMPDIR} bytes.",
-        f"Start compare-evals with a TMPDIR of at most {LONGEST_RUN_TMPDIR - added} bytes, such as TMPDIR=/tmp.",
+        f"Start compare-evals with a TMPDIR of at most {longest_start} bytes, such as TMPDIR=/tmp.",
     )
     raise CompareError(" ".join(words))
 
