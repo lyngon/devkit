@@ -103,6 +103,72 @@ for value in true false; do
   check "Agent with run_in_background $value: prints nothing, so the call runs as it is" equals "$out$err" ""
 done
 
+mode_matcher=$(yq --front-matter=extract '.hooks.PreToolUse[].matcher' "$root/skills/auto/SKILL.md")
+mode_command=$(yq --front-matter=extract '.hooks.PreToolUse[].hooks[].command' "$root/skills/auto/SKILL.md")
+
+check "the mode's hook matches the tools that write files" equals "$mode_matcher" "Edit|Write|NotebookEdit"
+
+repository=$tmp/orders
+outside_any_repository=$tmp/outside-any-repository
+mkdir -p "$repository/.git" "$repository/.claude/worktrees/rename/src" "$outside_any_repository"
+: >"$repository/.claude/worktrees/rename/.git"
+
+no_repository_above() {
+  local directory=$1
+  while [[ $directory != / ]]; do
+    [[ ! -e $directory/.git ]] || {
+      echo "  $directory holds .git; run the test with a TMPDIR outside every repository"
+      return 1
+    }
+    directory=$(dirname "$directory")
+  done
+}
+
+check "the test's directory lies outside every repository" no_repository_above "$tmp"
+
+run_mode_hook() {
+  local tool=$1 tool_input=$2 agent=${3:-'{}'}
+  jq -n --arg tool "$tool" --argjson tool_input "$tool_input" --argjson agent "$agent" --arg cwd "$repository" \
+    '{session_id: "s", cwd: $cwd, hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $agent' >"$tmp/stdin"
+  code=0
+  out=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$root" "$tools/bash" -c "$mode_command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+  err=$(<"$tmp/stderr")
+}
+
+refused() {
+  jq -n --arg path "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
+    permissionDecisionReason: "In /build:auto the lead writes no code, so it may not write \($path). Start a build:implementer delegate (subagent_type \"build:implementer\") with a brief that names the file, and review its diff. The lead writes only under tmp/, docs/plans/ and docs/mistakes/ of the repository, and outside it."}}'
+}
+
+for path in src/orders/pricing.py tests/test_pricing.py README.md src/orders/new/rounding.py; do
+  run_mode_hook Write '{"file_path": "'"$repository/$path"'", "content": "x"}'
+  check "the lead's Write of $path: exits 0" equals "$code" 0
+  check "the lead's Write of $path: refused, naming the delegate" json_equals "$out" "$(refused "$repository/$path")"
+done
+
+run_mode_hook Edit '{"file_path": "'"$repository/src/orders/pricing.py"'", "old_string": ">", "new_string": ">="}'
+check "the lead's Edit of src/orders/pricing.py: refused" json_equals "$out" "$(refused "$repository/src/orders/pricing.py")"
+
+run_mode_hook NotebookEdit '{"notebook_path": "'"$repository/analysis.ipynb"'", "new_source": "x"}'
+check "the lead's NotebookEdit of analysis.ipynb: refused" json_equals "$out" "$(refused "$repository/analysis.ipynb")"
+
+worktree_file=$repository/.claude/worktrees/rename/src/client.py
+run_mode_hook Edit '{"file_path": "'"$worktree_file"'", "old_string": "a", "new_string": "b"}'
+check "the lead's Edit of a file in a worktree: refused" json_equals "$out" "$(refused "$worktree_file")"
+
+for path in "$repository/tmp/work-trace/fix-orders.md" "$repository/tmp/pull-request-body.md" \
+  "$repository/docs/plans/2026-10-31-bulk-discount.md" "$repository/docs/mistakes/a-lead-wrote-a-fix.md" \
+  "$outside_any_repository/notes.md"; do
+  run_mode_hook Write '{"file_path": "'"$path"'", "content": "x"}'
+  check "the lead's Write of ${path#"$tmp"/}: exits 0" equals "$code" 0
+  check "the lead's Write of ${path#"$tmp"/}: prints nothing, so it runs" equals "$out$err" ""
+done
+
+run_mode_hook Edit '{"file_path": "'"$repository/src/orders/pricing.py"'", "old_string": ">", "new_string": ">="}' \
+  '{"agent_id": "a1", "agent_type": "build:implementer"}'
+check "a delegate's Edit of src/orders/pricing.py: exits 0" equals "$code" 0
+check "a delegate's Edit of src/orders/pricing.py: prints nothing, so it runs" equals "$out$err" ""
+
 if ((failures > 0)); then
   echo "test-build-hooks: $failures failure(s)" >&2
   exit 1

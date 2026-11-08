@@ -245,6 +245,7 @@ let
       pkgs.bash
       pkgs.coreutils
       pkgs.jq
+      pkgs.yq-go
     ];
     text = ''exec "${config.devenv.root}/plugins/build/tests/hooks.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
