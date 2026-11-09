@@ -1,7 +1,7 @@
 # The Lyngon baseline for every repository: git hooks, the check-pull-request
-# command, the tools of the scripts that skills ship, the languages every Lyngon
-# repository has (Nix, shell), and the devenv MCP server file for a repository
-# that turns it on.
+# command, the agent-identity command, the tools of the scripts that skills
+# ship, the languages every Lyngon repository has (Nix, shell), and the devenv
+# MCP server file for a repository that turns it on.
 #
 # Consumers add this repository as an input and import this directory:
 #
