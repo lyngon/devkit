@@ -23,6 +23,10 @@ _Avoid_: meta-plugin, pack, calling an ordinary plugin a bundle
 **Devkit**:
 This repository: the reusable pieces a Lyngon repository needs, today the marketplace, the baseline module and the shared documents.
 
+**Adopter**:
+An organization or developer outside Lyngon that uses the devkit in its own repositories.
+_Avoid_: customer, user, client (a client is an organization Lyngon works for, adopter or not)
+
 **Marketplace**:
 The part of the devkit described by `.claude-plugin/marketplace.json`, listing every plugin that can be installed from it.
 _Avoid_: using "marketplace" for the whole repository
