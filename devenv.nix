@@ -149,6 +149,24 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/check-pull-request.sh" "$@"'';
   };
+  # Fixture tests for the baseline's agent-identity, against a stub of
+  # GitHub's API that checks each App's signed token with the throwaway key
+  # the test makes.
+  testAgentIdentity = pkgs.writeShellApplication {
+    name = "test-agent-identity";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.openssl
+      (pkgs.python3.withPackages (packages: [
+        packages.pyjwt
+        packages.cryptography
+      ]))
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/agent-identity.sh" "$@"'';
+  };
   # Fixture tests for the baseline module's validate-structure hook.
   testValidateStructure = pkgs.writeShellApplication {
     name = "test-validate-structure";
@@ -312,11 +330,17 @@ let
 
   # The type check of this repository's Python programs, as the table
   # [tool.basedpyright] of pyproject.toml sets it. basedpyright resolves an
-  # import through the interpreter it is given, and the test of the workflow
-  # templates imports markdown_it.
+  # import through the interpreter it is given: the test of the workflow
+  # templates imports markdown_it, and the baseline's agent-identity imports
+  # jwt.
+  pythonForTypeCheck = pkgs.python3.withPackages (packages: [
+    packages.markdown-it-py
+    packages.pyjwt
+    packages.cryptography
+  ]);
   basedpyright = pkgs.writeShellApplication {
     name = "basedpyright";
-    text = ''exec ${lib.getExe' pkgs.basedpyright "basedpyright"} --pythonpath ${lib.getExe' pythonWithMarkdownIt "python3"} "$@"'';
+    text = ''exec ${lib.getExe' pkgs.basedpyright "basedpyright"} --pythonpath ${lib.getExe' pythonForTypeCheck "python3"} "$@"'';
   };
 in
 {
@@ -429,6 +453,7 @@ in
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
     declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"
     declared_tools_only ${lib.getExe testValidateStructure}
+    declared_tools_only ${lib.getExe testAgentIdentity}
     declared_tools_only ${lib.getExe testHooksFollowTheirWorktree} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testMcpFileFollowsItsOption} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
