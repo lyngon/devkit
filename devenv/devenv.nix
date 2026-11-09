@@ -141,6 +141,45 @@ let
     text = ''exec python3 ${./validate-documents.py} "$@"'';
   };
 
+  # The agents of a Claude Code session act on GitHub as a GitHub App that the
+  # operator's machine declares (agent-identity.md). The repo plugin's session
+  # hook runs the command, and so does every Bash command of an agent session,
+  # for its token; a person's shell never does. The command passes its own
+  # path, so that what it prints for a session calls this same build. The
+  # program imports agent_token.py, so the two lie in one directory.
+  agentIdentitySource = lib.fileset.toSource {
+    root = ./.;
+    fileset = lib.fileset.unions [
+      ./agent-identity.py
+      ./agent_token.py
+      ./agent-app-manifest.json
+    ];
+  };
+  agentIdentity = pkgs.writeShellApplication {
+    name = "agent-identity";
+    runtimeInputs = [
+      (pkgs.python3.withPackages (packages: [
+        packages.pyjwt
+        packages.cryptography
+      ]))
+      pkgs.git
+    ];
+    text = ''
+      exec python3 ${agentIdentitySource}/agent-identity.py \
+        --manifest ${agentIdentitySource}/agent-app-manifest.json \
+        --enabled ${lib.boolToString cfg.agentIdentity.enable} \
+        --program "$0" "$@"
+    '';
+  };
+
+  # Names the operator as co-author of a commit made in an agent session, where
+  # agent-identity exports LYNGON_AGENT_OPERATOR.
+  coAuthorOperator = pkgs.writeShellApplication {
+    name = "co-author-operator";
+    runtimeInputs = [ pkgs.git ];
+    text = builtins.readFile ./co-author-operator.sh;
+  };
+
   # Checks the title and the body of a pull request: a Conventional Commits
   # title, the seven headings of the body, the line that ends its section
   # Scope, its length and the marks prose-lint flags. A pull request lands as
@@ -178,6 +217,12 @@ in
       type = lib.types.bool;
       default = false;
       description = "Generate .mcp.json with the devenv MCP server for Claude Code.";
+    };
+
+    agentIdentity.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Agents in a Claude Code session act on GitHub as a GitHub App that the operator's machine declares, and name the operator as co-author of their commits (devenv/agent-identity.md). With false they act as the operator.";
     };
 
     structure.enable = lib.mkOption {
@@ -236,6 +281,14 @@ in
       exec = lib.mkDefault ''exec ${lib.getExe checkPullRequest} "$@"'';
       description = lib.mkDefault "Check PR_TITLE and PR_BODY as the commit a pull request lands as.";
     };
+
+    # On the PATH for create-app, and named in the environment for the repo
+    # plugin's session hook, which runs it in an agent session only.
+    scripts.agent-identity = {
+      exec = lib.mkDefault ''exec ${lib.getExe agentIdentity} "$@"'';
+      description = lib.mkDefault "Give the agents of a Claude Code session a GitHub App as identity.";
+    };
+    env.LYNGON_AGENT_IDENTITY = lib.mkDefault (lib.getExe agentIdentity);
 
     # What a script that a skill ships runs, on the PATH of the shell an agent
     # works in. Not a `lib.mkDefault`: a default list here is dropped as soon
@@ -300,6 +353,15 @@ in
       };
       trim-trailing-whitespace.enable = lib.mkDefault true;
       check-merge-conflicts.enable = lib.mkDefault true;
+      # git runs a prepare-commit-msg hook for every commit, --no-verify
+      # included, and hands it the file of the message.
+      co-author-operator = {
+        enable = lib.mkDefault cfg.agentIdentity.enable;
+        name = lib.mkDefault "co-author the operator";
+        entry = lib.mkDefault (lib.getExe coAuthorOperator);
+        stages = lib.mkDefault [ "prepare-commit-msg" ];
+        always_run = lib.mkDefault true;
+      };
       prose-lint = {
         enable = lib.mkDefault true;
         name = lib.mkDefault "prose lint";
