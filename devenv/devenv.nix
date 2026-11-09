@@ -1,8 +1,3 @@
-# The Lyngon baseline for every repository: git hooks, the check-pull-request
-# command, the agent-identity command, the tools of the scripts that skills
-# ship, the languages every Lyngon repository has (Nix, shell), and the devenv
-# MCP server file for a repository that turns it on.
-#
 # Consumers add this repository as an input and import this directory:
 #
 #   inputs:
@@ -141,12 +136,6 @@ let
     text = ''exec python3 ${./validate-documents.py} "$@"'';
   };
 
-  # The agents of a Claude Code session act on GitHub as a GitHub App that the
-  # operator's machine declares (agent-identity.md). The repo plugin's session
-  # hook runs the command, and so does every Bash command of an agent session,
-  # for its token; a person's shell never does. The command passes its own
-  # path, so that what it prints for a session calls this same build. The
-  # program imports agent_token.py, so the two lie in one directory.
   agentIdentitySource = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
@@ -165,15 +154,13 @@ let
       pkgs.git
     ];
     text = ''
-      exec python3 ${agentIdentitySource}/agent-identity.py \
+      PYTHONPATH=${agentIdentitySource} exec python3 ${agentIdentitySource}/agent-identity.py \
         --manifest ${agentIdentitySource}/agent-app-manifest.json \
         --enabled ${lib.boolToString cfg.agentIdentity.enable} \
         --program "$0" "$@"
     '';
   };
 
-  # Names the operator as co-author of a commit made in an agent session, where
-  # agent-identity exports LYNGON_AGENT_OPERATOR.
   coAuthorOperator = pkgs.writeShellApplication {
     name = "co-author-operator";
     runtimeInputs = [ pkgs.git ];
@@ -282,8 +269,6 @@ in
       description = lib.mkDefault "Check PR_TITLE and PR_BODY as the commit a pull request lands as.";
     };
 
-    # On the PATH for create-app, and named in the environment for the repo
-    # plugin's session hook, which runs it in an agent session only.
     scripts.agent-identity = {
       exec = lib.mkDefault ''exec ${lib.getExe agentIdentity} "$@"'';
       description = lib.mkDefault "Give the agents of a Claude Code session a GitHub App as identity.";

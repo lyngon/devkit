@@ -2,7 +2,7 @@
 """Print an installation token from agent-identity's cache, which every Bash command of an agent session reads.
 
 It imports no more than it needs to read the cache, so that a cached token costs a command about one bare start
-of the interpreter. With less than REFRESH_SECONDS left on the token, or none cached, it runs the command that
+of the interpreter. With less than EXPIRY_MARGIN_SECONDS left on the token, or none cached, it runs the command that
 follows `--` in its place: agent-identity's own token, which mints one and caches it.
 
 Usage: agent_token.py --installation <id> -- <command>...
@@ -15,8 +15,7 @@ import pathlib
 import sys
 import typing as t
 
-# A cached token is used while it has this long left, so that no command starts with one that expires midway.
-REFRESH_SECONDS: t.Final = 300
+EXPIRY_MARGIN_SECONDS: t.Final = 300
 
 
 def cache_path(installation_id: int) -> pathlib.Path | None:
@@ -28,7 +27,7 @@ def cache_path(installation_id: int) -> pathlib.Path | None:
 
 
 def fresh(path: pathlib.Path, now: float) -> str | None:
-    """Return the cached token while it has REFRESH_SECONDS left, or None when it has not or cannot be read."""
+    """Return the cached token while it has EXPIRY_MARGIN_SECONDS left, or None when it has not or cannot be read."""
     try:
         table = t.cast("object", json.loads(path.read_text()))
     except (OSError, ValueError):
@@ -43,7 +42,7 @@ def fresh(path: pathlib.Path, now: float) -> str | None:
         left = dt.datetime.fromisoformat(expires_at).timestamp() - now
     except ValueError:
         return None
-    return value if left > REFRESH_SECONDS else None
+    return value if left > EXPIRY_MARGIN_SECONDS else None
 
 
 def main() -> None:

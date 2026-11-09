@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# Exercise agent-identity.py against a stub of GitHub's API that serves canned
-# answers shaped as GitHub's documentation shows them: which App acts on a
-# repository, every way a session fails closed or keeps the operator, the
-# token's cache, the lines that git and gh read back, and create-app through a
-# stub browser. Run through `devenv test`.
 set -euo pipefail
 
+built=${1:?usage: agent-identity.sh <the agent-identity that the baseline builds>}
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 program=$here/agent-identity.py
 manifest=$here/agent-app-manifest.json
@@ -35,10 +31,6 @@ equals() {
   }
 }
 
-# --- Fixtures ----------------------------------------------------------------
-
-# Two Apps: Lyngon Developer, owned by lyngon, and Acme Developer, owned by
-# acme, each with a throwaway key whose public half the stub checks tokens with.
 stub=$tmp/stub
 lyngon_id=Iv23liLyngonDev
 acme_id=Iv23liAcmeDev
@@ -50,9 +42,9 @@ for id in "$lyngon_id" "$acme_id"; do
 done
 mkdir -p "$stub/any"
 
-# canned <caller> <METHOD> <path> <status> <body>: the stub's answer.
 canned() {
-  printf '{"status": %s, "body": %s}\n' "$4" "$5" >"$stub/$1/$2 ${3//\//|}.json"
+  local caller=$1 method=$2 path=$3 status=$4 body=$5
+  printf '{"status": %s, "body": %s}\n' "$status" "$body" >"$stub/$caller/$method ${path//\//|}.json"
 }
 
 canned "$lyngon_id" GET /app 200 '{"id": 101, "slug": "lyngon-developer", "name": "Lyngon Developer", "client_id": "'"$lyngon_id"'", "owner": {"login": "lyngon", "type": "Organization"}}'
@@ -78,12 +70,11 @@ for _ in $(seq 50); do
 done
 api=http://127.0.0.1:$(<"$tmp/port")
 
-# The command as the baseline builds it, so that the lines it prints run it.
 wrapper=$tmp/bin/agent-identity
 mkdir -p "$tmp/bin"
 cat >"$wrapper" <<EOF
 #!/usr/bin/env bash
-exec python3 "$program" --manifest "$manifest" --enabled "\${STUB_ENABLED:-true}" --program "$wrapper" "\$@"
+PYTHONPATH="$here" exec python3 "$program" --manifest "$manifest" --enabled "\${STUB_ENABLED:-true}" --program "$wrapper" "\$@"
 EOF
 chmod +x "$wrapper"
 
@@ -103,33 +94,28 @@ declare_apps() {
   done
 }
 
-# run [VAR=value]... -- <arguments>: run the command in the repository with a
-# fresh cache unless RUNTIME names one. Sets out, err, code.
-runtime=""
 run() {
-  local variables=()
+  local variables=() empty_cache
   while [[ $1 != -- ]]; do
     variables+=("$1")
     shift
   done
   shift
-  [[ -n $runtime ]] || runtime=$(mktemp -d "$tmp/runtime.XXXXXX")
+  empty_cache=$(mktemp -d "$tmp/runtime.XXXXXX")
   code=0
-  out=$(cd "$repo" && env -i PATH="$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$config" XDG_RUNTIME_DIR="$runtime" \
+  out=$(cd "$repo" && env -i PATH="$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$config" XDG_RUNTIME_DIR="$empty_cache" \
     GITHUB_API_URL="$api" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "${variables[@]}" "$wrapper" "$@" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
 }
 
 how_to=https://github.com/lyngon/devkit/blob/main/devenv/agent-identity.md
-# The interpreter the program runs on, which the line it prints for GH_TOKEN names.
 python=$(python3 -c 'import sys; print(sys.executable)')
-
-# --- session: who acts -------------------------------------------------------
 
 declare_apps "$lyngon_id" "$acme_id"
 installed "$lyngon_id" 55
 installed "$acme_id" 77
-run -- session --root "$repo"
+session_runtime=$(mktemp -d "$tmp/runtime.XXXXXX")
+run XDG_RUNTIME_DIR="$session_runtime" -- session --root "$repo"
 expected_lines="export GIT_AUTHOR_NAME='acme-developer[bot]'
 export GIT_AUTHOR_EMAIL='4242+acme-developer[bot]@users.noreply.github.com'
 export GIT_COMMITTER_NAME='acme-developer[bot]'
@@ -149,7 +135,6 @@ check "both installed: the App whose owner owns the repository acts, though decl
   equals "$code|$out" "0|$expected_lines"
 check "both installed: the message names the bot and the operator as co-author" \
   equals "$err" "Agent identity: agents in this session act on GitHub as acme-developer[bot], the App Acme Developer, and every commit they make names you, Ada Operator <ada@example.com>, as its co-author. Never unset GH_TOKEN, the GIT_CONFIG_ variables or the git author to act as the operator."
-session_runtime=$runtime
 printf '%s\n' "$out" >"$tmp/exports.sh"
 
 # shellcheck disable=SC2016  # the inner shell expands the single-quoted script
@@ -167,42 +152,40 @@ check "read back: git asks agent-identity alone for GitHub's credentials" \
 check "read back: a remote over ssh on GitHub is reached over https" \
   equals "$(read_back 'git ls-remote --get-url origin')" "https://github.com/acme/widgets.git"
 
+built_out=$(cd "$repo" && env -i PATH="$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$config" XDG_RUNTIME_DIR="$session_runtime" \
+  GITHUB_API_URL="$api" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$built" session --root "$repo" 2>/dev/null)
+# shellcheck disable=SC2016  # the inner shell expands the single-quoted script
+check "the built command: the same bot, and a token line that reads the cache" \
+  equals "$(head -n 1 <<<"$built_out")|$(env -i XDG_RUNTIME_DIR="$session_runtime" bash --norc --noprofile -c "$(tail -n 1 <<<"$built_out")"'; printf %s "$GH_TOKEN"')" \
+  "export GIT_AUTHOR_NAME='acme-developer[bot]'|ghs_minted_77"
+
 rm "$stub/$acme_id/GET |repos|acme|widgets|installation.json"
 canned "$acme_id" GET /app 200 '{"id": 202, "slug": "acme-developer", "name": "Acme Developer", "client_id": "'"$acme_id"'", "owner": {"login": "elsewhere", "type": "Organization"}}'
 installed "$acme_id" 77
-runtime=""
 run -- session --root "$repo"
 check "both installed, neither owned by the repository's owner: the first declared acts" \
   equals "$(head -n 1 <<<"$out")" "export GIT_AUTHOR_NAME='lyngon-developer[bot]'"
 
 git -C "$repo" config --unset user.email
-runtime=""
 run -- session --root "$repo"
 check "no user.email: no co-author, and the message says why" \
   equals "$(grep -c LYNGON_AGENT_OPERATOR <<<"$out")|$err" "0|Agent identity: agents in this session act on GitHub as lyngon-developer[bot], the App Lyngon Developer, and their commits name no co-author, because git has no user.name and user.email here. Never unset GH_TOKEN, the GIT_CONFIG_ variables or the git author to act as the operator."
 git -C "$repo" config user.email ada@example.com
 
-# --- session: the operator's identity ----------------------------------------
-
-runtime=""
 run STUB_ENABLED=false -- session --root "$repo"
 check "option off: no lines, and the message names the option" \
   equals "$out|$err" "|Agent identity: agents act on GitHub as you, the operator, because this repository sets lyngon.agentIdentity.enable = false in devenv.nix."
 
 git -C "$repo" remote set-url origin https://gitlab.com/acme/widgets.git
-runtime=""
 run -- session --root "$repo"
 check "origin off GitHub: no lines, and the message says so" \
   equals "$out|$err" "|Agent identity: agents act on GitHub as you, the operator, because the origin of this repository is not on github.com."
 git -C "$repo" remote set-url origin https://github.com/acme/widgets
 
 rm "$config/lyngon/agent-apps.toml"
-runtime=""
 run -- session --root "$repo"
 check "no declaration: no lines, and the message points a newcomer to the how-to" \
   equals "$out|$err" "|Agent identity: agents act on GitHub as you, the operator, because this machine declares no GitHub App for agents in $config/lyngon/agent-apps.toml; to give them an identity of their own, see $how_to."
-
-# --- session: closed ---------------------------------------------------------
 
 closed_first_line="export GH_TOKEN=agent-identity-unavailable"
 closed_message() {
@@ -211,7 +194,6 @@ closed_message() {
 
 declare_apps "$lyngon_id" "$acme_id"
 rm "$stub/$lyngon_id/GET |repos|acme|widgets|installation.json" "$stub/$acme_id/GET |repos|acme|widgets|installation.json"
-runtime=""
 run -- session --root "$repo"
 check "none installed: GitHub is closed to the session" \
   equals "$(head -n 1 <<<"$out")" "$closed_first_line"
@@ -224,51 +206,44 @@ check "none installed: git gets no credential, and stops asking" \
 
 installed "$acme_id" 77
 chmod 640 "$tmp/keys/$lyngon_id.pem"
-runtime=""
 run -- session --root "$repo"
 check "a key file others can read: closed, naming the file and the fix" \
   equals "$(head -n 1 <<<"$out")|$err" "$closed_first_line|$(closed_message "someone else than you can read the key file $tmp/keys/$lyngon_id.pem of the App $lyngon_id (mode 640); make it yours alone with chmod 600")"
 chmod 600 "$tmp/keys/$lyngon_id.pem"
 
 canned "$acme_id" POST /app/installations/77/access_tokens 201 "$(token_answer ghs_wide 2099-01-01T00:00:00Z '{"administration": "write", "contents": "write", "metadata": "read"}')"
-runtime=""
 run -- session --root "$repo"
 check "a token with a permission the template does not grant: closed, naming it" \
   equals "$(head -n 1 <<<"$out")|$err" "$closed_first_line|$(closed_message "the App $acme_id holds administration: write, which its manifest template does not grant; an owner must take the permission back on GitHub, or add it to the template first")"
 canned "$acme_id" POST /app/installations/77/access_tokens 201 "$(token_answer ghs_minted_77 2099-01-01T00:00:00Z "$granted")"
 
-runtime=""
 run GITHUB_API_URL=http://127.0.0.1:9 -- session --root "$repo"
 check "GitHub out of reach: closed, saying so" \
   grep -qF "because GitHub could not be reached at http://127.0.0.1:9" <<<"$err"
 
-# --- token and git-credential ------------------------------------------------
-
-runtime=$(mktemp -d "$tmp/runtime.XXXXXX")
-mkdir -m 700 "$runtime/lyngon-agent-identity"
-token_answer ghs_cached "$(date -u -d '+4 minutes' +%Y-%m-%dT%H:%M:%SZ)" "$granted" >"$runtime/lyngon-agent-identity/installation-77.json"
-run -- token --installation 77 --client-id "$acme_id" --key-file "$tmp/keys/$acme_id.pem"
+cache=$(mktemp -d "$tmp/runtime.XXXXXX")
+mkdir -m 700 "$cache/lyngon-agent-identity"
+token_answer ghs_cached "$(date -u -d '+4 minutes' +%Y-%m-%dT%H:%M:%SZ)" "$granted" >"$cache/lyngon-agent-identity/installation-77.json"
+run XDG_RUNTIME_DIR="$cache" -- token --installation 77 --client-id "$acme_id" --key-file "$tmp/keys/$acme_id.pem"
 check "a cached token with less than five minutes left: a new one is minted" \
   equals "$code|$out" "0|ghs_minted_77"
 check "the cache is readable by its owner alone" \
-  equals "$(stat -c %a "$runtime/lyngon-agent-identity")|$(stat -c %a "$runtime/lyngon-agent-identity/installation-77.json")" "700|600"
+  equals "$(stat -c %a "$cache/lyngon-agent-identity")|$(stat -c %a "$cache/lyngon-agent-identity/installation-77.json")" "700|600"
 
-token_answer ghs_cached 2099-01-01T00:00:00Z "$granted" >"$runtime/lyngon-agent-identity/installation-77.json"
-run GITHUB_API_URL=http://127.0.0.1:9 -- token --installation 77 --client-id "$acme_id" --key-file "$tmp/keys/$acme_id.pem"
+token_answer ghs_cached 2099-01-01T00:00:00Z "$granted" >"$cache/lyngon-agent-identity/installation-77.json"
+run XDG_RUNTIME_DIR="$cache" GITHUB_API_URL=http://127.0.0.1:9 -- token --installation 77 --client-id "$acme_id" --key-file "$tmp/keys/$acme_id.pem"
 check "a cached token with time left: used, with GitHub out of reach" \
   equals "$code|$out" "0|ghs_cached"
 
-# fast <arguments>: the line every Bash command reads, with the stub's API.
-fast() {
-  env -i PATH="$PATH" HOME="$tmp/home" XDG_RUNTIME_DIR="$runtime" GITHUB_API_URL="$api" \
+token_line() {
+  env -i PATH="$PATH" HOME="$tmp/home" XDG_RUNTIME_DIR="$cache" GITHUB_API_URL="$api" \
     python3 "$here/agent_token.py" --installation 77 -- "$wrapper" token "$@" 2>&1
 }
 check "agent_token.py with time left: the cached token, without the command" \
-  equals "$(fast)" "ghs_cached"
-token_answer ghs_cached "$(date -u -d '+4 minutes' +%Y-%m-%dT%H:%M:%SZ)" "$granted" >"$runtime/lyngon-agent-identity/installation-77.json"
+  equals "$(token_line)" "ghs_cached"
+token_answer ghs_cached "$(date -u -d '+4 minutes' +%Y-%m-%dT%H:%M:%SZ)" "$granted" >"$cache/lyngon-agent-identity/installation-77.json"
 check "agent_token.py with less than five minutes left: the command runs and mints" \
-  equals "$(fast --installation 77 --client-id "$acme_id" --key-file "$tmp/keys/$acme_id.pem")" "ghs_minted_77"
-runtime=""
+  equals "$(token_line --installation 77 --client-id "$acme_id" --key-file "$tmp/keys/$acme_id.pem")" "ghs_minted_77"
 
 run -- token
 check "token without an installation: the value GitHub rejects, and the reason" \
@@ -278,14 +253,9 @@ code=0
 out=$(printf 'protocol=https\nhost=github.com\n\n' | env -i PATH="$PATH" HOME="$tmp/home" "$wrapper" git-credential store 2>&1) || code=$?
 check "git-credential store: nothing to keep, nothing printed" equals "$code|$out" "0|"
 
-# --- create-app --------------------------------------------------------------
-
 canned any GET /users/acme 200 '{"login": "acme", "id": 9, "type": "Organization"}'
 canned any POST /app-manifests/the-code/conversions 201 '{"id": 202, "slug": "acme-developer", "name": "Acme Developer", "client_id": "'"$acme_id"'", "pem": "-----BEGIN RSA PRIVATE KEY-----\nfixture\n-----END RSA PRIVATE KEY-----\n", "owner": {"login": "acme"}}'
 
-# A stub browser: it reads the page create-app opens, keeps what the page would
-# post to GitHub, and comes back the way GitHub sends the person back. It works
-# in the background, as a browser does, since webbrowser waits for its command.
 cat >"$tmp/browser.py" <<'EOF'
 import html, json, pathlib, re, sys, urllib.parse, urllib.request
 page = urllib.request.urlopen(sys.argv[1]).read().decode()
@@ -295,6 +265,8 @@ pathlib.Path(sys.argv[2]).write_text(json.dumps({"action": action, "manifest": m
 state = urllib.parse.parse_qs(urllib.parse.urlsplit(action).query)["state"][0]
 urllib.request.urlopen(manifest["redirect_url"] + "?" + urllib.parse.urlencode({"code": "the-code", "state": state})).read()
 EOF
+# It works in the background, as a browser does, since webbrowser waits for its
+# command.
 cat >"$tmp/browser" <<EOF
 #!/usr/bin/env bash
 python3 "$tmp/browser.py" "\$1" "$tmp/posted.json" >/dev/null 2>&1 &
@@ -326,9 +298,6 @@ run BROWSER="$tmp/browser" -- create-app --name "Acme Developer" --owner acme --
 check "create-app over an existing key file: refuses and keeps the file" \
   equals "$code|$(head -n 1 "$tmp/new-key.pem")" "1|-----BEGIN RSA PRIVATE KEY-----"
 
-# --- co-author-operator.sh ---------------------------------------------------
-
-# co_author [VAR=value]...: run the hook on a message file the way git does.
 co_author() {
   env -i PATH="$PATH" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$@" \
     bash "$here/co-author-operator.sh" "$tmp/message"

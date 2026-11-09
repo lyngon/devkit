@@ -71,9 +71,6 @@ esac
 EOF
 chmod +x "$stubs_devenv/devenv" "$stubs_direnv/direnv"
 
-# A stub of the baseline's agent-identity: `session --root <root>` prints two
-# export lines, one of which runs a command each time it is read, and a message
-# with quotes and two lines; with STUB_IDENTITY_FAIL it fails as a crash does.
 stub_identity=$tmp/stub-identity
 cat >"$stub_identity" <<'EOF'
 #!/usr/bin/env bash
@@ -87,7 +84,6 @@ echo "export GH_TOKEN=\"\$(echo minted)\""
 printf 'Agent identity: agents act as "app[bot]".\nThe second line.\n' >&2
 EOF
 chmod +x "$stub_identity"
-# The fixture script of a baseline that names agent-identity.
 identity_script=$tmp/direnv-export-identity.sh
 {
   cat "$devenv_script"
@@ -224,8 +220,6 @@ run_export "$project" "$stubs_direnv:$stubs_devenv:$tools" SessionStart CLAUDE_E
 check "no CLAUDE_ENV_FILE: writes nothing, exits 0 and says why" \
   equals "$(ls "$project/env-file.sh" 2>/dev/null)$out|$code: $err" "|0: repo plugin: no devenv environment to export, because CLAUDE_ENV_FILE is not set"
 
-# --- export-environment.sh: agent identity -----------------------------------
-
 identity_message='"Agent identity: agents act as \"app[bot]\".\nThe second line."'
 
 project=$(new_project)
@@ -253,7 +247,7 @@ check "agent identity on a later event: no identity lines and no message, so the
 project=$(new_project)
 run_export "$project" "$stubs_devenv:$tools" SessionStart STUB_DEVENV_SCRIPT="$identity_script" STUB_IDENTITY_FAIL=1
 check "agent identity fails: GitHub is closed to the session" \
-  equals "$(tail -n 1 "$project/env-file.sh")" "export GH_TOKEN='agent-identity-unavailable'"
+  equals "$(tail -n 1 "$project/env-file.sh")" "export GH_TOKEN='agent-identity-failed'"
 check "agent identity fails: the context names the command and what it printed" \
   grep -qF "\"additionalContext\":\"Agent identity: agents cannot reach GitHub in this session, because $stub_identity failed: Traceback: boom\"" <<<"$out"
 

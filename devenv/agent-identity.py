@@ -55,15 +55,13 @@ import urllib.parse
 import urllib.request
 import webbrowser
 
-import agent_token  # pyright: ignore[reportImplicitRelativeImport]  # a program run as a file, beside the module
+import agent_token
 import jwt
 
 HOW_TO: t.Final = "https://github.com/lyngon/devkit/blob/main/devenv/agent-identity.md"
-# What GH_TOKEN holds when no App can serve: GitHub answers it with 401.
-UNAVAILABLE: t.Final = "agent-identity-unavailable"
+GITHUB_REJECTS: t.Final = "agent-identity-unavailable"
 LEVELS: t.Final = {"read": 1, "write": 2, "admin": 3}
 TIMEOUT_SECONDS: t.Final = 10
-# How long create-app waits for GitHub's page to send the person back.
 CREATE_TIMEOUT_SECONDS: t.Final = 600
 
 
@@ -126,6 +124,12 @@ class GitHub:
     api: str
     server: str
 
+    def __post_init__(self) -> None:
+        """Raise IdentityError for a URL that is not http or https, which urllib would also open from a file."""
+        for name, url in (("GITHUB_API_URL", self.api), ("GITHUB_SERVER_URL", self.server)):
+            if urllib.parse.urlsplit(url).scheme not in {"http", "https"}:
+                raise IdentityError(f"{name} is {url}, which is no http or https URL")
+
     @property
     def host(self) -> str:
         """The host of the web server, which is the host of a GitHub remote."""
@@ -133,7 +137,7 @@ class GitHub:
 
     def call(self, method: str, path: str, bearer: str | None) -> dict[str, object] | None:
         """Return GitHub's JSON answer, or None for 404. Raises IdentityError for any other failure."""
-        request = urllib.request.Request(  # noqa: S310  # the URL is GITHUB_API_URL or https://api.github.com
+        request = urllib.request.Request(  # noqa: S310  # __post_init__ admits only http and https
             f"{self.api}{path}",
             method=method,
             data=None if method == "GET" else b"{}",
@@ -167,10 +171,9 @@ def json_object(value: object, what: str) -> dict[str, object]:
 def field[T](table: dict[str, object], key: str, kind: type[T], what: str) -> T:
     """Return the value at the key when it has the type. Raises IdentityError naming it otherwise."""
     value = table.get(key)
-    # A JSON true is an int to isinstance, and never an id.
-    if not isinstance(value, kind) or (isinstance(value, bool) and kind is not bool):
+    if type(value) is not kind:
         raise IdentityError(f"{what} has no {kind.__name__} {key}")
-    return value
+    return t.cast("T", value)
 
 
 def levels(table: dict[str, object], what: str) -> dict[str, str]:
@@ -199,7 +202,7 @@ def parse_origin(url: str, host: str) -> Repository | None:
 
 
 def declaration_path() -> pathlib.Path:
-    """Return the path of the machine's declaration."""
+    """Return lyngon/agent-apps.toml under XDG_CONFIG_HOME, or under ~/.config when it is unset or empty."""
     config = os.environ.get("XDG_CONFIG_HOME") or str(pathlib.Path.home() / ".config")
     return pathlib.Path(config) / "lyngon" / "agent-apps.toml"
 
@@ -375,7 +378,7 @@ def git_config(github: GitHub, helper: list[str]) -> list[str]:
 
 def closed(github: GitHub, settings: Settings, reason: str) -> tuple[list[str], str]:
     """Return the exports and the message of a session whose declared Apps cannot serve."""
-    lines = [export("GH_TOKEN", UNAVAILABLE), *git_config(github, [settings.program, "git-credential"])]
+    lines = [export("GH_TOKEN", GITHUB_REJECTS), *git_config(github, [settings.program, "git-credential"])]
     message = (
         f"Agent identity: agents cannot reach GitHub in this session, because {reason}. "
         "Tell the operator, and never unset GH_TOKEN or the GIT_CONFIG_ variables to act as them. "
@@ -448,7 +451,7 @@ class ManifestServer(http.server.HTTPServer):
 
     @property
     def url(self) -> str:
-        """The address of the page."""
+        """The page on 127.0.0.1, at the port the system gave the listener."""
         return f"http://127.0.0.1:{self.server_address[1]}/"
 
 
@@ -469,7 +472,7 @@ class ManifestPage(http.server.BaseHTTPRequestHandler):
             self.send_error(http.HTTPStatus.NOT_FOUND)
 
     def reply(self, page: str) -> None:
-        """Send the page."""
+        """Answer 200 with the page as HTML in UTF-8."""
         body = page.encode()
         self.send_response(http.HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -537,7 +540,7 @@ def create_app(github: GitHub, template: dict[str, object], new: NewApp) -> str:
 
 
 def arguments() -> argparse.Namespace:
-    """Parse the command line."""
+    """Return the parsed command line; argparse exits 2 on a bad one."""
     parser = argparse.ArgumentParser(prog="agent-identity", description="Give agents a GitHub App as identity.")
     _ = parser.add_argument("--manifest", type=pathlib.Path, required=True, help="the manifest template")
     _ = parser.add_argument("--enabled", choices=["true", "false"], required=True, help="lyngon.agentIdentity.enable")
@@ -584,19 +587,23 @@ def print_token(github: GitHub, settings: Settings, parsed: argparse.Namespace, 
         value = token(github, app, installation_id, settings.granted, time.time())
     except IdentityError as error:
         print(f"agent-identity: agents cannot reach GitHub, because {error}. See {HOW_TO}", file=sys.stderr)
-        print("quit=1" if for_git else UNAVAILABLE)
+        print("quit=1" if for_git else GITHUB_REJECTS)
         return 1
     print(f"username=x-access-token\npassword={value}" if for_git else value)
     return 0
 
 
 def main() -> int:
-    """Run the command."""
+    """Run the subcommand. Returns 1 after failing closed or after a failed create-app, 2 for a bad GitHub URL."""
     parsed = arguments()
-    github = GitHub(
-        (os.environ.get("GITHUB_API_URL") or "https://api.github.com").rstrip("/"),
-        (os.environ.get("GITHUB_SERVER_URL") or "https://github.com").rstrip("/"),
-    )
+    try:
+        github = GitHub(
+            (os.environ.get("GITHUB_API_URL") or "https://api.github.com").rstrip("/"),
+            (os.environ.get("GITHUB_SERVER_URL") or "https://github.com").rstrip("/"),
+        )
+    except IdentityError as error:
+        print(f"agent-identity: {error}", file=sys.stderr)
+        return 2
     settings = settings_from(parsed)
     command = t.cast("str", parsed.command)
     if command == "session":
@@ -617,11 +624,8 @@ def main() -> int:
             print(f"agent-identity: {error}", file=sys.stderr)
             return 1
         return 0
-    if command == "git-credential":
-        # git writes what it asks about to standard input and may wait until it is read.
-        _ = sys.stdin.read()
-        if t.cast("str", parsed.action) != "get":
-            return 0
+    if command == "git-credential" and t.cast("str", parsed.action) != "get":
+        return 0
     return print_token(github, settings, parsed, for_git=command == "git-credential")
 
 

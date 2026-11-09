@@ -62,7 +62,7 @@ class Stub(http.server.BaseHTTPRequestHandler):
         self.send(404, {"message": "Not Found"})
 
     def send(self, status: int, body: object) -> None:
-        """Send a JSON answer."""
+        """Answer with the status, and the body as JSON."""
         data = json.dumps(body).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -71,11 +71,11 @@ class Stub(http.server.BaseHTTPRequestHandler):
         _ = self.wfile.write(data)
 
     def do_GET(self) -> None:
-        """Answer a GET."""
+        """Answer a GET from its canned file."""
         self.answer()
 
     def do_POST(self) -> None:
-        """Answer a POST, after reading its body."""
+        """Answer a POST from its canned file, after reading its body."""
         _ = self.rfile.read(int(self.headers.get("Content-Length", "0")))
         self.answer()
 
