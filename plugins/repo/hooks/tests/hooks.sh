@@ -64,12 +64,36 @@ case "$*" in
     [[ -f .envrc ]] && echo "Found RC allowed ${STUB_DIRENV_ALLOWED:-0}"
     ;;
   "export bash")
-    [[ -n "${DIRENV_DIFF-}" ]] || echo "export FROM_DIRENV=\$'yes';"
+    [[ -n "${DIRENV_DIFF-}" ]] || echo "export FROM_DIRENV=\$'yes';${STUB_DIRENV_IDENTITY:+export LYNGON_AGENT_IDENTITY=\$'$STUB_DIRENV_IDENTITY';}"
     ;;
   *) exit 2 ;;
 esac
 EOF
 chmod +x "$stubs_devenv/devenv" "$stubs_direnv/direnv"
+
+# A stub of the baseline's agent-identity: `session --root <root>` prints two
+# export lines, one of which runs a command each time it is read, and a message
+# with quotes and two lines; with STUB_IDENTITY_FAIL it fails as a crash does.
+stub_identity=$tmp/stub-identity
+cat >"$stub_identity" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1 $2" == "session --root" && -d "$3" ]] || exit 2
+if [[ -n "${STUB_IDENTITY_FAIL-}" ]]; then
+  echo "Traceback: boom" >&2
+  exit 1
+fi
+echo "export GIT_AUTHOR_NAME='app[bot]'"
+echo "export GH_TOKEN=\"\$(echo minted)\""
+printf 'Agent identity: agents act as "app[bot]".\nThe second line.\n' >&2
+EOF
+chmod +x "$stub_identity"
+# The fixture script of a baseline that names agent-identity.
+identity_script=$tmp/direnv-export-identity.sh
+{
+  cat "$devenv_script"
+  echo "LYNGON_AGENT_IDENTITY='$stub_identity'"
+  echo "export LYNGON_AGENT_IDENTITY"
+} >"$identity_script"
 
 # A project with devenv.nix, .envrc and an input list naming a package file,
 # a file outside the project and devenv's own state.
@@ -199,6 +223,44 @@ project=$(new_project)
 run_export "$project" "$stubs_direnv:$stubs_devenv:$tools" SessionStart CLAUDE_ENV_FILE=
 check "no CLAUDE_ENV_FILE: writes nothing, exits 0 and says why" \
   equals "$(ls "$project/env-file.sh" 2>/dev/null)$out|$code: $err" "|0: repo plugin: no devenv environment to export, because CLAUDE_ENV_FILE is not set"
+
+# --- export-environment.sh: agent identity -----------------------------------
+
+identity_message='"Agent identity: agents act as \"app[bot]\".\nThe second line."'
+
+project=$(new_project)
+run_export "$project" "$stubs_devenv:$tools" SessionStart STUB_DEVENV_SCRIPT="$identity_script"
+# shellcheck disable=SC2016  # the expected line holds the command substitution unexpanded
+check "agent identity: the environment file ends with the lines of agent-identity" \
+  equals "$(tail -n 2 "$project/env-file.sh")" "export GIT_AUTHOR_NAME='app[bot]'"$'\n''export GH_TOKEN="$(echo minted)"'
+# shellcheck disable=SC2016  # the inner shell expands the single-quoted script
+check "agent identity: a command that reads the file runs the token line" \
+  equals "$(env -i "$tools/bash" --norc --noprofile -c 'source "$1"; printf "%s|%s" "$GH_TOKEN" "$GIT_AUTHOR_NAME"' bash "$project/env-file.sh")" "minted|app[bot]"
+check "agent identity: its message is the session's context, as one JSON string" \
+  equals "$out" "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":$identity_message,\"watchPaths\":[\"$project/.envrc\",\"$project/apps/demo/devenv.nix\",\"$project/devenv.local.nix\",\"$project/devenv.local.yaml\",\"$project/devenv.lock\",\"$project/devenv.nix\",\"$project/devenv.yaml\"]}}"
+
+project=$(new_project)
+run_export "$project" "$stubs_direnv:$stubs_devenv:$tools" SessionStart STUB_DIRENV_IDENTITY="$stub_identity"
+# shellcheck disable=SC2016  # the expected line holds the command substitution unexpanded
+check "agent identity through direnv: the same lines and message" \
+  equals "$(tail -n 1 "$project/env-file.sh")|$(grep -c additionalContext <<<"$out")" 'export GH_TOKEN="$(echo minted)"|1'
+
+project=$(new_project)
+run_export "$project" "$stubs_devenv:$tools" FileChanged STUB_DEVENV_SCRIPT="$identity_script"
+check "agent identity on a later event: no identity lines and no message, so the session start's stay" \
+  equals "$(grep -c -e GH_TOKEN -e GIT_AUTHOR_NAME "$project/env-file.sh")|$(grep -c additionalContext <<<"$out")" "0|0"
+
+project=$(new_project)
+run_export "$project" "$stubs_devenv:$tools" SessionStart STUB_DEVENV_SCRIPT="$identity_script" STUB_IDENTITY_FAIL=1
+check "agent identity fails: GitHub is closed to the session" \
+  equals "$(tail -n 1 "$project/env-file.sh")" "export GH_TOKEN='agent-identity-unavailable'"
+check "agent identity fails: the context names the command and what it printed" \
+  grep -qF "\"additionalContext\":\"Agent identity: agents cannot reach GitHub in this session, because $stub_identity failed: Traceback: boom\"" <<<"$out"
+
+project=$(new_project)
+run_export "$project" "$stubs_devenv:$tools" SessionStart STUB_DEVENV_SCRIPT="$identity_script" STUB_DEVENV_FAIL=1
+check "failed evaluation at session start: the context says agents act as the operator" \
+  grep -qF '"additionalContext":"Agent identity: agents act on GitHub as you, the operator, because the devenv evaluation failed' <<<"$out"
 
 # --- session-start.sh --------------------------------------------------------
 

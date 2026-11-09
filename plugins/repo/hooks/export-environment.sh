@@ -4,15 +4,29 @@
 # before every Bash command, and prints the files to watch, so a change to one
 # of them runs this hook again. Claude Code captures its own environment once,
 # at start, so without this the tools and variables of devenv.nix are missing
-# or stale. The only argument is the hook event. It prints one line on stderr
-# and exits 0; a failed evaluation leaves the previous file in place.
+# or stale. On SessionStart, when the environment names the baseline's
+# agent-identity command, the file also gets the lines that make the session's
+# agents act on GitHub as an App, and the session's context gets its message;
+# a person's shell never runs this hook, so it stays the person. The only
+# argument is the hook event. It prints one line on stderr and exits 0; a
+# failed evaluation leaves the previous file in place.
 set -euo pipefail
 
 event=$1
 root=${CLAUDE_PROJECT_DIR:-$PWD}
+context=""
 
 say() {
   echo "repo plugin: $*" >&2
+}
+
+# A JSON string of the text: agent-identity's message, or a path.
+json_string() {
+  local text=$1
+  text=${text//\\/\\\\}
+  text=${text//\"/\\\"}
+  text=${text//$'\n'/\\n}
+  printf '"%s"' "$text"
 }
 
 # The root devenv files, and every file under the project that the last
@@ -35,12 +49,32 @@ watch_paths() {
 # A plugin's FileChanged matcher adds nothing to Claude Code's watch list;
 # watchPaths returned by the hook do.
 print_watch_paths() {
-  local path json=""
+  local path json="" extra=""
   while IFS= read -r path; do
-    path=${path//\\/\\\\}
-    json+=${json:+,}\"${path//\"/\\\"}\"
+    json+=${json:+,}$(json_string "$path")
   done < <(watch_paths | sort -u)
-  printf '{"hookSpecificOutput":{"hookEventName":"%s","watchPaths":[%s]}}\n' "$event" "$json"
+  [[ -z $context ]] || extra=,\"additionalContext\":$(json_string "$context")
+  printf '{"hookSpecificOutput":{"hookEventName":"%s"%s,"watchPaths":[%s]}}\n' "$event" "$extra" "$json"
+}
+
+# Sets identity_lines to the export lines of agent-identity for the session, and
+# context to its message, when the exported environment names the command. A
+# command that fails leaves GitHub closed to the session.
+agent_identity() {
+  local identity message
+  identity=$(
+    eval "$1" >/dev/null 2>&1
+    printf '%s' "${LYNGON_AGENT_IDENTITY-}"
+  )
+  [[ -n $identity ]] || return 0
+  message=$(mktemp)
+  if identity_lines=$("$identity" session --root "$root" 2>"$message"); then
+    context=$(<"$message")
+  else
+    identity_lines="export GH_TOKEN='agent-identity-unavailable'"
+    context="Agent identity: agents cannot reach GitHub in this session, because $identity failed: $(<"$message")"
+  fi
+  rm -f "$message"
 }
 
 # Runs a `devenv direnv-export` script in a subshell and prints the exported
@@ -95,14 +129,19 @@ fi
 if ! script=$(_DEVENV_CALLER=direnv devenv direnv-export 2>/dev/null) ||
   { [[ $how == direnv ]] && ! env=$(direnv export bash 2>/dev/null); }; then
   say "kept the previous devenv environment, because the evaluation failed; run devenv shell to see why"
+  if [[ $event == SessionStart ]]; then
+    context="Agent identity: agents act on GitHub as you, the operator, because the devenv evaluation failed, so nothing resolved an identity; a new session does once devenv shell works."
+  fi
   print_watch_paths
   exit 0
 fi
 [[ $how == direnv ]] || env=$(import_devenv "$script")
+identity_lines=""
+[[ $event != SessionStart ]] || agent_identity "$env"
 
 # Replace the file in one step: Claude Code may read it for a command meanwhile.
 tmp=$(mktemp "$CLAUDE_ENV_FILE.XXXXXX")
-printf '%s\n' "$env" >"$tmp"
+printf '%s\n' "$env" ${identity_lines:+"$identity_lines"} >"$tmp"
 mv "$tmp" "$CLAUDE_ENV_FILE"
 say "exported the devenv environment through $how"
 print_watch_paths
