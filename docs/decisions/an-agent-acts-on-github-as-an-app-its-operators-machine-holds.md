@@ -25,4 +25,4 @@ Every commit the agent makes names the operator in a `Co-authored-by` trailer.
 - The trailer puts the commit on the operator's contribution calendar, but a repository's contributors list counts authors only and shows the bot.
 - A command the operator runs inside the session with `!` runs in the session's shell, and so acts as the App.
 
-Enforced by: test-repo-hooks, the fixture tests of agent-identity and judgment
+Enforced by: test-repo-hooks, test-agent-identity and judgment

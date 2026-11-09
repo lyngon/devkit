@@ -25,6 +25,7 @@ Claude Code captures its environment once, at start, so without help the package
 - `SessionStart`: evaluates the devenv environment and writes it to `$CLAUDE_ENV_FILE`, which Claude Code runs before every Bash command, including a subagent's.
   It exports through `direnv export bash` when direnv has allowed `.envrc`, and otherwise from `devenv direnv-export`, keeping only the variables the devenv shell adds or changes.
   It returns the files to watch: the root devenv files and every file under the project the last evaluation read, so a package's `devenv.nix` is watched too.
+  When the environment names the baseline's `agent-identity` command, it also appends the lines that make the session's agents act on GitHub as a GitHub App, and passes the command's message to the session as context; the devkit's `devenv/agent-identity.md` explains the rest.
 - `FileChanged`: when a watched file changes, evaluates again and replaces the environment.
 - `CwdChanged`: evaluates again after a `cd`.
   Claude Code fires it only when a settings file also has a `CwdChanged` or `FileChanged` hook, and in that case it discards the `FileChanged` export and the watch list on every `cd`; this hook restores both.
