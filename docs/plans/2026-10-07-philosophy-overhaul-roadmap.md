@@ -14,13 +14,11 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `agent-identity` | Designed | [design](2026-11-01-agent-identity.md) |
 | `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/005-issue-pipeline.md) |
 | `github-repository-setup` | Inputs settled, no design | [seed prompt](../seed-prompts/006-github-repository-setup.md) |
 | `rules-as-checks` | Inputs settled, no design | [seed prompt](../seed-prompts/007-rules-as-checks.md) |
 
 The order is the order of the table.
-`agent-identity` depends on nothing and may move earlier.
 `issue-pipeline` needs `agent-identity`.
 `github-repository-setup` needs `steering-documents`, `agent-identity` and `issue-pipeline`.
 `rules-as-checks` is a long tail and may interleave.
@@ -119,12 +117,6 @@ An agent that decides alone lists the decision in the pull request.
 - An age limit for the ledger set by a variable on one machine.
 - Twenty-four separate principle skills.
 - The name `whoopsie`.
-
-## agent-identity
-
-Agents act under their own GitHub identity, so that the forge can tell an agent from the owner and the owner can approve an agent's pull request.
-
-Designed in [its design file](2026-11-01-agent-identity.md), which replaces what this section settled: during the interview the owner widened the devkit to adopters outside Lyngon, so the operator's machine declares the Apps it holds keys for, and Lyngon's own App is the public Lyngon Developer.
 
 ## issue-pipeline
 
