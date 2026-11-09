@@ -161,12 +161,16 @@ Claude Code installs a bundle's members as its dependencies, but does not count 
 Plugins are not installed for colleagues automatically (Claude Code 2.1.195 and later); Claude Code shows them the install command, and the README repeats it.
 The README's install command names the bundle; it does not enumerate the members, which only these settings do.
 The key under `extraKnownMarketplaces` must equal the marketplace manifest name (`lyngon`): Claude Code registers under the manifest name and the `@marketplace` suffixes in `enabledPlugins` must match it. Project marketplaces are applied once per Claude Code process start, after the folder is trusted.
-`attribution.commit` is empty because the Lyngon conventions never name an agent as co-author: without it, Claude Code tells every session and subagent that commits to add its `Co-Authored-By` trailer, and each one has to weigh that against the rule (Claude Code 2.0.62 and later read this key).
+`attribution` hides every line that names the agent's tool, because the agent identity is the attribution: an agent commits and opens pull requests as its GitHub App, and no commit message or pull request body names the tool.
+Without `commit` and `pr`, Claude Code tells every session and subagent to add its `Co-Authored-By` trailer and its pull request footer, and each one has to weigh that against the rule.
+`sessionUrl` set to `false` drops the link to the claude.ai session that Claude Code adds to commits and pull requests made from a web or Remote Control session (Claude Code 2.1.283 reads all three keys).
 
 ```json
 {
   "attribution": {
-    "commit": ""
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
   },
   "extraKnownMarketplaces": {
     "lyngon": {

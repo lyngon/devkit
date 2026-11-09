@@ -1,6 +1,8 @@
 {
   "attribution": {
-    "commit": ""
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
   },
   "extraKnownMarketplaces": {
     "lyngon": {
