@@ -14,13 +14,11 @@ Consult it only where this file is silent.
 
 | Piece | State | Starts from |
 | --- | --- | --- |
-| `agent-identity` | Inputs settled, no design | [seed prompt](../seed-prompts/004-agent-identity.md) |
 | `issue-pipeline` | Inputs settled, no design | [seed prompt](../seed-prompts/005-issue-pipeline.md) |
 | `github-repository-setup` | Inputs settled, no design | [seed prompt](../seed-prompts/006-github-repository-setup.md) |
 | `rules-as-checks` | Inputs settled, no design | [seed prompt](../seed-prompts/007-rules-as-checks.md) |
 
 The order is the order of the table.
-`agent-identity` depends on nothing and may move earlier.
 `issue-pipeline` needs `agent-identity`.
 `github-repository-setup` needs `steering-documents`, `agent-identity` and `issue-pipeline`.
 `rules-as-checks` is a long tail and may interleave.
@@ -99,7 +97,7 @@ An agent that decides alone lists the decision in the pull request.
 
 ### Facts looked up on 2026-10-07
 
-- The `lyngon` organization is on the Free plan with 3 seats and 38 repositories, 28 private. The owner accepted the Team plan, 4 USD per user per month. On Free, rulesets and CODEOWNERS are enforced only in public repositories.
+- The `lyngon` organization was on the Free plan with 3 seats and 38 repositories, 28 private. On Free, rulesets and CODEOWNERS are enforced only in public repositories. The owner upgraded it to the Team plan on 2026-11-01.
 - `lyngon/devkit` is public, so anyone can file an issue on it. It has two rulesets, `main-ci` and `main-protect`, the default labels, and the issue types Task, Bug and Feature.
 - Every merge method is enabled, the last eight pull requests landed as merge commits, and the squash message defaults to the commit messages.
 - `gh` 2.101.0 supports `--type` and `--parent` on `gh issue create`, and `gh issue develop` links a branch to an issue.
@@ -119,25 +117,6 @@ An agent that decides alone lists the decision in the pull request.
 - An age limit for the ledger set by a variable on one machine.
 - Twenty-four separate principle skills.
 - The name `whoopsie`.
-
-## agent-identity
-
-Agents act under their own GitHub identity, so that the forge can tell an agent from the owner and the owner can approve an agent's pull request.
-
-Settled:
-
-- One GitHub App owned by the organization, installed on all repositories, without the `administration` permission, so an agent cannot edit the rules that bind it.
-- Created once by the owner, which needs one confirmation in a browser. Its private key is distributed through sops-nix.
-- The baseline module ships a helper that mints installation tokens, which expire after one hour. The `repo` plugin's session hook sets `GH_TOKEN` and the git author in agent sessions only. A human shell stays the human.
-- The Team plan, so that required review and CODEOWNERS are enforced in private repositories.
-- The owner's global rule against attributing commits to agents is narrowed by the owner: no vendor lines in commit messages or pull request bodies, while the bot as author is fine.
-
-Known limits:
-
-- It is not a sandbox. The agent runs as the owner's Unix user and can ask the keyring for the owner's token. The identity catches honest mistakes and gives provenance.
-- A bot cannot be an assignee, so an issue is claimed through its linked branch.
-
-Open: the App's name and exact permissions, and whether the helper is a script or an existing tool.
 
 ## issue-pipeline
 
@@ -162,6 +141,11 @@ Settled:
 
 Issues 13 and 14 were written by hand in this shape.
 The existing `docs/TODO.md` entries are filed as issues or dropped when this piece lands.
+
+Open, from the design of `agent-identity`:
+
+- A token covers one installation, on one owner, and an adopter's own App is never installed on `lyngon/devkit`. A mistake that belongs to every repository needs another way from an adopter's repository to the devkit.
+- Routing by author names "a Lyngon agent". In an adopter's repository the agents may act as the adopter's own App, so the trusted agent identities are those of the repository's owner, not one fixed bot.
 
 ## github-repository-setup
 

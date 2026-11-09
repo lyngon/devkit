@@ -21,6 +21,7 @@ The Lyngon way is opinionated, and this repository exists to make those opinions
 - A Claude Code plugin marketplace: one plugin per concern, with in-house skills and vendored third-party skills side by side, plus pinned third-party plugins. Everything third-party was read by a named person at a recorded commit.
 - A shared `devenv` module (`lyngon/devenv`) that gives every repository the same git hooks, languages and `check-pull-request` command, and the tools that the scripts of skills run.
   It writes `.mcp.json` with the devenv MCP server only for a repository that sets `lyngon.mcp.enable = true`, because each Claude Code session then starts a server of its own.
+  It gives the agents of a Claude Code session a GitHub App as their identity, which [devenv/agent-identity.md](devenv/agent-identity.md) explains how to set up.
 - A set of shared documents behind both, in `shared/`.
 
 Other kinds of reusable pieces may join; the test is that they are used by more than one repository.

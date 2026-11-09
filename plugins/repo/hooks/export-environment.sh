@@ -15,6 +15,14 @@ say() {
   echo "repo plugin: $*" >&2
 }
 
+json_string() {
+  local text=$1
+  text=${text//\\/\\\\}
+  text=${text//\"/\\\"}
+  text=${text//$'\n'/\\n}
+  printf '"%s"' "$text"
+}
+
 # The root devenv files, and every file under the project that the last
 # evaluation read (the package devenv.nix files among them) except devenv's
 # own state: what devenv's direnv integration watches.
@@ -35,12 +43,12 @@ watch_paths() {
 # A plugin's FileChanged matcher adds nothing to Claude Code's watch list;
 # watchPaths returned by the hook do.
 print_watch_paths() {
-  local path json=""
+  local context=${1-} path json="" extra=""
   while IFS= read -r path; do
-    path=${path//\\/\\\\}
-    json+=${json:+,}\"${path//\"/\\\"}\"
+    json+=${json:+,}$(json_string "$path")
   done < <(watch_paths | sort -u)
-  printf '{"hookSpecificOutput":{"hookEventName":"%s","watchPaths":[%s]}}\n' "$event" "$json"
+  [[ -z $context ]] || extra=,\"additionalContext\":$(json_string "$context")
+  printf '{"hookSpecificOutput":{"hookEventName":"%s"%s,"watchPaths":[%s]}}\n' "$event" "$extra" "$json"
 }
 
 # Runs a `devenv direnv-export` script in a subshell and prints the exported
@@ -95,14 +103,41 @@ fi
 if ! script=$(_DEVENV_CALLER=direnv devenv direnv-export 2>/dev/null) ||
   { [[ $how == direnv ]] && ! env=$(direnv export bash 2>/dev/null); }; then
   say "kept the previous devenv environment, because the evaluation failed; run devenv shell to see why"
-  print_watch_paths
+  if [[ $event == SessionStart ]]; then
+    print_watch_paths "Agent identity: agents act on GitHub as you, the operator, because the devenv evaluation failed, so nothing resolved an identity; a new session does once devenv shell works."
+  else
+    print_watch_paths
+  fi
   exit 0
 fi
 [[ $how == direnv ]] || env=$(import_devenv "$script")
 
+# The lines and the message of the baseline's agent-identity, on SessionStart
+# when the exported environment names the command.
+identity_lines="" context=""
+if [[ $event == SessionStart ]]; then
+  identity=$(
+    eval "$env" >/dev/null 2>&1
+    printf '%s' "${LYNGON_AGENT_IDENTITY-}"
+  )
+  if [[ -n $identity ]]; then
+    message=$(mktemp)
+    if identity_lines=$("$identity" session --root "$root" 2>"$message"); then
+      context=$(<"$message")
+    else
+      identity_lines="export GH_TOKEN='agent-identity-failed'"
+      context="Agent identity: agents cannot reach GitHub in this session, because $identity failed: $(<"$message")"
+    fi
+    rm -f "$message"
+  fi
+fi
+
 # Replace the file in one step: Claude Code may read it for a command meanwhile.
 tmp=$(mktemp "$CLAUDE_ENV_FILE.XXXXXX")
-printf '%s\n' "$env" >"$tmp"
+{
+  printf '%s\n' "$env"
+  [[ -z $identity_lines ]] || printf '%s\n' "$identity_lines"
+} >"$tmp"
 mv "$tmp" "$CLAUDE_ENV_FILE"
 say "exported the devenv environment through $how"
-print_watch_paths
+print_watch_paths "$context"

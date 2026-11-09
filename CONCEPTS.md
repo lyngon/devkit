@@ -32,7 +32,7 @@ The part of the devkit described by `.claude-plugin/marketplace.json`, listing e
 _Avoid_: using "marketplace" for the whole repository
 
 **Baseline**:
-The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the `check-pull-request` command, the tools of the scripts that skills ship, the languages every repository has, and the MCP server file for a repository that turns it on.
+The devenv module under `devenv/` that every Lyngon repository imports: git hooks, the `check-pull-request` command, the `agent-identity` command, the tools of the scripts that skills ship, the languages every repository has, and the MCP server file for a repository that turns it on.
 
 **In-house skill**:
 A skill authored by Lyngon.
@@ -101,6 +101,10 @@ The person who started the session an agent is working in.
 An operator answers for the task at hand, and for the product only when they are also an owner.
 _Avoid_: user, driver
 
+**Agent identity**:
+The forge account that agents act under, separate from every person's account, so that the forge can tell an agent's work from a person's.
+_Avoid_: bot account, machine user, service account
+
 **Principle**:
 A named, binding statement that takes judgment to apply.
 _Avoid_: guideline, best practice, convention
@@ -153,6 +157,7 @@ Something a reviewer can rerun or read that shows a claim holds.
 - A **Package** is exactly one of **App**, **Library**, **Contract** or **Tool**; a **Script** is never a **Package**.
 - An **Owner** approves every change to a **Steering document** of their repository.
 - An **Owner** may act as an **Operator**; an **Operator** need not be an **Owner**.
+- An **Operator**'s agent acts under the **Agent identity**, and an **Owner** approves its pull requests.
 - A mistake in the **Mistake ledger** that repeats becomes a **Rule** with its check, or a **Principle** when no tool can decide it.
 - The **Standing instructions** reach every session, and a **Mode** reaches only a session whose **Operator** switched it on, where it adds to them.
 - A **Mode** has one **Playbook** for each kind of task it routes.
