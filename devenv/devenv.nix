@@ -385,9 +385,13 @@ in
       validate-structure = {
         enable = lib.mkDefault cfg.structure.enable;
         name = lib.mkDefault "validate structure";
-        entry = lib.mkDefault (lib.getExe validateStructure);
-        # Package directories and the root workspace files.
-        files = lib.mkDefault "^((apps|libs|contracts|tools|infra)/|(pyproject\\.toml|pnpm-workspace\\.yaml|Cargo\\.toml|go\\.work|package\\.json)$)";
+        # On a checkout of the index, so that an untracked package neither
+        # fails a commit that leaves it out nor fills a gap in one that lists
+        # it.
+        entry = lib.mkDefault "${lib.getExe onTheIndex} ${lib.getExe validateStructure}";
+        # Also on a commit that only deletes files, such as a package's
+        # README.md: a deleted file is never among the names a hook is handed.
+        always_run = lib.mkDefault true;
         pass_filenames = lib.mkDefault false;
       };
       actionlint.enable = lib.mkDefault true;
