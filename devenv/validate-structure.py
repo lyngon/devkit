@@ -4,9 +4,15 @@
 Nothing depends on an app, apps, libs and contracts never depend on tools or
 infra, every language workspace lists its members explicitly and completely,
 every app and library carries a README.md, and no path segment under apps/,
-libs/ or tools/ names a language. Runs at pre-commit with no arguments from
-anywhere inside the repository. A repository without any of the package
+libs/ or tools/ names a language. A repository without any of the package
 directories (the devkit itself) passes.
+
+Usage: validate-structure.py [<root>]
+
+Checks the tree at <root>, which the commit hook sets to a checkout of the
+index, or else the working tree of the repository around the working
+directory, untracked files included. A file is named by its path from the
+root.
 
 A manifest is read where it enters, through Table, and a table, an array or a
 string that the rules read and that has another type there fails the run,
@@ -162,23 +168,29 @@ def requirement_name(spec: str) -> str | None:
     return normalise_pep503(match.group(1)) if match else None
 
 
-def read_toml(path: pathlib.Path) -> Table:
-    """Read a TOML file; one that cannot be read or parsed fails the run and reads as empty."""
+def read_toml(root: pathlib.Path, name: str) -> Table:
+    """Read the TOML file at the path from the root.
+
+    One that cannot be read or parsed fails the run and reads as empty.
+    """
     try:
-        return Table(tomllib.loads(path.read_text()), str(path))
+        return Table(tomllib.loads((root / name).read_text()), name)
     except (OSError, tomllib.TOMLDecodeError) as exc:
-        fail(str(path), f"cannot parse: {exc}")
-        return Table({}, str(path))
+        fail(name, f"cannot parse: {exc}")
+        return Table({}, name)
 
 
-def read_json(path: pathlib.Path) -> Table:
-    """Read a JSON file; one that cannot be read or parsed fails the run, and one that is no object reads as empty."""
+def read_json(root: pathlib.Path, name: str) -> Table:
+    """Read the JSON file at the path from the root.
+
+    One that cannot be read or parsed fails the run, and one that is no object reads as empty.
+    """
     try:
-        found = as_table(t.cast("object", json.loads(path.read_text())))
-        return Table(found or {}, str(path))
+        found = as_table(t.cast("object", json.loads((root / name).read_text())))
+        return Table(found or {}, name)
     except (OSError, json.JSONDecodeError) as exc:
-        fail(str(path), f"cannot parse: {exc}")
-        return Table({}, str(path))
+        fail(name, f"cannot parse: {exc}")
+        return Table({}, name)
 
 
 # --- Discovery ---------------------------------------------------------------
@@ -219,7 +231,7 @@ def python_deps(root: pathlib.Path, packages: list[Package]) -> None:
     by_name: dict[str, str] = {}
     required: dict[str, set[str]] = {}
     for pkg in packages:
-        manifest = read_toml(root / pkg.path / "pyproject.toml")
+        manifest = read_toml(root, f"{pkg.path}/pyproject.toml")
         project = manifest.table("project")
         name = project.string("name")
         if name:
@@ -248,7 +260,7 @@ def typescript_deps(root: pathlib.Path, packages: list[Package]) -> None:
 
     A dependency is one that names another package or asks for a workspace version.
     """
-    manifests = {p.path: read_json(root / p.path / "package.json") for p in packages}
+    manifests = {p.path: read_json(root, f"{p.path}/package.json") for p in packages}
     for pkg in packages:
         pkg.name = manifests[pkg.path].string("name")
     by_name = {p.name: p.path for p in packages if p.name}
@@ -264,7 +276,7 @@ def typescript_deps(root: pathlib.Path, packages: list[Package]) -> None:
 def workspace_dependencies(root: pathlib.Path) -> Table:
     """Return the table [workspace.dependencies] of the root Cargo.toml, empty without one."""
     if (root / "Cargo.toml").is_file():
-        return read_toml(root / "Cargo.toml").table("workspace").table("dependencies")
+        return read_toml(root, "Cargo.toml").table("workspace").table("dependencies")
     return Table({}, "Cargo.toml")
 
 
@@ -274,7 +286,7 @@ def rust_deps(root: pathlib.Path, packages: list[Package]) -> None:
     A dependency is one with a path, its own or the workspace's, or one that names another crate.
     """
     workspace = workspace_dependencies(root)
-    manifests = {p.path: read_toml(root / p.path / "Cargo.toml") for p in packages}
+    manifests = {p.path: read_toml(root, f"{p.path}/Cargo.toml") for p in packages}
     for pkg in packages:
         pkg.name = manifests[pkg.path].table("package").string("name")
     by_name = {p.name: p.path for p in packages if p.name}
@@ -344,13 +356,13 @@ RESOLVERS: t.Final[dict[str, ct.Callable[[pathlib.Path, list[Package]], None]]] 
 # --- Workspaces --------------------------------------------------------------
 
 
-def pnpm_members(path: pathlib.Path) -> list[str] | None:
+def pnpm_members(root: pathlib.Path, name: str) -> list[str] | None:
     """Return the top-level `packages:` list of pnpm-workspace.yaml.
 
     Read without a YAML library: a block list of quoted or unquoted strings is all pnpm needs.
     """
     members: list[str] | None = None
-    for raw in path.read_text().splitlines():
+    for raw in (root / name).read_text().splitlines():
         line = re.sub(r"(^|\s)#.*$", "", raw).rstrip()
         if not line.strip():
             continue
@@ -367,22 +379,22 @@ def pnpm_members(path: pathlib.Path) -> list[str] | None:
     return members
 
 
-def uv_members(path: pathlib.Path) -> object:
+def uv_members(root: pathlib.Path, name: str) -> object:
     """Return the members of the uv workspace in a pyproject.toml, of whatever type, or None."""
-    return read_toml(path).table("tool").table("uv").table("workspace").get("members")
+    return read_toml(root, name).table("tool").table("uv").table("workspace").get("members")
 
 
-def cargo_members(path: pathlib.Path) -> object:
+def cargo_members(root: pathlib.Path, name: str) -> object:
     """Return the members of the workspace in a Cargo.toml, of whatever type, or None."""
-    return read_toml(path).table("workspace").get("members")
+    return read_toml(root, name).table("workspace").get("members")
 
 
-def go_work_members(path: pathlib.Path) -> object:
+def go_work_members(root: pathlib.Path, name: str) -> object:
     """Return the modules that a go.work uses."""
-    return go_directives(path.read_text(), "use")
+    return go_directives((root / name).read_text(), "use")
 
 
-WORKSPACES: t.Final[dict[str, tuple[str, str, ct.Callable[[pathlib.Path], object]]]] = {
+WORKSPACES: t.Final[dict[str, tuple[str, str, ct.Callable[[pathlib.Path, str], object]]]] = {
     "python": ("pyproject.toml", "[tool.uv.workspace] members", uv_members),
     "typescript": ("pnpm-workspace.yaml", "packages", pnpm_members),
     "rust": ("Cargo.toml", "[workspace] members", cargo_members),
@@ -393,8 +405,7 @@ WORKSPACES: t.Final[dict[str, tuple[str, str, ct.Callable[[pathlib.Path], object
 def check_workspace(root: pathlib.Path, language: str, packages: list[Package]) -> None:
     """Check that the workspace of the language lists every one of its packages, and only those, by path."""
     filename, section, read_members = WORKSPACES[language]
-    path = root / filename
-    members = as_array(read_members(path)) if path.is_file() else None
+    members = as_array(read_members(root, filename)) if (root / filename).is_file() else None
     if members is None:
         fail(filename, f"{section} is missing, but {language} packages exist: " + ", ".join(p.path for p in packages))
         return
@@ -448,9 +459,9 @@ def check_language_segments(root: pathlib.Path) -> None:
                 )
 
 
-def main() -> int:
-    """Check the repository and return the exit status: 0 when every rule holds, 1 otherwise."""
-    root = repo_root()
+def main(arguments: ct.Sequence[str]) -> int:
+    """Check the tree at the one argument, or the repository's; return 0 when every rule holds, 1 otherwise."""
+    root = pathlib.Path(arguments[0]).resolve() if arguments else repo_root()
     packages = discover(root)
     for language, resolve in RESOLVERS.items():
         members = [p for p in packages if p.language == language]
@@ -470,4 +481,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

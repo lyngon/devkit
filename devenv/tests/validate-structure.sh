@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Exercise validate-structure.py against throwaway fixture repositories: one
 # per rule in shared/STRUCTURE.md section 4.4, plus a clean repository in
-# every language and an empty one. Run through `devenv test`.
+# every language and an empty one. Each is named as the argument, as the
+# commit hook names its checkout of the index, and one case runs with none.
+# Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-structure.py
@@ -78,8 +80,10 @@ clean_polyglot_repo() {
 
 # --- Assertions --------------------------------------------------------------
 
+# run_validator <repo>: check the repository as the commit hook does, with its
+# root as the argument, from a directory outside it.
 run_validator() {
-  (cd "$1" && python3 "$validator" 2>&1) || true
+  (cd "$tmp" && python3 "$validator" "$1" 2>&1) || true
 }
 
 expect_ok() {
@@ -144,6 +148,22 @@ expect_error "rule 4: missing README.md" "$repo" "libs/orders: missing README.md
 repo=$(clean_py_repo)
 touch "$repo/libs/orders/INTENT.md"
 expect_ok "rule 4: a package may carry an INTENT.md" "$repo"
+
+repo=$(clean_py_repo)
+echo "[project" >"$repo/libs/orders/pyproject.toml"
+expect_error "a manifest that cannot be parsed is named by its path from the root" "$repo" \
+  "error: libs/orders/pyproject.toml: cannot parse"
+
+label="with no argument, the repository around the working directory"
+repo=$(clean_py_repo)
+rm "$repo/libs/orders/README.md"
+output=$(cd "$repo/libs/orders" && python3 "$validator" 2>&1) || true
+if grep -qF "error: libs/orders: missing README.md" <<<"$output"; then
+  echo "ok: $label"
+else
+  echo "FAIL: $label: expected an error containing 'error: libs/orders: missing README.md', got:" && echo "  ${output//$'\n'/$'\n'  }"
+  failures=$((failures + 1))
+fi
 
 repo=$(clean_py_repo)
 mkdir "$repo/libs/python"
