@@ -14,10 +14,11 @@ repo=$tmp/repo
 failures=0
 
 expect() {
-  if grep -qE -- "$2" <<<"$output"; then
-    echo "ok: $1"
+  local label=$1 pattern=$2
+  if grep -qE -- "$pattern" <<<"$output"; then
+    echo "ok: $label"
   else
-    echo "FAIL: $1: no line matches '$2'"
+    echo "FAIL: $label: no line matches '$pattern'"
     failures=$((failures + 1))
   fi
 }
@@ -80,15 +81,15 @@ status=0
 output=$(cd "$repo" && "$devenv" test 2>&1) || status=$?
 
 if ((status == 0)); then
-  echo "ok: the full check exits 0"
+  echo "ok: the full check of an agent session exits 0"
 else
-  echo "FAIL: the full check exits 0: it exited $status"
+  echo "FAIL: the full check of an agent session exits 0: it exited $status"
   failures=$((failures + 1))
 fi
-expect "the full check names the hook that passed as passed" '^ *passing hook\.+Passed$'
-expect "the full check names the hook without files as skipped for want of files" '^ *hook without files\.+\(no files to check\)Skipped$'
-expect "the full check shows the output of a task that runs before enterTest" '^ *the test task of the fixture ran$'
-expect "the full check shows the output of enterTest" '^ *enterTest of the fixture ran$'
+expect "the full check of an agent session names the hook that passed as passed" '^ *passing hook\.+Passed$'
+expect "the full check of an agent session names the hook without files as skipped for want of files" '^ *hook without files\.+\(no files to check\)Skipped$'
+expect "the full check of an agent session shows the output of a task that runs before enterTest" '^ *the test task of the fixture ran$'
+expect "the full check of an agent session shows the output of enterTest" '^ *enterTest of the fixture ran$'
 runs=$(cat "$repo/hook-runs" 2>/dev/null || true)
 if [[ $runs == ran ]]; then
   echo "ok: the full check ran the passing hook once"
