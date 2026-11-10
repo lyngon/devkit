@@ -15,7 +15,7 @@ The files are its output, written only after the owner confirms a shared underst
 
 Every repository this skill sets up has the Lyngon documents, the baseline and the workflow.
 The one choice is the structure: the interview asks whether the repository adopts the layout defined in [STRUCTURE.md](STRUCTURE.md), and the structure files below are written only when it does.
-The workflow comes with the settings, which enable `all` and each of its members: the standing instructions of `conventions` commit, push and open pull requests without asking.
+The workflow comes with the settings, which enable `all` and each of its members: the standing instructions of `build` commit, push and open pull requests without asking.
 
 ## When to use
 
