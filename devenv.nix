@@ -203,8 +203,6 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/mcp-file-follows-its-option.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
-  # The baseline's full check in a throwaway repository, run as Claude Code
-  # runs it, in a repository set up as the hooks test above sets up its own.
   testFullCheckShowsWhatPassed = pkgs.writeShellApplication {
     name = "test-full-check-shows-what-passed";
     runtimeInputs = [

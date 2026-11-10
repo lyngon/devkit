@@ -252,9 +252,6 @@ in
     };
   };
 
-  # devenv hides the output of a task that passes, so a hook skipped for want
-  # of files looks like one that passed. The git hooks run in a task before
-  # devenv:enterTest, as the tests of a package do.
   options.tasks = lib.mkOption {
     type = lib.types.attrsOf (
       lib.types.submodule (

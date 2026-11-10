@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# Check that a passing full check shows what it checked, also in an agent
-# session: the result of each git hook, the output of a task that runs
-# before enterTest (as the test of a package does), and the output of
-# enterTest. A hook skipped for want of files then reads apart from one that
-# passed. A throwaway repository imports the baseline and runs `devenv test`
-# as Claude Code does, with CLAUDECODE set, under which devenv shows only
-# stderr and the output of a task that has showOutput. Run through
-# `devenv test`.
-#
-# Usage: full-check-shows-what-passed.sh <devenv> <devenv.lock>
-#
-# The lock file pins the nixpkgs and git-hooks inputs of the throwaway
-# repository. With pins that are already in the Nix store nothing is fetched.
 set -euo pipefail
 
 usage="usage: full-check-shows-what-passed.sh <devenv> <devenv.lock>"
@@ -21,14 +8,11 @@ baseline=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE DEVENV_NO_AI_AGENT
-# Neither the git configuration nor the hook cache of whoever runs the test.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 PREK_HOME="$tmp/prek"
 export CLAUDECODE=1
 repo=$tmp/repo
 failures=0
 
-# expect <label> <pattern>: a line of the full check's output matches the
-# extended regular expression.
 expect() {
   if grep -qE -- "$2" <<<"$output"; then
     echo "ok: $1"
@@ -38,7 +22,6 @@ expect() {
   fi
 }
 
-# The baseline as a repository receives it: an input that holds devenv/.
 mkdir "$tmp/lyngon"
 cp -R "$baseline" "$tmp/lyngon/devenv"
 
@@ -65,7 +48,6 @@ cat >"$repo/devenv.nix" <<'EOF'
 {
   lyngon.enable = true;
 
-  # The fixture has none of the standard documents.
   git-hooks.hooks.validate-documents.enable = false;
 
   git-hooks.hooks.passing-hook = {
