@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# Check that the baseline's commit hook validate-structure judges a commit by
-# what it holds and runs on every commit (issue 100). A throwaway repository
-# imports the baseline with the structure on, holds one Python library and
-# enters devenv, which installs the hooks. Each case then commits through
-# them: an untracked package neither fails a commit that leaves it out nor
-# props up a staged workspace that lists it, and a commit that only deletes a
-# package's README.md is refused. Run through `devenv test`.
-#
-# Usage: structure-checks-the-commit.sh <devenv> <devenv.lock>
-#
-# The lock file pins the nixpkgs and git-hooks inputs of the throwaway
-# repository. With pins that are already in the Nix store nothing is fetched.
 set -euo pipefail
 
 usage="usage: structure-checks-the-commit.sh <devenv> <devenv.lock>"
@@ -20,26 +8,20 @@ baseline=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
-# Neither the git configuration nor the hook cache of whoever runs the test.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 PREK_HOME="$tmp/prek"
 repo=$tmp/repo
 failures=0
 
-# --- Fixture -----------------------------------------------------------------
-
-# py_pkg <path> <name>: a Python package with its README.md.
 py_pkg() {
   mkdir -p "$repo/$1"
   touch "$repo/$1/README.md"
   printf '[project]\nname = "%s"\nversion = "0"\ndependencies = []\n' "$2" >"$repo/$1/pyproject.toml"
 }
 
-# py_workspace [member...]: the root pyproject.toml, listing the members.
 py_workspace() {
   printf '[tool.uv.workspace]\nmembers = [%s]\n' "$(printf '"%s", ' "$@")" >"$repo/pyproject.toml"
 }
 
-# The baseline as a repository receives it: an input that holds devenv/.
 mkdir "$tmp/lyngon"
 cp -R "$baseline" "$tmp/lyngon/devenv"
 
@@ -67,7 +49,6 @@ cat >"$repo/devenv.nix" <<'EOF'
   lyngon.enable = true;
   lyngon.structure.enable = true;
 
-  # The fixture has none of the standard documents.
   git-hooks.hooks.validate-documents.enable = false;
 }
 EOF
@@ -83,15 +64,11 @@ if ! output=$(cd "$repo" && "$devenv" shell -- true 2>&1); then
   exit 1
 fi
 
-# --- Assertions --------------------------------------------------------------
-
-# start_case: the fixture as committed, with nothing staged or untracked.
 start_case() {
   git -C "$repo" reset -q --hard "$base"
   git -C "$repo" clean -q -f -d
 }
 
-# expect_commit <label>: the hooks pass a commit of what is staged.
 expect_commit() {
   local label=$1 output
   if output=$(git -C "$repo" commit -q -m "test: a change" 2>&1); then
@@ -102,8 +79,6 @@ expect_commit() {
   fi
 }
 
-# expect_refused <label> <fragment>: the hooks refuse a commit of what is
-# staged, with an error that holds the fragment.
 expect_refused() {
   local label=$1 fragment=$2 output
   if output=$(git -C "$repo" commit -q -m "test: a change" 2>&1); then
@@ -117,9 +92,6 @@ expect_refused() {
   fi
 }
 
-# --- Cases -------------------------------------------------------------------
-
-# The first case of issue 100.
 start_case
 mkdir -p "$repo/apps/draft"
 printf '[project]\nname = "draft"\nversion = "0"\n' >"$repo/apps/draft/pyproject.toml"
@@ -134,7 +106,6 @@ git -C "$repo" add pyproject.toml
 expect_refused "staged workspace that lists a package that is untracked" \
   "pyproject.toml: [tool.uv.workspace] members entry 'libs/billing' does not exist or has no pyproject.toml"
 
-# The second case of issue 100.
 start_case
 git -C "$repo" rm -q libs/orders/README.md
 expect_refused "commit that only deletes a package's README.md" "libs/orders: missing README.md"

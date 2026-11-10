@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Exercise validate-structure.py against throwaway fixture repositories: one
-# per rule in shared/STRUCTURE.md section 4.4, plus a clean repository in
-# every language and an empty one. Each is named as the argument, as the
-# commit hook names its checkout of the index, and one case runs with none.
-# Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-structure.py
@@ -80,8 +75,6 @@ clean_polyglot_repo() {
 
 # --- Assertions --------------------------------------------------------------
 
-# run_validator <repo>: check the repository as the commit hook does, with its
-# root as the argument, from a directory outside it.
 run_validator() {
   (cd "$tmp" && python3 "$validator" "$1" 2>&1) || true
 }

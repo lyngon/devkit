@@ -9,10 +9,9 @@ directories (the devkit itself) passes.
 
 Usage: validate-structure.py [<root>]
 
-Checks the tree at <root>, which the commit hook sets to a checkout of the
-index, or else the working tree of the repository around the working
-directory, untracked files included. A file is named by its path from the
-root.
+Checks the tree at <root>, or else the working tree of the repository around
+the working directory, untracked files included. A file is named by its path
+from the root.
 
 A manifest is read where it enters, through Table, and a table, an array or a
 string that the rules read and that has another type there fails the run,

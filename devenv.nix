@@ -190,8 +190,6 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/mcp-file-follows-its-option.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
-  # The baseline's validate-structure hook in a throwaway repository with the
-  # structure, entered as the hooks test above enters its own.
   testStructureChecksTheCommit = pkgs.writeShellApplication {
     name = "test-structure-checks-the-commit";
     runtimeInputs = [
@@ -372,11 +370,9 @@ in
     "^plugins/[^/]+/evals/"
   ];
 
-  # Repository-specific hooks. The two validators run on a checkout of the
-  # index, so that a file the commit leaves out does not decide it (issue 94),
-  # and on every commit, with no filter on files: a commit that only deletes
-  # files or only stages links hands a hook no file to match, and can still
-  # break what they check (issue 97).
+  # The two validators run on every commit, with no filter on files: a commit
+  # that only deletes files or only stages links hands a hook no file to
+  # match, and can still break what they check (issue 97).
   git-hooks.hooks.validate-marketplace = {
     enable = true;
     name = "validate marketplace";

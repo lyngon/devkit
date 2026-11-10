@@ -385,9 +385,6 @@ in
       validate-structure = {
         enable = lib.mkDefault cfg.structure.enable;
         name = lib.mkDefault "validate structure";
-        # On a checkout of the index, so that an untracked package neither
-        # fails a commit that leaves it out nor fills a gap in one that lists
-        # it.
         entry = lib.mkDefault "${lib.getExe onTheIndex} ${lib.getExe validateStructure}";
         # Also on a commit that only deletes files, such as a package's
         # README.md: a deleted file is never among the names a hook is handed.
