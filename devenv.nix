@@ -46,19 +46,6 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/validate-shipped-text.py" "$@"'';
   };
-  # The commit hooks of the two validators above run them on a checkout of
-  # the index, because prek leaves untracked files in the working tree while
-  # the hooks run, and a file that a commit leaves out must not decide it
-  # (issue 94).
-  onTheIndex = pkgs.writeShellApplication {
-    name = "on-the-index";
-    runtimeInputs = [
-      pkgs.bash
-      pkgs.coreutils
-      pkgs.git
-    ];
-    text = ''exec "${config.devenv.root}/scripts/on-the-index.sh" "$@"'';
-  };
   # The eval suite at a base commit and in the working tree, side by side.
   # The program also runs `claude` and `devenv`, which no file declares: the
   # harness, and the tool that made the shell the program starts from. Both
@@ -385,21 +372,22 @@ in
     "^plugins/[^/]+/evals/"
   ];
 
-  # Repository-specific hooks. The two validators run on every commit, with no
-  # filter on files: a commit that only deletes files or only stages links
-  # hands a hook no file to match, and can still break what they check
-  # (issue 97).
+  # Repository-specific hooks. The two validators run on a checkout of the
+  # index, so that a file the commit leaves out does not decide it (issue 94),
+  # and on every commit, with no filter on files: a commit that only deletes
+  # files or only stages links hands a hook no file to match, and can still
+  # break what they check (issue 97).
   git-hooks.hooks.validate-marketplace = {
     enable = true;
     name = "validate marketplace";
-    entry = "${lib.getExe onTheIndex} ${lib.getExe validateMarketplace}";
+    entry = "${lib.getExe config.lyngon.onTheIndex} ${lib.getExe validateMarketplace}";
     always_run = true;
     pass_filenames = false;
   };
   git-hooks.hooks.validate-shipped-text = {
     enable = true;
     name = "validate shipped text";
-    entry = "${lib.getExe onTheIndex} ${lib.getExe validateShippedText}";
+    entry = "${lib.getExe config.lyngon.onTheIndex} ${lib.getExe validateShippedText}";
     always_run = true;
     pass_filenames = false;
   };
@@ -446,10 +434,10 @@ in
       env -i HOME="$HOME" "$@"
     }
     declared_tools_only ${lib.getExe validateMarketplace}
-    declared_tools_only ${lib.getExe onTheIndex} ${lib.getExe validateMarketplace}
+    declared_tools_only ${lib.getExe config.lyngon.onTheIndex} ${lib.getExe validateMarketplace}
     declared_tools_only ${lib.getExe renderPluginList}
     declared_tools_only ${lib.getExe validateShippedText}
-    declared_tools_only ${lib.getExe onTheIndex} ${lib.getExe validateShippedText}
+    declared_tools_only ${lib.getExe config.lyngon.onTheIndex} ${lib.getExe validateShippedText}
     declared_tools_only ${lib.getExe testValidateMarketplace}
     declared_tools_only ${lib.getExe testValidatorsCheckTheCommit} ${lib.getExe config.git-hooks.package} "${config.devenv.root}/${config.git-hooks.configPath}"
     declared_tools_only ${lib.getExe testCompareEvals}

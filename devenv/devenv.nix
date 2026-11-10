@@ -112,6 +112,15 @@ let
     text = builtins.readFile ./prose-lint.sh;
   };
 
+  onTheIndex = pkgs.writeShellApplication {
+    name = "on-the-index";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.git
+    ];
+    text = builtins.readFile ./on-the-index.sh;
+  };
+
   # The layout rules of shared/STRUCTURE.md section 4.4: dependency direction
   # between apps, libs, contracts, tools and infra, explicit workspace member
   # lists, package documents, and no language names as path segments.
@@ -210,6 +219,13 @@ in
       type = lib.types.bool;
       default = true;
       description = "Agents in a Claude Code session act on GitHub as a GitHub App that the operator's machine declares, and name the operator as co-author of their commits (devenv/agent-identity.md). With false they act as the operator.";
+    };
+
+    onTheIndex = lib.mkOption {
+      type = lib.types.package;
+      default = onTheIndex;
+      readOnly = true;
+      description = "The command that runs a check on what a commit holds, a checkout of the index, and gives it the root of the checkout as its last argument (devenv/on-the-index.sh). The entry of a commit hook that reads the tree as a whole is `\${lib.getExe config.lyngon.onTheIndex} <check>`.";
     };
 
     structure.enable = lib.mkOption {
