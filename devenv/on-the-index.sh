@@ -4,16 +4,16 @@
 # the root of the checkout as its last argument.
 #
 # A commit hook runs in the working tree, where prek sets unstaged changes to
-# tracked files aside but leaves untracked files in place (issue 94). A check
-# that reads the tree as a whole would let a file that the commit leaves out
-# fail the commit, and pass a staged file that names an untracked one or links
-# to it. In the checkout, every path the check probes is one the commit holds.
+# tracked files aside but leaves untracked files in place. A check that reads
+# the tree as a whole would let a file that the commit leaves out fail the
+# commit, and pass a staged file that names an untracked one or links to it.
+# In the checkout, every path the check probes is one the commit holds.
 #
-# Usage: on-the-index.sh <check> [<argument>...]
+# Usage: on-the-index <check> [<argument>...]
 set -euo pipefail
 
 (($# > 0)) || {
-  echo "usage: on-the-index.sh <check> [<argument>...]" >&2
+  echo "usage: on-the-index <check> [<argument>...]" >&2
   exit 2
 }
 
