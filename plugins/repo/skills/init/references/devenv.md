@@ -88,6 +88,9 @@ The options `lyngon.pullRequest.body.targetLines` and `lyngon.pullRequest.body.h
 The option `lyngon.mistakes.maxAgeDays` sets how long a file of the mistake ledger, `docs/mistakes/`, is kept, 365 days by default.
 The option `lyngon.scriptTools` lists the tools that the scripts of skills run, Python by default, and the baseline adds them to the shell.
 The option `lyngon.mcp.enable` writes `.mcp.json` with the devenv MCP server; it is off by default, because each Claude Code session then starts a server of its own.
+The option `lyngon.fullCheck.showOutput`, on by default, makes a passing [full check](#verification) print the result of each git hook, the output of each task that runs before `devenv:enterTest`, and the output of `enterTest`, also in an agent session.
+Otherwise devenv hides what passes.
+A task keeps its output hidden with `showOutput = false;`.
 
 Write `lyngon.structure.enable = true;` on a line of its own, exactly so: that line is the marker the `repo` plugin's session hook and `add-package` look for.
 
