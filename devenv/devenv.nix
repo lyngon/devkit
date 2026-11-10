@@ -260,6 +260,25 @@ in
       defaultText = lib.literalExpression "[ pkgs.python3 ]";
       description = "The tools a script that a skill ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so keep pkgs.python3 in it.";
     };
+
+    fullCheck.showOutput = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "A passing full check (devenv test) prints the result of each git hook, the output of each task that runs before devenv:enterTest, and the output of enterTest, also in an agent session, where devenv hides what passes. A task keeps its output hidden with showOutput = false.";
+    };
+  };
+
+  options.tasks = lib.mkOption {
+    type = lib.types.attrsOf (
+      lib.types.submodule (
+        { config, ... }:
+        {
+          config.showOutput = lib.mkIf (
+            cfg.enable && cfg.fullCheck.showOutput && lib.elem "devenv:enterTest" config.before
+          ) (lib.mkDefault true);
+        }
+      )
+    );
   };
 
   config = lib.mkIf cfg.enable {
@@ -297,6 +316,10 @@ in
     # option to override. At low priority, so that a repository's own package
     # keeps a name both provide, such as `python3`.
     packages = map lib.lowPrio cfg.scriptTools;
+
+    # An agent session sees only stderr and the output of a task with
+    # showOutput, and devenv runs enterTest as a script, not as a task.
+    enterTest = lib.mkIf cfg.fullCheck.showOutput (lib.mkBefore "exec 1>&2");
 
     # A shipped script cannot read an option, so the limit reaches the
     # correction skill's prune-mistakes.py through the environment.

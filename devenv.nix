@@ -190,6 +190,16 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/mcp-file-follows-its-option.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
+  testFullCheckShowsWhatPassed = pkgs.writeShellApplication {
+    name = "test-full-check-shows-what-passed";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/full-check-shows-what-passed.sh" "$@" "${config.devenv.root}/devenv.lock"'';
+  };
   testStructureChecksTheCommit = pkgs.writeShellApplication {
     name = "test-structure-checks-the-commit";
     runtimeInputs = [
@@ -444,6 +454,7 @@ in
     declared_tools_only ${lib.getExe testAgentIdentity} "$LYNGON_AGENT_IDENTITY"
     declared_tools_only ${lib.getExe testHooksFollowTheirWorktree} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testMcpFileFollowsItsOption} "$(command -v devenv)"
+    declared_tools_only ${lib.getExe testFullCheckShowsWhatPassed} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testStructureChecksTheCommit} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
