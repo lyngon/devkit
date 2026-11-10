@@ -4,14 +4,6 @@
     "pr": "",
     "sessionUrl": false
   },
-  "extraKnownMarketplaces": {
-    "lyngon": {
-      "source": {
-        "source": "github",
-        "repo": "lyngon/devkit"
-      }
-    }
-  },
   "enabledPlugins": {
     "conventions@lyngon": true,
     "repo@lyngon": true,
@@ -21,5 +13,13 @@
     "writing@lyngon": true,
     "build@lyngon": true,
     "principles@lyngon": true
+  },
+  "extraKnownMarketplaces": {
+    "lyngon": {
+      "source": {
+        "source": "github",
+        "repo": "lyngon/devkit"
+      }
+    }
   }
 }

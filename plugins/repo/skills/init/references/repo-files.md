@@ -164,6 +164,10 @@ The key under `extraKnownMarketplaces` must equal the marketplace manifest name 
 `attribution` hides every line that names the agent's tool, because the agent identity is the attribution: an agent commits and opens pull requests as its GitHub App, and no commit message or pull request body names the tool.
 Without `commit` and `pr`, Claude Code tells every session and subagent to add its `Co-Authored-By` trailer and its pull request footer, and each one has to weigh that against the rule.
 `sessionUrl` set to `false` drops the link to the claude.ai session that Claude Code adds to commits and pull requests made from a web or Remote Control session (Claude Code 2.1.283 reads all three keys).
+Every project install of a plugin rewrites this file with the top-level keys in Claude Code's own order and the keys it does not know last (Claude Code 2.1.283 and 2.1.319).
+For the keys measured, that order is `$schema`, `env`, `attribution`, `permissions`, `hooks`, `enabledPlugins`, `extraKnownMarketplaces`.
+Inside an object that Claude Code knows, such as `attribution`, the keys follow its order too, while the entries of `enabledPlugins` keep theirs.
+The template is in that order, so an install leaves the committed file unchanged; in any other order, every install leaves it modified.
 
 ```json
 {
@@ -171,14 +175,6 @@ Without `commit` and `pr`, Claude Code tells every session and subagent to add i
     "commit": "",
     "pr": "",
     "sessionUrl": false
-  },
-  "extraKnownMarketplaces": {
-    "lyngon": {
-      "source": {
-        "source": "github",
-        "repo": "lyngon/devkit"
-      }
-    }
   },
   "enabledPlugins": {
     "all@lyngon": true,
@@ -188,6 +184,14 @@ Without `commit` and `pr`, Claude Code tells every session and subagent to add i
     "writing@lyngon": true,
     "conventions@lyngon": true,
     "principles@lyngon": true
+  },
+  "extraKnownMarketplaces": {
+    "lyngon": {
+      "source": {
+        "source": "github",
+        "repo": "lyngon/devkit"
+      }
+    }
   }
 }
 ```
