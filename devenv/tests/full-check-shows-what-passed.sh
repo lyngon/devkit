@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Check that a passing full check shows what it checked, also in an agent
-# session: the result of each git hook, so that a hook skipped for want of
-# files reads apart from one that passed, and the output of enterTest. A
-# throwaway repository imports the baseline and runs `devenv test` as Claude
-# Code does, with CLAUDECODE set, under which devenv shows only stderr and the
-# output of a task that has showOutput. Run through `devenv test`.
+# session: the result of each git hook, the output of a task that runs
+# before enterTest (as the test of a package does), and the output of
+# enterTest. A hook skipped for want of files then reads apart from one that
+# passed. A throwaway repository imports the baseline and runs `devenv test`
+# as Claude Code does, with CLAUDECODE set, under which devenv shows only
+# stderr and the output of a task that has showOutput. Run through
+# `devenv test`.
 #
 # Usage: full-check-shows-what-passed.sh <devenv> <devenv.lock>
 #
@@ -80,6 +82,11 @@ cat >"$repo/devenv.nix" <<'EOF'
     files = "^no-such-file$";
   };
 
+  tasks."fixture:test" = {
+    exec = "echo 'the test task of the fixture ran'";
+    before = [ "devenv:enterTest" ];
+  };
+
   enterTest = ''
     echo "enterTest of the fixture ran"
   '';
@@ -98,6 +105,7 @@ else
 fi
 expect "the full check names the hook that passed as passed" '^ *passing hook\.+Passed$'
 expect "the full check names the hook without files as skipped for want of files" '^ *hook without files\.+\(no files to check\)Skipped$'
+expect "the full check shows the output of a task that runs before enterTest" '^ *the test task of the fixture ran$'
 expect "the full check shows the output of enterTest" '^ *enterTest of the fixture ran$'
 runs=$(cat "$repo/hook-runs" 2>/dev/null || true)
 if [[ $runs == ran ]]; then
