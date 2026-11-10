@@ -13,9 +13,10 @@ repo=$tmp/repo
 failures=0
 
 py_pkg() {
-  mkdir -p "$repo/$1"
-  touch "$repo/$1/README.md"
-  printf '[project]\nname = "%s"\nversion = "0"\ndependencies = []\n' "$2" >"$repo/$1/pyproject.toml"
+  local path=$1 name=$2
+  mkdir -p "$repo/$path"
+  touch "$repo/$path/README.md"
+  printf '[project]\nname = "%s"\nversion = "0"\ndependencies = []\n' "$name" >"$repo/$path/pyproject.toml"
 }
 
 py_workspace() {
@@ -43,12 +44,15 @@ inputs:
 imports:
   - lyngon/devenv
 EOF
+# The devkit's pins, which are in the Nix store already, so that nothing is
+# fetched.
 cp "$lock" "$repo/devenv.lock"
 cat >"$repo/devenv.nix" <<'EOF'
 {
   lyngon.enable = true;
   lyngon.structure.enable = true;
 
+  # The fixture has none of the standard documents.
   git-hooks.hooks.validate-documents.enable = false;
 }
 EOF

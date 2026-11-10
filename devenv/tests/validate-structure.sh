@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Exercise validate-structure.py against throwaway fixture repositories: one
+# per rule in shared/STRUCTURE.md section 4.4, plus a clean repository in
+# every language and an empty one. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-structure.py
