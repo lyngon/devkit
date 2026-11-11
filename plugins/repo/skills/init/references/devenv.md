@@ -75,8 +75,6 @@ Add the `secretspec` section when the repository needs secrets (see below).
 
   packages = [ pkgs.jq ];
 
-  # `devenv test` runs every git hook on every file and the test task of
-  # every package first, then this.
   enterTest = ''
     {repository-wide test command, or nothing}
   '';
