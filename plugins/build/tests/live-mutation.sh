@@ -168,7 +168,7 @@ while time.monotonic() < end:
 pathlib.Path(sys.argv[1]).write_text(f"{len(seen)}\n")
 EOF
 mutation session-one propose interruptible --derive 'printf x >"$LIVE_MUTATION_INPUTS/plan"' --show 'printf "count interrupts\n"' \
-  --run 'python3 count-interrupts.py interrupts; true'
+  --run 'python3 count-interrupts.py interrupts'
 digest=$(sed -n 's/^Proposal `interruptible` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
 status=0
 output=$(cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one python3 -c '
