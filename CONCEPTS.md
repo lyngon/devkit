@@ -143,7 +143,7 @@ A file of a mode that says, for one kind of task, what must hold when it is done
 _Avoid_: recipe, procedure
 
 **Gate**:
-A point where an agent stops until the owner answers. One always holds, before an irreversible action and for a product or preference call that no run can settle. Any other exists only where the owner asked for it.
+A point where an agent stops until the owner answers. One always holds, before an irreversible action, before a live mutation of a protected target, and for a product or preference call that no run can settle. Any other exists only where the owner asked for it.
 _Avoid_: checkpoint, approval step, hold point
 
 **Proof**:
@@ -152,6 +152,10 @@ Something a reviewer can rerun or read that shows a claim holds.
 **Live mutation**:
 An action that changes a running system, or the state a tool keeps of one, outside the repository and its forge: an OpenTofu apply, a deploy, a data migration. Reading is never one.
 _Avoid_: live action, operation, deployment (for the general case)
+
+**Protected target**:
+A running system, or a part of one, such as an AWS account, a database or a DNS zone, where every live mutation waits for a go-ahead, reversible or not.
+_Avoid_: protected environment, production (for the general case)
 
 **Proposal**:
 What the owner is shown and approves before a live mutation: the exact command, the frozen inputs it reads with their digest, the rendering the owner reads, and the checks that judge the result.
@@ -183,4 +187,5 @@ _Avoid_: apply log, evidence (for the whole record)
 - A **Mode** has one **Playbook** for each kind of task it routes.
 - A **Gate** that is not the one that always holds exists only where an **Owner** asked for it.
 - A **Change** carries the **Proof** of what it claims in its pull request.
+- A **Live mutation** of a **Protected target**, or one that cannot be undone, runs only on a **Go-ahead** for its **Proposal**.
 - A **Go-ahead** covers one run of each **Proposal** it names, and each run leaves one **Action record**.
