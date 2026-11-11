@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Exercise validate-documents.py against throwaway fixture repositories: for
-# each of its eight rules a tree that fails and one that passes, plus the paths
+# each of its nine rules a tree that fails and one that passes, plus the paths
 # it skips and the two ways it is run. Run through `devenv test`.
 set -euo pipefail
 

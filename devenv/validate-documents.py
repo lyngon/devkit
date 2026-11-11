@@ -15,6 +15,10 @@ Each message names its rule and the fix:
                                    own sections
   rule-file-shape                  a file under .claude/rules/ has a kebab-case
                                    name and at most 100 lines
+  scoped-rule-imports-nothing      a rule file under .claude/rules/ with a paths:
+                                   field has no line that is a single @ import,
+                                   since Claude Code loads the imported file at
+                                   launch whatever paths: say
   ledger-file-shape                a file under docs/mistakes/ at the root lies
                                    directly in it, is named after its mistake,
                                    starts with a heading, has one date line
@@ -39,6 +43,7 @@ import sys
 import typing as t
 
 KEBAB: t.Final = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+RULE_IMPORT_LINE: t.Final = re.compile(r"@\S+")
 NUMBERED: t.Final = re.compile(r"[0-9]+-")
 ENFORCED_BY: t.Final = re.compile(r"Enforced by: \S")
 INTENT_SECTIONS: t.Final = (
@@ -244,6 +249,34 @@ def check_rule_file(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str
     return found
 
 
+def check_scoped_rule_imports(path: pathlib.PurePosixPath, lines: list[str]) -> list[str]:
+    """Check that a rule file with a paths: field imports nothing.
+
+    Claude Code loads a file that a rule imports with @ at launch, whatever
+    the rule's paths: say, so a scoped rule that imports a document loads it
+    into every session.
+    """
+    rule = "scoped-rule-imports-nothing"
+    if not lines or lines[0].strip() != "---":
+        return []
+    end = next((number for number, line in enumerate(lines[1:], 1) if line.strip() == "---"), None)
+    if end is None or not any(line.startswith("paths:") for line in lines[1:end]):
+        return []
+    return [
+        error(
+            path,
+            rule,
+            (
+                "state the principle in the rule itself; Claude Code loads a file that a rule imports with @ at "
+                "launch, whatever its paths: say"
+            ),
+            number,
+        )
+        for number, line in enumerate(lines[end + 1 :], end + 2)
+        if RULE_IMPORT_LINE.fullmatch(line.strip())
+    ]
+
+
 def is_day(text: str) -> bool:
     """Whether the text is a day that exists, written as YYYY-MM-DD."""
     if not ISO_DAY.fullmatch(text):
@@ -327,6 +360,7 @@ def check_shape(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str]:
         found += check_intent(root, path)
     if RULES_DIRECTORY in path.parents:
         found += check_rule_file(root, path)
+        found += check_scoped_rule_imports(path, read_lines(root, path) or [])
     if LEDGER_DIRECTORY in path.parents:
         found += check_ledger_file(root, path)
     return found
