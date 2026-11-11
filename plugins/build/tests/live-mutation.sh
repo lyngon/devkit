@@ -157,6 +157,33 @@ expect "another session may write the record of a run, naming the session" 0 'tm
 mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply"
 expect "a name that already ran cannot be proposed again" 1 '^live-mutation\.py: already-ran: proposal set-value ran at '
 
+new_repository old new
+cat >"$repository/count-interrupts.py" <<'EOF'
+import pathlib, signal, sys, time
+seen = []
+signal.signal(signal.SIGINT, lambda *_: seen.append(1))
+end = time.monotonic() + 3
+while time.monotonic() < end:
+    time.sleep(0.05)
+pathlib.Path(sys.argv[1]).write_text(f"{len(seen)}\n")
+EOF
+mutation session-one propose interruptible --derive 'printf x >"$LIVE_MUTATION_INPUTS/plan"' --show 'printf "count interrupts\n"' \
+  --run 'python3 count-interrupts.py interrupts'
+digest=$(sed -n 's/^Proposal `interruptible` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+status=0
+output=$(cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one python3 -c '
+import os, signal, subprocess, sys, time
+run = subprocess.Popen(sys.argv[1:], start_new_session=True)
+time.sleep(1)
+os.killpg(run.pid, signal.SIGINT)
+sys.exit(run.wait())' "$script" run interruptible "$digest" --go-ahead "yes" 2>&1) || status=$?
+interrupts=$(cat "$repository/interrupts" 2>/dev/null || echo none)
+if ((status == 0)) && [[ "$interrupts" == 1 ]]; then
+  pass "a Ctrl-C reaches the running command once, and the run is waited for"
+else
+  fail "a Ctrl-C reaches the running command once, and the run is waited for" "exit $status, the command saw $interrupts interrupts:"$'\n'"$output"
+fi
+
 if ((failures > 0)); then
   echo "test-live-mutation: $failures failure(s)" >&2
   exit 1
