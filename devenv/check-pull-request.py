@@ -8,6 +8,10 @@ request lands as. Each message says what is wrong and what to do:
             under the repository's own commitizen configuration when it has one
   headings  the body's second-level headings are exactly the seven sections,
             each once, in order; a line inside a fenced code block is no heading
+  why       the section ## Why ends with the line "Closes nothing." or with
+            each issue the change fixes, as "Closes #12, closes #15.", the
+            form in which GitHub closes every issue it names when the pull
+            request merges
   scope     the section ## Scope ends with the line "Met on the way:", then
             "nothing" or each issue and pull request for a problem the work
             met, as #12 or owner/repository#12; only the form is checked,
@@ -50,13 +54,49 @@ HEADINGS: t.Final = (
     "## Not verified",
 )
 ORDER: t.Final = ", ".join(HEADINGS)
-SCOPE: t.Final = "## Scope"
-MET_ON_THE_WAY: t.Final = "Met on the way:"
 # An issue or a pull request as the forge links it, in this repository or in another.
 REFERENCE: t.Final = r"(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[1-9][0-9]*"
-MET_ON_THE_WAY_LINE: t.Final = re.compile(
-    rf"{MET_ON_THE_WAY} (?:nothing|{REFERENCE}(?:(?:,| and|, and) {REFERENCE})*)\.?",
-)
+
+
+class EndingLine(t.NamedTuple):
+    """The line that a section must end with: the word it starts with, its whole form, and what to write."""
+
+    start: str
+    form: re.Pattern[str]
+    missing: str
+    malformed: str
+
+
+ENDING_LINES: t.Final = {
+    "## Why": EndingLine(
+        "Closes",
+        re.compile(rf"Closes (?:nothing|{REFERENCE}(?:, closes {REFERENCE})*)\.?"),
+        (
+            "'## Why' does not end with a line that says which issues the change closes: "
+            'end the section with "Closes nothing." or with each issue that the change fixes, '
+            'as "Closes #12, closes #15."'
+        ),
+        (
+            'the line "Closes" says neither "nothing" nor a list of issues that GitHub closes: '
+            'write "Closes nothing." or name each issue as #12 or owner/repository#12, '
+            'with "closes" before each one, as "Closes #12, closes #15."'
+        ),
+    ),
+    "## Scope": EndingLine(
+        "Met on the way:",
+        re.compile(rf"Met on the way: (?:nothing|{REFERENCE}(?:(?:,| and|, and) {REFERENCE})*)\.?"),
+        (
+            "'## Scope' does not end with a line that says what the work met on the way: "
+            'end the section with "Met on the way: nothing." or with each issue and pull request '
+            'for a problem the work met, as "Met on the way: #12 and #15."'
+        ),
+        (
+            'the line "Met on the way:" says neither "nothing" nor a list of issues and pull requests: '
+            'write "Met on the way: nothing." or name each one as #12 or owner/repository#12, '
+            'joined by commas and "and"'
+        ),
+    ),
+}
 # CommonMark: up to three spaces, the two marks, then a space or the end of the line.
 SECOND_LEVEL_HEADING: t.Final = re.compile(r" {0,3}##(?:[ \t]|$)")
 # CommonMark: up to three spaces, then three or more backticks or tildes.
@@ -151,17 +191,17 @@ class Body(t.NamedTuple):
     """The second-level headings, with their line numbers."""
     content: int
     """The number of content lines."""
-    scope_end: tuple[int, str] | None
-    """The last line of the section ## Scope that is not blank, with its number; None when the section is
-    missing, holds no such line or ends in a fenced code block."""
+    ends: dict[str, tuple[int, str] | None]
+    """For each section of ENDING_LINES, its last line that is not blank, with its number; None or no entry when
+    the section is missing, holds no such line or ends in a fenced code block."""
 
 
 def read_body(body: str) -> Body:
-    """Read the headings, the content lines and the end of the section ## Scope of the body."""
+    """Read the headings, the content lines and the end of each section of ENDING_LINES of the body."""
     headings: list[tuple[int, str]] = []
     content = 0
-    scope_end: tuple[int, str] | None = None
-    in_scope = False
+    ends: dict[str, tuple[int, str] | None] = {}
+    section: str | None = None
     fence: str | None = None
     for number, raw in enumerate(body.split("\n"), 1):
         line = raw.rstrip()
@@ -174,16 +214,16 @@ def read_body(body: str) -> Body:
         elif (opening := opens_fence(line)) is not None:
             fence = opening
         elif SECOND_LEVEL_HEADING.match(line):
-            in_scope = line == SCOPE
+            section = line if line in ENDING_LINES else None
             headings.append((number, line))
             if line in HEADINGS:
                 continue
         else:
             prose = True
-        if in_scope:
-            scope_end = (number, line) if prose else None
+        if section is not None:
+            ends[section] = (number, line) if prose else None
         content += 1
-    return Body(headings, content, scope_end)
+    return Body(headings, content, ends)
 
 
 def check_headings(headings: list[tuple[int, str]]) -> list[str]:
@@ -217,26 +257,16 @@ def check_headings(headings: list[tuple[int, str]]) -> list[str]:
     return found
 
 
-def check_met_on_the_way(scope_end: tuple[int, str] | None) -> list[str]:
-    """Check that the section ## Scope ends with a line that says nothing, or names each issue and pull request."""
-    if scope_end is None or not scope_end[1].startswith(MET_ON_THE_WAY):
-        return [
-            (
-                f"body: '{SCOPE}' does not end with a line that says what the work met on the way: "
-                f'end the section with "{MET_ON_THE_WAY} nothing." or with each issue and pull request '
-                f'for a problem the work met, as "{MET_ON_THE_WAY} #12 and #15."'
-            ),
-        ]
-    number, line = scope_end
-    if MET_ON_THE_WAY_LINE.fullmatch(line) is None:
-        return [
-            (
-                f'body:{number}: the line "{MET_ON_THE_WAY}" says neither "nothing" nor a list of issues and pull '
-                f'requests: write "{MET_ON_THE_WAY} nothing." or name each one as #12 or owner/repository#12, '
-                f'joined by commas and "and"'
-            ),
-        ]
-    return []
+def check_ending_lines(ends: dict[str, tuple[int, str] | None]) -> list[str]:
+    """Check that each section of ENDING_LINES ends with its line, in its form."""
+    found: list[str] = []
+    for section, ending in ENDING_LINES.items():
+        end = ends.get(section)
+        if end is None or not end[1].startswith(ending.start):
+            found.append(f"body: {ending.missing}")
+        elif ending.form.fullmatch(end[1]) is None:
+            found.append(f"body:{end[0]}: {ending.malformed}")
+    return found
 
 
 def check_length(content: int, target: int, headroom: int) -> tuple[list[str], list[str]]:
@@ -285,7 +315,7 @@ def main(arguments: list[str]) -> int:
     if body.strip():
         read = read_body(body)
         errors += check_headings(read.headings)
-        errors += check_met_on_the_way(read.scope_end)
+        errors += check_ending_lines(read.ends)
         over_limit, warnings = check_length(read.content, target_lines, headroom_lines)
         errors += over_limit
     else:
