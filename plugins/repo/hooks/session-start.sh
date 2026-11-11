@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 # SessionStart hook of the repo plugin: its standard output is added to the
-# session context. It prints session-start-structure.txt when the root
-# devenv.nix sets lyngon.structure.enable = true, the one marker of a
-# repository that follows the Lyngon structure. It then fetches origin and
-# adds a line when the fetch fails, when the current branch is behind its
-# upstream or its upstream no longer exists, and when the local default
-# branch is behind origin's; otherwise nothing. The lines about which devkit
-# skills to invoke come from the conventions plugin's own hook.
+# session context.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -21,8 +15,6 @@ commits() {
   if (($1 == 1)); then echo "1 commit"; else echo "$1 commits"; fi
 }
 
-# Stays under the hook's timeout in hooks.json, so that a remote that never
-# answers still leaves the hook time to say so.
 fetch_seconds=10
 if git -C "$root" remote get-url origin >/dev/null 2>&1; then
   code=0
@@ -49,7 +41,6 @@ if [[ -n "$branch" ]]; then
   fi
 fi
 
-# When the default branch is the current one, the line above covers it.
 if [[ -n "$default" && "$local_default" != "$branch" ]] &&
   behind=$(git -C "$root" rev-list --count "refs/heads/$local_default..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
   echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."

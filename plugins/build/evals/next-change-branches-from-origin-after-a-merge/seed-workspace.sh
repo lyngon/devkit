@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory with the repository acme/orders as
-# a session finds it after the owner merged its pull request on GitHub: HEAD
-# is on feat/reject-negative-quantity, which origin squash-merged into main
-# and then deleted, and origin merged one more pull request after it. The
-# clone has not fetched since, so neither its main nor its origin/main shows
-# the two merges.
-#
-# The commits have fixed authors and dates, so the tip of main on origin is
-# always the commit that the grader names.
 set -euo pipefail
 
 case_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

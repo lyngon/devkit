@@ -262,9 +262,6 @@ commit() {
   git -C "$1" -c user.name=test -c user.email=test@example.com -c commit.gpgsign=false commit -q --allow-empty -m "$2"
 }
 
-# upstream_clone <commits the clone is behind>: a clone whose upstream has
-# moved on by that many commits since the clone last fetched. Another clone
-# of the same upstream sits beside it, at ../other.
 upstream_clone() {
   local behind=$1 dir i
   dir=$(mktemp -d "$tmp/git.XXXXXX")
@@ -306,7 +303,6 @@ run_session_start "$clone"
 check "main behind origin/main, on a feature branch: one line saying so, with the branch to start from" \
   equals "$code|$out|$err" "0|The local main is 2 commits behind origin/main. Start every new branch from origin/main, not from main.|"
 
-# GitHub squash-merges the pull request of feat/merged and deletes its branch.
 clone=$(upstream_clone 0)
 git -C "$clone" switch -q -c feat/merged
 commit "$clone" work
@@ -318,7 +314,6 @@ run_session_start "$clone"
 check "on a branch whose upstream was deleted at its merge: says so, and that main is behind" \
   equals "$code|$out|$err" "0|The current branch, feat/merged, tracks origin/feat/merged, which no longer exists, as when a pull request merges and GitHub deletes its branch. Before you work on feat/merged again, check whether its pull request merged. Start new work on a new branch from origin/main."$'\n'"The local main is 1 commit behind origin/main. Start every new branch from origin/main, not from main.|"
 
-# The last fetch saw main fall behind; then origin stops answering.
 clone=$(upstream_clone 2)
 git -C "$clone" fetch -q
 git -C "$clone" switch -q -c feat/next
