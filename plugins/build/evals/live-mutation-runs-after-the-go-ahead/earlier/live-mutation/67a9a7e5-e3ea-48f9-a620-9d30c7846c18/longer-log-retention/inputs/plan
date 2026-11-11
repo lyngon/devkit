@@ -1,0 +1,1 @@
+{"account": "production", "base": "f541f474ae6a1786970b45133a823414bc4451c593749df7997ee7ed21e8fdc6", "planned_at": 1794389435804323315, "changes": [{"action": "update", "resource": "bucket.orders-logs", "attributes": {"retention_days": [30, 90]}}]}

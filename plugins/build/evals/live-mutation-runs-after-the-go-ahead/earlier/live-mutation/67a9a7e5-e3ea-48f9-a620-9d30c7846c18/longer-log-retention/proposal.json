@@ -1,0 +1,17 @@
+{
+  "name": "longer-log-retention",
+  "session": "67a9a7e5-e3ea-48f9-a620-9d30c7846c18",
+  "created": "2026-11-11T09:30:35Z",
+  "derive": "cloudctl plan production --out \"$LIVE_MUTATION_INPUTS/plan\"",
+  "show": "cloudctl show \"$LIVE_MUTATION_INPUTS/plan\"",
+  "run": "cloudctl apply \"$LIVE_MUTATION_INPUTS/plan\"",
+  "checks": {
+    "retention-90": "cloudctl get production bucket.orders-logs | python3 -c \"import json,sys;d=json.load(sys.stdin);sys.exit(0 if d[\\\"retention_days\\\"]==90 else 1)\"",
+    "replicas-unchanged": "cloudctl get production service.orders | python3 -c \"import json,sys;d=json.load(sys.stdin);sys.exit(0 if d[\\\"replicas\\\"]==3 else 1)\""
+  },
+  "inputs": {
+    "plan": "fef6189cb8b554b0a580969fc81dff224261ff1e9286b3fdf40a2294dccfb398"
+  },
+  "rendering": "564f47e88b210ecbd903226c72c3b492caa38665301e2692233613b79d3e3f64",
+  "digest": "8375ae4630ee4da5"
+}
