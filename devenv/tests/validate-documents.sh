@@ -369,6 +369,19 @@ write "$repo" .claude/rules/money-is-never-a-float.md "# Money is never a float"
 expect_error "rule-file-shape: 101 lines" "$repo" 1 \
   "error: .claude/rules/money-is-never-a-float.md: rule-file-shape: 101 lines; cut it to 100 at most"
 
+repo=$(clean_repo)
+write "$repo" .claude/rules/orders-intent.md "---" "paths:" '  - "libs/orders/**"' "---" "" "@../../libs/orders/INTENT.md"
+expect_error "scoped-rule-imports-nothing: a rule with paths: that imports a file" "$repo" 1 \
+  "error: .claude/rules/orders-intent.md:6: scoped-rule-imports-nothing: state the principle in the rule itself; Claude Code loads a file that a rule imports with @ at launch, whatever its paths: say"
+
+repo=$(clean_repo)
+write "$repo" .claude/rules/orders-intent.md "@../../libs/orders/INTENT.md"
+expect_ok "scoped-rule-imports-nothing: a rule without paths: may import" "$repo"
+
+repo=$(clean_repo)
+write "$repo" .claude/rules/orders-intent.md "---" "paths:" '  - "libs/orders/**"' "---" "" "Read @orders before you change the table."
+expect_ok "scoped-rule-imports-nothing: a mention of @orders inside a sentence" "$repo"
+
 # ledger-file-shape
 ledger_file=docs/mistakes/a-generated-client-was-edited-by-hand.md
 
