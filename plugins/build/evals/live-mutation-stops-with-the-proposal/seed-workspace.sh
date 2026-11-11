@@ -5,6 +5,7 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 branch=${1:-feat/longer-log-retention}
 title=${2:-"feat(deploy): keep the logs of the orders service for 90 days"}
 branch_files=${3:-$here/branch}
+main_files=${4:-}
 forge=.git/forge
 
 export GIT_AUTHOR_NAME="Ada Lovelace" GIT_AUTHOR_EMAIL=ada@example.com GIT_AUTHOR_DATE=2026-11-10T09:00:00Z
@@ -12,8 +13,8 @@ export GIT_COMMITTER_NAME="Ada Lovelace" GIT_COMMITTER_EMAIL=ada@example.com GIT
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0
 
 cp -R "$here/workspace/." .
-if (($# > 3)); then
-  cp -R "$4/." .
+if [[ -n $main_files ]]; then
+  cp -R "$main_files/." .
 fi
 git init -q -b main
 git config user.name "Ada Lovelace"

@@ -6,6 +6,9 @@
     cloudctl show <file>                          print a saved plan
     cloudctl apply <file>                         apply a saved plan; refuse it when live state changed since the plan
     cloudctl get <account> [<resource>]           print live state, without changing it
+
+A saved plan carries the time it was planned, so that two plans of one state differ byte for byte while
+show prints them alike, as OpenTofu's do, and a drift check that compares plans in place of renderings fails.
 """
 
 import hashlib

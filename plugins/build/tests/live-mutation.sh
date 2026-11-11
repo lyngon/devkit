@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016  # the commands and patterns hold a literal $ for the tool's sh and for regexes
 set -euo pipefail
 
 if (($# != 1)); then
@@ -13,9 +13,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 failures=0
 
-derive='read -r v <desired && printf "%s\n" "$v" >"$LIVE_MUTATION_INPUTS/plan"'
-show='read -r l <live && read -r p <"$LIVE_MUTATION_INPUTS/plan" && printf "value: %s -> %s\n" "$l" "$p"'
-apply='read -r p <"$LIVE_MUTATION_INPUTS/plan" && printf "%s\n" "$p" >live && printf "applied %s\n" "$p"'
+derive='read -r v <desired && printf "%s planned-by-%s\n" "$v" "$$" >"$LIVE_MUTATION_INPUTS/plan"'
+show='read -r l <live && read -r p _ <"$LIVE_MUTATION_INPUTS/plan" && printf "value: %s -> %s\n" "$l" "$p"'
+apply='read -r p _ <"$LIVE_MUTATION_INPUTS/plan" && printf "%s\n" "$p" >live && printf "applied %s\n" "$p"'
 matches='read -r l <live && read -r d <desired && test "$l" = "$d"'
 present='test -f live'
 
@@ -78,7 +78,7 @@ expect "a proposal outside a Claude Code session is refused" 1 '^live-mutation\.
 
 propose_value_change
 expect "a proposal shows its digest, its command, its rendering and how each check did" 0 \
-  'Proposal `set-value` at digest `[0-9a-f]{16}`, shown in session `session-one`\..*'"read -r p <\"\\\$LIVE_MUTATION_INPUTS/plan\".*value: old -> new.*- \`matches\` fails \(1\).*- \`present\` passes"
+  'Proposal `set-value` at digest `[0-9a-f]{16}`, shown in session `session-one`\..*'"read -r p _ <\"\\\$LIVE_MUTATION_INPUTS/plan\".*value: old -> new.*- \`matches\` fails \(1\).*- \`present\` passes"
 expect_live "a proposal changes nothing live" old
 if [[ -f "$repository/tmp/live-mutation/session-one/set-value/inputs/plan" ]]; then
   pass "a proposal keeps its inputs under the directory of its session"
