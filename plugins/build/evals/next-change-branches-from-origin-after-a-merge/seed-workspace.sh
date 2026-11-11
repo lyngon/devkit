@@ -37,3 +37,10 @@ git -C "$forge/github" commit -q -a -m "docs(readme): say that every merge to ma
 git -C "$forge/github" push -q origin main
 git -C "$forge/github" push -q origin --delete feat/reject-negative-quantity
 rm -rf "$forge/github"
+
+tip=$(git --git-dir="$forge/origin.git" rev-parse main)
+stale=$(grep -L -- "$tip" "$case_dir"/graders/*.md || true)
+if [[ -n "$stale" ]]; then
+  echo "seed-workspace.sh: main on origin is $tip, which these graders do not name: $stale" >&2
+  exit 1
+fi

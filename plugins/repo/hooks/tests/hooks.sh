@@ -278,6 +278,16 @@ upstream_clone() {
   echo "$dir/clone"
 }
 
+squash_merge_on_origin() {
+  local clone=$1 branch=$2 github
+  github=$(mktemp -d "$tmp/github.XXXXXX")
+  git clone -q "$(git -C "$clone" remote get-url origin)" "$github"
+  git -C "$github" merge -q --squash "origin/$branch" >/dev/null
+  commit "$github" "squash of $branch"
+  git -C "$github" push -q origin main
+  git -C "$github" push -q origin --delete "$branch"
+}
+
 run_session_start() {
   code=0
   out=$(env -i PATH="$tools" HOME="$tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 CLAUDE_PROJECT_DIR="$1" "$hooks/session-start.sh" 2>"$tmp/stderr") || code=$?
@@ -307,9 +317,7 @@ clone=$(upstream_clone 0)
 git -C "$clone" switch -q -c feat/merged
 commit "$clone" work
 git -C "$clone" push -q -u origin feat/merged
-commit "${clone%/clone}/other" "squash of feat/merged"
-git -C "${clone%/clone}/other" push -q origin main
-git -C "${clone%/clone}/other" push -q origin --delete feat/merged
+squash_merge_on_origin "$clone" feat/merged
 run_session_start "$clone"
 check "on a branch whose upstream was deleted at its merge: says so, and that main is behind" \
   equals "$code|$out|$err" "0|The current branch, feat/merged, tracks origin/feat/merged, which no longer exists, as when a pull request merges and GitHub deletes its branch. Before you work on feat/merged again, check whether its pull request merged. Start new work on a new branch from origin/main."$'\n'"The local main is 1 commit behind origin/main. Start every new branch from origin/main, not from main.|"
