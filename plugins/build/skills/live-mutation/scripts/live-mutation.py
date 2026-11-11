@@ -501,7 +501,8 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str) ->
 
 def details(summary: str, path: pathlib.Path) -> str:
     """Return a file as a collapsed block of Markdown, cut in the middle when it would fill half a comment."""
-    text = path.read_text(encoding="utf-8", errors="replace") if path.exists() else "(no output)\n"
+    text = path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
+    text = text if text.strip() else "(no output)\n"
     half = COMMENT_LIMIT // 4
     if len(text) > 2 * half:
         text = f"{text[:half]}\n[{len(text) - 2 * half} characters cut; the whole output is in {path}]\n{text[-half:]}"
