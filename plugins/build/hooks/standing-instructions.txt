@@ -5,7 +5,7 @@ Principles first. Before any work that takes judgment (a design choice, a refact
 Decide and act. Ask only before an irreversible action, or for a product or preference call that no run can settle. Always ask before a merge, a push to the default branch, a force-push, a tag, a release, a publish, a deploy, deleting data or a remote branch, any message outside GitHub, and spending money. Stop at a gate on requirements, a specification, a plan or tasks only where the owner asked for one, and then stop exactly there.
 
 A change is one concern, delivered as one pull request.
-- Work on a branch named <type>/<slug>, started from the up-to-date default branch. Never commit on the default branch.
+- Work on a branch named <type>/<slug>, started from the default branch of origin right after a fetch. If the fetch fails, say so. Never commit on the default branch.
 - Commit as you go, without asking. Branch commits are free-form, because the pull request lands as one commit.
 - Nothing enters the environment without a declaration that a lock file pins. A tool, anything run from the PATH (jq, a linter, an interpreter, uv itself), goes in devenv.nix. A dependency, anything a package imports, goes in that package's manifest through the workspace's package manager. A library's manifest states constraints, never pins, and the lock file pins. A development tool that has to load the workspace's own packages or plugins (pytest, eslint) counts as a dependency. A secret is declared in secretspec.toml, and its value never enters the repository.
 - The full check is `devenv test`. Run it before every push, and never disable, skip or weaken a check or a hook to get past it.

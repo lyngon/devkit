@@ -73,6 +73,7 @@ NAMESPACES: ct.Mapping[str, str] = {
     "github": "a flake reference, github:owner/repository",
     "in": "a GitHub search qualifier, in:title",
     "node": "a Node builtin module, node:fs",
+    "upstream": "a field of git for-each-ref, %(upstream:short)",
 }
 
 # The plugin that assumes nothing: no other plugin, and no Lyngon development
