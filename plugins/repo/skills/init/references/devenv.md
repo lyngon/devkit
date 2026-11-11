@@ -63,8 +63,10 @@ Add the `secretspec` section when the repository needs secrets (see below).
   # Languages are enabled once, here, for the workspace at the root.
   languages.python = {
     enable = true;
+    venv.enable = true;
     uv.enable = true;
     uv.sync.enable = true;
+    uv.sync.allPackages = true;
   };
 
   # Stock hooks run on the whole repository; packages add only {name}- hooks.
@@ -136,7 +138,7 @@ Hook names are exact `git-hooks.hooks.<name>` names from git-hooks.nix.
 
 | Stack | `languages.*` | Formatter hooks | Linter hooks | Commented out | `.gitignore` |
 | --- | --- | --- | --- | --- | --- |
-| Python (uv) | `python = { enable = true; uv.enable = true; uv.sync.enable = true; }` | `ruff-format` | `ruff`, `{name}-basedpyright` (custom, below) | | `__pycache__/`, `*.py[cod]`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `dist/`, `*.egg-info/` |
+| Python (uv) | `python = { enable = true; venv.enable = true; uv.enable = true; uv.sync.enable = true; uv.sync.allPackages = true; }` | `ruff-format` | `ruff`, `{name}-basedpyright` (custom, below) | | `__pycache__/`, `*.py[cod]`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `dist/`, `*.egg-info/` |
 | TypeScript (pnpm) | `javascript = { enable = true; pnpm.enable = true; pnpm.install.enable = true; }; typescript.enable = true;` | `prettier` | `{name}-tsc`, `{name}-eslint` (custom, below) | | `node_modules/`, `dist/`, `.pnpm-store/`, `*.tsbuildinfo`, `coverage/` |
 | Rust | `rust.enable = true;` (channel `nixpkgs`; use `channel = "stable"` with the `rust-overlay` input only when a newer toolchain is required) | `rustfmt` | | `clippy` (compiles the crate on every commit) | `target/` |
 | Go | `go.enable = true;` | `gofmt` | `golangci-lint` | | `/bin/`, `*.test`, `coverage.out` |
@@ -207,7 +209,9 @@ typeCheckingMode = "all"
 ```
 
 Every rule is an error; disable one only with a comment giving the reason.
-No `venvPath` or `venv`: devenv activates the uv environment, and basedpyright resolves installed packages through the active interpreter.
+No `venvPath` or `venv`: basedpyright resolves installed packages through the active interpreter, which is the uv environment because `languages.python` sets `venv.enable`.
+Without it devenv syncs the environment but leaves the Nix interpreter active.
+`uv.sync.allPackages` installs every workspace member into the environment; without it `uv sync` installs only the root project, which depends on no member, and a test that imports its own package fails the hook.
 A package's `pyproject.toml` has no `[tool.basedpyright]` table.
 
 It comes from nixpkgs, in the root `devenv.nix`: `packages = [ pkgs.basedpyright ];`.

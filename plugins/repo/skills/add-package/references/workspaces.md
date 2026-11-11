@@ -31,7 +31,7 @@ dev = ["pytest", "import-linter"]
 typeCheckingMode = "all"
 ```
 
-Root `devenv.nix`: `languages.python = { enable = true; uv.enable = true; uv.sync.enable = true; };`.
+Root `devenv.nix`: `languages.python = { enable = true; venv.enable = true; uv.enable = true; uv.sync.enable = true; uv.sync.allPackages = true; };`.
 
 Lint rules live in the root `ruff.toml` (the `init` skill's `devenv.md` reference).
 A package's `pyproject.toml` never gets a `[tool.ruff]` table; it would replace the root configuration for that package.
