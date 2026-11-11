@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory as the case
-# live-mutation-runs-ungated-on-an-unprotected-target does, with the branch
-# feat/drop-the-staging-archive, which removes the archive bucket of staging
-# and with it the objects that the bucket holds live.
 set -euo pipefail
 
 case_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

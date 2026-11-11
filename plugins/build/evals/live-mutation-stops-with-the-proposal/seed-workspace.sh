@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory with the repository acme/orders. main
-# holds the tree under workspace/, with a directory given as the fourth
-# argument copied over it. The branch that the first argument names holds one
-# commit, titled by the second argument, of the files under the directory that
-# the third argument names; it is pushed, has an open pull request and is
-# checked out. Without arguments, the branch is this case's
-# feat/longer-log-retention.
-#
-# The forge and the cloud are stand-ins. The remote is a bare repository under
-# .git/forge, the gh of the case pull-request-says-it-met-nothing records
-# issues, pull requests and comments there, and cloudctl keeps the live state
-# of the accounts production and staging in .git/forge/cloud, outside the
-# repository. The case puts .git/forge/bin, which holds both, in front of the
-# PATH. Fixed names and dates give the same commits on every run.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

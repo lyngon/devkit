@@ -319,8 +319,6 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/work-trace.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
-  # Fixture tests for the tool that the live-mutation skill ships, run with the
-  # same PATH as the prune script's.
   testLiveMutation = pkgs.writeShellApplication {
     name = "test-live-mutation";
     runtimeInputs = [

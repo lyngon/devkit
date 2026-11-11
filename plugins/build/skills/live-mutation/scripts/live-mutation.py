@@ -7,23 +7,19 @@
     live-mutation.py record <name> [--session <id>]
 
 A proposal is the directory tmp/live-mutation/<session>/<name>/ at the root of
-the repository, where <session> is CLAUDE_CODE_SESSION_ID, so that a later
-session never finds a proposal it did not show to run. Each command is one line
-of sh, run from the root of the repository with LIVE_MUTATION_INPUTS naming the
-directory of the proposal's frozen inputs: the derive command writes them, the
-show command prints what the owner reads, and the run command executes them.
-The digest covers the commands, the checks, every input and the rendering, so a
-go-ahead that names it names exactly what the owner read.
+the repository, where <session> is CLAUDE_CODE_SESSION_ID. Each command is one
+line of sh, run from the root of the repository with LIVE_MUTATION_INPUTS naming
+the directory of the proposal's frozen inputs: the derive command writes them,
+the show command prints what the owner reads, and the run command executes
+them. The digest covers the commands, the checks, every input and the
+rendering.
 
 `run` refuses a proposal of another session, another digest, inputs that
 changed, a rendering that live state no longer gives, and a second run. It
 derives and renders again before it runs, because OpenTofu refuses a saved plan
 whose state changed but not one whose live resources drifted. `record` writes
 the action record as Markdown comments, and refuses one in which a check never
-failed, since a check that cannot fail is no evidence.
-
-Imports the standard library only, because the baseline promises a shipped
-script the interpreter and nothing else.
+failed.
 """
 
 import argparse
@@ -43,8 +39,6 @@ import subprocess
 import sys
 import typing as t
 
-# The commands are lines of sh that the agent writes, with $LIVE_MUTATION_INPUTS
-# for the shell to expand. /bin/sh, since a shipped script gets no sh on its PATH.
 SHELL = "/bin/sh"
 NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 SESSION = re.compile(r"[A-Za-z0-9_-]+")
@@ -96,7 +90,7 @@ class Commands:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Proposal:
-    """What the owner is shown. The digest covers everything but the name, the session and the time."""
+    """What the owner is shown."""
 
     name: str
     session: str
@@ -442,7 +436,7 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal) -> None:
     started = now()
     status, rendering = derive_and_show(root, place.drift, proposal.commands)
     approved = place.rendering.read_text(encoding="utf-8", errors="replace")
-    lines = difflib.unified_diff(approved.splitlines(True), rendering.splitlines(True), "approved", "live now")  # noqa: FBT003  # keepends is positional only
+    lines = difflib.unified_diff(approved.splitlines(True), rendering.splitlines(True), "approved", "live now")  # noqa: FBT003
     diff = "".join(lines)
     output = output_name(place, Kind.DRIFT)
     _ = (place.outputs / output).write_text(diff or "The rendering derived again equals the approved one.\n")
@@ -625,7 +619,6 @@ def parser() -> argparse.ArgumentParser:
 def main(arguments: ct.Sequence[str], environ: ct.Mapping[str, str]) -> int:
     """Run the command that the arguments name. Returns the exit status."""
     parsed = parser().parse_args(arguments)
-    # A namespace types every value as Any; argparse has run each given one through its type.
     command = t.cast("str", parsed.command)
     name = t.cast("str", parsed.name)
     root = repository_root(pathlib.Path.cwd())

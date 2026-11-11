@@ -6,11 +6,6 @@
     cloudctl show <file>                          print a saved plan
     cloudctl apply <file>                         apply a saved plan; refuse it when live state changed since the plan
     cloudctl get <account> [<resource>]           print live state, without changing it
-
-Live state is <account>.json in the directory cloud/ beside the directory of this script, outside the
-repository, where the graders of a case read it. Two plans of one state differ, since each carries the
-time it was made, while show prints both alike, as OpenTofu does. A resource that deploy/<account>.json
-does not name is destroyed with what it holds. It reaches no network.
 """
 
 import hashlib
@@ -23,7 +18,7 @@ CLOUD = pathlib.Path(__file__).resolve().parent.parent / "cloud"
 
 
 class Failure(Exception):
-    """The command cannot be done; the message is what the tool prints."""
+    pass
 
 
 def live_path(account):

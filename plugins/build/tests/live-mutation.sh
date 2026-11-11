@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2016  # the $ and the backticks in single quotes are for the tool's sh and for regexes
-# Exercise the live-mutation skill's live-mutation.py against a stand-in live
-# system of two files in a throwaway repository: `desired` holds the value the
-# code wants and `live` the value the system has. The proposal's commands are
-# sh builtins only, so they run on the same PATH as the script. Every run of the
-# script gets an empty environment whose PATH is this file's one argument, the
-# directories of the tools in the baseline's lyngon.scriptTools, since that
-# list is all a shipped script may run. Run through `devenv test`.
+# shellcheck disable=SC2016
 set -euo pipefail
 
 if (($# != 1)); then
@@ -26,8 +19,6 @@ apply='read -r p <"$LIVE_MUTATION_INPUTS/plan" && printf "%s\n" "$p" >live && pr
 matches='read -r l <live && read -r d <desired && test "$l" = "$d"'
 present='test -f live'
 
-# mutation <session> <argument...>: run the script in the repository as the
-# session, and keep its output and its exit status.
 mutation() {
   local session=$1
   shift
@@ -35,7 +26,6 @@ mutation() {
   output=$(cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID="$session" "$script" "$@" 2>&1) || status=$?
 }
 
-# new_repository <live value> <desired value>: a repository with the two files.
 new_repository() {
   repository=$(mktemp -d "$tmp/repository.XXXXXX")
   mkdir "$repository/.git"
@@ -43,8 +33,6 @@ new_repository() {
   printf '%s\n' "$2" >"$repository/desired"
 }
 
-# propose_value_change: propose the change from live to desired as
-# session-one, with both checks, and keep its digest.
 propose_value_change() {
   mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply" \
     --check "matches=$matches" --check "present=$present"
@@ -64,8 +52,6 @@ fail() {
   failures=$((failures + 1))
 }
 
-# expect <label> <status> <extended regex>: the last run exited with the status
-# and its output matches the pattern somewhere.
 expect() {
   local label=$1 wanted_status=$2 pattern=$3
   if ((status == wanted_status)) && [[ "$output" =~ $pattern ]]; then
@@ -75,7 +61,6 @@ expect() {
   fi
 }
 
-# expect_live <label> <value>: the stand-in live system holds the value.
 expect_live() {
   local label=$1 wanted=$2 found
   found=$(live_value)
@@ -85,8 +70,6 @@ expect_live() {
     fail "$label" "live holds '$found', expected '$wanted'"
   fi
 }
-
-# --- propose -----------------------------------------------------------------
 
 new_repository old new
 status=0
@@ -109,8 +92,6 @@ expect "a derive command that fails is no proposal" 1 '^live-mutation\.py: deriv
 
 mutation session-one propose Set_Value --derive "$derive" --show "$show" --run "$apply"
 expect "a name that is no kebab-case name is refused" 1 "^live-mutation\.py: bad-name: 'Set_Value'"
-
-# --- run: the refusals -------------------------------------------------------
 
 new_repository old new
 propose_value_change
@@ -135,8 +116,6 @@ mutation session-one run set-value "$digest" --go-ahead "yes"
 expect "a live system that drifted since the proposal is refused with the diff" 1 \
   '^live-mutation\.py: drifted: live state no longer gives the rendering the owner approved.*-value: old -> new.*\+value: drifted -> new'
 expect_live "a drifted proposal changes nothing live" drifted
-
-# --- run and record ----------------------------------------------------------
 
 new_repository old new
 propose_value_change
