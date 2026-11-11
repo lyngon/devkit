@@ -77,8 +77,6 @@ LINK: t.Final = re.compile(r"\[.+\]\(\S+\)")
 SKIPPED_DIRECTORIES: t.Final = frozenset({"vendor", "generated"})
 RULES_DIRECTORY: t.Final = pathlib.PurePosixPath(".claude/rules")
 LEDGER_DIRECTORY: t.Final = pathlib.PurePosixPath("docs/mistakes")
-DOT_CLAUDE: t.Final = ".claude"
-AGENT_FILE_NAME: t.Final = "CLAUDE.md"
 INTENT_NAME: t.Final = "INTENT.md"
 IMPORT: t.Final = re.compile(r"@\.\./(?P<name>[^/\s]+\.md)")
 ANY_IMPORT: t.Final = re.compile(r"\s*@\S+")
@@ -102,12 +100,27 @@ def error(path: pathlib.PurePosixPath | str, rule: str, fix: str, line: int | No
 class AgentFile:
     """The place <home>/.claude/CLAUDE.md, whether a file is there or not."""
 
+    DOT_CLAUDE: t.ClassVar[str] = ".claude"
+    AGENT_FILE_NAME: t.ClassVar[str] = "CLAUDE.md"
+
     home: pathlib.PurePosixPath
+
+    @classmethod
+    def of(cls, path: pathlib.PurePosixPath) -> t.Self | None:
+        """Return the agent file that the path is, or None for any other path."""
+        if path.name == cls.AGENT_FILE_NAME and path.parent.name == cls.DOT_CLAUDE:
+            return cls(path.parent.parent)
+        return None
+
+    @classmethod
+    def is_named(cls, path: pathlib.PurePosixPath) -> bool:
+        """Whether the path ends in the file name of an agent file, wherever it lies."""
+        return path.name == cls.AGENT_FILE_NAME
 
     @property
     def path(self) -> pathlib.PurePosixPath:
         """The agent file itself, relative to the root."""
-        return self.home / DOT_CLAUDE / AGENT_FILE_NAME
+        return self.home / self.DOT_CLAUDE / self.AGENT_FILE_NAME
 
     @property
     def intent(self) -> pathlib.PurePosixPath:
@@ -132,19 +145,19 @@ class AgentFile:
 ROOT: t.Final = AgentFile(pathlib.PurePosixPath("."))
 
 
-def agent_file_of(path: pathlib.PurePosixPath) -> AgentFile | None:
-    """Return the agent file that the path is, or None for any other path."""
-    if path.name == AGENT_FILE_NAME and path.parent.name == DOT_CLAUDE:
-        return AgentFile(path.parent.parent)
-    return None
-
-
 @dataclasses.dataclass(frozen=True, slots=True)
 class Import:
     """A line @../<name>.md, which imports the file <name>.md directly in the home of its agent file."""
 
     number: int
     name: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class IntentImport:
+    """The line @../INTENT.md, which imports the intent of the home."""
+
+    number: int
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -162,7 +175,7 @@ class Text:
     number: int
 
 
-type Line = Import | ImportElsewhere | Text
+type Line = Import | IntentImport | ImportElsewhere | Text
 
 
 def parse_lines(lines: ct.Iterable[str]) -> list[Line]:
@@ -173,7 +186,10 @@ def parse_lines(lines: ct.Iterable[str]) -> list[Line]:
         if not text:
             continue
         if (match := IMPORT.fullmatch(text)) is not None:
-            parsed.append(Import(number, match["name"]))
+            if match["name"] == INTENT_NAME:
+                parsed.append(IntentImport(number))
+            else:
+                parsed.append(Import(number, match["name"]))
         elif ANY_IMPORT.fullmatch(text):
             parsed.append(ImportElsewhere(number, text))
         else:
@@ -188,7 +204,7 @@ class Tree:
     root: pathlib.Path
     tracked: frozenset[pathlib.PurePosixPath] | None
 
-    def holds(self, path: pathlib.PurePosixPath) -> bool:
+    def tracks(self, path: pathlib.PurePosixPath) -> bool:
         """Whether the path is a file of the working tree that git tracks."""
         return (self.tracked is None or path in self.tracked) and (self.root / path).is_file()
 
@@ -235,15 +251,15 @@ def skipped(path: pathlib.PurePosixPath) -> bool:
 
 def agent_files(paths: ct.Iterable[pathlib.PurePosixPath]) -> list[AgentFile]:
     """Return the agent files that a run over the paths checks, each once: the root's first, then in path order."""
-    brought_in = {agent_file_of(path) or AgentFile(path.parent) for path in paths if not skipped(path)}
+    brought_in = {AgentFile.of(path) or AgentFile(path.parent) for path in paths if not skipped(path)}
     return [ROOT, *sorted(brought_in - {ROOT})]
 
 
 def check_agent_file(tree: Tree, agent_file: AgentFile) -> list[str]:
     """Check one agent file, there or not, against agent-file-imports-intent and agent-file-holds-only-imports."""
     rule = "agent-file-imports-intent"
-    lines = read_lines(tree.root, agent_file.path) if tree.holds(agent_file.path) else None
-    intent = tree.holds(agent_file.intent)
+    lines = read_lines(tree.root, agent_file.path) if tree.tracks(agent_file.path) else None
+    intent = tree.tracks(agent_file.intent)
     required = agent_file.is_root or intent
     if agent_file.is_root:
         purpose = "every session starts from the intent"
@@ -275,7 +291,7 @@ def check_agent_file(tree: Tree, agent_file: AgentFile) -> list[str]:
         )
     parsed = parse_lines(lines)
     found += [message for line in parsed if (message := line_error(tree, agent_file, line)) is not None]
-    if required and not any(isinstance(line, Import) and line.name == INTENT_NAME for line in parsed):
+    if required and not any(isinstance(line, IntentImport) for line in parsed):
         found.append(error(agent_file.path, rule, f"add the line {INTENT_IMPORT}, so that {purpose}"))
     return found
 
@@ -286,9 +302,11 @@ def line_error(tree: Tree, agent_file: AgentFile, line: Line) -> str | None:
     match line:
         case Import(number=number, name=name):
             target = agent_file.sibling(name)
-            if name == INTENT_NAME or tree.holds(target):
+            if tree.tracks(target):
                 return None
             fix = f"the line imports {target}, which is missing or untracked; add the file, or delete the line"
+        case IntentImport():
+            return None
         case ImportElsewhere(number=number, text=text):
             fix = (
                 f"'{text}' imports no Markdown file directly in {agent_file.place}; "
@@ -514,7 +532,7 @@ def check(tree: Tree, paths: list[pathlib.PurePosixPath]) -> list[str]:
                     f"{fix}; Claude Code reads {ROOT.path}, and no other agent harness is supported",
                 )
             )
-        if path.name == AGENT_FILE_NAME and agent_file_of(path) is None:
+        if AgentFile.is_named(path) and AgentFile.of(path) is None:
             found.append(
                 error(
                     path,
