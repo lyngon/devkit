@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory as the repository of the case
-# clean-comments-keeps-only-the-exceptions, on the branch feat/rate-cache,
-# with the cache.py of this case's workspace/ in its one commit against main.
-# That cache.py keeps a path that never runs and a comment that excuses it,
-# so the comment auditor has a trivial fix to flag. Main ignores the bytecode
-# that the full check writes, so that cleaning it up is no write of the lead.
 set -euo pipefail
 
 case_directory=$(dirname "${BASH_SOURCE[0]}")

@@ -62,25 +62,19 @@ class Writer:
     """How a command that writes files takes its options, and which of its operands are the files it writes."""
 
     writes: t.Literal["every operand", "the last operand"]
-    arguments: str = ""
-    """Its short options whose argument is the rest of the word, or else the next word."""
-    attached: str = ""
-    """Its short options whose argument, if any, is the rest of the word."""
-    long_arguments: frozenset[str] = frozenset()
-    """Its long options whose argument is the next word, unless = joins it."""
+    short_with_argument: str = ""
+    short_with_attached_argument: str = ""
+    long_with_argument: frozenset[str] = frozenset()
     target_options: frozenset[str] = frozenset()
-    """Its options whose argument is the file it writes, in place of its last operand."""
-    only_with: frozenset[str] = frozenset()
-    """The options without one of which it writes nothing, or none when it always writes."""
+    writes_only_with: frozenset[str] = frozenset()
     script_options: frozenset[str] | None = None
-    """The options that give it its script, without one of which its first operand is the script."""
 
     def targets(self, words: ct.Sequence[Word]) -> list[Word]:
         """Return the words of a call's arguments that name the files it writes."""
         options, operands = self.parse(words)
         names = {name for name, _ in options}
         named = [argument for name, argument in options if name in self.target_options]
-        if self.only_with and not names & self.only_with:
+        if self.writes_only_with and not names & self.writes_only_with:
             return []
         if self.script_options is not None and not names & self.script_options:
             operands = operands[1:]
@@ -112,16 +106,16 @@ class Writer:
         """Return the options that a word starting with - gives, and whether the last takes the following word."""
         if value.startswith("--"):
             name, equals, rest = value.partition("=")
-            if not equals and name in self.long_arguments and following is not None:
+            if not equals and name in self.long_with_argument and following is not None:
                 return [(name, following)], True
             return [(name, Word(rest))], False
         given: list[tuple[str, Word]] = []
         for position, letter in enumerate(value[1:], start=2):
             rest = value[position:]
-            if letter in self.arguments and not rest and following is not None:
+            if letter in self.short_with_argument and not rest and following is not None:
                 return [*given, (f"-{letter}", following)], True
             given.append((f"-{letter}", Word(rest)))
-            if letter in self.arguments or letter in self.attached:
+            if letter in self.short_with_argument or letter in self.short_with_attached_argument:
                 break
         return given, False
 
@@ -131,34 +125,36 @@ TARGET_DIRECTORY = frozenset({"-t", "--target-directory"})
 WRITERS: dict[str, Writer] = {
     "cp": Writer(
         "the last operand",
-        arguments="St",
-        long_arguments=frozenset({"--suffix", "--target-directory"}),
+        short_with_argument="St",
+        long_with_argument=frozenset({"--suffix", "--target-directory"}),
         target_options=TARGET_DIRECTORY,
     ),
     "mv": Writer(
         "every operand",
-        arguments="St",
-        long_arguments=frozenset({"--suffix", "--target-directory"}),
+        short_with_argument="St",
+        long_with_argument=frozenset({"--suffix", "--target-directory"}),
         target_options=TARGET_DIRECTORY,
     ),
     "perl": Writer(
         "every operand",
-        arguments="eE",
-        attached="CDdFIiMmVx",
-        only_with=frozenset({"-i"}),
+        short_with_argument="eE",
+        short_with_attached_argument="CDdFIiMmVx",
+        writes_only_with=frozenset({"-i"}),
         script_options=frozenset({"-e", "-E"}),
     ),
     "rm": Writer("every operand"),
     "sed": Writer(
         "every operand",
-        arguments="efl",
-        attached="i",
-        long_arguments=frozenset({"--expression", "--file", "--line-length"}),
-        only_with=frozenset({"-i", "--in-place"}),
+        short_with_argument="efl",
+        short_with_attached_argument="i",
+        long_with_argument=frozenset({"--expression", "--file", "--line-length"}),
+        writes_only_with=frozenset({"-i", "--in-place"}),
         script_options=frozenset({"-e", "-f", "--expression", "--file"}),
     ),
     "tee": Writer("every operand"),
-    "touch": Writer("every operand", arguments="drt", long_arguments=frozenset({"--date", "--reference"})),
+    "touch": Writer(
+        "every operand", short_with_argument="drt", long_with_argument=frozenset({"--date", "--reference"})
+    ),
 }
 
 
