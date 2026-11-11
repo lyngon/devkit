@@ -309,6 +309,8 @@ A case of `writing` has no such line and runs with `writing` alone, which shows 
 
 A run starts in an empty working directory.
 A case that needs files there keeps them under `workspace/`, next to a `seed-workspace.sh` that copies them in and a `case.yaml` that names the script as `context.scaffold_script`.
+The script writes an agent file of the run, and the `INTENT.md` it imports, itself.
+Kept under `workspace/`, the agent file would load into any session in the devkit that reads a file of the case, and `validate-documents` would hold the pair to the devkit's rules.
 The harness looks for no case inside a case, so a `prompt.md` under `workspace/` is a file of the run, and `validate-marketplace` does not check it as a case.
 Two cases that ask about the same files keep them once, and the script of the second copies the `workspace/` of the first.
 The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, since everything else of a case is in the frontmatter of `prompt.md`.
