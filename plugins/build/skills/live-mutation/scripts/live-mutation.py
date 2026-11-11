@@ -329,7 +329,9 @@ def fence(text: str) -> str:
 
 
 def outcome(status: int) -> str:
-    """Return how a check or a command ended, in words."""
+    """Return how a check or a command ended, in words. A negative status is the signal that ended it."""
+    if status < 0:
+        return f"ended by signal {-status}"
     return "passes" if status == 0 else f"fails ({status})"
 
 

@@ -168,7 +168,7 @@ while time.monotonic() < end:
 pathlib.Path(sys.argv[1]).write_text(f"{len(seen)}\n")
 EOF
 mutation session-one propose interruptible --derive 'printf x >"$LIVE_MUTATION_INPUTS/plan"' --show 'printf "count interrupts\n"' \
-  --run 'python3 count-interrupts.py interrupts'
+  --run 'python3 count-interrupts.py interrupts; true'
 digest=$(sed -n 's/^Proposal `interruptible` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
 status=0
 output=$(cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one python3 -c '
@@ -178,7 +178,8 @@ time.sleep(1)
 os.killpg(run.pid, signal.SIGINT)
 sys.exit(run.wait())' "$script" run interruptible "$digest" --go-ahead "yes" 2>&1) || status=$?
 interrupts=$(cat "$repository/interrupts" 2>/dev/null || echo none)
-if ((status == 0)) && [[ "$interrupts" == 1 ]]; then
+logged='The run (passes|ended by signal 2); its whole output is in '
+if [[ "$interrupts" == 1 && "$output" =~ $logged ]]; then
   pass "a Ctrl-C reaches the running command once, and the run is waited for"
 else
   fail "a Ctrl-C reaches the running command once, and the run is waited for" "exit $status, the command saw $interrupts interrupts:"$'\n'"$output"
