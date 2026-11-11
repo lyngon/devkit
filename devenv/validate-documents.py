@@ -16,9 +16,7 @@ Each message names its rule and the fix:
   rule-file-shape                  a file under .claude/rules/ has a kebab-case
                                    name and at most 100 lines
   scoped-rule-imports-nothing      a rule file under .claude/rules/ with a paths:
-                                   field has no line that is a single @ import,
-                                   since Claude Code loads the imported file at
-                                   launch whatever paths: say
+                                   field has no line that is a single @ import
   ledger-file-shape                a file under docs/mistakes/ at the root lies
                                    directly in it, is named after its mistake,
                                    starts with a heading, has one date line
@@ -250,12 +248,7 @@ def check_rule_file(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str
 
 
 def check_scoped_rule_imports(path: pathlib.PurePosixPath, lines: list[str]) -> list[str]:
-    """Check that a rule file with a paths: field imports nothing.
-
-    Claude Code loads a file that a rule imports with @ at launch, whatever
-    the rule's paths: say, so a scoped rule that imports a document loads it
-    into every session.
-    """
+    """Check that a rule file with a paths: field imports nothing."""
     rule = "scoped-rule-imports-nothing"
     if not lines or lines[0].strip() != "---":
         return []

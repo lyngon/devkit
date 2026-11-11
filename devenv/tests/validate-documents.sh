@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Exercise validate-documents.py against throwaway fixture repositories: for
-# each of its nine rules a tree that fails and one that passes, plus the paths
-# it skips and the two ways it is run. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-documents.py
@@ -246,7 +243,6 @@ write "$repo" .claude/rules/money-is-never-a-float.md "# Money is never a float"
 expect_error "rule-file-shape: 101 lines" "$repo" 1 \
   "error: .claude/rules/money-is-never-a-float.md: rule-file-shape: 101 lines; cut it to 100 at most"
 
-# scoped-rule-imports-nothing
 repo=$(clean_repo)
 write "$repo" .claude/rules/orders-intent.md "---" "paths:" '  - "libs/orders/**"' "---" "" "@../../libs/orders/INTENT.md"
 expect_error "scoped-rule-imports-nothing: a rule with paths: that imports a file" "$repo" 1 \
