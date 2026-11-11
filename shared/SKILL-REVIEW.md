@@ -29,7 +29,7 @@ Read every file in the skill directory, not only `SKILL.md`: scripts, references
 - Layout: does not assume `src/` or a flat `packages/`; uses or tolerates the kind-first layout in `STRUCTURE.md` (`apps/`, `libs/`, `contracts/`, `tools/`, `infra/`).
 - Tools: never installs imperatively; anything it needs can come from `devenv.nix`.
 - Writing: no em or en dashes; one sentence per line is a nice-to-have, not a blocker.
-- Does not write `AGENTS.md` or `CLAUDE.md`, which the document rules forbid, nor a file under `.claude/` or `.mcp.json`, which are the repository owner's or the devkit's.
+- Does not write `AGENTS.md` or a `CLAUDE.md` outside `.claude/`, which the document rules forbid, nor an agent file, any other file under `.claude/` or `.mcp.json`, which are the repository owner's or the devkit's.
 - Does not duplicate an existing devkit skill; if it overlaps, say which and why both should exist.
 
 ## License

@@ -88,7 +88,7 @@ A document in the tree that states what the code cannot show and that an agent m
 _Avoid_: standard document (that names the file set), governing document
 
 **Agent file**:
-A `.claude/CLAUDE.md`, the file Claude Code loads as project instructions: the root's in every session, a package's when an agent works on that package.
+A `.claude/CLAUDE.md` that holds only imports of the documents of its own directory, `INTENT.md` among them, and that Claude Code loads as project instructions: the root's in every session, a package's when an agent works on that package.
 _Avoid_: CLAUDE.md as the name of the concept, memory file
 
 **Decision record**:
