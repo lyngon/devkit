@@ -75,6 +75,7 @@ A Python library:
     exec = "cd libs/{name} && uv run pytest";
     after = [ "devenv:enterShell" ];
     before = [ "devenv:enterTest" ];
+    wantedBy = [ "devenv:enterTest" ];
   };
 }
 ```
