@@ -184,7 +184,7 @@ The steps are the same for an empty repository and for one that has grown organi
    It interviews you, then writes INTENT.md, `.claude/CLAUDE.md`, README.md, CONCEPTS.md, decision records, devenv with the shared module imported, git hooks, CI, every package you named when the repository adopts the structure, and a `.claude/settings.json` that registers the marketplace and enables `all@lyngon` and each of its members by name.
 3. `/repo:init` commits its work: one root commit on `main` in a fresh repository, a branch with a pull request in an adopted one.
 
-In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md instead of replacing it, and sorts an older `CLAUDE.md`, `AGENTS.md` and `docs/adr/` into rule files and decision records before it deletes them.
+In an existing repository, init shows a diff for every file it would touch, merges into an existing README.md instead of replacing it, and sorts an older `CLAUDE.md`, the lines of an agent file that are not imports, `AGENTS.md` and `docs/adr/` into rule files and decision records before it deletes them.
 
 Colleagues who clone the repository get the marketplace registered as soon as they trust the folder.
 Plugins are not installed for them automatically (Claude Code 2.1.195 and later); Claude Code reports them as not installed and shows the command.

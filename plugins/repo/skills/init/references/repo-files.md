@@ -55,8 +55,13 @@ Init writes one line:
 @../INTENT.md
 ```
 
-It imports the intent into every session, so the line stays whatever the authors add below it later.
-Write no `CLAUDE.md` at the root and no `AGENTS.md`.
+It imports the intent into every session.
+An agent file holds only lines of the form `@../<name>.md`, each naming a Markdown file directly in the directory that holds its `.claude/`, and init writes no import but this one.
+A principle goes into a rule file under `.claude/rules/`, never into an agent file.
+
+A package with an `INTENT.md` of its own holds the same file, `<package>/.claude/CLAUDE.md`, with the same line, so that a session loads the package's intent when it works on a file of the package.
+`add-package` writes it with the package's `INTENT.md`; in adopt mode, write it for each existing package that has one.
+Write no other `CLAUDE.md` and no `AGENTS.md`.
 
 ## .claude/rules/
 
@@ -314,5 +319,5 @@ Write it as it is, with its two comments: they say why the file is not folded in
 ## Packages
 
 Every package named in the interview is created with the `add-package` skill of this plugin, one invocation per package, core libraries first.
-It decides the directory from the kind, creates the manifest with the stack's own initializer, writes `devenv.nix`, `README.md` and, for a package the interview gave an intent of its own, `INTENT.md`, and registers the package in its workspace and the root `devenv.yaml`.
+It decides the directory from the kind, creates the manifest with the stack's own initializer, writes `devenv.nix`, `README.md` and, for a package the interview gave an intent of its own, `INTENT.md` and its agent file, and registers the package in its workspace and the root `devenv.yaml`.
 The root workspace files are written before the first package of each language; their templates are in `add-package`'s `workspaces.md` reference.
