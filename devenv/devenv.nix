@@ -355,6 +355,17 @@ in
           exec = lib.mkDefault (lib.getExe refreshUnusedHookShims);
         };
 
+    # devenv orders the hooks after their install alone, in a list a default
+    # here would not join, so the edge starts at enterShell. Once ordered
+    # after it, the hooks would also run on each shell entry, unless only the
+    # full check selects them.
+    tasks."devenv:enterShell".before = lib.mkIf config.git-hooks.enable (
+      lib.mkDefault [ "devenv:git-hooks:run" ]
+    );
+    tasks."devenv:git-hooks:run".wantedBy = lib.mkIf config.git-hooks.enable (
+      lib.mkDefault [ "devenv:enterTest" ]
+    );
+
     git-hooks.hooks = {
       nixfmt.enable = lib.mkDefault true;
       shellcheck.enable = lib.mkDefault true;
