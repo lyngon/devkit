@@ -6,7 +6,7 @@ paths:
   - "**/INTENT.md"
   - "**/CONCEPTS.md"
   - "**/README.md"
-  - ".claude/CLAUDE.md"
+  - "**/.claude/CLAUDE.md"
   - ".claude/rules/*.md"
 ---
 
@@ -20,16 +20,18 @@ One test decides whether any text enters one:
 
 | Path | Holds | Loaded |
 | --- | --- | --- |
-| `INTENT.md` at the root | Product, audiences, done, failure, non-goals, priorities, horizon | Every session, through the agent file |
-| `.claude/CLAUDE.md` | The line `@../INTENT.md`, and what the repository's authors add for the project | Every session |
+| `INTENT.md` | Product, audiences, done, failure, non-goals, priorities, horizon; in a package, only the sections that differ from the root's | Through the agent file beside it: at the root every session, in a package when an agent works on a file of the package |
+| `.claude/CLAUDE.md`, the agent file | Only imports of the Markdown files directly in its directory, `@../INTENT.md` among them | At the root every session; in a package when an agent reads, writes or edits a file of the package |
 | `.claude/rules/<name>.md` | One repository principle, or one rule that has no check yet | At launch without `paths:`, otherwise when a matching file is read or edited |
-| `CONCEPTS.md` | Terms | On demand |
+| `CONCEPTS.md` | Terms | On demand, unless the agent file of its directory imports it |
 | `docs/decisions/<name>.md` | One decision record | On demand, and through `discover:why` |
 
 ## Rules
 
-- No `AGENTS.md` exists anywhere, and no `CLAUDE.md` exists outside `.claude/` at the repository root.
-- `.claude/CLAUDE.md` always holds the line `@../INTENT.md`. What else it holds is the choice of the repository's authors.
+- No `AGENTS.md` exists anywhere, and a `CLAUDE.md` exists only directly in a `.claude/` directory, at the repository root or in a package.
+- An agent file holds only lines of the form `@../<name>.md`, each naming a tracked Markdown file directly in the directory that holds its `.claude/`, such as `INTENT.md`, `CONCEPTS.md` or `README.md`.
+- Every agent file holds the line `@../INTENT.md`. Other imports are allowed, and nothing writes one by default.
+- An agent file holds no free text, at the root either. A principle goes into a rule file under `.claude/rules/`, with `paths:` when it concerns part of the tree.
 - The organization's principles are in no repository. They come from the `principles` plugin, which the agent reads through `principles:index`, and are never copied in.
 - `README.md` is not a steering document. It says how to use the repository and links to `INTENT.md` instead of repeating it.
 - A rule file is named after its principle in kebab-case. It holds that name as its heading, the statement in one or two sentences, then one sentence starting `Why:`. It carries a `paths:` field whenever the principle concerns part of the tree, such as one package.
@@ -41,8 +43,12 @@ One test decides whether any text enters one:
 ## Package documents
 
 A package gets an `INTENT.md` only when it has its own audience, its own done or failure, or its own non-goals that the root does not state.
-That file uses the root's section names and holds only the sections that differ.
-No session loads it: it is read on demand, and the package's `README.md` links to it.
+That file uses the root's section names and holds only the sections that differ, and the package's `README.md` links to it.
+
+A package with its own `INTENT.md` holds `.claude/CLAUDE.md`, with the line `@../INTENT.md`, and no other package holds an agent file.
+Claude Code loads the agent file and the intent it imports when an agent reads, writes or edits a file of the package, and a session that works on no file of the package does not carry them.
+An agent that changes the package only through the shell, or searches it only with Grep and Glob, does not load them.
+A package with a `CONCEPTS.md` and no `INTENT.md` gets no agent file, and its glossary stays on demand.
 
 ## Checks
 
