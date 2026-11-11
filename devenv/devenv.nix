@@ -362,8 +362,9 @@ in
       shellcheck.enable = lib.mkDefault true;
       markdownlint = {
         enable = lib.mkDefault true;
-        # The agent file opens with the import of INTENT.md, not with a heading.
-        excludes = lib.mkDefault [ "^\\.claude/CLAUDE\\.md$" ];
+        # An agent file, at the root or in a package, holds import lines and
+        # no heading.
+        excludes = lib.mkDefault [ "(^|/)\\.claude/CLAUDE\\.md$" ];
         settings.configuration = lib.mkDefault {
           default = true;
           # Semantic line breaks: one sentence per line, no length limit.

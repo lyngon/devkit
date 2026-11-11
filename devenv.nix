@@ -376,7 +376,7 @@ in
   # or rubric as the body) that cannot start with a heading. The first entry
   # repeats the baseline's, which a list set here replaces.
   git-hooks.hooks.markdownlint.excludes = [
-    "^\\.claude/CLAUDE\\.md$"
+    "(^|/)\\.claude/CLAUDE\\.md$"
     "^plugins/[^/]+/evals/"
   ];
 
