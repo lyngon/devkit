@@ -71,6 +71,11 @@ That skill designs a run for the one task.
 
 ## Subagents
 
+You write no file of the change, by any tool, the shell and git included.
+You write only under `tmp/`, `docs/plans/` and `docs/mistakes/` of the repository, and outside it.
+A hook refuses the writes it can see, and the rule holds where it cannot see one, as when a script, an interpreter or `git apply` writes.
+You still run git, the forge's command and the full check.
+
 A delegate that writes code is the `build:implementer` agent (`subagent_type: "build:implementer"`).
 Its brief names the files, the data shape and its organizing structure, what must hold when it is done and the proof owed.
 It also names the path of this file, `${CLAUDE_SKILL_DIR}/SKILL.md`, which the delegate reads in full before any work.
