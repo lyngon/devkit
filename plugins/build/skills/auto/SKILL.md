@@ -5,7 +5,7 @@ argument-hint: "<the task>"
 disable-model-invocation: true
 hooks:
   PreToolUse:
-    - matcher: "Edit|Write|NotebookEdit"
+    - matcher: "Edit|Write|NotebookEdit|Bash"
       hooks:
         - type: command
           command: "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/lead-writes-no-code.py"
