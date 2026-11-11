@@ -106,7 +106,7 @@ done
 mode_matcher=$(yq --front-matter=extract '.hooks.PreToolUse[].matcher' "$root/skills/auto/SKILL.md")
 mode_command=$(yq --front-matter=extract '.hooks.PreToolUse[].hooks[].command' "$root/skills/auto/SKILL.md")
 
-check "the mode's hook matches the tools that write files" equals "$mode_matcher" "Edit|Write|NotebookEdit"
+check "the mode's hook matches the tools that write files" equals "$mode_matcher" "Edit|Write|NotebookEdit|Bash"
 
 repository=$tmp/orders
 outside_any_repository=$tmp/outside-any-repository
@@ -137,7 +137,16 @@ run_mode_hook() {
 
 refused() {
   jq -n --arg path "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
-    permissionDecisionReason: "In /build:auto the lead writes no code, so it may not write \($path). Start a build:implementer delegate (subagent_type \"build:implementer\") with a brief that names the file, and review its diff. The lead writes only under tmp/, docs/plans/ and docs/mistakes/ of the repository, and outside it."}}'
+    permissionDecisionReason: "In /build:auto the lead writes no code, so it may not write \($path). Start a build:implementer delegate (subagent_type \"build:implementer\") with a brief that names the file, and review its diff. The lead writes, by any tool, only under tmp/, docs/plans/ and docs/mistakes/ of the repository, and outside it."}}'
+}
+
+run_lead_command() {
+  run_mode_hook Bash "$(jq -n --arg command "$1" '{command: $command, description: "Run it"}')" "${@:2}"
+}
+
+refused_command() {
+  jq -n --arg part "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
+    permissionDecisionReason: "In /build:auto the lead writes no code, so it may not write through `\($part)`. Start a build:implementer delegate (subagent_type \"build:implementer\") with a brief that names the file, and review its diff. The lead writes, by any tool, only under tmp/, docs/plans/ and docs/mistakes/ of the repository, and outside it, and its command names such a file by a path without a variable or a substitution."}}'
 }
 
 for path in src/orders/pricing.py tests/test_pricing.py README.md src/orders/new/rounding.py; do
@@ -155,6 +164,77 @@ check "the lead's NotebookEdit of analysis.ipynb: refused" json_equals "$out" "$
 worktree_file=$repository/.claude/worktrees/rename/src/client.py
 run_mode_hook Edit '{"file_path": "'"$worktree_file"'", "old_string": "a", "new_string": "b"}'
 check "the lead's Edit of a file in a worktree: refused" json_equals "$out" "$(refused "$worktree_file")"
+
+lead_command_refused() {
+  local label=$1 command=$2 part=$3
+  run_lead_command "$command"
+  check "the lead's command, $label: exits 0" equals "$code" 0
+  check "the lead's command, $label: refused, naming the delegate" json_equals "$out" "$(refused_command "$part")"
+}
+
+lead_command_runs() {
+  local label=$1 command=$2
+  run_lead_command "$command"
+  check "the lead's command, $label: exits 0" equals "$code" 0
+  check "the lead's command, $label: prints nothing, so it runs" equals "$out$err" ""
+}
+
+lead_command_refused "sed -i on a test file" \
+  "sed -i 's/price_line/line_price/' tests/test_pricing.py" "sed -i 's/price_line/line_price/' tests/test_pricing.py"
+lead_command_refused "sed -i with a suffix and -e" \
+  "sed -i.bak -e 's/>/>=/' src/orders/pricing.py" "sed -i.bak -e 's/>/>=/' src/orders/pricing.py"
+lead_command_refused "sed --in-place on a file in a worktree" \
+  "sed --in-place 's/a/b/' $worktree_file" "sed --in-place 's/a/b/' $worktree_file"
+lead_command_refused "perl -pi" \
+  "perl -pi -e 's/>/>=/' src/orders/pricing.py" "perl -pi -e 's/>/>=/' src/orders/pricing.py"
+lead_command_refused "a heredoc into a new file" "cat > src/orders/rounding.py <<'EOF'
+def round_price(price):
+    return price
+EOF" "> src/orders/rounding.py"
+lead_command_refused "an append to README.md" \
+  "echo '- 10 percent off from 10 items on' >> README.md" ">> README.md"
+lead_command_refused "tee -a" \
+  "printf 'x\n' | tee -a src/orders/pricing.py" "tee -a src/orders/pricing.py"
+lead_command_refused "cp from tmp/ into the change" \
+  "cp tmp/pricing.py src/orders/pricing.py" "cp tmp/pricing.py src/orders/pricing.py"
+lead_command_refused "mv inside the change" \
+  "mv src/orders/pricing.py src/orders/prices.py" "mv src/orders/pricing.py src/orders/prices.py"
+lead_command_refused "rm" "rm tests/test_pricing.py" "rm tests/test_pricing.py"
+lead_command_refused "touch" "touch src/orders/rounding.py" "touch src/orders/rounding.py"
+lead_command_refused "sed -i through xargs" \
+  "grep -rl price_line src | xargs sed -i 's/price_line/line_price/g'" "xargs sed -i 's/price_line/line_price/g'"
+lead_command_refused "sed -i through find -exec" \
+  "find src -name '*.py' -exec sed -i 's/a/b/' {} +" "find src -name '*.py' -exec sed -i 's/a/b/' {} +"
+lead_command_refused "sed -i on a path in a variable" \
+  "for f in src/orders/*.py; do sed -i 's/a/b/' \"\$f\"; done" "sed -i 's/a/b/' \"\$f\""
+lead_command_refused "sed -i in a command substitution" \
+  "git status --short && echo \"\$(sed -i 's/a/b/' src/orders/pricing.py)\"" "sed -i 's/a/b/' src/orders/pricing.py"
+
+lead_command_runs "the full check" "devenv test"
+lead_command_runs "the full check, its output kept under tmp/" "devenv test > tmp/check.log 2>&1"
+lead_command_runs "git status and diff" "git status --short && git diff main...HEAD -- src"
+lead_command_runs "git commit" "git commit -m 'fix(orders): give a line of 10 items the bulk discount'"
+lead_command_runs "git restore of a file of the change" "git restore src/orders/pricing.py"
+lead_command_runs "gh pr create with a body file" \
+  "gh pr create --title 'fix(orders): give a line of 10 items the bulk discount' --body-file tmp/pull-request-body.md"
+lead_command_runs "gh pr create with a body in a heredoc" "gh pr create --title 'fix(orders): x' --body \"\$(cat <<'EOF'
+## Problem
+
+> A line of 10 items > 9 items, and rm src/orders/pricing.py > README.md is text.
+EOF
+)\""
+lead_command_runs "reading files" \
+  "cat src/orders/pricing.py; sed -n '1,20p' tests/test_pricing.py; sed 's/>/>=/' src/orders/pricing.py | diff src/orders/pricing.py -"
+lead_command_runs "grep and find" "grep -rn BULK src | head -5 && find src -name '*.py' -exec sed -n 1p {} +"
+lead_command_runs "writes under tmp/" \
+  "echo notes > tmp/notes.md && cp src/orders/pricing.py tmp/pricing.py && sed -i 's/a/b/' tmp/pricing.py && mv tmp/pricing.py tmp/prices.py && rm tmp/prices.py"
+lead_command_runs "an append under docs/plans/" "printf '%s\n' '- step' >> docs/plans/2026-10-31-bulk-discount.md"
+lead_command_runs "a write outside any repository" "echo x > $outside_any_repository/notes.md 2>/dev/null"
+lead_command_runs "a command that does not parse as bash" "print -l \${(f)\"\$(ls)\"}"
+
+run_lead_command "sed -i 's/>/>=/' src/orders/pricing.py" '{"agent_id": "a1", "agent_type": "build:implementer"}'
+check "a delegate's sed -i of src/orders/pricing.py: exits 0" equals "$code" 0
+check "a delegate's sed -i of src/orders/pricing.py: prints nothing, so it runs" equals "$out$err" ""
 
 for path in "$repository/tmp/work-trace/fix-orders.md" "$repository/tmp/pull-request-body.md" \
   "$repository/docs/plans/2026-10-31-bulk-discount.md" "$repository/docs/mistakes/a-lead-wrote-a-fix.md" \

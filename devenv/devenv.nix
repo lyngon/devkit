@@ -253,9 +253,12 @@ in
 
     scriptTools = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = [ pkgs.python3 ];
-      defaultText = lib.literalExpression "[ pkgs.python3 ]";
-      description = "The tools a script that a skill ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so keep pkgs.python3 in it.";
+      default = [
+        pkgs.python3
+        pkgs.shfmt
+      ];
+      defaultText = lib.literalExpression "[ pkgs.python3 pkgs.shfmt ]";
+      description = "The tools a script or a hook that a plugin ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so keep pkgs.python3 and pkgs.shfmt in it.";
     };
 
     fullCheck.showOutput = lib.mkOption {
