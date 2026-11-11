@@ -1,0 +1,12 @@
+{
+  "next": 71,
+  "items": [
+    {
+      "kind": "issue",
+      "number": 64,
+      "title": "An order line accepts a negative quantity",
+      "body": "line_total(500, -2) returns -1000, so an order with a negative quantity lowers its own total.\n\nA line with a negative quantity should be rejected.",
+      "comments": []
+    }
+  ]
+}
