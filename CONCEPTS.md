@@ -149,6 +149,22 @@ _Avoid_: checkpoint, approval step, hold point
 **Proof**:
 Something a reviewer can rerun or read that shows a claim holds.
 
+**Live mutation**:
+An action that changes a running system, or the state a tool keeps of one, outside the repository and its forge: an OpenTofu apply, a deploy, a data migration. Reading is never one.
+_Avoid_: live action, operation, deployment (for the general case)
+
+**Proposal**:
+What the owner is shown and approves before a live mutation: the exact command, the frozen inputs it reads with their digest, the rendering the owner reads, and the checks that judge the result.
+_Avoid_: approval artifact, saved plan (one kind of frozen input), plan (a design file under `docs/plans/`)
+
+**Go-ahead**:
+The owner's explicit yes to named proposals, given in the conversation that showed them or by merging the pull request that showed them.
+_Avoid_: approval, sign-off, pre-approval
+
+**Action record**:
+The record of one run of a proposal that outlives the session: the proposal or its digest, the output of the live mutation and the output of its checks.
+_Avoid_: apply log, evidence (for the whole record)
+
 ## Relationships
 
 - The **Devkit** holds the **Marketplace**, the **Baseline** and the shared documents.
@@ -167,3 +183,4 @@ Something a reviewer can rerun or read that shows a claim holds.
 - A **Mode** has one **Playbook** for each kind of task it routes.
 - A **Gate** that is not the one that always holds exists only where an **Owner** asked for it.
 - A **Change** carries the **Proof** of what it claims in its pull request.
+- A **Go-ahead** covers one run of each **Proposal** it names, and each run leaves one **Action record**.
