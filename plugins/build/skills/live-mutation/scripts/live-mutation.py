@@ -34,7 +34,6 @@ import os
 import pathlib
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import typing as t
@@ -270,9 +269,10 @@ def execute(command: str, root: pathlib.Path, inputs: pathlib.Path, out: pathlib
     """Run a line of sh from the root with LIVE_MUTATION_INPUTS set, and return its exit status.
 
     Standard error goes to err, or after standard output into out when err is
-    None. An interrupt is passed on to the command as SIGINT and the command is
-    waited for, never killed: OpenTofu stops an apply cleanly on SIGINT, and a
-    kill can leave its state locked and half written.
+    None. A Ctrl-C reaches the command through the process group it shares with
+    this tool, so the tool only waits for it, and never kills it or interrupts
+    it again: OpenTofu stops an apply cleanly on a first SIGINT and at once on
+    a second, and a kill can leave its state locked and half written.
     """
     out.parent.mkdir(parents=True, exist_ok=True)
     environment = {**os.environ, "LIVE_MUTATION_INPUTS": str(inputs)}
@@ -282,7 +282,6 @@ def execute(command: str, root: pathlib.Path, inputs: pathlib.Path, out: pathlib
         try:
             return process.wait()
         except KeyboardInterrupt:
-            process.send_signal(signal.SIGINT)
             return process.wait()
 
 
@@ -436,7 +435,9 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal) -> None:
     started = now()
     status, rendering = derive_and_show(root, place.drift, proposal.commands)
     approved = place.rendering.read_text(encoding="utf-8", errors="replace")
-    lines = difflib.unified_diff(approved.splitlines(True), rendering.splitlines(True), "approved", "live now")  # noqa: FBT003
+    lines = difflib.unified_diff(
+        approved.splitlines(keepends=True), rendering.splitlines(keepends=True), "approved", "live now"
+    )
     diff = "".join(lines)
     output = output_name(place, Kind.DRIFT)
     _ = (place.outputs / output).write_text(diff or "The rendering derived again equals the approved one.\n")
