@@ -20,6 +20,8 @@ ways_out="move a decision into a decision record, move evidence into a pull requ
 closes="Closes nothing."
 no_closes_line="error: body: '## Why' does not end with a line that says which issues the change closes: end the section with \"Closes nothing.\" or with each issue that the change fixes, as \"Closes #12, closes #15.\""
 bad_closes_line="the line \"Closes\" says neither \"nothing\" nor a list of issues that GitHub closes: write \"Closes nothing.\" or name each issue as #12 or owner/repository#12, with \"closes\" before each one, as \"Closes #12, closes #15.\""
+stray_keyword="a closing keyword stands outside the line that ends '## Why', and GitHub closes the issue after it when the pull request merges: name the issue in that line, or reword so that no \"close\", \"fix\" or \"resolve\" comes right before an issue"
+title_keyword="error: title: a closing keyword stands in the title, and GitHub closes the issue after it when the commit lands: name the issue in the line that ends '## Why', or reword the title so that no \"close\", \"fix\" or \"resolve\" comes right before an issue"
 met="Met on the way: nothing."
 no_met_line="error: body: '## Scope' does not end with a line that says what the work met on the way: end the section with \"Met on the way: nothing.\" or with each issue and pull request for a problem the work met, as \"Met on the way: #12 and #15.\""
 bad_met_line="the line \"Met on the way:\" says neither \"nothing\" nor a list of issues and pull requests: write \"Met on the way: nothing.\" or name each one as #12 or owner/repository#12, joined by commas and \"and\""
@@ -229,7 +231,8 @@ check "$good_title" "${good/"$closes"/"Closes #12 for the values that name nothi
 expect "an issue with a remark after it fails" 1 1 "error: body:$closes_at: $bad_closes_line"
 
 check "$good_title" "${good/"$closes"/"Fixes #12."}" "$built"
-expect "another keyword in place of Closes fails" 1 1 "$no_closes_line"
+expect "another keyword in place of Closes fails, and closes the issue outside the line" 1 2 \
+  "$no_closes_line" $'\n'"error: body:$closes_at: $stray_keyword"
 
 check "$good_title" "${good/"$closes"/"$closes"$'\n\nThe README stays as it is.'}" "$built"
 expect "a line that does not end Why fails" 1 1 "$no_closes_line"
@@ -243,6 +246,29 @@ if holds_command; then
 else
   expect "a line about closing that holds a workflow command fails" 1 1 "error: body:$closes_at: $bad_closes_line"
 fi
+
+# shellcheck disable=SC2016  # the backticks are Markdown, not a command
+verified_of_142='- Three headless `/build:pull-request` sessions per arm on sonnet for each case. At head, Why ended with `Closes #64.` in 3 of 3 runs and with `Closes nothing.` in 3 of 3. At base it did in 0 of 6. The three base runs told that the branch fixes #64 still wrote a keyword that GitHub honors ("Fixes #64"), only not as the line, so the case measures the form of the line.'
+with_verified_of_142=${good/$'## Verified\n\nOne line under this heading.'/$'## Verified\n\n'"$verified_of_142"}
+check "$good_title" "$with_verified_of_142" "$built"
+expect "a closing keyword in Verified fails, as the Verified of pull request 142 would have" 1 1 \
+  "error: body:$(grep -n -x -F -- "$verified_of_142" <<<"$with_verified_of_142" | cut -d: -f1): $stray_keyword"
+
+check "$good_title" "${good/"$closes"/$'This fixes #12 in part.\n\n'"$closes"}" "$built"
+expect "a closing keyword in Why above its line fails" 1 1 "error: body:$closes_at: $stray_keyword"
+
+check "$good_title" "$good"$'\n\nIt resolves https://github.com/lyngon/devkit/issues/12, and Resolved: #13.' "$built"
+expect "a closing keyword before the address of an issue, or in capitals with a colon, fails" 1 1 \
+  "error: body:29: $stray_keyword"
+
+check "$good_title" "$good"$'\n\n```text\nfixes #12\n```' "$built"
+expect "a closing keyword in a fenced code block fails as well" 1 1 "error: body:30: $stray_keyword"
+
+check "$good_title" "$good"$'\n\nThe fix of #12 and the prefixes #13 stay.' "$built"
+expect_silent "a word that is no closing keyword before an issue passes"
+
+check "fix(orders): resolve #12" "$good" "$built"
+expect "a closing keyword in the title fails" 1 1 "$title_keyword"
 
 # The line that ends Scope
 # shellcheck disable=SC2016  # the backticks are Markdown, not a command
