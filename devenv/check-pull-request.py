@@ -11,7 +11,9 @@ request lands as. Each message says what is wrong and what to do:
   why       the section ## Why ends with the line "Closes nothing." or with
             each issue the change fixes, as "Closes #12, closes #15.", the
             form in which GitHub closes every issue it names when the pull
-            request merges
+            request merges; no other line of the body and not the title holds
+            a closing keyword before an issue, since GitHub would close that
+            issue too, in code as well
   scope     the section ## Scope ends with the line "Met on the way:", then
             "nothing" or each issue and pull request for a problem the work
             met, as #12 or owner/repository#12; only the form is checked,
@@ -56,6 +58,16 @@ HEADINGS: t.Final = (
 ORDER: t.Final = ", ".join(HEADINGS)
 # An issue or a pull request as the forge links it, in this repository or in another.
 REFERENCE: t.Final = r"(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[1-9][0-9]*"
+WHY: t.Final = "## Why"
+# The keywords before an issue that GitHub closes the issue for when the pull request merges, in any case.
+CLOSING_KEYWORD: t.Final = re.compile(
+    (
+        rf"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+"
+        rf"(?:{REFERENCE}|https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/[1-9][0-9]*)"
+    ),
+    re.IGNORECASE,
+)
+NO_KEYWORD: t.Final = 'so that no "close", "fix" or "resolve" comes right before an issue'
 
 
 class EndingLine(t.NamedTuple):
@@ -68,7 +80,7 @@ class EndingLine(t.NamedTuple):
 
 
 ENDING_LINES: t.Final = {
-    "## Why": EndingLine(
+    WHY: EndingLine(
         "Closes",
         re.compile(rf"Closes (?:nothing|{REFERENCE}(?:, closes {REFERENCE})*)\.?"),
         (
@@ -272,6 +284,35 @@ def check_ending_lines(last_prose_lines: dict[str, tuple[int, str]]) -> list[str
     return found
 
 
+def check_title_keyword(title: str) -> list[str]:
+    """Return an error when the title holds a closing keyword before an issue."""
+    if CLOSING_KEYWORD.search(title) is None:
+        return []
+    return [
+        (
+            "title: a closing keyword stands in the title, and GitHub closes the issue after it when the commit lands: "
+            f"name the issue in the line that ends '{WHY}', or reword the title {NO_KEYWORD}"
+        ),
+    ]
+
+
+def check_body_keywords(body: str, last_prose_lines: dict[str, tuple[int, str]]) -> list[str]:
+    """Return an error for each line of the body that holds a closing keyword before an issue.
+
+    The line that ends Why, when its last prose line starts with "Closes", is the one line that may.
+    """
+    why_end = last_prose_lines.get(WHY)
+    why_line = why_end[0] if why_end is not None and why_end[1].startswith(ENDING_LINES[WHY].start) else None
+    return [
+        (
+            f"body:{number}: a closing keyword stands outside the line that ends '{WHY}', and GitHub closes the issue "
+            f"after it when the pull request merges: name the issue in that line, or reword {NO_KEYWORD}"
+        )
+        for number, line in enumerate(body.split("\n"), 1)
+        if number != why_line and CLOSING_KEYWORD.search(line) is not None
+    ]
+
+
 def check_length(content: int, target: int, headroom: int) -> tuple[list[str], list[str]]:
     """Return an error above the limit, which is the target plus the headroom, and a warning above the target."""
     limit = target + headroom
@@ -314,11 +355,13 @@ def main(arguments: list[str]) -> int:
     except RefusalError as refusal:
         print(f"check-pull-request: {refusal}", file=sys.stderr)
         return 2
+    errors += check_title_keyword(title)
     errors += [line for line in marks if line.startswith("title:")]
     if body.strip():
         read = read_body(body)
         errors += check_headings(read.headings)
         errors += check_ending_lines(read.last_prose_lines)
+        errors += check_body_keywords(body, read.last_prose_lines)
         over_limit, warnings = check_length(read.content, target_lines, headroom_lines)
         errors += over_limit
     else:
