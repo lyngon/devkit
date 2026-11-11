@@ -85,7 +85,8 @@ Templates are in [references/package-files.md](references/package-files.md).
 - `devenv.nix`: the package's tasks, its `{name}-` hooks scoped with `files`, and processes. No `languages.*` and no stock hooks; both are enabled at the root.
 - `README.md`: what it is and how to run it. For an app, it states the deployable kind and the runtime units it backs.
 - `INTENT.md`: only on a yes. Ask once whether the package's intent differs from the root's: its own audience, its own done or failure, or non-goals that the root `INTENT.md` does not state. When `repo:init` invoked this skill, its interview question on contexts and package names has answered that.
-- No `CLAUDE.md` and no `AGENTS.md`; `validate-documents` rejects both.
+- `.claude/CLAUDE.md`: whenever, and only when, you write the package's `INTENT.md`, with the one line `@../INTENT.md`. Claude Code then loads the package's intent when an agent reads, writes or edits a file of the package.
+- No other `CLAUDE.md` and no `AGENTS.md`. `validate-documents` rejects both, and fails an `INTENT.md` without the agent file beside it.
 
 By kind:
 

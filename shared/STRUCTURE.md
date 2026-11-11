@@ -231,7 +231,7 @@ Size is handled by the layout, never by splitting the repository.
 ├── Cargo.toml  Cargo.lock
 ├── go.work
 ├── devenv.yaml  devenv.nix      imports lyngon/devenv and every package's devenv.nix
-├── .claude/                     the agent file and the repository's principles
+├── .claude/                     the root's agent file and the repository's principles
 ├── INTENT.md  CONCEPTS.md  README.md
 ```
 
@@ -269,7 +269,7 @@ Every app and library holds:
 - `scripts/`, optional, run through the package's devenv tasks.
 
 The core library of a context also holds `CONCEPTS.md` and, from its first record, `docs/decisions/`.
-A package holds no agent file, and an `INTENT.md` only when its intent differs from the root's; the document conventions state both rules.
+A package holds an `INTENT.md` only when its intent differs from the root's, and with it an agent file, `.claude/CLAUDE.md`, that imports the intent; the document conventions state both rules.
 
 ### 4.4 What is enforced
 

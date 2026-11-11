@@ -101,7 +101,8 @@ my-service/
 │   └── orders-api/             Python entrypoint: main, wiring, config; delivered as an image
 │       ├── devenv.nix          tasks, hooks and processes for this package only
 │       ├── README.md           what it is, how to run it
-│       └── INTENT.md           only when its intent differs from the root's
+│       ├── INTENT.md           only when its intent differs from the root's
+│       └── .claude/CLAUDE.md   imports INTENT.md when an agent works on the package
 ├── libs/
 │   ├── orders/                 core library: domain and application; holds CONCEPTS.md
 │   └── orders-postgres/        one adapter per technology
