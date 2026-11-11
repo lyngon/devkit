@@ -133,9 +133,11 @@ let
     text = ''exec python3 ${./validate-structure.py} "$@"'';
   };
 
-  # The document rules: an agent file that imports INTENT.md, no AGENTS.md, no
-  # CLAUDE.md outside .claude/, no docs/adr/, and the shape of decision
-  # records, INTENT.md, rule files and the files of the mistake ledger.
+  # The document rules: an agent file at the root and beside every package
+  # INTENT.md, holding the import of INTENT.md and no line but imports of its
+  # directory's own documents; no AGENTS.md, no CLAUDE.md outside .claude/, no
+  # docs/adr/, and the shape of decision records, INTENT.md, rule files and
+  # the files of the mistake ledger.
   validateDocuments = pkgs.writeShellApplication {
     name = "validate-documents";
     runtimeInputs = [

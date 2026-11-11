@@ -24,12 +24,14 @@ failures=0
 # --- Fixture helpers ---------------------------------------------------------
 
 # The root of a repository, as far as the script and the validator look: a
-# .git, and the agent file that the validator demands of every repository.
+# .git, and the agent file and the intent that the validator demands of every
+# repository.
 new_repo() {
   local repo
   repo=$(mktemp -d "$tmp/repo.XXXXXX")
   mkdir -p "$repo/.git" "$repo/.claude" "$repo/docs/mistakes"
   echo "@../INTENT.md" >"$repo/.claude/CLAUDE.md"
+  printf '%s\n' "# Intent" "" "## Non-goals" >"$repo/INTENT.md"
   echo "$repo"
 }
 
