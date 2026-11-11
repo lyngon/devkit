@@ -200,8 +200,6 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/full-check-shows-what-passed.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
-  # The test task of the add-package template in a throwaway repository,
-  # entered as the hooks test above enters its own.
   testPackageTestRunsInTheFullCheckOnly = pkgs.writeShellApplication {
     name = "test-package-test-runs-in-the-full-check-only";
     runtimeInputs = [

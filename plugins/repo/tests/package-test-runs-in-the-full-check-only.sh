@@ -39,7 +39,6 @@ imports:
 EOF
 cp "$lock" "$repo/devenv.lock"
 printf '%s\n' '.devenv*' .pre-commit-config.yaml >"$repo/.gitignore"
-# The package's tests fail, so that a run of them shows in the exit status.
 cat >"$repo/devenv.nix" <<'EOF'
 { pkgs, ... }:
 {
