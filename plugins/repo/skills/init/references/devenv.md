@@ -75,7 +75,6 @@ Add the `secretspec` section when the repository needs secrets (see below).
 
   packages = [ pkgs.jq ];
 
-  # `devenv test` runs every git hook on every file first, then this.
   enterTest = ''
     {repository-wide test command, or nothing}
   '';
@@ -121,7 +120,10 @@ A package adds only the custom `{name}-` hooks of its stack below, scoped to the
 
 The `add-package` skill writes this file from its `package-files.md` reference; its `workspaces.md` reference has the root workspace file per language.
 
-Wire package tests into the root `enterTest` by task name, or list the commands in the package's `README.md` when they are slow.
+A package's tests run in a task of its `devenv.nix`, `{name}:test`, with `after = [ "devenv:enterShell" ];` and `before = [ "devenv:enterTest" ];`, as `add-package` writes it.
+`devenv test` runs only the tasks that `devenv:enterTest` depends on, so `before` is what makes a failing package test fail the full check, locally and in CI.
+`after` starts the task once the shell is set up; with `before` alone a Python test starts with the first tasks of the run, before the uv sync has installed pytest.
+A test too slow for the full check stays out of it, and the package's `README.md` lists its command instead.
 
 ## Stacks
 
@@ -498,6 +500,6 @@ Never add a service because the stack suggests one.
 devenv test
 ```
 
-runs `prek run --all-files` for every hook and then `enterTest`.
+runs `prek run --all-files` for every hook and the test task of every package, then `enterTest`.
 When a hook fails on generated or vendored files, exclude the path with `excludes` on that hook rather than disabling the hook.
 A list set on `markdownlint.excludes` replaces the baseline's, so repeat its entry `"(^|/)\\.claude/CLAUDE\\.md$"` there: an agent file, at the root or in a package, holds import lines and no heading.

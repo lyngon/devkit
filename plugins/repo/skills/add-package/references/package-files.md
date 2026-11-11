@@ -73,6 +73,8 @@ A Python library:
   tasks."{name}:test" = {
     description = "Run {name} tests";
     exec = "cd libs/{name} && uv run pytest";
+    after = [ "devenv:enterShell" ];
+    before = [ "devenv:enterTest" ];
   };
 }
 ```
