@@ -200,6 +200,18 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/full-check-shows-what-passed.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
+  testPackageTestRunsInTheFullCheckOnly = pkgs.writeShellApplication {
+    name = "test-package-test-runs-in-the-full-check-only";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.gawk
+      pkgs.git
+      pkgs.gnugrep
+      pkgs.gnused
+    ];
+    text = ''exec "${config.devenv.root}/plugins/repo/tests/package-test-runs-in-the-full-check-only.sh" "$@" "${config.devenv.root}/devenv.lock"'';
+  };
   testStructureChecksTheCommit = pkgs.writeShellApplication {
     name = "test-structure-checks-the-commit";
     runtimeInputs = [
@@ -466,6 +478,7 @@ in
     declared_tools_only ${lib.getExe testHooksFollowTheirWorktree} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testMcpFileFollowsItsOption} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testFullCheckShowsWhatPassed} "$(command -v devenv)"
+    declared_tools_only ${lib.getExe testPackageTestRunsInTheFullCheckOnly} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testStructureChecksTheCommit} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testHooksRunAfterTheShellSetup} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}

@@ -120,9 +120,10 @@ A package adds only the custom `{name}-` hooks of its stack below, scoped to the
 
 The `add-package` skill writes this file from its `package-files.md` reference; its `workspaces.md` reference has the root workspace file per language.
 
-A package's tests run in a task of its `devenv.nix`, `{name}:test`, with `after = [ "devenv:enterShell" ];` and `before = [ "devenv:enterTest" ];`, as `add-package` writes it.
+A package's tests run in a task of its `devenv.nix`, `{name}:test`, with `after = [ "devenv:enterShell" ];`, `before = [ "devenv:enterTest" ];` and `wantedBy = [ "devenv:enterTest" ];`, as `add-package` writes it.
 `devenv test` runs only the tasks that `devenv:enterTest` depends on, so `before` is what makes a failing package test fail the full check, locally and in CI.
 `after` starts the task once the shell is set up; with `before` alone a Python test starts with the first tasks of the run, before the uv sync has installed pytest.
+`wantedBy` keeps the task out of shell entry: without it, a task ordered after `devenv:enterShell` runs each time the shell starts.
 A test too slow for the full check stays out of it, and the package's `README.md` lists its command instead.
 
 ## Stacks
