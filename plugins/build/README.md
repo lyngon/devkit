@@ -15,13 +15,14 @@ How a change is built and handed over in a Lyngon repository: a prompt or an iss
 - `/build:work-trace [task]`: keep a decision trail of long or unattended work, one row per decision with its evidence, in `tmp/work-trace/<branch>.tsv`, written by the script `skills/work-trace/scripts/trace.py`. It is checked against the session's transcript and scanned by a reviewer on another model, whose Attention section lies beside it. It is never committed, and `pull-request` posts both on the pull request.
 - `/build:benchmark [claim]`: vet a performance number before it is reported or acted on, with seven questions answered from runs (the limiter, tuning, limits, errors, repeatability, relevance, and whether the work happened), and report the verdict with the run count, the range and the limiter.
 - `/build:clean-comments [scope]`: before a change goes to a pull request, have the agent `build:comment-auditor` (`agents/comment-auditor.md`) delete the comments of the change that its exceptions do not protect and flag the code they covered for, then vet its work, fix the flags at their root and encode each constraint a comment claimed.
+- `/build:live-mutation [mutation]`: before a change to a running system or the state a tool keeps of one, such as an OpenTofu apply, decide whether it waits for the owner's go-ahead. One that waits is proposed with the script `skills/live-mutation/scripts/live-mutation.py`, shown to the owner, run once on a go-ahead in the same conversation after a drift check, judged by checks of live state that each failed once, and recorded in a comment on the pull request or issue. The standing instructions send every live mutation here.
 
 The agent never starts `auto`, which carries `disable-model-invocation: true`.
 It starts `architect`, `arena`, `review` and `figure-it-out` only when the operator asks for one of them, or when `auto` routes there or `architect` runs `arena` and `review`.
 Each of the four spawns several subagents, directly or through the others.
 The agent starts every other skill on its own trigger.
 
-The skills and the agents are vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), all but the script of `correction`, and the hooks are written by Lyngon.
+The skills and the agents are vendored from [pstack](https://github.com/cursor/plugins/tree/main/pstack) (MIT), all but the script of `correction` and the skill `live-mutation`, and the hooks are written by Lyngon.
 Upstream, `auto` is called `poteto-mode`, `pull-request` is its playbook `opening-a-pr`, `correction` is `correct`, `review` `interrogate`, `work-trace` `show-me-your-work`, `benchmark` `benchmark-checklist`, `clean-comments` `no-comments`, `implementer` poteto-agent and `comment-auditor` Comment Sicko.
 The license is `LICENSE-pstack` in this plugin, and the provenance record is [pstack.md](../../catalog/vendored/pstack.md) under `catalog/vendored/`.
 
@@ -37,7 +38,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
 `correction` keeps one file per mistake under `docs/mistakes/` of the repository it works in, and `validate-documents` of the baseline checks the shape of each.
 Its script `skills/correction/scripts/prune-mistakes.py` deletes the files whose date is older than the baseline option `lyngon.mistakes.maxAgeDays`, 365 days by default.
 The script is Python and imports the standard library only, because the baseline option `lyngon.scriptTools` is all a shipped script may run.
-`tests/prune-mistakes.sh` runs it with a PATH that holds those tools and nothing else, and `tests/work-trace.sh` runs the script of `work-trace` the same way.
+`tests/prune-mistakes.sh` runs it with a PATH that holds those tools and nothing else, and `tests/work-trace.sh` and `tests/live-mutation.sh` run the scripts of `work-trace` and `live-mutation` the same way.
 
 ## Install
 
