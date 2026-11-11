@@ -355,12 +355,10 @@ in
           exec = lib.mkDefault (lib.getExe refreshUnusedHookShims);
         };
 
-    # A hook of the full check needs what the shell's setup tasks build, such
-    # as the environment of the uv sync, as a hook of a commit has it. devenv
-    # orders the hooks after their install alone, in a list a default here
-    # would not join, so the edge starts at enterShell. Once ordered after
-    # it, the hooks would also run on each shell entry, unless only the full
-    # check selects them.
+    # devenv orders the hooks after their install alone, in a list a default
+    # here would not join, so the edge starts at enterShell. Once ordered
+    # after it, the hooks would also run on each shell entry, unless only the
+    # full check selects them.
     tasks."devenv:enterShell".before = lib.mkIf config.git-hooks.enable (
       lib.mkDefault [ "devenv:git-hooks:run" ]
     );

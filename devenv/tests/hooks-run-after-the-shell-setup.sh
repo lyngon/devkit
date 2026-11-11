@@ -45,8 +45,6 @@ imports:
 EOF
 cp "$lock" "$repo/devenv.lock"
 printf '%s\n' '.devenv*' .pre-commit-config.yaml .mcp.json set-up >"$repo/.gitignore"
-# The setup task takes longer than the hook install, as a uv sync that
-# downloads does.
 cat >"$repo/devenv.nix" <<'EOF'
 { pkgs, ... }:
 {
@@ -54,7 +52,7 @@ cat >"$repo/devenv.nix" <<'EOF'
 
   git-hooks.hooks.validate-documents.enable = false;
 
-  tasks."fixture:setup" = {
+  tasks."fixture:setup-slower-than-the-hook-install" = {
     exec = "${pkgs.coreutils}/bin/sleep 2 && ${pkgs.coreutils}/bin/touch set-up";
     before = [ "devenv:enterShell" ];
   };
