@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Exercise validate-documents.py against throwaway fixture repositories: for
-# each of its eight rules a tree that fails and one that passes, plus the paths
-# it skips and the two ways it is run. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-documents.py
@@ -245,6 +242,19 @@ repo=$(clean_repo)
 write "$repo" .claude/rules/money-is-never-a-float.md "# Money is never a float" "$(lines 100)"
 expect_error "rule-file-shape: 101 lines" "$repo" 1 \
   "error: .claude/rules/money-is-never-a-float.md: rule-file-shape: 101 lines; cut it to 100 at most"
+
+repo=$(clean_repo)
+write "$repo" .claude/rules/orders-intent.md "---" "paths:" '  - "libs/orders/**"' "---" "" "@../../libs/orders/INTENT.md"
+expect_error "scoped-rule-imports-nothing: a rule with paths: that imports a file" "$repo" 1 \
+  "error: .claude/rules/orders-intent.md:6: scoped-rule-imports-nothing: state the principle in the rule itself; Claude Code loads a file that a rule imports with @ at launch, whatever its paths: say"
+
+repo=$(clean_repo)
+write "$repo" .claude/rules/orders-intent.md "@../../libs/orders/INTENT.md"
+expect_ok "scoped-rule-imports-nothing: a rule without paths: may import" "$repo"
+
+repo=$(clean_repo)
+write "$repo" .claude/rules/orders-intent.md "---" "paths:" '  - "libs/orders/**"' "---" "" "Read @orders before you change the table."
+expect_ok "scoped-rule-imports-nothing: a mention of @orders inside a sentence" "$repo"
 
 # ledger-file-shape
 ledger_file=docs/mistakes/a-generated-client-was-edited-by-hand.md

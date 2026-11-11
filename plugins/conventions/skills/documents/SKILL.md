@@ -33,6 +33,7 @@ One test decides whether any text enters one:
 - The organization's principles are in no repository. They come from the `principles` plugin, which the agent reads through `principles:index`, and are never copied in.
 - `README.md` is not a steering document. It says how to use the repository and links to `INTENT.md` instead of repeating it.
 - A rule file is named after its principle in kebab-case. It holds that name as its heading, the statement in one or two sentences, then one sentence starting `Why:`. It carries a `paths:` field whenever the principle concerns part of the tree, such as one package.
+- A rule file with `paths:` imports nothing with `@`, because Claude Code loads an imported file at launch whatever `paths:` say.
 - `INTENT.md` has the sections Product, For whom, Done means, Failure means, Non-goals and Horizon, stays within 50 lines, and changes only when the purpose changes.
 - `INTENT.md` may have one more section, `## Priorities`, between `## Non-goals` and `## Horizon`, with each line of the form "X over Y". A line enters only after an owner answered a real question from an agent, so the section starts absent.
 - `CONCEPTS.md` follows [CONCEPTS-FORMAT.md](CONCEPTS-FORMAT.md), and a decision record follows the `decision-record` conventions.
