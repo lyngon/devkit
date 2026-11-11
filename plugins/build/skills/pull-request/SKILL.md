@@ -48,7 +48,7 @@ Write it, and the title, with `writing:technical`, every layer but Diátaxis, th
 ## Not verified
 ```
 
-- **Why**: the problem and the approach, in one to three sentences.
+- **Why**: the problem and the approach, in one to three sentences. It ends with the line `Closes nothing.`, or with each issue that the change fixes, as in `Closes #12, closes #15.`, since GitHub closes an issue at the merge only when `closes` comes before it.
 - **Decisions**: for each decision, what was decided, the alternatives and how they were compared, the trade-off accepted and the steering document changed. An entry that replaces a decision record says `replaces <name>`. With none, write "None".
 - **What changed**: one to three bullets. Name both sides of a rename.
 - **Scope**: what the change covers and what it deliberately leaves out. It ends with the line `Met on the way:`, followed by `nothing` or by each issue and pull request for a problem the work met, as in `Met on the way: #12 and #15.`
