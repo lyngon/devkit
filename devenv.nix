@@ -246,6 +246,7 @@ let
       pkgs.git
       pkgs.gnugrep
       pkgs.gnused
+      pkgs.jq
       pkgs.zsh
     ];
     text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/hooks.sh" "$@"'';

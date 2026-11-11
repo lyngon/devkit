@@ -17,7 +17,7 @@ failures=0
 # devenv and direnv exist.
 tools=$tmp/tools
 mkdir -p "$tools"
-for tool in bash cat dirname env git grep mktemp mv rm sed sort; do
+for tool in bash cat dirname env git grep mktemp mv rm sed sleep sort timeout; do
   ln -s "$(command -v "$tool")" "$tools/$tool"
 done
 
@@ -263,7 +263,8 @@ commit() {
 }
 
 # upstream_clone <commits the clone is behind>: a clone whose upstream has
-# moved on by that many commits, seen through a fetch.
+# moved on by that many commits since the clone last fetched. Another clone
+# of the same upstream sits beside it, at ../other.
 upstream_clone() {
   local behind=$1 dir i
   dir=$(mktemp -d "$tmp/git.XXXXXX")
@@ -277,7 +278,6 @@ upstream_clone() {
     commit "$dir/other" "upstream $i"
     git -C "$dir/other" push -q origin main
   done
-  git -C "$dir/clone" fetch -q
   echo "$dir/clone"
 }
 
@@ -288,7 +288,7 @@ run_session_start() {
 }
 
 run_session_start "$(upstream_clone 2)"
-check "two commits behind: one line saying so, with the command" \
+check "two commits behind since the last fetch: the hook fetches, and one line says so, with the command" \
   equals "$code|$out|$err" "0|The current branch is 2 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`.|"
 
 run_session_start "$(upstream_clone 1)"
@@ -299,6 +299,44 @@ clone=$(upstream_clone 0)
 commit "$clone" ahead
 run_session_start "$clone"
 check "up to date or ahead: nothing" equals "$code|$out|$err" "0||"
+
+clone=$(upstream_clone 2)
+git -C "$clone" switch -q -c feat/next
+run_session_start "$clone"
+check "main behind origin/main, on a feature branch: one line saying so, with the branch to start from" \
+  equals "$code|$out|$err" "0|The local main is 2 commits behind origin/main; start every new branch from origin/main, not from main.|"
+
+# GitHub squash-merges the pull request of feat/merged and deletes its branch.
+clone=$(upstream_clone 0)
+git -C "$clone" switch -q -c feat/merged
+commit "$clone" work
+git -C "$clone" push -q -u origin feat/merged
+commit "${clone%/clone}/other" "squash of feat/merged"
+git -C "${clone%/clone}/other" push -q origin main
+git -C "${clone%/clone}/other" push -q origin --delete feat/merged
+run_session_start "$clone"
+check "on a branch whose upstream was deleted at its merge: says so, and that main is behind" \
+  equals "$code|$out|$err" "0|The current branch, feat/merged, tracks origin/feat/merged, which no longer exists, as after a pull request merges and its branch is deleted. Check whether that happened before you work on feat/merged again, and start new work on a new branch from origin/main."$'\n'"The local main is 1 commit behind origin/main; start every new branch from origin/main, not from main.|"
+
+# The last fetch saw main fall behind; then origin stops answering.
+clone=$(upstream_clone 2)
+git -C "$clone" fetch -q
+git -C "$clone" switch -q -c feat/next
+git -C "$clone" config remote.origin.uploadpack 'sleep 60; git-upload-pack'
+start=$EPOCHREALTIME
+run_session_start "$clone"
+seconds=$(((${EPOCHREALTIME/./} - ${start/./}) / 1000000))
+timeout=$(jq '.hooks.SessionStart[].hooks[] | select(.command | endswith("/hooks/session-start.sh")) | .timeout' "$hooks/hooks.json")
+check "origin never answers: says it could not fetch, then what the last fetch saw" \
+  equals "$code|$out|$err" "0|Could not fetch origin at session start (no answer within 10 s), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again, and if that fails too, say so."$'\n'"The local main is 2 commits behind origin/main; start every new branch from origin/main, not from main.|"
+check "origin never answers: the hook ends in $seconds s, before its timeout of $timeout s in hooks.json" \
+  test "$seconds" -lt "$timeout"
+
+clone=$(upstream_clone 0)
+git -C "$clone" remote set-url origin "$tmp/missing.git"
+run_session_start "$clone"
+check "origin unreachable: says it could not fetch, with git's reason" \
+  equals "$code|$out|$err" "0|Could not fetch origin at session start (fatal: '$tmp/missing.git' does not appear to be a git repository), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again, and if that fails too, say so.|"
 
 dir=$(mktemp -d "$tmp/git.XXXXXX")
 git init -q -b main "$dir"
