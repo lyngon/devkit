@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Exercise check-pull-request on fixture titles and bodies: a pair that passes,
-# and for each rule one that fails (the title, the seven headings, the lines
-# that end Why and Scope, the marks prose-lint flags, the length). The built command
-# is the one argument, so the fixtures run what the baseline module built, with
-# the target and the headroom it wrote into the command. Other values of the
-# two go to the Python file directly. Run through `devenv test`.
 set -euo pipefail
 
 built=${1:?usage: check-pull-request.sh <the built check-pull-request command>}
@@ -30,10 +24,6 @@ met="Met on the way: nothing."
 no_met_line="error: body: '## Scope' does not end with a line that says what the work met on the way: end the section with \"Met on the way: nothing.\" or with each issue and pull request for a problem the work met, as \"Met on the way: #12 and #15.\""
 bad_met_line="the line \"Met on the way:\" says neither \"nothing\" nor a list of issues and pull requests: write \"Met on the way: nothing.\" or name each one as #12 or owner/repository#12, joined by commas and \"and\""
 
-# body_of <section>...: a body with one content line under each section, in
-# the order given, where the line under Why is $closes and the line under Scope
-# is $met. Every section takes four lines, so the line under Why is line 3 when
-# Why is the first, and the line under Scope is line 15 when Scope is the fourth.
 body_of() {
   local section line
   for section in "$@"; do
@@ -47,9 +37,6 @@ body_of() {
   done
 }
 
-# body <count>: a body with the seven sections and <count> content lines, seven
-# at least. $closes and $met are two of them, so the length cases below also
-# show that the two lines count like any other.
 body() {
   local i
   body_of "${sections[@]}"
@@ -130,6 +117,8 @@ holds_command() {
 # --- Cases -------------------------------------------------------------------
 
 good=$(body 7)
+closes_at=$(grep -n -x -F "$closes" <<<"$good" | cut -d: -f1)
+met_at=$(grep -n -x -F "$met" <<<"$good" | cut -d: -f1)
 
 check "$good_title" "$good" "$built"
 expect_silent "a good title and a good body pass with no output"
@@ -210,7 +199,6 @@ expect "with neither variable set, the title and the body each fail" 1 2 \
 check "$good_title" "${good//$'\n'/$'\r\n'}" "$built"
 expect_silent "a body with the line endings of a web form passes"
 
-# The line that ends Why
 why_of_137=$'Under `/build:auto`, step 3 of `build:clean-comments` told the lead to fix trivial flags itself, which `lead-writes-no-code.py` refuses for an Edit or a Write (#126).
 A lead that used `sed` through Bash instead wrote the code, and nothing stopped it.
 Now the skill gives every fix to a `build:implementer` delegate under the mode, and the hook reads the lead\'s shell commands too.'
@@ -232,13 +220,13 @@ check "$good_title" "${good/"$closes"/"Closes nothing"}" "$built"
 expect_silent "a line that closes nothing passes, with or without the period"
 
 check "$good_title" "${good/"$closes"/"Closes #12 and #15."}" "$built"
-expect "a list of which GitHub would close only the first issue fails" 1 1 "error: body:3: $bad_closes_line"
+expect "a list of which GitHub would close only the first issue fails" 1 1 "error: body:$closes_at: $bad_closes_line"
 
 check "$good_title" "${good/"$closes"/"Closes"}" "$built"
-expect "a line with nothing after the word fails" 1 1 "error: body:3: $bad_closes_line"
+expect "a line with nothing after the word fails" 1 1 "error: body:$closes_at: $bad_closes_line"
 
 check "$good_title" "${good/"$closes"/"Closes #12 for the values that name nothing."}" "$built"
-expect "an issue with a remark after it fails" 1 1 "error: body:3: $bad_closes_line"
+expect "an issue with a remark after it fails" 1 1 "error: body:$closes_at: $bad_closes_line"
 
 check "$good_title" "${good/"$closes"/"Fixes #12."}" "$built"
 expect "another keyword in place of Closes fails" 1 1 "$no_closes_line"
@@ -253,7 +241,7 @@ check "$good_title" "${good/"$closes"/"Closes ::warning::forged ##[error]forged"
 if holds_command; then
   fail "a line about closing that is not well formed is named without its text" "no workflow command"
 else
-  expect "a line about closing that holds a workflow command fails" 1 1 "error: body:3: $bad_closes_line"
+  expect "a line about closing that holds a workflow command fails" 1 1 "error: body:$closes_at: $bad_closes_line"
 fi
 
 # The line that ends Scope
@@ -264,10 +252,10 @@ check "$good_title" "${good/"$met"/"$scope_of_56"}" "$built"
 expect "a Scope without the line fails, as the Scope of pull request 56 would have" 1 1 "$no_met_line"
 
 check "$good_title" "${good/"$met"/"Met on the way:"}" "$built"
-expect "a line with nothing after the colon fails" 1 1 "error: body:15: $bad_met_line"
+expect "a line with nothing after the colon fails" 1 1 "error: body:$met_at: $bad_met_line"
 
 check "$good_title" "${good/"$met"/"Met on the way:   "}" "$built"
-expect "a line with only spaces after the colon fails" 1 1 "error: body:15: $bad_met_line"
+expect "a line with only spaces after the colon fails" 1 1 "error: body:$met_at: $bad_met_line"
 
 check "$good_title" "${good/"$met"/"Met on the way: nothing"}" "$built"
 expect_silent "a line that says nothing passes, with or without the period"
@@ -279,13 +267,13 @@ check "$good_title" "${good/"$met"/"Met on the way: #60 and #63"}" "$built"
 expect_silent "a list of two joined by and passes"
 
 check "$good_title" "${good/"$met"/"Met on the way: a stale commit-msg shim, which is harmless."}" "$built"
-expect "a remark in place of a list fails" 1 1 "error: body:15: $bad_met_line"
+expect "a remark in place of a list fails" 1 1 "error: body:$met_at: $bad_met_line"
 
 check "$good_title" "${good/"$met"/"Met on the way: #60 for the values that name nothing."}" "$built"
-expect "a reference with a remark after it fails" 1 1 "error: body:15: $bad_met_line"
+expect "a reference with a remark after it fails" 1 1 "error: body:$met_at: $bad_met_line"
 
 check "$good_title" "${good/"$met"/"Met on the way: None."}" "$built"
-expect "None in place of nothing fails" 1 1 "error: body:15: $bad_met_line"
+expect "None in place of nothing fails" 1 1 "error: body:$met_at: $bad_met_line"
 
 check "$good_title" "${good/"$met"/"$met"$'\n\nLeaves out the README.'}" "$built"
 expect "a line that does not end Scope fails" 1 1 "$no_met_line"
@@ -297,7 +285,7 @@ check "$good_title" "${good/"$met"/"Met on the way: ::warning::forged ##[error]f
 if holds_command; then
   fail "a line that is not well formed is named without its text" "no workflow command"
 else
-  expect "a line that holds a workflow command fails" 1 1 "error: body:15: $bad_met_line"
+  expect "a line that holds a workflow command fails" 1 1 "error: body:$met_at: $bad_met_line"
 fi
 
 # The marks prose-lint flags

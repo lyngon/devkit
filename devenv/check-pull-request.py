@@ -191,16 +191,14 @@ class Body(t.NamedTuple):
     """The second-level headings, with their line numbers."""
     content: int
     """The number of content lines."""
-    ends: dict[str, tuple[int, str] | None]
-    """For each section of ENDING_LINES, its last line that is not blank, with its number; None or no entry when
-    the section is missing, holds no such line or ends in a fenced code block."""
+    last_prose_lines: dict[str, tuple[int, str]]
 
 
 def read_body(body: str) -> Body:
-    """Read the headings, the content lines and the end of each section of ENDING_LINES of the body."""
+    """Read the headings, the content lines and the last prose line of each section of ENDING_LINES of the body."""
     headings: list[tuple[int, str]] = []
     content = 0
-    ends: dict[str, tuple[int, str] | None] = {}
+    last_prose_lines: dict[str, tuple[int, str]] = {}
     section: str | None = None
     fence: str | None = None
     for number, raw in enumerate(body.split("\n"), 1):
@@ -220,10 +218,12 @@ def read_body(body: str) -> Body:
                 continue
         else:
             prose = True
-        if section is not None:
-            ends[section] = (number, line) if prose else None
+        if section is not None and prose:
+            last_prose_lines[section] = (number, line)
+        elif section is not None:
+            _ = last_prose_lines.pop(section, None)
         content += 1
-    return Body(headings, content, ends)
+    return Body(headings, content, last_prose_lines)
 
 
 def check_headings(headings: list[tuple[int, str]]) -> list[str]:
@@ -257,11 +257,14 @@ def check_headings(headings: list[tuple[int, str]]) -> list[str]:
     return found
 
 
-def check_ending_lines(ends: dict[str, tuple[int, str] | None]) -> list[str]:
-    """Check that each section of ENDING_LINES ends with its line, in its form."""
+def check_ending_lines(last_prose_lines: dict[str, tuple[int, str]]) -> list[str]:
+    """Return an error for each section of ENDING_LINES whose line is missing or not in its form.
+
+    The line is missing when the section's last line is no prose line that starts with the line's word.
+    """
     found: list[str] = []
     for section, ending in ENDING_LINES.items():
-        end = ends.get(section)
+        end = last_prose_lines.get(section)
         if end is None or not end[1].startswith(ending.start):
             found.append(f"body: {ending.missing}")
         elif ending.form.fullmatch(end[1]) is None:
@@ -315,7 +318,7 @@ def main(arguments: list[str]) -> int:
     if body.strip():
         read = read_body(body)
         errors += check_headings(read.headings)
-        errors += check_ending_lines(read.ends)
+        errors += check_ending_lines(read.last_prose_lines)
         over_limit, warnings = check_length(read.content, target_lines, headroom_lines)
         errors += over_limit
     else:
