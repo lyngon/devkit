@@ -74,3 +74,100 @@ Outside this change, each on its own:
 - A headless run, on 2.1.283 and 2.1.319, in a scratch repository built from what `repo:add-package` writes. The session quotes the package intent word for word after reading a file of the package and not before. After a compaction, and then an edit of a file in the package, it quotes it again. A second session that reads only files at the root never carries it. The transcript's attachments back each answer.
 - In a clone of `lyngon/lyngon.com` at its `main`: this branch's `validate-documents` names the four missing agent files, and passes once they are added as its messages say. A headless session with this branch's plugins edits a file of `tools/check-backends` and then quotes its intent, and a session that edits only a file at the root does not carry it.
 - The eval suite's score for `repo` at the base and at head, from `compare-evals`.
+
+## Validator sketch
+
+The shape of the agent-file rules in `devenv/validate-documents.py`, synthesized by `build:architect` from two candidates through `build:arena`.
+
+### Usage
+
+```sh
+validate-documents libs/orders/INTENT.md
+```
+
+```sh
+validate-documents
+```
+
+The first is the pre-commit hook: every path given, deleted or not, brings in the agent file of its own directory, so deleting either half of a package's pair, or a file its agent file imports, fails the commit, and a fixture tree that a hook's `excludes` keeps out of the arguments brings nothing in.
+The second checks every tracked file.
+A run without git (python3 alone on the PATH) counts every file of the working tree as tracked.
+
+### Shape
+
+- `AgentFile(home)`, a frozen dataclass, is the place `<home>/.claude/CLAUDE.md`, whether the file exists or not; the root is `PurePosixPath(".")`.
+  Its members `path`, `intent`, `sibling(name)`, `is_root` and `place` (`the root` or `libs/orders/`) are the only code that joins `.claude`, `CLAUDE.md` or `INTENT.md` onto a directory.
+- `agent_file_of(path) -> AgentFile | None`: the inverse, `<home>/.claude/CLAUDE.md` gives `AgentFile(home)`.
+- The line grammar, in constants and one parse: `IMPORT = @../(?P<name>[^/\s]+\.md)`, `ANY_IMPORT = \s*@\S+`, each matched in full against the line with trailing whitespace removed; a line is `Import(number, name)`, `ImportElsewhere(number, text)` or `Text(number)`, and a blank line is none of them. The checks match the union with `assert_never`.
+- `Tree(root, tracked)`, read once at the boundary by `read_tree`, which replaces `files_to_check` with the same root and refusals and runs one `git ls-files -z`; `tracked is None` when git cannot say. `Tree.holds(path)` is the one meaning of "missing or untracked".
+- `skipped(path)`: the vendor and generated skip, used by both passes.
+- `agent_files(paths) -> list[AgentFile]`, pure: the root's, plus for every path that is not skipped `agent_file_of(path)` or `AgentFile(path.parent)`, unique, root first.
+- `check_agent_file(tree, agent_file) -> list[str]`: the only function that prints for `agent-file-imports-intent` and `agent-file-holds-only-imports`.
+- `check(tree, paths)`: first `check_agent_file` for each of `agent_files(paths)`, then the per-path loop of today, whose `CLAUDE.md` condition becomes `path.name == "CLAUDE.md" and agent_file_of(path) is None`. `main` loses its separate call for the root's agent file.
+
+`check_agent_file` asks `there = tree.holds(path)` (an unreadable file counts as not there) and `intent = tree.holds(intent)`:
+
+| Place | there | intent | Messages |
+| --- | --- | --- | --- |
+| root | no | either | A-create, and A-root-intent when no intent |
+| root | yes | no | A-root-intent, then the lines |
+| root | yes | yes | the lines |
+| package | no | no | nothing: no package here |
+| package | no | yes | A-create |
+| package | yes | no | A-package-intent, then the lines |
+| package | yes | yes | the lines |
+
+The lines: each `Text` gives H-text, each `ImportElsewhere` H-elsewhere, each `Import` of a name other than `INTENT.md` whose sibling the tree does not hold H-untracked, and no `Import` of `INTENT.md` gives A-add-line, at the root or where the intent is held.
+The target of `@../INTENT.md` belongs to the pair, so a missing intent is reported once.
+
+### Messages, word for word
+
+With `libs/orders` as the package:
+
+```text
+A-create        error: .claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md, so that every session starts from the intent
+                error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md, so that a session loads the package's intent when it works on a file in libs/orders/
+A-add-line      error: .claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md, so that every session starts from the intent
+                error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md, so that a session loads the package's intent when it works on a file in libs/orders/
+A-root-intent   error: INTENT.md: agent-file-imports-intent: create it with the repository's intent, which .claude/CLAUDE.md imports into every session
+A-package-intent error: libs/orders/INTENT.md: agent-file-imports-intent: create it with the sections in which the package's intent differs from the root's, or delete libs/orders/.claude/CLAUDE.md, which a package holds only beside its INTENT.md
+H-text          error: .claude/CLAUDE.md:3: agent-file-holds-only-imports: delete the line, or move what it says to .claude/rules/<principle>.md, with paths: when it concerns part of the tree; an agent file holds only lines of the form @../<name>.md
+H-elsewhere     error: libs/orders/.claude/CLAUDE.md:2: agent-file-holds-only-imports: '@../../INTENT.md' imports no Markdown file directly in libs/orders/; write it as @../<name>.md, or delete the line
+H-untracked     error: libs/orders/.claude/CLAUDE.md:2: agent-file-holds-only-imports: the line imports libs/orders/NOTES.md, which is missing or untracked; add the file, or delete the line
+stray CLAUDE.md error: CLAUDE.md: no-claude-md-outside-dot-claude: move what must stay to .claude/rules/<principle>.md, with paths: when it concerns part of the tree, and delete the file
+AGENTS.md       error: AGENTS.md: no-agents-md: move what must stay to .claude/rules/<principle>.md, with paths: when it concerns part of the tree, and delete the file; Claude Code reads .claude/CLAUDE.md, and no other agent harness is supported
+```
+
+The root's H-elsewhere names `the root` where a package's names its directory.
+
+### Fixtures
+
+`clean_repo` gets a root agent file of import lines only (`@../INTENT.md`, `@../CONCEPTS.md`) and `libs/orders/.claude/CLAUDE.md` holding `@../INTENT.md`, a blank line and `@../README.md`.
+Each message above gets a fixture at the root and in a package where both apply, and these cases get one each:
+
+- A deleted package agent file, a deleted package `INTENT.md` and a deleted imported file, each given as the only argument.
+- Both halves of a pair given, one of them deleted: one error.
+- A stray `CLAUDE.md` that the agent file imports, deleted and given as the argument: H-untracked.
+- A fixture tree with an `INTENT.md` and no agent file, kept out by the arguments: `ok`; with no arguments: A-create.
+- A file deeper in a package given as the argument, with free text in the package's agent file: `ok`.
+- `vendor/` and `generated/` directories holding an `INTENT.md` and an agent file with free text: `ok`.
+- An indented `@../INTENT.md`, a name with a space, `@anders please review` (H-text), an import of `ruff.toml`, `@INTENT.md`.
+- A context's core library with a `CONCEPTS.md` and an agent file that imports only it: A-package-intent.
+- The run without git: a directory that is no repository, with python3 alone on the PATH.
+
+The test "the import may stand anywhere in the file" goes, and the test of a `.claude` directory below the root turns into a passing package.
+`plugins/build/tests/prune-mistakes.sh` writes an `INTENT.md` into its fixture repository.
+
+### Synthesis decision
+
+Candidate 2 (the role of each path) is the base, on the judge's scores of 23 to 21 and its smaller surface: an agent file as a place needs no second code path for a missing file, and one function prints both rules.
+From candidate 1 (the directory model) came the typed line grammar, the pair's ownership of the intent line, and the separate pass before the per-path loop.
+Two fixes closed defects that the judge found in the base: every path, not only a Markdown file, brings in its directory's agent file, and only trailing whitespace is forgiven on a line.
+Rejected: candidate 1's load before deciding what to check, since a directory with neither half gives no message anyway, and candidate 2's agent files inside the per-path loop.
+
+### Tradeoffs accepted
+
+- We accept two file lookups for the directory of every path in a run, most of them no package, in exchange for a rule with no notion of a package beyond its two files.
+- We accept one `git ls-files -z` per run, with arguments too, in exchange for one definition of tracked.
+- We accept that an empty repository reports two errors, the agent file and the intent, in exchange for one rule for the root's pair.
+- We accept one error per line of free text, in exchange for a line number on each.
