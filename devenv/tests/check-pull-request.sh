@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Exercise check-pull-request on fixture titles and bodies: a pair that passes,
-# and for each rule one that fails (the title, the seven headings, the line
-# that ends Scope, the marks prose-lint flags, the length). The built command
+# and for each rule one that fails (the title, the seven headings, the lines
+# that end Why and Scope, the marks prose-lint flags, the length). The built command
 # is the one argument, so the fixtures run what the baseline module built, with
 # the target and the headroom it wrote into the command. Other values of the
 # two go to the Python file directly. Run through `devenv test`.
@@ -23,18 +23,24 @@ ln -s "$baseline/prose-lint.sh" "$tmp/bin/prose-lint"
 good_title="feat(orders): reject a negative quantity"
 sections=("Why" "Decisions" "What changed" "Scope" "Blast radius" "Verified" "Not verified")
 ways_out="move a decision into a decision record, move evidence into a pull request comment, or split the change"
+closes="Closes nothing."
+no_closes_line="error: body: '## Why' does not end with a line that says which issues the change closes: end the section with \"Closes nothing.\" or with each issue that the change fixes, as \"Closes #12, closes #15.\""
+bad_closes_line="the line \"Closes\" says neither \"nothing\" nor a list of issues that GitHub closes: write \"Closes nothing.\" or name each issue as #12 or owner/repository#12, with \"closes\" before each one, as \"Closes #12, closes #15.\""
 met="Met on the way: nothing."
 no_met_line="error: body: '## Scope' does not end with a line that says what the work met on the way: end the section with \"Met on the way: nothing.\" or with each issue and pull request for a problem the work met, as \"Met on the way: #12 and #15.\""
 bad_met_line="the line \"Met on the way:\" says neither \"nothing\" nor a list of issues and pull requests: write \"Met on the way: nothing.\" or name each one as #12 or owner/repository#12, joined by commas and \"and\""
 
 # body_of <section>...: a body with one content line under each section, in
-# the order given, where the line under Scope is $met. Every section takes
-# four lines, so the line under Scope is line 15 when Scope is the fourth.
+# the order given, where the line under Why is $closes and the line under Scope
+# is $met. Every section takes four lines, so the line under Why is line 3 when
+# Why is the first, and the line under Scope is line 15 when Scope is the fourth.
 body_of() {
   local section line
   for section in "$@"; do
     line="One line under this heading."
-    if [[ $section == "Scope" ]]; then
+    if [[ $section == "Why" ]]; then
+      line=$closes
+    elif [[ $section == "Scope" ]]; then
       line=$met
     fi
     printf '## %s\n\n%s\n\n' "$section" "$line"
@@ -42,8 +48,8 @@ body_of() {
 }
 
 # body <count>: a body with the seven sections and <count> content lines, seven
-# at least. $met is one of them, so the length cases below also show that the
-# line counts like any other.
+# at least. $closes and $met are two of them, so the length cases below also
+# show that the two lines count like any other.
 body() {
   local i
   body_of "${sections[@]}"
@@ -181,8 +187,8 @@ check "$good_title" "$(body_of "${sections[@]}" "Why")" "$built"
 expect "a heading that is there twice fails" 1 1 "error: body:29: '## Why' is there a second time"
 
 check "$good_title" "${good/"## Why"/"## why"}" "$built"
-expect "a heading in another spelling is an extra one, and its section is missing" 1 2 \
-  "error: body:1: '## why' is not one of the seven headings" "error: body: '## Why' is missing"
+expect "a heading in another spelling is an extra one, and its section and its line are missing" 1 3 \
+  "error: body:1: '## why' is not one of the seven headings" "error: body: '## Why' is missing" $'\n'"$no_closes_line"
 
 check "$good_title" "$good"$'\n\n```sh\n## main...origin/main\n## Why\n```' "$built"
 expect_silent "a line inside a fenced code block is no heading"
@@ -203,6 +209,52 @@ expect "with neither variable set, the title and the body each fail" 1 2 \
 
 check "$good_title" "${good//$'\n'/$'\r\n'}" "$built"
 expect_silent "a body with the line endings of a web form passes"
+
+# The line that ends Why
+why_of_137=$'Under `/build:auto`, step 3 of `build:clean-comments` told the lead to fix trivial flags itself, which `lead-writes-no-code.py` refuses for an Edit or a Write (#126).
+A lead that used `sed` through Bash instead wrote the code, and nothing stopped it.
+Now the skill gives every fix to a `build:implementer` delegate under the mode, and the hook reads the lead\'s shell commands too.'
+check "$good_title" "${good/"$closes"/"$why_of_137"}" "$built"
+expect "a Why without the line fails, as the Why of pull request 137 would have" 1 1 "$no_closes_line"
+
+why_of_129=$'Claude Code loads a file that a rule under `.claude/rules/` imports with `@` at launch, whatever the rule\'s `paths:` say.
+A scoped rule that imports a document therefore loads it into every session, and no check failed.
+`validate-documents` now fails such a rule and names the fix.
+
+Closes #124'
+check "$good_title" "${good/"$closes"/"$why_of_129"}" "$built"
+expect_silent "a Why that ends with the issue it closes passes, as the Why of pull request 129 does"
+
+check "$good_title" "${good/"$closes"/"Closes #12, closes #15, closes lyngon/devkit#63."}" "$built"
+expect_silent "a line that names closes before each issue passes"
+
+check "$good_title" "${good/"$closes"/"Closes nothing"}" "$built"
+expect_silent "a line that closes nothing passes, with or without the period"
+
+check "$good_title" "${good/"$closes"/"Closes #12 and #15."}" "$built"
+expect "a list of which GitHub would close only the first issue fails" 1 1 "error: body:3: $bad_closes_line"
+
+check "$good_title" "${good/"$closes"/"Closes"}" "$built"
+expect "a line with nothing after the word fails" 1 1 "error: body:3: $bad_closes_line"
+
+check "$good_title" "${good/"$closes"/"Closes #12 for the values that name nothing."}" "$built"
+expect "an issue with a remark after it fails" 1 1 "error: body:3: $bad_closes_line"
+
+check "$good_title" "${good/"$closes"/"Fixes #12."}" "$built"
+expect "another keyword in place of Closes fails" 1 1 "$no_closes_line"
+
+check "$good_title" "${good/"$closes"/"$closes"$'\n\nThe README stays as it is.'}" "$built"
+expect "a line that does not end Why fails" 1 1 "$no_closes_line"
+
+check "$good_title" "${good/"$closes"/$'```text\n'"$closes"$'\n```'}" "$built"
+expect "a line inside a fenced code block at the end of Why fails" 1 1 "$no_closes_line"
+
+check "$good_title" "${good/"$closes"/"Closes ::warning::forged ##[error]forged"}" "$built"
+if holds_command; then
+  fail "a line about closing that is not well formed is named without its text" "no workflow command"
+else
+  expect "a line about closing that holds a workflow command fails" 1 1 "error: body:3: $bad_closes_line"
+fi
 
 # The line that ends Scope
 # shellcheck disable=SC2016  # the backticks are Markdown, not a command
