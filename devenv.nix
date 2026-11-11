@@ -319,6 +319,16 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/work-trace.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
+  testLiveMutation = pkgs.writeShellApplication {
+    name = "test-live-mutation";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.gnused
+    ];
+    text = ''exec "${config.devenv.root}/plugins/build/tests/live-mutation.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
+  };
+
   # Fixture tests for the stand-in for gh that the eval cases of build:pull-request
   # run, in a workspace that their seed script writes.
   testEvalForge = pkgs.writeShellApplication {
@@ -487,6 +497,7 @@ in
     declared_tools_only ${lib.getExe testBuildHooks}
     declared_tools_only ${lib.getExe testPruneMistakes}
     declared_tools_only ${lib.getExe testWorkTrace}
+    declared_tools_only ${lib.getExe testLiveMutation}
     declared_tools_only ${lib.getExe testEvalForge}
     declared_tools_only ${lib.getExe testWorkflowTemplates}
     declared_tools_only ${lib.getExe testCheckoutPlugins} "''${CLAUDE_CODE_PLUGIN_DIRS-}"

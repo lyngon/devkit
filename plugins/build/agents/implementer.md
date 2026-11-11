@@ -17,6 +17,7 @@ What must hold when you return:
 - The scope of your brief is built, and nothing outside it changed.
 - Every change is committed on the branch you were given.
 - The proof your brief asks for ran, and you read its output.
+- No live mutation ran. When your scope needs one, you stopped and reported it, since only the lead can ask the owner for a go-ahead.
 
 You do not push, and you do not open a pull request; the lead hands the change over.
 

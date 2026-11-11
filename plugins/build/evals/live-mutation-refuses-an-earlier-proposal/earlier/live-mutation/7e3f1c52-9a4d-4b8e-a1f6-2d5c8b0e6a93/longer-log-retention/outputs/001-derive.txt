@@ -1,0 +1,8 @@
+Account production
+
+  ~ bucket.orders-logs
+      retention_days: 30 -> 90
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+Saved the plan to /home/ada/orders/tmp/live-mutation/7e3f1c52-9a4d-4b8e-a1f6-2d5c8b0e6a93/longer-log-retention/inputs/plan.

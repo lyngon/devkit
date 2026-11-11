@@ -1,0 +1,5 @@
+{
+  "bucket.orders-archive": { "retention_days": 365 },
+  "bucket.orders-logs": { "retention_days": 7 },
+  "service.orders": { "log_level": "debug", "replicas": 1 }
+}

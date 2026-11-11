@@ -1,0 +1,4 @@
+{
+  "bucket.orders-logs": { "retention_days": 30 },
+  "service.orders": { "replicas": 3 }
+}

@@ -1,0 +1,5 @@
+{
+  "bucket.orders-archive": { "objects": 1204, "retention_days": 365 },
+  "bucket.orders-logs": { "objects": 3310, "retention_days": 7 },
+  "service.orders": { "log_level": "info", "replicas": 1 }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "longer-log-retention",
+  "session": "7e3f1c52-9a4d-4b8e-a1f6-2d5c8b0e6a93",
+  "created": "2026-11-11T09:20:28Z",
+  "derive": "cloudctl plan production --out \"$LIVE_MUTATION_INPUTS/plan\"",
+  "show": "cloudctl show \"$LIVE_MUTATION_INPUTS/plan\"",
+  "run": "cloudctl apply \"$LIVE_MUTATION_INPUTS/plan\"",
+  "checks": {
+    "no-changes": "cloudctl plan production --detailed-exitcode"
+  },
+  "inputs": {
+    "plan": "d299a0d6ecffd603bf42e0b493f645a8178b6295210c49db22b2198e83dd7853"
+  },
+  "rendering": "564f47e88b210ecbd903226c72c3b492caa38665301e2692233613b79d3e3f64",
+  "digest": "56f251d96c1b8c63"
+}
