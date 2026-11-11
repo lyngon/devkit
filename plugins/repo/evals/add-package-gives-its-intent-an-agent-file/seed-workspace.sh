@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory with a repository that follows the
-# Lyngon structure: the tree under workspace/, its intent and its agent file,
-# one commit on main and a feature branch. The intent and the agent file are
-# written here and not kept under workspace/: tracked in the devkit, the agent
-# file would load into a devkit session that reads a file of this case.
+# The intent and the agent file are written here and not kept under workspace/:
+# tracked in the devkit, the agent file would load into a devkit session that
+# reads a file of this case.
 set -euo pipefail
 
 cp -R "$(dirname "${BASH_SOURCE[0]}")/workspace/." .

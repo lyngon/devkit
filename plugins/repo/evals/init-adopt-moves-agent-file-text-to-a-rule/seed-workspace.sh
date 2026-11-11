@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory with a repository that predates the
-# Lyngon baseline: the tree under workspace/, an intent, and an agent file that
-# holds a principle as free text below its import, in one commit on main. The
-# intent and the agent file are written here and not kept under workspace/:
-# tracked in the devkit, the agent file would fail its validate-documents and
-# load into a devkit session that reads a file of this case.
+# The intent and the agent file are written here and not kept under workspace/:
+# tracked in the devkit, the agent file would load into a devkit session that
+# reads a file of this case.
 set -euo pipefail
 
 cp -R "$(dirname "${BASH_SOURCE[0]}")/workspace/." .

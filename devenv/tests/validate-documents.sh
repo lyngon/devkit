@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Exercise validate-documents.py against throwaway fixture repositories: for
-# each of its nine rules a tree that fails and one that passes, plus the paths
-# it skips and the three ways it is run. Run through `devenv test`.
 set -euo pipefail
 
 validator=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/validate-documents.py
@@ -115,7 +112,6 @@ expect_error() {
 
 expect_ok "every steering document in its allowed shape" "$(clean_repo)"
 
-# agent-file-imports-intent, at the root
 repo=$(new_repo)
 expect_error "agent-file-imports-intent: an empty repository has no agent file" "$repo" 2 \
   "error: .claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md, so that every session starts from the intent"
@@ -149,7 +145,6 @@ else
   failures=$((failures + 1))
 fi
 
-# agent-file-imports-intent, in a package
 expect_ok "agent-file-imports-intent: a package's agent file beside its INTENT.md" "$(clean_repo)" \
   libs/orders/.claude/CLAUDE.md
 
@@ -199,7 +194,6 @@ expect_ok "agent-file-imports-intent: a fixture tree that the arguments keep out
 expect_error "agent-file-imports-intent: the same fixture tree, given no paths" "$repo" 1 \
   "error: tests/fixtures/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md"
 
-# agent-file-holds-only-imports
 repo=$(clean_repo)
 write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../CONCEPTS.md" "Run the tide simulator before changing the table."
 expect_error "agent-file-holds-only-imports: free text at the root" "$repo" 1 \
@@ -505,8 +499,6 @@ write "$plain" AGENTS.md "# Agents"
 expect_refusal "a path outside the repository is refused" "$repo" \
   "validate-documents: $plain/AGENTS.md is outside the repository" "$plain/AGENTS.md"
 
-# A run without git, as a script of the correction skill runs it: python3 alone
-# on the PATH, in a directory that is no repository.
 python_only=$(mktemp -d "$tmp/python-only.XXXXXX")
 ln -s "$(command -v python3)" "$python_only/python3"
 untracked=$(mktemp -d "$tmp/untracked.XXXXXX")

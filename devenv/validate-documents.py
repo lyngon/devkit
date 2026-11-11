@@ -80,9 +80,6 @@ LEDGER_DIRECTORY: t.Final = pathlib.PurePosixPath("docs/mistakes")
 DOT_CLAUDE: t.Final = ".claude"
 AGENT_FILE_NAME: t.Final = "CLAUDE.md"
 INTENT_NAME: t.Final = "INTENT.md"
-# The grammar of a line of an agent file, each pattern matched in full against
-# the line without its trailing whitespace. Leading whitespace is not forgiven,
-# so that no line passes that Markdown may read as a code block.
 IMPORT: t.Final = re.compile(r"@\.\./(?P<name>[^/\s]+\.md)")
 ANY_IMPORT: t.Final = re.compile(r"\s*@\S+")
 INTENT_IMPORT: t.Final = f"@../{INTENT_NAME}"
@@ -103,12 +100,7 @@ def error(path: pathlib.PurePosixPath | str, rule: str, fix: str, line: int | No
 
 @dataclasses.dataclass(frozen=True, slots=True, order=True)
 class AgentFile:
-    """The place <home>/.claude/CLAUDE.md, whether a file is there or not.
-
-    The root's is required, and a package's goes with the INTENT.md beside it.
-    Its members are the only code that joins .claude, CLAUDE.md or INTENT.md
-    onto a directory.
-    """
+    """The place <home>/.claude/CLAUDE.md, whether a file is there or not."""
 
     home: pathlib.PurePosixPath
 
@@ -197,10 +189,7 @@ class Tree:
     tracked: frozenset[pathlib.PurePosixPath] | None
 
     def holds(self, path: pathlib.PurePosixPath) -> bool:
-        """Whether the path is a file of the working tree that git tracks: the one meaning of missing or untracked.
-
-        Without git, every file of the working tree counts as tracked.
-        """
+        """Whether the path is a file of the working tree that git tracks."""
         return (self.tracked is None or path in self.tracked) and (self.root / path).is_file()
 
 
@@ -245,22 +234,13 @@ def skipped(path: pathlib.PurePosixPath) -> bool:
 
 
 def agent_files(paths: ct.Iterable[pathlib.PurePosixPath]) -> list[AgentFile]:
-    """Return the agent files that a run over the paths checks, each once: the root's first, then in path order.
-
-    Each path that is not skipped brings in the agent file it is, or else the one of its own directory, so a
-    fixture tree that the arguments leave out brings in nothing.
-    """
+    """Return the agent files that a run over the paths checks, each once: the root's first, then in path order."""
     brought_in = {agent_file_of(path) or AgentFile(path.parent) for path in paths if not skipped(path)}
     return [ROOT, *sorted(brought_in - {ROOT})]
 
 
 def check_agent_file(tree: Tree, agent_file: AgentFile) -> list[str]:
-    """Check one agent file, there or not, against agent-file-imports-intent and agent-file-holds-only-imports.
-
-    The root holds its agent file and its INTENT.md; a package holds both or neither. An unreadable agent file
-    counts as not there. The target of the line @../INTENT.md belongs to the pair, so a missing intent is
-    reported once.
-    """
+    """Check one agent file, there or not, against agent-file-imports-intent and agent-file-holds-only-imports."""
     rule = "agent-file-imports-intent"
     lines = read_lines(tree.root, agent_file.path) if tree.holds(agent_file.path) else None
     intent = tree.holds(agent_file.intent)
@@ -301,10 +281,7 @@ def check_agent_file(tree: Tree, agent_file: AgentFile) -> list[str]:
 
 
 def line_error(tree: Tree, agent_file: AgentFile, line: Line) -> str | None:
-    """Return the agent-file-holds-only-imports message for one line of the agent file, or None when it holds.
-
-    An import of INTENT.md always holds here: its target belongs to the pair, which check_agent_file checks.
-    """
+    """Return the agent-file-holds-only-imports message for one line of the agent file, or None when it holds."""
     rule = "agent-file-holds-only-imports"
     match line:
         case Import(number=number, name=name):
