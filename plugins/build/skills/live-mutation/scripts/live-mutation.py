@@ -45,6 +45,7 @@ DIGEST_LENGTH = 16
 # GitHub refuses a comment body of more characters than this.
 COMMENT_LIMIT = 65_536
 TAIL_LINES = 40
+TOOL = pathlib.Path(__file__).resolve()
 
 
 class RefusalError(Exception):
@@ -394,7 +395,7 @@ def propose(root: pathlib.Path, session: str, name: str, commands: Commands) -> 
         "On a go-ahead for this digest, in this conversation:",
         "",
         "```sh",
-        f"live-mutation.py run {name} {digest} --go-ahead '<the owner's words>'",
+        f"{TOOL} run {name} {digest} --go-ahead '<the owner's words>'",
         "```",
     ]
     return "\n".join(lines) + "\n"
@@ -488,7 +489,7 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str) ->
         "",
         *[f"- `{entry.check}` {outcome(entry.status)}" for entry in after],
         "",
-        f"Write the action record now: live-mutation.py record {name}",
+        f"Write the action record now: {TOOL} record {name}",
     ]
     good = status == 0 and all(entry.status == 0 for entry in after)
     return (0 if good else 1), "\n".join(lines) + "\n"
@@ -519,7 +520,7 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
         if all(entry.status == 0 for entry in entries if entry.check == check):
             message = (
                 f"check-never-failed: the check {check} never failed, so it is no evidence;"
-                f" run live-mutation.py demonstrate {name} {check} '<cmd>' where its property does not hold"
+                f" run {TOOL} demonstrate {name} {check} '<cmd>' where its property does not hold"
             )
             raise RefusalError(message)
     position = entries.index(go_ahead)

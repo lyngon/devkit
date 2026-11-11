@@ -15,6 +15,7 @@ live-mutation.py propose <name> --derive '<cmd>' --show '<cmd>' --run '<cmd>' --
 ```
 
 It derives the inputs, renders them, runs each check once and prints the proposal: the digest, the command that runs, the rendering and each check's result.
+It ends with the command that runs the proposal on a go-ahead, which names the tool by its absolute path, so a later turn needs no search for it.
 A name is kebab-case and says what the live mutation does.
 Proposing a name again replaces a proposal that has not run, and its digest changes.
 A check that passes before the run shows nothing yet: give it a demonstration.
