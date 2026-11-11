@@ -133,9 +133,6 @@ let
     text = ''exec python3 ${./validate-structure.py} "$@"'';
   };
 
-  # The document rules: an agent file that imports INTENT.md, no AGENTS.md, no
-  # CLAUDE.md outside .claude/, no docs/adr/, and the shape of decision
-  # records, INTENT.md, rule files and the files of the mistake ledger.
   validateDocuments = pkgs.writeShellApplication {
     name = "validate-documents";
     runtimeInputs = [
@@ -360,8 +357,9 @@ in
       shellcheck.enable = lib.mkDefault true;
       markdownlint = {
         enable = lib.mkDefault true;
-        # The agent file opens with the import of INTENT.md, not with a heading.
-        excludes = lib.mkDefault [ "^\\.claude/CLAUDE\\.md$" ];
+        # An agent file, at the root or in a package, holds import lines and
+        # no heading.
+        excludes = lib.mkDefault [ "(^|/)\\.claude/CLAUDE\\.md$" ];
         settings.configuration = lib.mkDefault {
           default = true;
           # Semantic line breaks: one sentence per line, no length limit.

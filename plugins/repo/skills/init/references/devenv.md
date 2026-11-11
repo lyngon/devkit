@@ -500,4 +500,4 @@ devenv test
 
 runs `prek run --all-files` for every hook and then `enterTest`.
 When a hook fails on generated or vendored files, exclude the path with `excludes` on that hook rather than disabling the hook.
-A list set on `markdownlint.excludes` replaces the baseline's, so repeat its entry `"^\\.claude/CLAUDE\\.md$"` there: the agent file opens with an import line, not a heading.
+A list set on `markdownlint.excludes` replaces the baseline's, so repeat its entry `"(^|/)\\.claude/CLAUDE\\.md$"` there: an agent file, at the root or in a package, holds import lines and no heading.

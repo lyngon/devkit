@@ -40,6 +40,17 @@ Why this package exists and for whom, where that differs from the repository's [
 - {Each one, one line. For a library: the layers it must never contain. For an app: the logic it must never hold.}
 ```
 
+## .claude/CLAUDE.md
+
+Written whenever the package gets its `INTENT.md`, and never without it, with one line:
+
+```md
+@../INTENT.md
+```
+
+The agent file holds nothing else.
+`validate-documents` fails any line that is not an import of a Markdown file directly in the package, and no other import is written by default.
+
 ## devenv.nix
 
 A package's hooks are the custom `{name}-` hooks of its stack in the `init` skill's `devenv.md` reference (`{name}-basedpyright` for Python, `{name}-tsc` and `{name}-eslint` for TypeScript, `{name}-tflint` for OpenTofu), scoped to the package with `files`.

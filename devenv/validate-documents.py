@@ -3,10 +3,16 @@
 
 Each message names its rule and the fix:
 
-  agent-file-imports-intent        .claude/CLAUDE.md is tracked and holds the
-                                   line @../INTENT.md, whatever else it holds
+  agent-file-imports-intent        .claude/CLAUDE.md and INTENT.md are tracked
+                                   at the root, and in a package both or
+                                   neither, and the agent file holds the line
+                                   @../INTENT.md
+  agent-file-holds-only-imports    each line of an agent file is blank or
+                                   @../<name>.md, naming a tracked file
+                                   directly in the directory that holds .claude/
   no-agents-md                     no file is named AGENTS.md
-  no-claude-md-outside-dot-claude  the only CLAUDE.md is .claude/CLAUDE.md
+  no-claude-md-outside-dot-claude  a CLAUDE.md lies directly in a .claude/
+                                   directory
   no-docs-adr                      no docs/adr/ directory, in the root or a package
   decision-record-shape            a file in docs/decisions/ is named after its
                                    decision, ends with `Enforced by:` and has no
@@ -25,13 +31,18 @@ Each message names its rule and the fix:
 
 Runs at pre-commit from the repository root with the files to check as
 arguments, so a hook's `excludes` keeps a fixture tree out. Without arguments
-it checks every tracked file. The agent file is checked on every run, since a
-missing file is never among the arguments. A path inside a vendor/ or
-generated/ directory is skipped, and so is one that is gone from the working
-tree. It exits 1 on a violation and 2 when it cannot check what it was asked
-to.
+it checks every tracked file. The root's agent file is checked on every run,
+and every path given, deleted or not, brings in the agent file of its own
+directory, or is one, so a package's pair is checked whenever a file of the
+package's directory is among the arguments. A path inside a vendor/ or
+generated/ directory is skipped, and the other rules skip a path that is gone
+from the working tree. Without git, every file of the working tree counts as
+tracked. It exits 1 on a violation and 2 when it cannot check what it was
+asked to.
 """
 
+import collections.abc as ct
+import dataclasses
 import datetime as dt
 import os
 import pathlib
@@ -69,12 +80,13 @@ LINK: t.Final = re.compile(r"\[.+\]\(\S+\)")
 SKIPPED_DIRECTORIES: t.Final = frozenset({"vendor", "generated"})
 RULES_DIRECTORY: t.Final = pathlib.PurePosixPath(".claude/rules")
 LEDGER_DIRECTORY: t.Final = pathlib.PurePosixPath("docs/mistakes")
-AGENT_FILE: t.Final = pathlib.PurePosixPath(".claude/CLAUDE.md")
-IMPORT_LINE: t.Final = "@../INTENT.md"
-MOVE_LINES: t.Final = (
-    f"move what must stay to {AGENT_FILE}, below the line {IMPORT_LINE}, or to "
-    ".claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file"
-)
+INTENT_NAME: t.Final = "INTENT.md"
+IMPORT: t.Final = re.compile(r"@\.\./(?P<name>[^/\s]+\.md)")
+ANY_IMPORT: t.Final = re.compile(r"\s*@\S+")
+INTENT_IMPORT: t.Final = f"@../{INTENT_NAME}"
+IMPORT_FORM: t.Final = "@../<name>.md"
+RULE_HOME: t.Final = f"{RULES_DIRECTORY}/<principle>.md, with paths: when it concerns part of the tree"
+MOVE_LINES: t.Final = f"move what must stay to {RULE_HOME}, and delete the file"
 
 
 class RefusalError(Exception):
@@ -87,6 +99,119 @@ def error(path: pathlib.PurePosixPath | str, rule: str, fix: str, line: int | No
     return f"error: {where}: {rule}: {fix}"
 
 
+@dataclasses.dataclass(frozen=True, slots=True, order=True)
+class AgentFile:
+    """The place <home>/.claude/CLAUDE.md, whether a file is there or not."""
+
+    DOT_CLAUDE: t.ClassVar[str] = ".claude"
+    AGENT_FILE_NAME: t.ClassVar[str] = "CLAUDE.md"
+
+    home: pathlib.PurePosixPath
+
+    @classmethod
+    def of(cls, path: pathlib.PurePosixPath) -> t.Self | None:
+        """Return the agent file that the path is, or None for any other path."""
+        if path.name == cls.AGENT_FILE_NAME and path.parent.name == cls.DOT_CLAUDE:
+            return cls(path.parent.parent)
+        return None
+
+    @classmethod
+    def is_named(cls, path: pathlib.PurePosixPath) -> bool:
+        """Whether the path ends in the file name of an agent file, wherever it lies."""
+        return path.name == cls.AGENT_FILE_NAME
+
+    @property
+    def path(self) -> pathlib.PurePosixPath:
+        """The agent file itself, relative to the root."""
+        return self.home / self.DOT_CLAUDE / self.AGENT_FILE_NAME
+
+    @property
+    def intent(self) -> pathlib.PurePosixPath:
+        """The INTENT.md that the required line imports."""
+        return self.sibling(INTENT_NAME)
+
+    @property
+    def is_root(self) -> bool:
+        """Whether the home is the root of the repository."""
+        return not self.home.parts
+
+    @property
+    def place(self) -> str:
+        """The home as a message names it."""
+        return "the root" if self.is_root else f"{self.home}/"
+
+    def sibling(self, name: str) -> pathlib.PurePosixPath:
+        """Return the file that the line @../<name> imports."""
+        return self.home / name
+
+
+ROOT: t.Final = AgentFile(pathlib.PurePosixPath("."))
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Import:
+    """A line @../<name>.md, which imports the file <name>.md directly in the home of its agent file."""
+
+    number: int
+    name: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class IntentImport:
+    """The line @../INTENT.md, which imports the intent of the home."""
+
+    number: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class ImportElsewhere:
+    """A line of one @ token that is no Import: indented, or naming a file outside the home or not Markdown."""
+
+    number: int
+    text: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Text:
+    """Any other line that is not blank."""
+
+    number: int
+
+
+type Line = Import | IntentImport | ImportElsewhere | Text
+
+
+def parse_lines(lines: ct.Iterable[str]) -> list[Line]:
+    """Return what each line of an agent file is, in file order, leaving out the blank ones."""
+    parsed: list[Line] = []
+    for number, line in enumerate(lines, 1):
+        text = line.rstrip()
+        if not text:
+            continue
+        if (match := IMPORT.fullmatch(text)) is not None:
+            if match["name"] == INTENT_NAME:
+                parsed.append(IntentImport(number))
+            else:
+                parsed.append(Import(number, match["name"]))
+        elif ANY_IMPORT.fullmatch(text):
+            parsed.append(ImportElsewhere(number, text))
+        else:
+            parsed.append(Text(number))
+    return parsed
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Tree:
+    """The working tree at the root, and the files git tracks in it, or None when git cannot say."""
+
+    root: pathlib.Path
+    tracked: frozenset[pathlib.PurePosixPath] | None
+
+    def tracks(self, path: pathlib.PurePosixPath) -> bool:
+        """Whether the path is a file of the working tree that git tracks."""
+        return (self.tracked is None or path in self.tracked) and (self.root / path).is_file()
+
+
 def git(*arguments: str) -> str | None:
     """Return the output of a git command, or None when git refuses or is missing."""
     try:
@@ -95,12 +220,12 @@ def git(*arguments: str) -> str | None:
         return None
 
 
-def tracked_files(root: pathlib.Path) -> list[pathlib.PurePosixPath]:
-    """Every file git tracks, relative to the root."""
+def tracked_files(root: pathlib.Path) -> frozenset[pathlib.PurePosixPath] | None:
+    """Every file git tracks, relative to the root, or None when git cannot list them."""
     out = git("-C", str(root), "ls-files", "-z")
     if out is None:
-        raise RefusalError(f"git cannot list the tracked files of {root}")
-    return [pathlib.PurePosixPath(name) for name in out.split("\0") if name]
+        return None
+    return frozenset(pathlib.PurePosixPath(name) for name in out.split("\0") if name)
 
 
 def given_files(root: pathlib.Path, arguments: list[str]) -> list[pathlib.PurePosixPath]:
@@ -122,28 +247,82 @@ def read_lines(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str] | N
         return None
 
 
-def check_agent_file(root: pathlib.Path) -> list[str]:
-    """Check that the agent file is tracked and imports the intent, whatever else it holds."""
+def skipped(path: pathlib.PurePosixPath) -> bool:
+    """Whether the path lies inside a vendor/ or generated/ directory."""
+    return bool(SKIPPED_DIRECTORIES.intersection(path.parts[:-1]))
+
+
+def agent_files(paths: ct.Iterable[pathlib.PurePosixPath]) -> list[AgentFile]:
+    """Return the agent files that a run over the paths checks, each once: the root's first, then in path order."""
+    brought_in = {AgentFile.of(path) or AgentFile(path.parent) for path in paths if not skipped(path)}
+    return [ROOT, *sorted(brought_in - {ROOT})]
+
+
+def check_agent_file(tree: Tree, agent_file: AgentFile) -> list[str]:
+    """Check one agent file, there or not, against agent-file-imports-intent and agent-file-holds-only-imports."""
     rule = "agent-file-imports-intent"
-    untracked = git("-C", str(root), "ls-files", "--", str(AGENT_FILE)) == ""
-    lines = read_lines(root, AGENT_FILE)
-    if untracked or lines is None:
-        return [
+    lines = read_lines(tree.root, agent_file.path) if tree.tracks(agent_file.path) else None
+    intent = tree.tracks(agent_file.intent)
+    required = agent_file.is_root or intent
+    if agent_file.is_root:
+        purpose = "every session starts from the intent"
+    else:
+        purpose = f"a session loads the package's intent when it works on a file in {agent_file.place}"
+    found: list[str] = []
+    if lines is None and required:
+        found.append(error(agent_file.path, rule, f"create it with the line {INTENT_IMPORT}, so that {purpose}"))
+    if agent_file.is_root and not intent:
+        found.append(
             error(
-                AGENT_FILE,
+                agent_file.intent,
                 rule,
-                f"create it with the line {IMPORT_LINE}, so that every session starts from the intent",
+                f"create it with the repository's intent, which {agent_file.path} imports into every session",
             )
-        ]
-    if not any(line.strip() == IMPORT_LINE for line in lines):
-        return [
+        )
+    if lines is None:
+        return found
+    if not required:
+        found.append(
             error(
-                AGENT_FILE,
+                agent_file.intent,
                 rule,
-                f"add the line {IMPORT_LINE}; what else the file holds is the authors' choice",
+                (
+                    "create it with the sections in which the package's intent differs from the root's, "
+                    f"or delete {agent_file.path}, which a package holds only beside its {INTENT_NAME}"
+                ),
             )
-        ]
-    return []
+        )
+    parsed = parse_lines(lines)
+    found += [message for line in parsed if (message := line_error(tree, agent_file, line)) is not None]
+    if required and not any(isinstance(line, IntentImport) for line in parsed):
+        found.append(error(agent_file.path, rule, f"add the line {INTENT_IMPORT}, so that {purpose}"))
+    return found
+
+
+def line_error(tree: Tree, agent_file: AgentFile, line: Line) -> str | None:
+    """Return the agent-file-holds-only-imports message for one line of the agent file, or None when it holds."""
+    rule = "agent-file-holds-only-imports"
+    match line:
+        case Import(number=number, name=name):
+            target = agent_file.sibling(name)
+            if tree.tracks(target):
+                return None
+            fix = f"the line imports {target}, which is missing or untracked; add the file, or delete the line"
+        case IntentImport():
+            return None
+        case ImportElsewhere(number=number, text=text):
+            fix = (
+                f"'{text}' imports no Markdown file directly in {agent_file.place}; "
+                f"write it as {IMPORT_FORM}, or delete the line"
+            )
+        case Text(number=number):
+            fix = (
+                f"delete the line, or move what it says to {RULE_HOME}; "
+                f"an agent file holds only lines of the form {IMPORT_FORM}"
+            )
+        case _:
+            t.assert_never(line)
+    return error(agent_file.path, rule, fix, number)
 
 
 def adr_directory(path: pathlib.PurePosixPath) -> pathlib.PurePosixPath | None:
@@ -349,7 +528,7 @@ def check_shape(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str]:
     found: list[str] = []
     if path.parent.parts[-2:] == ("docs", "decisions"):
         found += check_decision_record(root, path)
-    if path.name == "INTENT.md":
+    if path.name == INTENT_NAME:
         found += check_intent(root, path)
     if RULES_DIRECTORY in path.parents:
         found += check_rule_file(root, path)
@@ -359,12 +538,15 @@ def check_shape(root: pathlib.Path, path: pathlib.PurePosixPath) -> list[str]:
     return found
 
 
-def check(root: pathlib.Path, paths: list[pathlib.PurePosixPath]) -> list[str]:
-    """Every violation among the paths, one line each, in path order."""
+def check(tree: Tree, paths: list[pathlib.PurePosixPath]) -> list[str]:
+    """Every violation among the paths, one line each: the agent files they bring in, then the paths in order."""
     found: list[str] = []
+    for agent_file in agent_files(paths):
+        found += check_agent_file(tree, agent_file)
+    root = tree.root
     adr_directories: set[pathlib.PurePosixPath] = set()
     for path in sorted(set(paths)):
-        if SKIPPED_DIRECTORIES.intersection(path.parts[:-1]):
+        if skipped(path):
             continue
         if not (root / path).exists(follow_symlinks=False):
             continue
@@ -374,10 +556,10 @@ def check(root: pathlib.Path, paths: list[pathlib.PurePosixPath]) -> list[str]:
                 error(
                     path,
                     "no-agents-md",
-                    f"{fix}; Claude Code reads {AGENT_FILE}, and no other agent harness is supported",
+                    f"{fix}; Claude Code reads {ROOT.path}, and no other agent harness is supported",
                 )
             )
-        if path.name == "CLAUDE.md" and path != AGENT_FILE:
+        if AgentFile.is_named(path) and AgentFile.of(path) is None:
             found.append(
                 error(
                     path,
@@ -402,30 +584,32 @@ def check(root: pathlib.Path, paths: list[pathlib.PurePosixPath]) -> list[str]:
     return found
 
 
-def files_to_check(top: str | None, arguments: list[str]) -> tuple[pathlib.Path, list[pathlib.PurePosixPath]]:
-    """Return the root and the files to check: the arguments, or every tracked file when there are none.
+def read_tree(top: str | None, arguments: list[str]) -> tuple[Tree, list[pathlib.PurePosixPath]]:
+    """Return the tree and the files to check: the arguments, or every tracked file when there are none.
 
     The root is the top of the repository that git names, or the working directory for arguments outside one.
-    Raises RefusalError without arguments outside a repository.
+    Raises RefusalError without arguments outside a repository, or when git cannot list the tracked files.
     """
+    if not arguments and not top:
+        raise RefusalError("not inside a git repository, so no tracked files to check; pass the files as arguments")
+    root = pathlib.Path(top.strip()) if top else pathlib.Path.cwd()
+    tree = Tree(root, tracked_files(root))
     if arguments:
-        root = pathlib.Path(top.strip()) if top else pathlib.Path.cwd()
-        return root, given_files(root, arguments)
-    if top:
-        root = pathlib.Path(top.strip())
-        return root, tracked_files(root)
-    raise RefusalError("not inside a git repository, so no tracked files to check; pass the files as arguments")
+        return tree, given_files(root, arguments)
+    if tree.tracked is None:
+        raise RefusalError(f"git cannot list the tracked files of {root}")
+    return tree, sorted(tree.tracked)
 
 
 def main(arguments: list[str]) -> int:
     """Check the files and return the exit status: 0 when all holds, 1 on a violation, 2 when the run cannot check."""
     top = git("rev-parse", "--show-toplevel")
     try:
-        root, paths = files_to_check(top, arguments)
+        tree, paths = read_tree(top, arguments)
     except RefusalError as refusal:
         print(f"validate-documents: {refusal}", file=sys.stderr)
         return 2
-    found = check_agent_file(root) + check(root, paths)
+    found = check(tree, paths)
     for line in found:
         print(line, file=sys.stderr)
     if found:

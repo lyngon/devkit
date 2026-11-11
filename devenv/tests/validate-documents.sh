@@ -57,10 +57,9 @@ caught_in="- **Caught in**: [feat(orders): add the client](https://example.com/o
 clean_repo() {
   local repo
   repo=$(new_repo)
-  # The agent file holds the import and what the authors added below it.
   write "$repo" INTENT.md "# Intent" "" "## Product" "" "## For whom" "" "## Done means" "" "## Failure means" "" \
     "## Non-goals" "" "## Priorities" "" "- Correct totals over fast checkout." "" "## Horizon"
-  write "$repo" .claude/CLAUDE.md "@../INTENT.md" "" "Run the tide simulator before changing the table."
+  write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../CONCEPTS.md"
   write "$repo" .claude/rules/money-is-never-a-float.md "# Money is never a float" "" "Amounts are integers of the minor unit." "" "Why: rounding."
   write "$repo" CONCEPTS.md "# Orders"
   write "$repo" README.md "# Orders"
@@ -68,6 +67,7 @@ clean_repo() {
   mistake "$repo" docs/mistakes/a-generated-client-was-edited-by-hand.md "- **Date**: 2026-10-12" "$caught_in"
   record "$repo" libs/orders/docs/decisions/orders-are-event-sourced.md
   write "$repo" libs/orders/INTENT.md "# Intent" "" "## Non-goals"
+  write "$repo" libs/orders/.claude/CLAUDE.md "@../INTENT.md" "" "@../README.md"
   write "$repo" libs/orders/README.md "# orders"
   echo "$repo"
 }
@@ -112,9 +112,11 @@ expect_error() {
 
 expect_ok "every steering document in its allowed shape" "$(clean_repo)"
 
-# agent-file-imports-intent
-expect_error "agent-file-imports-intent: an empty repository has no agent file" "$(new_repo)" 1 \
+repo=$(new_repo)
+expect_error "agent-file-imports-intent: an empty repository has no agent file" "$repo" 2 \
   "error: .claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md, so that every session starts from the intent"
+expect_error "agent-file-imports-intent: an empty repository has no intent" "$repo" 2 \
+  "error: INTENT.md: agent-file-imports-intent: create it with the repository's intent, which .claude/CLAUDE.md imports into every session"
 
 repo=$(clean_repo)
 rm "$repo/.claude/CLAUDE.md"
@@ -122,13 +124,15 @@ expect_error "agent-file-imports-intent: the agent file is missing, whatever pat
   "error: .claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md" README.md
 
 repo=$(clean_repo)
-write "$repo" .claude/CLAUDE.md "# Tidewatch" "" "See INTENT.md for the purpose."
+write "$repo" .claude/CLAUDE.md "@../CONCEPTS.md"
 expect_error "agent-file-imports-intent: the agent file lacks the import" "$repo" 1 \
-  "error: .claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md; what else the file holds is the authors' choice"
+  "error: .claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md, so that every session starts from the intent"
 
 repo=$(clean_repo)
-write "$repo" .claude/CLAUDE.md "# Tidewatch" "" "Run the tide simulator before changing the table." "" "@../INTENT.md"
-expect_ok "agent-file-imports-intent: the import may stand anywhere in the file" "$repo"
+rm "$repo/INTENT.md"
+expect_error "agent-file-imports-intent: the intent that the agent file imports is missing, reported once" "$repo" 1 \
+  "error: INTENT.md: agent-file-imports-intent: create it with the repository's intent, which .claude/CLAUDE.md imports into every session" \
+  README.md
 
 repo=$(clean_repo)
 git -C "$repo" add -A
@@ -141,11 +145,133 @@ else
   failures=$((failures + 1))
 fi
 
+expect_ok "agent-file-imports-intent: a package's agent file beside its INTENT.md" "$(clean_repo)" \
+  libs/orders/.claude/CLAUDE.md
+
+repo=$(clean_repo)
+rm "$repo/libs/orders/.claude/CLAUDE.md"
+expect_error "agent-file-imports-intent: a package INTENT.md without its agent file" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md, so that a session loads the package's intent when it works on a file in libs/orders/" \
+  libs/orders/INTENT.md
+expect_error "agent-file-imports-intent: a deleted package agent file, given alone" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md" \
+  libs/orders/.claude/CLAUDE.md
+expect_error "agent-file-imports-intent: both halves of the pair given, one of them deleted" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md" \
+  libs/orders/INTENT.md libs/orders/.claude/CLAUDE.md
+
+repo=$(clean_repo)
+git -C "$repo" add -A
+git -C "$repo" rm -q --cached libs/orders/.claude/CLAUDE.md
+output=$( (cd "$repo" && python3 "$validator" 2>&1) || true)
+if grep -qF "error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it" <<<"$output"; then
+  echo "ok: agent-file-imports-intent: an untracked package agent file does not count"
+else
+  echo "FAIL: agent-file-imports-intent: an untracked package agent file does not count, got:" && echo "  ${output//$'\n'/$'\n'  }"
+  failures=$((failures + 1))
+fi
+
+repo=$(clean_repo)
+write "$repo" libs/orders/.claude/CLAUDE.md "@../README.md"
+expect_error "agent-file-imports-intent: a package agent file lacks the import" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md, so that a session loads the package's intent when it works on a file in libs/orders/"
+
+repo=$(clean_repo)
+rm "$repo/libs/orders/INTENT.md"
+expect_error "agent-file-imports-intent: a deleted package INTENT.md, given alone" "$repo" 1 \
+  "error: libs/orders/INTENT.md: agent-file-imports-intent: create it with the sections in which the package's intent differs from the root's, or delete libs/orders/.claude/CLAUDE.md, which a package holds only beside its INTENT.md" \
+  libs/orders/INTENT.md
+
+repo=$(clean_repo)
+write "$repo" libs/billing/CONCEPTS.md "# Billing"
+write "$repo" libs/billing/.claude/CLAUDE.md "@../CONCEPTS.md"
+expect_error "agent-file-imports-intent: a core library's agent file that imports only its CONCEPTS.md" "$repo" 1 \
+  "error: libs/billing/INTENT.md: agent-file-imports-intent: create it with the sections in which the package's intent differs from the root's, or delete libs/billing/.claude/CLAUDE.md"
+
+repo=$(clean_repo)
+write "$repo" tests/fixtures/orders/INTENT.md "# Intent" "" "## Non-goals"
+expect_ok "agent-file-imports-intent: a fixture tree that the arguments keep out" "$repo" README.md
+expect_error "agent-file-imports-intent: the same fixture tree, given no paths" "$repo" 1 \
+  "error: tests/fixtures/orders/.claude/CLAUDE.md: agent-file-imports-intent: create it with the line @../INTENT.md"
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../CONCEPTS.md" "Run the tide simulator before changing the table."
+expect_error "agent-file-holds-only-imports: free text at the root" "$repo" 1 \
+  "error: .claude/CLAUDE.md:3: agent-file-holds-only-imports: delete the line, or move what it says to .claude/rules/<principle>.md, with paths: when it concerns part of the tree; an agent file holds only lines of the form @../<name>.md"
+
+repo=$(clean_repo)
+write "$repo" libs/orders/.claude/CLAUDE.md "# orders" "" "@../INTENT.md"
+expect_error "agent-file-holds-only-imports: a heading in a package" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md:1: agent-file-holds-only-imports: delete the line, or move what it says to .claude/rules/<principle>.md"
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../CONCEPTS.md" "@anders please review"
+expect_error "agent-file-holds-only-imports: a mention is no import" "$repo" 1 \
+  "error: .claude/CLAUDE.md:3: agent-file-holds-only-imports: delete the line,"
+
+repo=$(clean_repo)
+write "$repo" "my notes.md" "# Notes"
+write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../my notes.md"
+expect_error "agent-file-holds-only-imports: a name with a space is no import" "$repo" 1 \
+  "error: .claude/CLAUDE.md:2: agent-file-holds-only-imports: delete the line,"
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../CONCEPTS.md" "@INTENT.md"
+expect_error "agent-file-holds-only-imports: an import of a file beside the agent file" "$repo" 1 \
+  "error: .claude/CLAUDE.md:3: agent-file-holds-only-imports: '@INTENT.md' imports no Markdown file directly in the root; write it as @../<name>.md, or delete the line"
+
+repo=$(clean_repo)
+write "$repo" ruff.toml "[lint]"
+write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../ruff.toml"
+expect_error "agent-file-holds-only-imports: an import of a file that is not Markdown" "$repo" 1 \
+  "error: .claude/CLAUDE.md:2: agent-file-holds-only-imports: '@../ruff.toml' imports no Markdown file directly in the root;"
+
+repo=$(clean_repo)
+write "$repo" libs/orders/.claude/CLAUDE.md "@../INTENT.md" "@../../INTENT.md"
+expect_error "agent-file-holds-only-imports: a package agent file imports the root's intent" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md:2: agent-file-holds-only-imports: '@../../INTENT.md' imports no Markdown file directly in libs/orders/; write it as @../<name>.md, or delete the line"
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "  @../INTENT.md" "@../CONCEPTS.md"
+expect_error "agent-file-holds-only-imports: an indented import is no import" "$repo" 2 \
+  "error: .claude/CLAUDE.md:1: agent-file-holds-only-imports: '  @../INTENT.md' imports no Markdown file directly in the root;"
+expect_error "agent-file-holds-only-imports: an indented import of the intent leaves the line missing" "$repo" 2 \
+  "error: .claude/CLAUDE.md: agent-file-imports-intent: add the line @../INTENT.md"
+
+repo=$(clean_repo)
+write "$repo" .claude/CLAUDE.md "@../INTENT.md" "@../CONCEPTS.md" "@../GLOSSARY.md"
+expect_error "agent-file-holds-only-imports: an import of a missing file at the root" "$repo" 1 \
+  "error: .claude/CLAUDE.md:3: agent-file-holds-only-imports: the line imports GLOSSARY.md, which is missing or untracked; add the file, or delete the line"
+
+repo=$(clean_repo)
+write "$repo" .gitignore "/libs/orders/NOTES.md"
+write "$repo" libs/orders/NOTES.md "# Notes"
+write "$repo" libs/orders/.claude/CLAUDE.md "@../INTENT.md" "@../NOTES.md"
+expect_error "agent-file-holds-only-imports: an import of an untracked file in a package" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md:2: agent-file-holds-only-imports: the line imports libs/orders/NOTES.md, which is missing or untracked; add the file, or delete the line"
+
+repo=$(clean_repo)
+rm "$repo/libs/orders/README.md"
+expect_error "agent-file-holds-only-imports: a deleted imported file, given alone" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md:3: agent-file-holds-only-imports: the line imports libs/orders/README.md, which is missing or untracked" \
+  libs/orders/README.md
+
+repo=$(clean_repo)
+write "$repo" libs/orders/.claude/CLAUDE.md "@../INTENT.md" "@../CLAUDE.md"
+expect_error "agent-file-holds-only-imports: an imported stray CLAUDE.md, deleted and given alone" "$repo" 1 \
+  "error: libs/orders/.claude/CLAUDE.md:2: agent-file-holds-only-imports: the line imports libs/orders/CLAUDE.md, which is missing or untracked" \
+  libs/orders/CLAUDE.md
+
+repo=$(clean_repo)
+write "$repo" libs/orders/.claude/CLAUDE.md "@../INTENT.md" "Orders are event sourced."
+expect_ok "agent-file-holds-only-imports: a file deeper in a package brings in no agent file" "$repo" \
+  libs/orders/docs/decisions/orders-are-event-sourced.md
+
 # no-agents-md
 repo=$(clean_repo)
 write "$repo" AGENTS.md "# Agents"
 expect_error "no-agents-md: a file at the root, whose lines have somewhere to go" "$repo" 1 \
-  "error: AGENTS.md: no-agents-md: move what must stay to .claude/CLAUDE.md, below the line @../INTENT.md, or to .claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file; Claude Code reads .claude/CLAUDE.md"
+  "error: AGENTS.md: no-agents-md: move what must stay to .claude/rules/<principle>.md, with paths: when it concerns part of the tree, and delete the file; Claude Code reads .claude/CLAUDE.md, and no other agent harness is supported"
 
 repo=$(clean_repo)
 write "$repo" .claude/rules/orders-api-owns-no-logic.md "# Orders API owns no logic"
@@ -157,7 +283,7 @@ expect_error "no-agents-md: a symlink in a package" "$repo" 1 \
 repo=$(clean_repo)
 write "$repo" CLAUDE.md "# Orders"
 expect_error "no-claude-md-outside-dot-claude: a file at the root" "$repo" 1 \
-  "error: CLAUDE.md: no-claude-md-outside-dot-claude: move what must stay to .claude/CLAUDE.md, below the line @../INTENT.md, or to .claude/rules/<principle>.md with paths: when it concerns part of the tree, and delete the file"
+  "error: CLAUDE.md: no-claude-md-outside-dot-claude: move what must stay to .claude/rules/<principle>.md, with paths: when it concerns part of the tree, and delete the file"
 
 repo=$(clean_repo)
 write "$repo" libs/orders/CLAUDE.md "# orders"
@@ -165,9 +291,9 @@ expect_error "no-claude-md-outside-dot-claude: a file in a package" "$repo" 1 \
   "error: libs/orders/CLAUDE.md: no-claude-md-outside-dot-claude:"
 
 repo=$(clean_repo)
-write "$repo" libs/orders/.claude/CLAUDE.md "@../INTENT.md"
-expect_error "no-claude-md-outside-dot-claude: a .claude directory below the root" "$repo" 1 \
-  "error: libs/orders/.claude/CLAUDE.md: no-claude-md-outside-dot-claude:"
+write "$repo" .claude/commands/CLAUDE.md "# Commands"
+expect_error "no-claude-md-outside-dot-claude: a file in a directory below .claude/" "$repo" 1 \
+  "error: .claude/commands/CLAUDE.md: no-claude-md-outside-dot-claude:"
 
 # no-docs-adr
 repo=$(clean_repo)
@@ -317,6 +443,10 @@ repo=$(clean_repo)
 write "$repo" vendor/skills/AGENTS.md "# Agents"
 write "$repo" libs/orders/generated/CLAUDE.md "# Generated"
 write "$repo" libs/orders/vendor/docs/adr/0001-copied.md "# Copied"
+write "$repo" vendor/skills/INTENT.md "# Intent of a copied skill"
+write "$repo" vendor/skills/.claude/CLAUDE.md "Read the skill before you change it."
+write "$repo" libs/orders/generated/client/INTENT.md "## Roadmap"
+write "$repo" libs/orders/generated/client/.claude/CLAUDE.md "# Generated"
 expect_ok "vendor/ and generated/ directories are skipped" "$repo"
 
 repo=$(clean_repo)
@@ -381,6 +511,28 @@ repo=$(clean_repo)
 write "$plain" AGENTS.md "# Agents"
 expect_refusal "a path outside the repository is refused" "$repo" \
   "validate-documents: $plain/AGENTS.md is outside the repository" "$plain/AGENTS.md"
+
+python_only=$(mktemp -d "$tmp/python-only.XXXXXX")
+ln -s "$(command -v python3)" "$python_only/python3"
+untracked=$(mktemp -d "$tmp/untracked.XXXXXX")
+write "$untracked" .claude/CLAUDE.md "@../INTENT.md"
+write "$untracked" README.md "# Orders"
+output=$( (cd "$untracked" && env -i PATH="$python_only" python3 "$validator" README.md 2>&1) || true)
+if grep -qxF "error: INTENT.md: agent-file-imports-intent: create it with the repository's intent, which .claude/CLAUDE.md imports into every session" <<<"$output" &&
+  grep -qxF "validate-documents: 1 error(s)" <<<"$output"; then
+  echo "ok: without git, a file missing from the working tree is missing"
+else
+  echo "FAIL: without git, a file missing from the working tree is missing, got:" && echo "  ${output//$'\n'/$'\n'  }"
+  failures=$((failures + 1))
+fi
+write "$untracked" INTENT.md "# Intent" "" "## Non-goals"
+output=$( (cd "$untracked" && env -i PATH="$python_only" python3 "$validator" README.md 2>&1) || true)
+if [[ "$output" == "validate-documents: ok" ]]; then
+  echo "ok: without git, every file of the working tree counts as tracked"
+else
+  echo "FAIL: without git, every file of the working tree counts as tracked: expected ok, got:" && echo "  ${output//$'\n'/$'\n'  }"
+  failures=$((failures + 1))
+fi
 
 if ((failures > 0)); then
   echo "test-validate-documents: $failures failure(s)" >&2

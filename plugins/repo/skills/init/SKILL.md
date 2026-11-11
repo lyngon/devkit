@@ -38,7 +38,7 @@ Facts are your job, never the user's.
 Before asking anything, look up:
 
 - `git remote -v`, `git log --oneline | head`, tracked files. No tracked files means **fresh** mode, otherwise **adopt** mode.
-- Existing `README.md`, `INTENT.md`, `CONCEPTS.md`, `CONTEXT.md`, `docs/decisions/`, `docs/TODO.md`, and what an older setup left: `CLAUDE.md`, `AGENTS.md`, `docs/adr/`.
+- Existing `README.md`, `INTENT.md`, `CONCEPTS.md`, `CONTEXT.md`, `docs/decisions/`, `docs/TODO.md`, and what an older setup left: a `CLAUDE.md` at the root or in a package, a line of `.claude/CLAUDE.md` that is not an import, `AGENTS.md`, `docs/adr/`.
 - Existing `devenv.nix`, `devenv.yaml`, `.envrc`, `flake.nix`, `.gitignore`, `.pre-commit-config.yaml`, `.claude/settings.json`, `.mcp.json`, CI workflows.
 - Stack markers: `pyproject.toml`, `uv.lock`, `package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `go.mod`, `*.tf`, `*.cabal`, `stack.yaml`, `*.nix`, shell scripts.
 - Existing package layout (`apps/`, `libs/`, a flat `packages/`, `services/`, per-language roots) and root workspace files (`pyproject.toml`, `pnpm-workspace.yaml`, `Cargo.toml`, `go.work`).
@@ -74,9 +74,10 @@ In adopt mode, show a diff for every file that already exists and never overwrit
 For `README.md` in adopt mode, merge into the existing structure rather than replacing it.
 If an existing `README.md` states the problem, audience or non-goals, move that content into `INTENT.md` and leave a link behind.
 
-An existing `CLAUDE.md`, `AGENTS.md` or `docs/adr/` is sorted and then deleted, never kept.
-Sort each line and each record by the admission test in `discover:domain-model`: drop what a check carries, what the tree shows and what holds for every Lyngon repository; a principle that passes becomes a rule file under `.claude/rules/`, and a decision that passes becomes a record under `docs/decisions/`, named after the decision.
-Show the owner the sorting before deleting anything; what the owner wants kept as it is goes into `.claude/CLAUDE.md`, below the import.
+An existing `CLAUDE.md` outside `.claude/`, at the root or in a package, an `AGENTS.md`, a `docs/adr/` and every line of an agent file that is not an import are sorted and then deleted, never kept.
+Sort each line and each record by the admission test in `discover:domain-model`: drop what a check carries, what the tree shows and what holds for every Lyngon repository; a principle that passes becomes a rule file under `.claude/rules/`, with `paths:` when it concerns one package, and a decision that passes becomes a record under `docs/decisions/`, named after the decision.
+Show the owner the sorting before deleting anything.
+What the owner wants kept as it is goes into a rule file under `.claude/rules/`, never into an agent file: an agent file holds only imports.
 
 ### 5. Write
 
@@ -88,7 +89,8 @@ The full set:
 The documents:
 
 - `INTENT.md` from the round 1 answers: product, for whom, done, failure, non-goals, horizon.
-- `.claude/CLAUDE.md` holding the one line that imports `INTENT.md`.
+- `.claude/CLAUDE.md` holding only the line that imports `INTENT.md`.
+- `<package>/.claude/CLAUDE.md` holding only the line `@../INTENT.md`, for each existing package with an `INTENT.md` of its own.
 - `.claude/rules/<name>.md` for each repository principle from step 3, one per file. Most repositories start with none.
 - `README.md`, `CONCEPTS.md`, `docs/decisions/<name>.md` for each decision record from step 3, `docs/TODO.md` only if the user deferred something, `docs/conventions/<topic>.md` only for a repository-specific convention too long for a rule file.
 - `.gitignore` with the baseline patterns, `/tmp/`, `/sandbox/`, and the stack patterns.
@@ -138,7 +140,7 @@ Ask before pushing: the commit is on the default branch.
 In adopt mode the work is on the branch step 5 created, or on the feature branch init started on.
 Commit by concern, in an order in which each commit passes the hooks, and put two concerns in one commit when neither passes alone:
 
-1. `docs: adopt the Lyngon documents`: `INTENT.md`, `.claude/CLAUDE.md`, the rule files, `README.md`, `CONCEPTS.md`, the decision records, `docs/`, `.gitignore` and `.claude/settings.json`, together with the removal of an old `CLAUDE.md`, `AGENTS.md` and `docs/adr/`.
+1. `docs: adopt the Lyngon documents`: `INTENT.md`, the agent files, the rule files, `README.md`, `CONCEPTS.md`, the decision records, `docs/`, `.gitignore` and `.claude/settings.json`, together with the removal of an old `CLAUDE.md`, `AGENTS.md` and `docs/adr/`.
 2. `build: import the Lyngon baseline`: the devenv files, the linter configurations and `secretspec.toml`.
 3. `ci: run the full check and the pull request check in CI`: both workflows.
 4. `build: adopt the Lyngon structure`, only when the repository adopts it: the root workspace files; then one `feat(<name>): add <kind> <name>` per package.

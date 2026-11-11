@@ -1,0 +1,18 @@
+[project]
+name = "tidewatch"
+version = "0.0.0"
+requires-python = ">=3.13"
+
+[tool.uv.workspace]
+members = [
+  "libs/tides",
+]
+
+[tool.uv.sources]
+tides = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest", "import-linter"]
+
+[tool.basedpyright]
+typeCheckingMode = "all"
