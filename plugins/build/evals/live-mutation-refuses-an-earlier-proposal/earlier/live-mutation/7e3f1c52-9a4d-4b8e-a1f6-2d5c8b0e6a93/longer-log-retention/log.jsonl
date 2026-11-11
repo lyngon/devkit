@@ -1,0 +1,3 @@
+{"kind": "derive", "started": "2026-11-11T09:20:28Z", "ended": "2026-11-11T09:20:28Z", "status": 0, "command": "cloudctl plan production --out \"$LIVE_MUTATION_INPUTS/plan\"", "output": "001-derive.txt", "check": "", "words": ""}
+{"kind": "show", "started": "2026-11-11T09:20:28Z", "ended": "2026-11-11T09:20:28Z", "status": 0, "command": "cloudctl show \"$LIVE_MUTATION_INPUTS/plan\"", "output": "002-show.txt", "check": "", "words": ""}
+{"kind": "check", "started": "2026-11-11T09:20:28Z", "ended": "2026-11-11T09:20:28Z", "status": 2, "command": "cloudctl plan production --detailed-exitcode", "output": "003-check-no-changes.txt", "check": "no-changes", "words": ""}

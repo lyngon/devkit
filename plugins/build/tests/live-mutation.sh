@@ -165,7 +165,7 @@ expect "a demonstration that passes is reported as showing nothing" 1 'The demon
 mutation session-one record set-value
 expect "the record is written once every check has failed somewhere" 0 'tmp/live-mutation/session-one/set-value/record-1\.md'
 record=$(cat "$repository/tmp/live-mutation/session-one/set-value/record-1.md")
-pattern='^## Action record of `set-value`.*Proposal digest `'"$digest"'`.*Go-ahead at [0-9TZ:-]+: "Go ahead with set-value\.".*Drift check at [0-9TZ:-]+: the rendering derived again equals the approved one.*The run passes.*\| `matches` \| fails \(1\) \| passes \| none \|.*\| `present` \| passes \| passes \| fails \(1\), passes \|.*value: old -> new.*applied new'
+pattern='^## Action record of `set-value`.*Proposal digest `'"$digest"'`.*Go-ahead at [0-9TZ:-]+, in the owner.s words: "Go ahead with set-value\.".*Drift check at [0-9TZ:-]+: the rendering derived again equals the approved one.*The run passes.*\| `matches` \| fails \(1\) \| passes \| none \|.*\| `present` \| passes \| passes \| fails \(1\), passes \|.*value: old -> new.*applied new'
 if [[ "$record" =~ $pattern ]]; then
   pass "the record holds the digest, the owner's words, the run, every check and the rendering"
 else

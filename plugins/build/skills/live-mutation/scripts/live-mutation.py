@@ -549,7 +549,7 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
         f"## Action record of `{name}`",
         "",
         f"- Proposal digest `{proposal.digest}`, shown at {proposal.created} in session `{session}`.",
-        f"- Go-ahead at {go_ahead.started}: {json.dumps(go_ahead.words)}.",
+        f"- Go-ahead at {go_ahead.started}, in the owner's words: {json.dumps(go_ahead.words)}",
         f"- Drift check at {drift.ended}: the rendering derived again equals the approved one.",
         finished,
         "",

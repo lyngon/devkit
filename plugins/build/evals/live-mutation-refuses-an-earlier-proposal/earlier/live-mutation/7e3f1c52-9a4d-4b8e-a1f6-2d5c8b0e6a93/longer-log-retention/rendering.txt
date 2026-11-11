@@ -1,0 +1,6 @@
+Account production
+
+  ~ bucket.orders-logs
+      retention_days: 30 -> 90
+
+Plan: 0 to add, 1 to change, 0 to destroy.
