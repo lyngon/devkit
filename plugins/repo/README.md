@@ -13,8 +13,15 @@ Repository setup and package creation for Lyngon.
 ## Hooks
 
 - `SessionStart` (`hooks/session-start.sh`): in a repository whose root `devenv.nix` sets `lyngon.structure.enable = true`, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`, that an app holds main, wiring and config and no logic, and that a file under `generated/` or `vendor/` is never edited by hand.
-  When the current branch is behind its upstream, it adds a line with the count and `git pull --ff-only`; it counts what the last fetch saw and never fetches.
+  It then fetches `origin` with pruning, for at most 10 s, and adds a line for each of these cases:
+
+  - The fetch failed or got no answer in time. The line gives git's reason, and the lines after it count what the last fetch saw.
+  - The current branch is behind its upstream. The line gives the count and `git pull --ff-only`.
+  - The upstream of the current branch no longer exists, as after GitHub merges its pull request and deletes the branch.
+  - The local default branch is behind the default branch of `origin`, and another branch is current. The line says to start every new branch from the default branch of `origin`.
+
   Otherwise it prints nothing.
+  Its timeout in `hooks/hooks.json` is 20 s, so a remote that never answers still leaves the hook time to say so.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
 
 ### The devenv environment in a session
