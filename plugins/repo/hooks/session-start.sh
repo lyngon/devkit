@@ -36,6 +36,7 @@ fi
 
 branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=
 default=$(git -C "$root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) || default=
+local_default=${default#origin/}
 
 if [[ -n "$branch" ]]; then
   tracking=$(git -C "$root" for-each-ref --format='%(upstream:short) %(upstream:track,nobracket)' "refs/heads/$branch")
@@ -49,7 +50,7 @@ if [[ -n "$branch" ]]; then
 fi
 
 # When the default branch is the current one, the line above covers it.
-if [[ -n "$default" && "${default#origin/}" != "$branch" ]] &&
-  behind=$(git -C "$root" rev-list --count "refs/heads/${default#origin/}..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
-  echo "The local ${default#origin/} is $(commits "$behind") behind $default. Start every new branch from $default, not from ${default#origin/}."
+if [[ -n "$default" && "$local_default" != "$branch" ]] &&
+  behind=$(git -C "$root" rev-list --count "refs/heads/$local_default..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
+  echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."
 fi
