@@ -210,6 +210,16 @@ let
     ];
     text = ''exec "${config.devenv.root}/devenv/tests/structure-checks-the-commit.sh" "$@" "${config.devenv.root}/devenv.lock"'';
   };
+  testHooksRunAfterTheShellSetup = pkgs.writeShellApplication {
+    name = "test-hooks-run-after-the-shell-setup";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.git
+      pkgs.gnugrep
+    ];
+    text = ''exec "${config.devenv.root}/devenv/tests/hooks-run-after-the-shell-setup.sh" "$@" "${config.devenv.root}/devenv.lock"'';
+  };
   # The commit hooks of the two validators, as the configuration defines
   # them, in throwaway repositories that commit through prek, which
   # `enterTest` hands over with the configuration.
@@ -457,6 +467,7 @@ in
     declared_tools_only ${lib.getExe testMcpFileFollowsItsOption} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testFullCheckShowsWhatPassed} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testStructureChecksTheCommit} "$(command -v devenv)"
+    declared_tools_only ${lib.getExe testHooksRunAfterTheShellSetup} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
     declared_tools_only ${lib.getExe testDevkitHooks}
