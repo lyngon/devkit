@@ -20,13 +20,13 @@ The build plugin removes the file when the work is finished, as it does every fi
 ## Ground the problem
 
 Build a real mental model of every system the new code touches.
-Have a subagent of its own invoke `discover:how` over the relevant subsystems, started in the foreground (`run_in_background: false`).
+Have a subagent of its own invoke `discover:how` over the relevant subsystems.
 What it returns is your grounding, never the reply.
 
 Naming a file isn't grounding.
 The grounding is the traced model that `discover:how` prescribes.
 If the design redefines ownership or layering, also have a subagent invoke `discover:why` on the existing shape, so the rationale becomes a constraint, not a guess.
-When you need both, start the two subagents in a single message and in the foreground (`run_in_background: false` on each call).
+When you need both, start the two subagents in a single message.
 
 Skip this step only when the work is genuinely greenfield with no surrounding system to integrate.
 
@@ -100,7 +100,7 @@ Complexity in the data is not complexity in the design.
 
 When you scrap:
 
-1. Have a subagent invoke `discover:how` over what's been built, started in the foreground (`run_in_background: false`), as in "Ground the problem".
+1. Have a subagent invoke `discover:how` over what's been built, as in "Ground the problem".
 2. Redesign as if the new constraints had been day-one assumptions, per `redesign-from-first-principles`.
 3. Subtract before adding, per the principle `subtract-before-you-add`. The new sketch should be smaller than the old one before it grows.
 4. Return to "Sketch" and invoke `build:arena` again.

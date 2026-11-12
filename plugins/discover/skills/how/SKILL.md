@@ -25,27 +25,27 @@ When in doubt, take the simple path.
 ## Explore, for a complex question
 
 Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem.
-Spawn all explorers in a single message and in the foreground (`run_in_background: false` on each call), so that they run concurrently and every finding is back before you go on.
+Spawn all explorers in a single message, so that they run concurrently, and go on only once every finding is back.
 
 Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in.
 Then go to "Synthesize".
 
 ## Explain directly, for a simple question
 
-Spawn one subagent in the foreground (`run_in_background: false`) that explores and explains in one pass.
+Spawn one subagent that explores and explains in one pass.
 
 Build its prompt from `references/explainer-prompt.md` without the explorer-findings section.
 Go to "Present".
 
 ## Synthesize, for a complex question
 
-Once all explorers have returned, spawn one subagent in the foreground (`run_in_background: false`) to synthesize their findings into one explanation.
+Once all explorers have returned, spawn one subagent to synthesize their findings into one explanation.
 
 Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.
 
 ## Present
 
-Present the explainer's output to the operator.
+Once the explainer's output is back, present it to the operator.
 Light edits for clarity or context from the conversation are fine.
 Do not substantially rewrite it.
 

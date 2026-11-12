@@ -4,6 +4,8 @@ Principles first. Before any work that takes judgment (a design choice, a refact
 
 Decide and act. Ask only before an irreversible action, or for a product or preference call that no run can settle. Always ask before a merge, a push to the default branch, a force-push, a tag, a release, a publish, deleting data or a remote branch, any message outside GitHub, and spending money. Before a live mutation, a change to a running system or to the state a tool keeps of one (an apply, a deploy, a data migration), invoke build:live-mutation, which says when it waits for the owner's go-ahead. Stop at a gate on requirements, a specification, a plan or tasks only where the owner asked for one, and then stop exactly there.
 
+Act on a subagent's work only once its report has arrived. A subagent may run in the background whatever its call asks, and its report then arrives as a message after the call has returned. Until then, do not review that work, commit or push it, open a pull request on it, propose a live mutation that rests on it, or reply that it is done.
+
 A change is one concern, delivered as one pull request.
 - Work on a branch named <type>/<slug>, started from the default branch of origin right after a fetch. If the fetch fails, say so. Never commit on the default branch.
 - Commit as you go, without asking. Branch commits are free-form, because the pull request lands as one commit.

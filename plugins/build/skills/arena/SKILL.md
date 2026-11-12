@@ -26,7 +26,7 @@ The N candidates will receive the same prompt, so the prompt is the contract.
 
 ## Fan out
 
-Spawn all N candidates in a single message and in the foreground (`run_in_background: false` on each call), so that they run concurrently and every candidate is back before you go on.
+Spawn all N candidates in a single message, so that they run concurrently, and go on only once every candidate is back.
 Give each the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
 When the skill that invoked this one names a prompt for the candidates, as `build:architect` does with its runner prompt, each candidate gets that prompt's text unchanged, with these inputs filled in around it.
 
@@ -39,13 +39,13 @@ If a candidate fails to produce output, proceed with N-1 and note the dropout in
 Once every candidate is back, read each one end to end and score it against the rubric, criterion by criterion, not on holistic feel.
 Start the synthesis note, `tmp/arena/<task>/synthesis.md`, with those scores before you start the judge, so that its verdict cannot steer yours.
 
-Then spawn one judge subagent in the foreground (`run_in_background: false`), on a different model than yours that is no weaker, where the harness offers one.
+Then spawn one judge subagent, on a different model than yours that is no weaker, where the harness offers one.
 The judge reads and changes nothing.
 It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale.
 
 ## Pick a base
 
-Compare your scores with the judge's.
+Once the judge's verdict is back, compare your scores with the judge's.
 Agreement on the base confirms the pick.
 Disagreement means one of you is biased or the rubric was ambiguous.
 Read both rationales before deciding.
