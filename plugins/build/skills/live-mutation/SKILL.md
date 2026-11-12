@@ -13,6 +13,8 @@ No review shows it before it takes effect, so the owner's go-ahead is the only r
 
 - On a protected target, every live mutation waits for a go-ahead, a reversible one included. A target is protected unless a rule file of the repository names it unprotected.
 - On an unprotected target, a live mutation waits only when it cannot be undone, such as deleting data, replacing what holds state or identity, or an upgrade with no way back, or when the standing instructions always ask about it.
+- A `tofu` command that writes waits on every target, an unprotected one included, because a hook of this plugin denies it in the shell and the tool runs it only on a go-ahead.
+  Any other command follows the two rules above, however much it works like OpenTofu.
 - In doubt, it waits.
 
 A live mutation that does not wait needs nothing more from this skill: run it, and prove the result as any work.
