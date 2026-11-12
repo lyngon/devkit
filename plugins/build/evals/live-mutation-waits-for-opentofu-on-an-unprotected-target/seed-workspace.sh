@@ -6,7 +6,6 @@ evals=$(dirname "$here")
 branch=feat/debug-staging-logs
 title="feat(infra): log at debug level in staging"
 forge=.git/forge
-# The nixpkgs that the devkit's devenv.lock pins, for OpenTofu and for shfmt, which a Lyngon shell provides.
 nixpkgs=github:NixOS/nixpkgs/c8f90650c15282fa8656a041bfbbd2403997a9a7
 
 export GIT_AUTHOR_NAME="Ada Lovelace" GIT_AUTHOR_EMAIL=ada@example.com GIT_AUTHOR_DATE=2026-11-10T09:00:00Z

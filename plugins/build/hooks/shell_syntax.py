@@ -1,8 +1,5 @@
 # ruff: noqa: INP001  # a module beside the hook scripts that import it, which no package holds
-"""The simple commands and redirections of a shell command, read from the syntax tree that shfmt writes.
-
-The hooks of the build plugin that read a shell command import it, from the directory that holds them.
-"""
+"""The simple commands and redirections of a shell command, read from the syntax tree that shfmt writes."""
 
 import collections
 import collections.abc as ct

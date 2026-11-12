@@ -26,8 +26,6 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
-# run_tool_hook <plugin root> <tool> <tool input> [<fields added to the hook input>] [<PATH>]: run each PreToolUse
-# hook of the plugin whose matcher matches the tool, as Claude Code does. Sets out, err, code.
 run_tool_hook() {
   local plugin_root=$1 tool=$2 tool_input=$3 fields=${4:-'{}'} path=${5:-$script_tools} commands command
   commands=$(jq -r --arg tool "$tool" '.hooks.PreToolUse[]? | select(.matcher as $matcher | $tool | test("^(\($matcher))$"))
@@ -106,8 +104,6 @@ for value in true false; do
   check "Agent with run_in_background $value: prints nothing, so the call runs as it is" equals "$out$err" ""
 done
 
-# --- tofu-writes-go-through-live-mutation.py ---------------------------------
-
 route="An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill, proposes the command with the skill's tool and runs it there on the owner's go-ahead, and a subagent stops and reports the command to its lead."
 
 denied() {
@@ -126,7 +122,6 @@ unread() {
   denied "This command names tofu, and the hook cannot read it, since $1, so it denies it. $2 $route"
 }
 
-# run_bash_hook <command> [<fields added to the hook input>] [<PATH>]
 run_bash_hook() {
   run_tool_hook "$root" Bash "$(jq -n --arg command "$1" '{command: $command, description: "Run it"}')" "${@:2}"
 }

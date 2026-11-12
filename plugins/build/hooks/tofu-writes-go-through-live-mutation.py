@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse hook of the build plugin on Bash and Monitor: an OpenTofu command that writes runs through live-mutation.
-
-It denies rather than asks, since build:live-mutation decides whether a live mutation waits for the owner, and it
-denies in a subagent as in the lead. A command that names tofu and that the hook cannot read is denied too.
-A program that runs tofu itself, such as live-mutation.py, make or a script file, is a process the hook never sees.
-"""
+"""PreToolUse hook of the build plugin on Bash and Monitor: OpenTofu writes go through live-mutation."""
 
 import collections.abc as ct
 import itertools
