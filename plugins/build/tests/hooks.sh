@@ -26,14 +26,17 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
+# run_tool_hook <plugin root> <tool> <tool input> [<fields added to the hook input>] [<PATH>]: run each PreToolUse
+# hook of the plugin whose matcher matches the tool, as Claude Code does. Sets out, err, code.
 run_tool_hook() {
-  local plugin_root=$1 tool=$2 tool_input=$3 commands command
-  commands=$(jq -r --arg tool "$tool" '.hooks.PreToolUse[]? | select(.matcher == $tool) | .hooks[].command' "$plugin_root/hooks/hooks.json")
-  jq -n --arg tool "$tool" --argjson tool_input "$tool_input" \
-    '{session_id: "s", hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"}' >"$tmp/stdin"
+  local plugin_root=$1 tool=$2 tool_input=$3 fields=${4:-'{}'} path=${5:-$script_tools} commands command
+  commands=$(jq -r --arg tool "$tool" '.hooks.PreToolUse[]? | select(.matcher as $matcher | $tool | test("^(\($matcher))$"))
+    | .hooks[].command' "$plugin_root/hooks/hooks.json")
+  jq -n --arg tool "$tool" --argjson tool_input "$tool_input" --argjson fields "$fields" \
+    '{session_id: "s", hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $fields' >"$tmp/stdin"
   code=0 out="" err=""
   while IFS= read -r command; do
-    out+=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$plugin_root" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+    out+=$(env -i PATH="$path" CLAUDE_PLUGIN_ROOT="$plugin_root" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
     err+=$(<"$tmp/stderr")
   done <<<"$commands"
 }
@@ -102,6 +105,130 @@ for value in true false; do
   check "Agent with run_in_background $value: exits 0" equals "$code" 0
   check "Agent with run_in_background $value: prints nothing, so the call runs as it is" equals "$out$err" ""
 done
+
+# --- tofu-writes-go-through-live-mutation.py ---------------------------------
+
+route="An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill, proposes the command with the skill's tool and runs it there on the owner's go-ahead, and a subagent stops and reports the command to its lead."
+
+denied() {
+  jq -n --arg reason "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
+}
+
+writes() {
+  denied "\`$1\` is an OpenTofu command that writes. $route"
+}
+
+hidden() {
+  denied "This command names tofu, and the hook cannot tell what \`$1\` runs, since $2, so it denies it. Spell it out without a variable or a substitution there. $route"
+}
+
+unread() {
+  denied "This command names tofu, and the hook cannot read it, since $1, so it denies it. $2 $route"
+}
+
+# run_bash_hook <command> [<fields added to the hook input>] [<PATH>]
+run_bash_hook() {
+  run_tool_hook "$root" Bash "$(jq -n --arg command "$1" '{command: $command, description: "Run it"}')" "${@:2}"
+}
+
+tofu_denied() {
+  local label=$1 command=$2 expected=$3
+  run_bash_hook "$command" "${@:4}"
+  check "tofu, $label: exits 0" equals "$code" 0
+  check "tofu, $label: denied" json_equals "$out" "$expected"
+}
+
+tofu_runs() {
+  local label=$1 command=$2
+  run_bash_hook "$command" "${@:3}"
+  check "tofu, $label: exits 0" equals "$code" 0
+  check "tofu, $label: prints nothing, so it runs" equals "$out$err" ""
+}
+
+organization=infra/foundation/management/organization
+
+for subcommand in "apply organization.tfplan" "apply -auto-approve" "destroy -auto-approve" \
+  "import aws_organizations_organization.this o-abc123" "force-unlock 7f3c9a2e" "state rm aws_s3_bucket.logs" \
+  "state mv aws_s3_bucket.logs aws_s3_bucket.audit" "state push organization.tfstate" \
+  "state replace-provider hashicorp/aws registry.opentofu.org/hashicorp/aws" "refresh" "taint aws_s3_bucket.logs" \
+  "untaint aws_s3_bucket.logs" "workspace delete staging" "init -migrate-state" "init --migrate-state" \
+  "init -force-copy" "test" "workspace new staging" "workspace select -or-create staging"; do
+  tofu_denied "$subcommand" "tofu $subcommand" "$(writes "tofu $subcommand")"
+  tofu_denied "$subcommand after -chdir" "tofu -chdir=$organization $subcommand" \
+    "$(writes "tofu -chdir=$organization $subcommand")"
+done
+
+for subcommand in "plan -input=false -out=organization.tfplan" "show -no-color organization.tfplan" "state list" \
+  "state show aws_s3_bucket.logs" "state pull" "validate" "providers" "init -input=false" \
+  "init -upgrade -backend-config=backend.hcl" "workspace select staging" "output -json" "version" \
+  "apply -help" "import -h aws_s3_bucket.logs" "state rm --help" "state -lock=false rm aws_s3_bucket.logs"; do
+  tofu_runs "$subcommand" "tofu $subcommand"
+  tofu_runs "$subcommand after -chdir" "tofu -chdir=$organization $subcommand"
+done
+
+tofu_denied "apply after a cd" "cd $organization && tofu apply organization.tfplan" \
+  "$(writes "tofu apply organization.tfplan")"
+tofu_denied "apply with a variable assigned" "AWS_PROFILE=management tofu apply organization.tfplan" \
+  "$(writes "AWS_PROFILE=management tofu apply organization.tfplan")"
+tofu_denied "apply under aws-vault" "aws-vault exec management -- tofu -chdir=$organization apply organization.tfplan" \
+  "$(writes "aws-vault exec management -- tofu -chdir=$organization apply organization.tfplan")"
+tofu_denied "apply by the path of the program" "/nix/store/6knn-opentofu-1.12.6/bin/tofu destroy -auto-approve" \
+  "$(writes "/nix/store/6knn-opentofu-1.12.6/bin/tofu destroy -auto-approve")"
+tofu_denied "apply under nix run" "nix run nixpkgs#opentofu -- -chdir=$organization apply organization.tfplan" \
+  "$(writes "nix run nixpkgs#opentofu -- -chdir=$organization apply organization.tfplan")"
+tofu_denied "state rm under xargs" "xargs -n1 tofu state rm < addresses.txt" "$(writes "xargs -n1 tofu state rm")"
+tofu_denied "apply in bash -c" "bash -c 'cd infra && tofu apply organization.tfplan'" \
+  "$(writes "tofu apply organization.tfplan")"
+tofu_denied "state rm in sh -ec" "sh -ec \"tofu state rm aws_s3_bucket.logs\"" \
+  "$(writes "tofu state rm aws_s3_bucket.logs")"
+tofu_denied "destroy in eval" "eval 'tofu destroy -auto-approve'" "$(writes "tofu destroy -auto-approve")"
+tofu_denied "apply in a substitution" "echo \"\$(tofu apply -auto-approve)\"" "$(writes "tofu apply -auto-approve")"
+tofu_denied "apply in a loop over directories" "for d in a b; do tofu -chdir=\"infra/\$d\" apply -auto-approve; done" \
+  "$(writes "tofu -chdir=\"infra/\$d\" apply -auto-approve")"
+tofu_denied "apply after an empty word, which tofu skips" "tofu '' apply" "$(writes "tofu '' apply")"
+
+tofu_denied "a subcommand in a variable" "tofu -chdir=$organization \"\$subcommand\"" \
+  "$(hidden "tofu -chdir=$organization \"\$subcommand\"" "its subcommand comes from a variable or a substitution")"
+tofu_denied "a state subcommand in a variable" "tofu state \"\$operation\" aws_s3_bucket.logs" \
+  "$(hidden "tofu state \"\$operation\" aws_s3_bucket.logs" "its subcommand comes from a variable or a substitution")"
+tofu_denied "init with flags in a variable" "tofu init \$flags" \
+  "$(hidden "tofu init \$flags" "an argument comes from a variable or a substitution and may be -force-copy or -migrate-state")"
+tofu_denied "the program in a substitution" "\"\$(command -v tofu)\" apply organization.tfplan" \
+  "$(hidden "\"\$(command -v tofu)\" apply organization.tfplan" "its program comes from a variable or a substitution")"
+tofu_denied "bash -c with a variable" "bash -c \"cd \$dir && tofu apply\"" \
+  "$(hidden "bash -c \"cd \$dir && tofu apply\"" "it hands a shell a command that holds a variable or a substitution")"
+
+tofu_runs "plan in a loop over directories" "for d in a b; do tofu -chdir=\"infra/\$d\" plan; done"
+tofu_runs "plan in nix shell" "nix shell nixpkgs#opentofu --command tofu -chdir=$organization plan"
+tofu_runs "a commit message that names tofu apply" "git commit -m 'feat(build): deny tofu apply in Bash'"
+tofu_runs "a search for tofu" "grep -rn tofu infra && command -v tofu"
+
+live_mutation=$root/skills/live-mutation/scripts/live-mutation.py
+tofu_runs "a proposal of build:live-mutation's tool" "$live_mutation propose import-organization \
+  --derive 'tofu -chdir=$organization plan -input=false -out=\"\$LIVE_MUTATION_INPUTS/plan\"' \
+  --show 'tofu -chdir=$organization show -no-color \"\$LIVE_MUTATION_INPUTS/plan\"' \
+  --run 'tofu -chdir=$organization apply -input=false \"\$LIVE_MUTATION_INPUTS/plan\"' \
+  --check 'no-changes=tofu -chdir=$organization plan -input=false -detailed-exitcode'"
+tofu_runs "a run of build:live-mutation's tool" \
+  "$live_mutation run import-organization 3f9a1c0d --go-ahead 'yes, run import-organization'"
+
+tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
+  "$(writes "tofu -chdir=$organization apply organization.tfplan")" '{"agent_id": "a1", "agent_type": "general-purpose"}'
+
+python_only=$tmp/python-only
+mkdir -p "$python_only"
+ln -s "$(PATH=$script_tools command -v python3)" "$python_only/python3"
+tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
+  "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
+  '{}' "$python_only"
+tofu_runs "a command that names no tofu, without shfmt on the PATH" "git status --short" '{}' "$python_only"
+tofu_denied "a command that does not parse as bash" "print -l \${(f)\"\$(tofu state list)\"}" \
+  "$(unread "it does not parse as bash" "Write it as bash.")"
+
+run_tool_hook "$root" Monitor '{"command": "tofu apply -auto-approve", "description": "Apply", "timeout_ms": 60000}'
+check "tofu, apply in Monitor: denied" json_equals "$out" "$(writes "tofu apply -auto-approve")"
+run_tool_hook "$root" Monitor '{"ws": {"url": "wss://events.example.com/stream"}, "description": "Deploy events", "timeout_ms": 60000}'
+check "tofu, a Monitor on a WebSocket: prints nothing, so it runs" equals "$out$err" ""
 
 mode_matcher=$(yq --front-matter=extract '.hooks.PreToolUse[].matcher' "$root/skills/auto/SKILL.md")
 mode_command=$(yq --front-matter=extract '.hooks.PreToolUse[].hooks[].command' "$root/skills/auto/SKILL.md")
