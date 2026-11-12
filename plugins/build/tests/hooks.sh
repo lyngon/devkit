@@ -195,13 +195,34 @@ tofu_denied "init with flags in a variable" "tofu init \$flags" \
   "$(hidden "tofu init \$flags" "an argument comes from a variable or a substitution and may be -force-copy or -migrate-state")"
 tofu_denied "the program in a substitution" "\"\$(command -v tofu)\" apply organization.tfplan" \
   "$(hidden "\"\$(command -v tofu)\" apply organization.tfplan" "its program comes from a variable or a substitution")"
-tofu_denied "bash -c with a variable" "bash -c \"cd \$dir && tofu apply\"" \
-  "$(hidden "bash -c \"cd \$dir && tofu apply\"" "it hands a shell a command that holds a variable or a substitution")"
+tofu_denied "the program in a variable of the environment" "\"\$TOFU\" -chdir=$organization plan" \
+  "$(hidden "\"\$TOFU\" -chdir=$organization plan" "its program comes from a variable or a substitution")"
+tofu_denied "the program in a variable assigned twice" "T=/bin/true; T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; \$T apply" \
+  "$(hidden "\$T apply" "its program comes from a variable or a substitution")"
+tofu_denied "the program in a variable assigned the path of tofu" \
+  "T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; \$T -chdir=$organization apply organization.tfplan" \
+  "$(writes "\$T -chdir=$organization apply organization.tfplan")"
+tofu_denied "apply in bash -c, in double quotes with a variable" "bash -c \"cd \$dir && tofu apply organization.tfplan\"" \
+  "$(writes "tofu apply organization.tfplan")"
+tofu_denied "a subcommand in a variable, in eval" "eval \"tofu \$subcommand\"" \
+  "$(hidden "tofu \$subcommand" "its subcommand comes from a variable or a substitution")"
+tofu_denied "bash -c with a command partly in a variable" "bash -c \"tofu \"\$subcommand" \
+  "$(hidden "bash -c \"tofu \"\$subcommand" "the command it hands a shell comes from a variable or a substitution")"
 
 tofu_runs "plan in a loop over directories" "for d in a b; do tofu -chdir=\"infra/\$d\" plan; done"
 tofu_runs "plan in nix shell" "nix shell nixpkgs#opentofu --command tofu -chdir=$organization plan"
 tofu_runs "a commit message that names tofu apply" "git commit -m 'feat(build): deny tofu apply in Bash'"
 tofu_runs "a search for tofu" "grep -rn tofu infra && command -v tofu"
+tofu_runs "a search for tofu in a file named by a variable" \
+  "f=/nix/store/vwn5-source/modules/hooks.nix; grep -n -i 'tofu' \"\$f\""
+tofu_runs "init by the path of tofu in a variable" \
+  "T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; cd \"\$S/org\" && \$T init -backend=false -input=false"
+tofu_runs "a program in a variable, and tofu apply in its arguments" \
+  "T=plugins/build/skills/work-trace/scripts/trace.py && \$T append tmp/work-trace/x.tsv build 'ran tofu apply' 'ok'"
+tofu_runs "plan in bash -c, in double quotes with a variable" \
+  "for r in organization policies; do d=infra/foundation/management/\$r; devenv shell -- bash -c \"tofu -chdir=\$d init -input=false && tofu -chdir=\$d plan -input=false\"; done"
+tofu_runs "nix eval, which is no eval" "nix eval --raw \"\$NP#legacyPackages.x86_64-linux.opentofu.version\""
+tofu_runs "zsh, which does not parse as bash" "for f in \${=files}; do tofu -chdir=\"\$f\" validate; done"
 
 live_mutation=$root/skills/live-mutation/scripts/live-mutation.py
 tofu_runs "a proposal of build:live-mutation's tool" "$live_mutation propose import-organization \
@@ -222,8 +243,8 @@ tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
   '{}' "$python_only"
 tofu_runs "a command that names no tofu, without shfmt on the PATH" "git status --short" '{}' "$python_only"
-tofu_denied "a command that does not parse as bash" "print -l \${(f)\"\$(tofu state list)\"}" \
-  "$(unread "it does not parse as bash" "Write it as bash.")"
+tofu_denied "a command that parses neither as bash nor as zsh" "tofu -chdir=$organization plan; fi" \
+  "$(unread "it parses neither as bash nor as zsh" "Write it as bash.")"
 
 run_tool_hook "$root" Monitor '{"command": "tofu apply -auto-approve", "description": "Apply", "timeout_ms": 60000}'
 check "tofu, apply in Monitor: denied" json_equals "$out" "$(writes "tofu apply -auto-approve")"
