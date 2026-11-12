@@ -10,10 +10,10 @@ import collections.abc as ct
 import dataclasses
 import json
 import pathlib
-import re
-import subprocess
 import sys
 import typing as t
+
+import shell_syntax
 
 LEADS_DIRECTORIES: tuple[tuple[str, ...], ...] = (("tmp",), ("docs", "plans"), ("docs", "mistakes"))
 
@@ -31,33 +31,6 @@ RUNNERS = frozenset({"find", "xargs"})
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
-class Word:
-    """A word of a shell command, with its value, or None when an expansion decides it as the command runs."""
-
-    value: str | None
-
-
-UNSEEN = Word(None)
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class Call:
-    """A simple command: its words, the first its name, and its text in the command."""
-
-    words: tuple[Word, ...]
-    text: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class Redirection:
-    """A redirection: its operator, the word it redirects to, and its text in the command."""
-
-    operator: str
-    target: Word
-    text: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
 class Writer:
     """How a command that writes files takes its options, and which of its operands are the files it writes."""
 
@@ -69,7 +42,7 @@ class Writer:
     writes_only_with: frozenset[str] = frozenset()
     script_options: frozenset[str] | None = None
 
-    def targets(self, words: ct.Sequence[Word]) -> list[Word]:
+    def targets(self, words: ct.Sequence[shell_syntax.Word]) -> list[shell_syntax.Word]:
         """Return the words of a call's arguments that name the files it writes."""
         options, operands = self.parse(words)
         names = {name for name, _ in options}
@@ -82,10 +55,12 @@ class Writer:
             return named or operands[-1:]
         return named + operands
 
-    def parse(self, words: ct.Sequence[Word]) -> tuple[list[tuple[str, Word]], list[Word]]:
+    def parse(
+        self, words: ct.Sequence[shell_syntax.Word]
+    ) -> tuple[list[tuple[str, shell_syntax.Word]], list[shell_syntax.Word]]:
         """Return the options of a call's arguments, each with its argument, and its operands."""
-        options: list[tuple[str, Word]] = []
-        operands: list[Word] = []
+        options: list[tuple[str, shell_syntax.Word]] = []
+        operands: list[shell_syntax.Word] = []
         index = 0
         while index < len(words):
             value = words[index].value
@@ -102,19 +77,21 @@ class Writer:
             index += 2 if takes_the_next else 1
         return options, operands
 
-    def options(self, value: str, following: Word | None) -> tuple[list[tuple[str, Word]], bool]:
+    def options(
+        self, value: str, following: shell_syntax.Word | None
+    ) -> tuple[list[tuple[str, shell_syntax.Word]], bool]:
         """Return the options that a word starting with - gives, and whether the last takes the following word."""
         if value.startswith("--"):
             name, equals, rest = value.partition("=")
             if not equals and name in self.long_with_argument and following is not None:
                 return [(name, following)], True
-            return [(name, Word(rest))], False
-        given: list[tuple[str, Word]] = []
+            return [(name, shell_syntax.Word(rest))], False
+        given: list[tuple[str, shell_syntax.Word]] = []
         for position, letter in enumerate(value[1:], start=2):
             rest = value[position:]
             if letter in self.short_with_argument and not rest and following is not None:
                 return [*given, (f"-{letter}", following)], True
-            given.append((f"-{letter}", Word(rest)))
+            given.append((f"-{letter}", shell_syntax.Word(rest)))
             if letter in self.short_with_argument or letter in self.short_with_attached_argument:
                 break
         return given, False
@@ -174,102 +151,35 @@ def json_object(value: object, name: str) -> dict[str, object]:
     return t.cast("dict[str, object]", value)
 
 
-def objects(value: object) -> list[dict[str, object]]:
-    """Return the JSON objects that a value of the syntax tree holds: itself, or the items of a list."""
-    items = t.cast("list[object]", value) if isinstance(value, list) else [value]
-    return [t.cast("dict[str, object]", item) for item in items if isinstance(item, dict)]
-
-
-def offset(node: dict[str, object], key: str) -> int:
-    """Return the byte offset of a position of a node of the syntax tree."""
-    position = objects(node.get(key))
-    value = position[0].get("Offset") if position else None
-    return value if isinstance(value, int) else 0
-
-
-def string_field(node: dict[str, object], key: str) -> str:
-    """Return a string field of a node of the syntax tree, or an empty one."""
-    value = node.get(key)
-    return value if isinstance(value, str) else ""
-
-
-def word(node: dict[str, object]) -> Word:
-    """Return the word that a Word node of the syntax tree stands for."""
-    value = ""
-    for part in objects(node.get("Parts")):
-        match string_field(part, "Type"):
-            case "Lit":
-                value += re.sub(r"\\(.)", r"\1", string_field(part, "Value"), flags=re.DOTALL)
-            case "SglQuoted":
-                value += string_field(part, "Value")
-            case "DblQuoted" if all(string_field(inner, "Type") == "Lit" for inner in objects(part.get("Parts"))):
-                value += "".join(string_field(inner, "Value") for inner in objects(part.get("Parts")))
-            case _:
-                return UNSEEN
-    return Word(value)
-
-
-def calls_and_redirections(command: str) -> list[Call | Redirection] | None:
-    """Return the simple commands and redirections of a bash command, or None when it does not parse as bash.
-
-    Exits 1 when shfmt, which parses it, is not on the PATH.
-    """
-    try:
-        parsed = subprocess.run(
-            ["shfmt", "--language-dialect", "bash", "--to-json"],
-            input=command.encode(),
-            capture_output=True,
-            check=False,
-        )
-    except FileNotFoundError:
-        sys.exit("lead-writes-no-code.py: shfmt, which parses a command of the lead, is not on the PATH")
-    if parsed.returncode != 0:
-        return None
-    source = command.encode()
-    found: list[Call | Redirection] = []
-    pending = objects(t.cast("object", json.loads(parsed.stdout)))
-    while pending:
-        node = pending.pop()
-        if string_field(node, "Type") == "CallExpr":
-            words = tuple(word(argument) for argument in objects(node.get("Args")))
-            found.append(Call(words, source[offset(node, "Pos") : offset(node, "End")].decode()))
-        for redirect in objects(node.get("Redirs")):
-            target = objects(redirect.get("Word"))
-            if target:
-                operator = source[offset(redirect, "OpPos") : offset(target[0], "Pos")].decode().strip()
-                span = source[offset(redirect, "Pos") : offset(redirect, "End")].decode()
-                found.append(Redirection(operator, word(target[0]), span))
-        pending.extend(reversed([item for value in node.values() for item in objects(value)]))
-    return found
-
-
-def command_name(value: str | None) -> str | None:
-    """Return the name of the command that a word names, without its directory."""
-    return None if value is None else pathlib.PurePath(value).name
-
-
-def written(part: Call | Redirection) -> list[Word]:
+def written(part: shell_syntax.Call | shell_syntax.Redirection) -> list[shell_syntax.Word]:
     """Return the words that name the files a part of a command writes, UNSEEN for files it cannot name."""
-    if isinstance(part, Redirection):
+    if isinstance(part, shell_syntax.Redirection):
         return [part.target] if part.operator in REDIRECTIONS_THAT_WRITE else []
     if not part.words:
         return []
     name, *arguments = part.words
-    if command_name(name.value) in RUNNERS:
+    if shell_syntax.command_name(name.value) in RUNNERS:
         for index, argument in enumerate(arguments):
-            writer = WRITERS.get(command_name(argument.value) or "")
+            writer = WRITERS.get(shell_syntax.command_name(argument.value) or "")
             if writer is not None:
                 run = arguments[index + 1 :]
                 ended = next((end for end, ran in enumerate(run) if ran.value in {";", "+"}), len(run))
-                return writer.targets([*run[:ended], UNSEEN])
+                return writer.targets([*run[:ended], shell_syntax.UNSEEN])
         return []
-    writer = WRITERS.get(command_name(name.value) or "")
+    writer = WRITERS.get(shell_syntax.command_name(name.value) or "")
     return [] if writer is None else writer.targets(arguments)
 
 
 def shell_write(command: str, cwd: pathlib.Path) -> str | None:
-    """Return the text of the first part of a command that writes a file of the change, or None."""
-    for part in calls_and_redirections(command) or []:
+    """Return the text of the first part of a command that writes a file of the change, or None.
+
+    Exits 1 when shfmt, which parses it, is not on the PATH.
+    """
+    try:
+        parts = shell_syntax.calls_and_redirections(command)
+    except shell_syntax.ParserMissingError:
+        sys.exit("lead-writes-no-code.py: shfmt, which parses a command of the lead, is not on the PATH")
+    for part in parts or []:
         for target in written(part):
             if target.value is None or in_the_change((cwd / target.value).resolve()):
                 return part.text

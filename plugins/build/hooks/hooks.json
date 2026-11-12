@@ -19,6 +19,15 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/agent-in-the-foreground.py"
           }
         ]
+      },
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/tofu-writes-go-through-live-mutation.py"
+          }
+        ]
       }
     ]
   }

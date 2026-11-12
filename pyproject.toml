@@ -10,4 +10,4 @@ pythonVersion = "3.13"
 # unlike ruff, would still read.
 exclude = ["**/node_modules", "**/__pycache__", "**/.*", "plugins/*/evals", "tmp"]
 # The baseline runs agent-identity.py with devenv/ on PYTHONPATH, for agent_token.py.
-extraPaths = ["devenv"]
+extraPaths = ["devenv", "plugins/build/hooks"]
