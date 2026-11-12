@@ -26,13 +26,11 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
-# run_tool_hook <plugin root> <tool> <tool input> [<keys of a subagent's call>]: run the plugin's
-# PreToolUse hooks on the tool as a session does. Sets out, err, code.
 run_tool_hook() {
-  local plugin_root=$1 tool=$2 tool_input=$3 agent=${4:-'{}'} commands command
+  local plugin_root=$1 tool=$2 tool_input=$3 subagent_keys=${4:-'{}'} commands command
   commands=$(jq -r --arg tool "$tool" '.hooks.PreToolUse[]? | select(.matcher == $tool) | .hooks[].command' "$plugin_root/hooks/hooks.json")
-  jq -n --arg tool "$tool" --argjson tool_input "$tool_input" --argjson agent "$agent" \
-    '{session_id: "s", hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $agent' >"$tmp/stdin"
+  jq -n --arg tool "$tool" --argjson tool_input "$tool_input" --argjson subagent_keys "$subagent_keys" \
+    '{session_id: "s", hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $subagent_keys' >"$tmp/stdin"
   code=0 out="" err=""
   while IFS= read -r command; do
     out+=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$plugin_root" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
