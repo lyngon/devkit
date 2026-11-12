@@ -243,6 +243,10 @@ tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
   '{}' "$python_only"
 tofu_runs "a command that names no tofu, without shfmt on the PATH" "git status --short" '{}' "$python_only"
+tofu_runs "a path with tofu inside a longer name, without shfmt on the PATH" \
+  "cd /home/ada/Projects/issue-145-tofu-writes-denied/infra/tofu-modules && git status --short" '{}' "$python_only"
+tofu_denied "the program in a variable named for tofu" "\"\$TOFU_BIN\" -chdir=$organization apply organization.tfplan" \
+  "$(hidden "\"\$TOFU_BIN\" -chdir=$organization apply organization.tfplan" "its program comes from a variable or a substitution")"
 tofu_denied "a command that parses neither as bash nor as zsh" "tofu -chdir=$organization plan; fi" \
   "$(unread "it parses neither as bash nor as zsh" "Write it as bash.")"
 

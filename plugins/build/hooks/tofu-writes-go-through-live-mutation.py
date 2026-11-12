@@ -55,6 +55,8 @@ SHELLS = frozenset({"bash", "dash", "ksh", "sh", "zsh"})
 
 SHELL_COMMAND_OPTION = re.compile(r"-[a-z]*c[a-z]*")
 
+NAMES_TOFU = re.compile(r"(?<![a-z0-9.-])(?:open)?tofu(?![a-z0-9.-])", re.IGNORECASE)
+
 OPENTOFU_FLAKE = re.compile(r"[^#]*#(?:.*\.)?opentofu")
 
 DOUBLE_QUOTED = re.compile(r'"((?:[^"\\]|\\.)*)"', re.DOTALL)
@@ -197,7 +199,7 @@ def call_denial(call: shell_syntax.Call) -> str | None:
 
 def denial(command: str) -> str | None:
     """Return why the hook denies a shell command, or None to let it run."""
-    if "tofu" not in command.lower():
+    if NAMES_TOFU.search(command) is None:
         return None
     try:
         parts = shell_syntax.calls_and_redirections(command, DIALECTS, resolve_variables=True)
