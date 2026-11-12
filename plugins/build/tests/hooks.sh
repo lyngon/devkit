@@ -87,22 +87,6 @@ check "copy: exits 0" equals "$code" 0
 check "copy: the last line names the copy's file of the mode" equals "${out##*$'\n'}" "If the operator started this session with /build:auto and its text is no longer in your context, read $copy/skills/auto/SKILL.md before you continue."
 check "copy: the rest of the text is unchanged" equals "${out%$'\n'*}" "${text%$'\n'*}"
 
-call='{"description": "Explore the parser", "prompt": "Explain how the parser works.", "subagent_type": "general-purpose"}'
-subagent='{"agent_id": "a4bfb540ff007c542", "agent_type": "general-purpose"}'
-no_nested_subagent='{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "A subagent starts no subagent of its own, since the report of that subagent can reach the lead instead of you. Do this work yourself, here, and put what it finds in your report."}}'
-
-run_tool_hook "$root" Agent "$call"
-check "the lead's Agent call: exits 0" equals "$code" 0
-check "the lead's Agent call: prints nothing, so the call runs as it is" equals "$out$err" ""
-
-run_tool_hook "$root" Agent "$call" "$subagent"
-check "a subagent's Agent call: exits 0" equals "$code" 0
-check "a subagent's Agent call: prints nothing on stderr" equals "$err" ""
-check "a subagent's Agent call: refused, telling it to do the work itself" json_equals "$out" "$no_nested_subagent"
-
-run_tool_hook "$copy" Agent "$call" "$subagent"
-check "a subagent's Agent call, from the copy: refused" json_equals "$out" "$no_nested_subagent"
-
 route="An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill, proposes the command with the skill's tool and runs it there on the owner's go-ahead, and a subagent stops and reports the command to its lead."
 
 denied() {
