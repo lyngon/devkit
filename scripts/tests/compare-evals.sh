@@ -40,9 +40,9 @@ failures=0
 # its tracePath names that file in place of the field. A run that has a
 # tracePath in the canned result keeps it and gets no sandbox, as a run whose
 # seed script failed has the empty one. Under --keep-temp every sandbox stays,
-# read-only, and the stub names it on stderr. Without it only the sandbox of a
-# run that ended in an error stays, unless --json names a file, and the
-# tracePath of every other run names a file that is gone.
+# read-only, and the stub names it on stderr. Without it the stub removes
+# every sandbox, and the tracePath names a file that is gone, as the real
+# command does for a run that ended well.
 #
 # A checkout without a canned result stands for a run that writes none: the
 # stub prints the canned progress and the file canned-stdout of the checkout,
@@ -114,19 +114,16 @@ while IFS= read -r run; do
     continue
   fi
   sandbox=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
-  mkdir -p "$sandbox/out" "$sandbox/sealed/home"
+  mkdir "$sandbox/out"
   jq -c --argjson run "$run" 'getpath($run).trace // [] | .[]' <<<"$result" >"$sandbox/out/trace.jsonl"
-  failed=$(jq --argjson run "$run" 'getpath($run).error != null' <<<"$result")
   result=$(jq --argjson run "$run" --arg trace "$sandbox/out/trace.jsonl" \
     'setpath($run + ["tracePath"]; $trace) | delpaths([$run + ["trace"]])' <<<"$result")
-  if [[ -n $keep && -z $json ]]; then
-    echo "  kept temp: $sandbox" >&2
-  elif [[ -z $keep && -z $json && $failed == true ]]; then
-    echo "  kept temp (run failed): $sandbox" >&2
-  elif [[ -z $keep ]]; then
+  if [[ -z $keep ]]; then
     rm -rf "$sandbox"
     continue
   fi
+  [[ -n $json ]] || echo "  kept temp: $sandbox" >&2
+  mkdir -p "$sandbox/sealed/home"
   echo "written by the plugin under test" >"$sandbox/sealed/home/notes.md"
   chmod 000 "$sandbox/sealed"
   chmod 500 "$sandbox"
@@ -823,7 +820,7 @@ check "run errors: the reason follows the table, once" equals "$(grep -c -F -- "
 check "run errors: the reason names its case and commit" contains "$out" "
 plugins/one/evals/needs-bash at head: run error: $refusal
 "
-check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp (run failed): "
+check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp: "
 check "run errors: that sandbox is removed too" nothing_left "$repo"
 progress_of needs-bash "$not_granted: Bash" >"$repo/canned-progress"
 commit "$repo" "chore: the harness says that the case lacked a tool"

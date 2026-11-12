@@ -17,14 +17,16 @@ Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
 that itself: a tool that a suite lacked, an error that ended a run of a
-case, a case that the commit has and its suite gave no result for, a case
-file that a suite failed to load, a grant that the harness refused, and a
-suite that the harness cut short. When the run in the working tree gives no
-result after the run at the base commit gave one, it prints the table of the
-base run, which was paid for, and exits 1, since there is no comparison.
+case, a run of a case in which every shell command failed, a case that the
+commit has and its suite gave no result for, a case file that a suite failed
+to load, a grant that the harness refused, and a suite that the harness cut
+short. When the run in the working tree gives no result after the run at the
+base commit gave one, it prints the table of the base run, which was paid
+for, and exits 1, since there is no comparison.
 """
 
 import argparse
+import collections
 import collections.abc as ct
 import dataclasses
 import json
@@ -96,8 +98,10 @@ class Case:
     gated tool that the case lists and the run did not grant. A grader that
     expects that something did not happen cannot fail in such a run, so the
     score alone is no proof. A run the harness refused or cut short adds its
-    reason to the errors, and still counts in the score. A grader that failed
-    is listed with the number of runs it failed in, in the order the case
+    reason to the errors, and still counts in the score. A run in which every
+    shell command failed adds to the failed shells what the first of them
+    said, since such a run scores like any other. A grader that failed is
+    listed with the number of runs it failed in, in the order the case
     declares its graders.
     """
 
@@ -105,6 +109,7 @@ class Case:
     runs: int
     notes: tuple[str, ...]
     errors: tuple[str, ...]
+    failed_shells: tuple[str, ...]
     failed_graders: ct.Mapping[str, int]
 
 
@@ -369,10 +374,10 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
 
     The harness prints the progress of a run only when no `--json` names a
     file for the result, so the result is read from the output directory
-    instead. All that the run prints goes to stderr as it comes. Without
-    `--json` the harness also keeps the sandbox of a run that ended in an
-    error, so the run gets a temporary directory inside the scratch directory
-    and the sandbox goes with it.
+    instead. All that the run prints goes to stderr as it comes. The trace of
+    a run that ended well outlives the run only under `--keep-temp`, which
+    keeps the sandbox of every run, so the run gets a temporary directory
+    inside the scratch directory and the sandboxes go with it.
 
     A run that found no case writes no result, and is read as a result
     without a case. Raises RunError, with what the run said about its suite,
@@ -382,7 +387,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
     """
     output, temporary = scratch / side, run_temporary(scratch)
     temporary.mkdir(exist_ok=True)
-    command = [*launcher.words, "plugin", "eval", ".", "--output-dir", str(output)]
+    command = [*launcher.words, "plugin", "eval", ".", "--output-dir", str(output), "--keep-temp"]
     command += ["--no-publish", "--ablation", "none", "--trust-plugin", "--scaffold", *options.eval_options]
     command += ["--allow-tools", *options.granted, shared_documents(checkout)]
     print(f"compare-evals: running the suite at {side}", file=sys.stderr)
@@ -509,13 +514,59 @@ def json_number(value: object) -> float:
     return float(value)
 
 
+def blocks_in(event: object) -> list[dict[str, object]]:
+    """Return the blocks of the message that an event of a trace holds, or none for an event without one."""
+    message = t.cast("dict[str, object]", event).get("message") if isinstance(event, dict) else None
+    content = t.cast("dict[str, object]", message).get("content") if isinstance(message, dict) else None
+    if not isinstance(content, list):
+        return []
+    return [t.cast("dict[str, object]", block) for block in t.cast("list[object]", content) if isinstance(block, dict)]
+
+
+def failed_shell(trace: str) -> str | None:
+    """Return the last line of what the first shell command of a run said, when every one of them failed.
+
+    It is None for a run without a shell command, for one in which a shell
+    command worked, and for one without a trace, whose result names the
+    empty path: a run that never started, such as one whose seed script
+    failed (measured on Claude Code 2.1.283).
+
+    When the sandbox of a run cannot start, every call of the shell tool
+    fails before its command starts, and the run scores like any other
+    (measured on Claude Code 2.1.283, issue 130). A call is a block
+    `tool_use` named `Bash` in an event of the trace, one event per line, and
+    its result a block `tool_result` with its ID, marked `is_error` when the
+    call failed. A command that ran and failed is marked so too, so only the
+    words tell the two apart, and the last line is the one that names the
+    failure. Raises OSError for a trace that cannot be read, and ValueError
+    for a line that is no JSON.
+    """
+    if not trace:
+        return None
+    calls: set[object] = set()
+    results: list[dict[str, object]] = []
+    for line in pathlib.Path(trace).read_text(encoding="utf-8").splitlines():
+        for block in blocks_in(t.cast("object", json.loads(line))):
+            if block.get("type") == "tool_use" and block.get("name") == "Bash":
+                calls.add(block.get("id"))
+            elif block.get("type") == "tool_result" and block.get("tool_use_id") in calls:
+                results.append(block)
+    if not results or any(result.get("is_error") is not True for result in results):
+        return None
+    content = results[0].get("content")
+    text = content if isinstance(content, str) else json.dumps(content)
+    return text.strip().rsplit("\n", 1)[-1]
+
+
 def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said) -> Result:
     """Turn what a run of `claude plugin eval` wrote and said into a Result.
 
-    That is the result it wrote, what it said about each case in its progress
-    and what it said about its suite. The result is narrowed here, once.
-    Raises RunError when it has another shape than the one this program was
-    written against.
+    That is the result it wrote, the trace of each run that the result
+    names, what it said about each case in its progress and what it said
+    about its suite. The result is narrowed here, once. Raises RunError when
+    it has another shape than the one this program was written against, and
+    when a trace cannot be read, since then no one can tell whether the
+    shell of that run worked.
     """
     if not isinstance(data, dict):
         raise RunError(f"the result at {side} is not a JSON object", said)
@@ -540,6 +591,9 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
                 runs=len(runs),
                 notes=notes_about(str(json_field(entry, "name")), progress),
                 errors=tuple(str(json_field(run, "error")) for run in runs if json_field(run, "error") is not None),
+                failed_shells=tuple(
+                    shell for run in runs if (shell := failed_shell(str(json_field(run, "tracePath")))) is not None
+                ),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
             )
         return Result(
@@ -548,6 +602,8 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
             cut_short_reason=str(json_field(fields, "partialReason")) if json_field(fields, "partial") else None,
             said=said,
         )
+    except (OSError, json.JSONDecodeError) as error:
+        raise RunError(f"the trace of a run at {side} cannot be read: {error}", said) from error
     except (KeyError, TypeError, ValueError) as error:
         raise RunError(f"the result at {side} holds a field this program cannot read: {error!r}", said) from error
 
@@ -561,9 +617,10 @@ def cell(column: Column, name: str) -> str:
     """Return one cell of the table.
 
     It holds the score of the case with the number of runs behind it, how
-    many notes the harness left about the case and how many of the runs ended
-    in an error. A case that the run gave no result for has the words
-    `no result` when it is present at the commit, and a dash when it is not.
+    many notes the harness left about the case, how many of the runs ended
+    in an error and in how many every shell command failed. A case that the
+    run gave no result for has the words `no result` when it is present at
+    the commit, and a dash when it is not.
     """
     case = column.result.cases.get(name)
     if case is None:
@@ -573,6 +630,8 @@ def cell(column: Column, name: str) -> str:
         counts.append(counted(len(case.notes), "note"))
     if case.errors:
         counts.append(counted(len(case.errors), "error"))
+    if case.failed_shells:
+        counts.append(counted(len(case.failed_shells), "failed shell"))
     return f"{case.score:.2f} ({', '.join(counts)})"
 
 
@@ -580,11 +639,17 @@ def reasons(case: Case) -> list[str]:
     """Return what stands behind a score.
 
     That is what the harness said about the case, each distinct run error,
-    and each grader that failed with the number of runs it failed in.
+    each distinct thing that the first command of a failed shell said with
+    the number of runs it said it in, and each grader that failed with the
+    number of runs it failed in.
     """
     return [
         *case.notes,
         *(f"run error: {error}" for error in dict.fromkeys(case.errors)),
+        *(
+            f"every shell command failed in {count} of {case.runs} runs, the first ending in: {shell}"
+            for shell, count in collections.Counter(case.failed_shells).items()
+        ),
         *(f"grader {name} failed in {count} of {case.runs} runs" for name, count in case.failed_graders.items()),
     ]
 
