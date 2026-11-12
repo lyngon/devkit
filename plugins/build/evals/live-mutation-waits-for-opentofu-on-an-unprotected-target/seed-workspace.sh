@@ -6,7 +6,8 @@ evals=$(dirname "$here")
 branch=feat/debug-staging-logs
 title="feat(infra): log at debug level in staging"
 forge=.git/forge
-nixpkgs=github:NixOS/nixpkgs/c8f90650c15282fa8656a041bfbbd2403997a9a7
+devenv_lock=$(cd "$evals/../../.." && pwd)/devenv.lock
+devenv_nixpkgs=$(nix eval --impure --raw --expr "with (builtins.fromJSON (builtins.readFile \"$devenv_lock\")).nodes.nixpkgs.locked; \"github:\" + owner + \"/\" + repo + \"/\" + rev")
 
 export GIT_AUTHOR_NAME="Ada Lovelace" GIT_AUTHOR_EMAIL=ada@example.com GIT_AUTHOR_DATE=2026-11-10T09:00:00Z
 export GIT_COMMITTER_NAME="Ada Lovelace" GIT_COMMITTER_EMAIL=ada@example.com GIT_COMMITTER_DATE=2026-11-10T09:00:00Z
@@ -23,8 +24,8 @@ git commit -q -m "feat(infra): describe the staging resources of the orders serv
 mkdir -p "$forge/bin" "$forge/cloud"
 cp "$evals/pull-request-says-it-met-nothing/forge/gh" "$forge/bin/gh"
 chmod +x "$forge/bin/gh"
-ln -s "$(nix build --no-link --print-out-paths "$nixpkgs#opentofu")/bin/tofu" "$forge/bin/tofu"
-ln -s "$(nix build --no-link --print-out-paths "$nixpkgs#shfmt")/bin/shfmt" "$forge/bin/shfmt"
+ln -s "$(nix build --no-link --print-out-paths "$devenv_nixpkgs#opentofu")/bin/tofu" "$forge/bin/tofu"
+ln -s "$(nix build --no-link --print-out-paths "$devenv_nixpkgs#shfmt")/bin/shfmt" "$forge/bin/shfmt"
 "$forge/bin/tofu" -chdir=infra/staging init -input=false >/dev/null
 "$forge/bin/tofu" -chdir=infra/staging apply -input=false -auto-approve >/dev/null
 git init -q --bare "$forge/origin.git"
