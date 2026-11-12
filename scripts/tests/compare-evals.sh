@@ -35,15 +35,6 @@ failures=0
 # <checkout>, the stub prints the path of the directory it runs in, without
 # symbolic links, as the harness names a case by such a path.
 #
-# Each run gets a sandbox in the temporary directory, whose out/trace.jsonl
-# holds the events that the run's field trace in the canned result lists, and
-# its tracePath names that file in place of the field. A run that has a
-# tracePath in the canned result keeps it and gets no sandbox, as a run whose
-# seed script failed has the empty one. Under --keep-temp every sandbox stays,
-# read-only, and the stub names it on stderr. Without it the stub removes
-# every sandbox, and the tracePath names a file that is gone, as the real
-# command does for a run that ended well.
-#
 # A checkout without a canned result stands for a run that writes none: the
 # stub prints the canned progress and the file canned-stdout of the checkout,
 # where it has them and --json names no file, and exits with the status the
@@ -217,23 +208,16 @@ with_grader() {
     '.arms.with |= [to_entries[] | .value.graders += [{name: $name, passed: ($verdicts[.key:.key + 1] == "p")}] | .value]'
 }
 
-# shell_call <id> <failed> <output>: a call of the shell tool and its result,
-# as the two events of a trace that hold them, with the fields that a run on
-# Claude Code 2.1.283 gives them, less those that name the time, the session
-# and the request. Failed is true or false.
 shell_call() {
   jq -n -c --arg id "toolu_$1" --argjson failed "$2" --arg output "$3" '
     {type: "assistant", message: {role: "assistant", content: [{type: "tool_use", id: $id, name: "Bash", input: {command: "git status"}}]}, parent_tool_use_id: null},
     {type: "user", message: {role: "user", content: [{tool_use_id: $id, type: "tool_result", content: $output, is_error: $failed}]}, parent_tool_use_id: null}'
 }
 
-# trace_of <events>...: the events as the trace of one run.
 trace_of() {
   printf '%s\n' "$@" | jq -s -c .
 }
 
-# with_traces <trace>...: the case on stdin with one trace for each of its
-# runs, in order.
 with_traces() {
   jq --argjson traces "$(printf '%s\n' "$@" | jq -s -c .)" '.arms.with |= [to_entries[] | .value.trace = $traces[.key] | .value]'
 }
@@ -833,8 +817,6 @@ commit "$repo" "chore: a case with one run error"
 compare "$repo" base
 check "one run error: is counted in the singular" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.00 (1 run, 1 error)"
 
-# A run whose seed script failed never started, and its result names no
-# trace (measured on Claude Code 2.1.283).
 repo=$(two_commits)
 seed_failed="scaffold failed (exit 1): "
 result 0 "$(case_of plugins/one/evals/red-then-green 0 1 "$seed_failed" | jq '.arms.with[0].tracePath = ""')" \
@@ -844,11 +826,6 @@ compare "$repo" base
 check "a run without a trace: exits 0" equals "$code" 0
 check "a run without a trace: is counted as an error" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.00 (1 run, 1 error)"
 
-# The sandbox of a run that grants Bash can fail to start, and every call of
-# the shell tool then ends in an error before its command starts. On the
-# machine of issue 130 each such call said this, and the run scored like any
-# other (measured on Claude Code 2.1.283). Here no shell command worked in two
-# runs of a case, and in its third one did.
 sandbox_failed=$'Exit code 1\nbwrap: Can\'t mkdir parents for /run/secrets.d/1: Permission denied'
 not_a_repository=$'Exit code 128\nfatal: not a git repository (or any of the parent directories): .git'
 broken=$(trace_of "$(shell_call 1 true "$sandbox_failed")" "$(shell_call 2 true "$sandbox_failed")")
@@ -870,9 +847,6 @@ plugins/one/evals/needs-bash at head: every shell command failed in 2 of 3 runs,
 "
 check "failed shells: every sandbox is removed" nothing_left "$repo"
 
-# Without a trace no program can tell whether the shell of a run worked. The
-# harness removes the trace of a run that ended well unless --keep-temp keeps
-# it, and its result still names the file.
 repo=$(two_commits)
 gone=$tmp/gone/out/trace.jsonl
 result 0 "$(case_of plugins/one/evals/red-then-green 1 1 | jq --arg trace "$gone" '.arms.with[0].tracePath = $trace')" \

@@ -100,9 +100,8 @@ class Case:
     score alone is no proof. A run the harness refused or cut short adds its
     reason to the errors, and still counts in the score. A run in which every
     shell command failed adds to the failed shells what the first of them
-    said, since such a run scores like any other. A grader that failed is
-    listed with the number of runs it failed in, in the order the case
-    declares its graders.
+    said. A grader that failed is listed with the number of runs it failed
+    in, in the order the case declares its graders.
     """
 
     score: float
@@ -533,13 +532,10 @@ def failed_shell(trace: str) -> str | None:
 
     When the sandbox of a run cannot start, every call of the shell tool
     fails before its command starts, and the run scores like any other
-    (measured on Claude Code 2.1.283, issue 130). A call is a block
-    `tool_use` named `Bash` in an event of the trace, one event per line, and
-    its result a block `tool_result` with its ID, marked `is_error` when the
-    call failed. A command that ran and failed is marked so too, so only the
-    words tell the two apart, and the last line is the one that names the
-    failure. Raises OSError for a trace that cannot be read, and ValueError
-    for a line that is no JSON.
+    (measured on Claude Code 2.1.283, issue 130). A command that ran and
+    failed is marked `is_error` too, so only the words tell the two apart,
+    and the last line is the one that names the failure. Raises OSError for a
+    trace that cannot be read, and ValueError for a line that is no JSON.
     """
     if not trace:
         return None
@@ -565,8 +561,7 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
     names, what it said about each case in its progress and what it said
     about its suite. The result is narrowed here, once. Raises RunError when
     it has another shape than the one this program was written against, and
-    when a trace cannot be read, since then no one can tell whether the
-    shell of that run worked.
+    when a trace cannot be read.
     """
     if not isinstance(data, dict):
         raise RunError(f"the result at {side} is not a JSON object", said)
