@@ -17,7 +17,7 @@ failures=0
 # devenv and direnv exist.
 tools=$tmp/tools
 mkdir -p "$tools"
-for tool in bash cat dirname env find git grep mkdir mktemp mv rm sed sleep sort stat timeout; do
+for tool in bash cat dirname env find git grep mkdir mktemp mv rm sed sleep sort stat timeout touch; do
   ln -s "$(command -v "$tool")" "$tools/$tool"
 done
 
@@ -48,12 +48,10 @@ stubs_direnv=$tmp/stubs-direnv
 mkdir -p "$stubs_devenv" "$stubs_direnv"
 cat >"$stubs_devenv/devenv" <<'EOF'
 #!/usr/bin/env bash
-# Stub: `devenv direnv-export` prints the fixture script and the DEVENV_ROOT
-# of the directory it runs in, or fails. Each run adds a line to
-# STUB_DEVENV_LOG.
 [[ "$*" == direnv-export && "${_DEVENV_CALLER-}" == direnv ]] || exit 2
 echo "• Running devenv:enterShell" >&2
 [[ -z "${STUB_DEVENV_LOG-}" ]] || echo "$PWD" >>"$STUB_DEVENV_LOG"
+[[ -z "${STUB_DEVENV_TOUCH-}" ]] || touch "$STUB_DEVENV_TOUCH"
 [[ -z "${STUB_DEVENV_FAIL-}" ]] || exit 1
 cat "$STUB_DEVENV_SCRIPT"
 printf 'DEVENV_ROOT=%q\nexport DEVENV_ROOT\n' "$PWD"
@@ -95,8 +93,6 @@ identity_script=$tmp/direnv-export-identity.sh
   echo "export LYNGON_AGENT_IDENTITY"
 } >"$identity_script"
 
-# A git working tree with devenv.nix, .envrc and an input list naming a
-# package file, a file outside the project and devenv's own state.
 new_project() {
   local project
   project=$(mktemp -d "$tmp/project.XXXXXX")
@@ -107,8 +103,6 @@ new_project() {
   echo "$project"
 }
 
-# new_worktree <project> <name>: a linked worktree of <project> where
-# EnterWorktree puts one, with the same devenv files.
 new_worktree() {
   local worktree=$1/.claude/worktrees/$2
   mkdir -p "$worktree/.devenv"
@@ -117,13 +111,6 @@ new_worktree() {
   echo "$worktree"
 }
 
-# run_hook <dir> <project> <event>:<source or tool> [VAR=value]...: run the
-# export hook that hooks.json registers for a SessionStart from that source,
-# or for a PreToolUse of that tool, in <dir> as Claude Code does in a session
-# launched in <project>, with devenv but not direnv on PATH and inherited
-# direnv state: CLAUDE_PROJECT_DIR stays at <project>, and CLAUDE_ENV_FILE is
-# set at SessionStart only. With no such hook, code is 99. Each run of the
-# stub devenv adds a line to $project.evaluations. Sets out, err, code.
 run_hook() {
   local dir=$1 project=$2 event=${3%%:*} detail=${3#*:} command field=tool_name
   shift 3
@@ -144,22 +131,15 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
-# evaluations <project>: how often the stub devenv ran for the session
-# launched in <project>.
 evaluations() {
   if [[ -f $1.evaluations ]]; then wc -l <"$1.evaluations"; else echo 0; fi
 }
 
-# command_runs <dir> <project> <script>: the output of <script> as a Bash
-# command that starts in <dir>, in the session launched in <project>: bash,
-# with nothing in its environment, runs the session's environment file first.
 command_runs() {
   # shellcheck disable=SC2016  # the inner shell expands $1
   (cd "$1" && env -i "$tools/bash" --norc --noprofile -c 'source "$1" >/dev/null 2>&1; '"$3" bash "$2/env-file.sh")
 }
 
-# command_sees <dir> <project> <name>: the value of variable <name> in such a
-# command, or "unset".
 command_sees() {
   command_runs "$1" "$2" "printf '%s' \"\${$3-unset}\""
 }
@@ -224,9 +204,6 @@ check "devenv path: zsh, the other shell of Bash commands, reads every value bac
   equals "$(cd "$project" && env -i "$(command -v zsh)" -f -c 'source "$1"; print -rn -- "$TRICKY|$DEVENV_PROFILE|${lyngon_tree-unset}"' zsh "$project/env-file.sh")" \
   "it's \"quoted\""$'\n'"second line with \$dollar and \`tick\`|/nix/store/0000-devenv-profile|unset"
 
-# Issue 154: Claude Code keeps CLAUDE_PROJECT_DIR at the launch tree, and runs
-# no SessionStart, CwdChanged or FileChanged hook when a session enters or
-# leaves a worktree, or when a resumed session moves back into one.
 project=$(new_project)
 worktree=$(new_worktree "$project" moved)
 run_hook "$project" "$project" SessionStart:startup
@@ -293,6 +270,20 @@ rm "$project/devenv.local.nix"
 run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 check "a root devenv file removed: evaluates again" \
   equals "$(evaluations "$project")" "4"
+touch "$project/devenv.nix"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script" STUB_DEVENV_TOUCH="$project/apps/demo/devenv.nix"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
+check "a watched file changed while devenv evaluated: the next command evaluates again" \
+  equals "$(evaluations "$project")" "6"
+
+old_session=$tmp/plugin-data/sessions/session-unused
+recent_session=$tmp/plugin-data/sessions/session-recent
+mkdir -p "$old_session" "$recent_session"
+touch -d "8 days ago" "$old_session"
+project=$(new_project)
+run_hook "$project" "$project" SessionStart:startup
+check "session start removes the environments of a session unused for more than a week, and keeps a recent one" \
+  equals "$(ls -d "$old_session" 2>/dev/null)|$(ls -d "$recent_session")" "|$recent_session"
 
 project=$(new_project)
 worktree=$(new_worktree "$project" broken)
