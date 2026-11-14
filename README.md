@@ -167,6 +167,11 @@ claude plugin marketplace add lyngon/devkit
 claude plugin install all@lyngon --scope project
 ```
 
+The plugins need Claude Code 2.1.321 or later, which runs a subagent's own subagent to its end, so that its report reaches the subagent that started it.
+The skills rely on that wherever a subagent invokes `discover:how`, which starts subagents of its own.
+Claude Code 2.1.283 runs such a subagent in the background and sends its report to the lead, and the subagent that started it hands back a turn that only says it is waiting (measured for issue 127).
+No hook works around an older version: refusing a subagent's `Agent` call would take nested subagents away on every version.
+
 Any other repository installs `writing` alone.
 It assumes nothing about the repository it is installed in and needs no other plugin:
 
