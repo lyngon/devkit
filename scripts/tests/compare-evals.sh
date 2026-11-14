@@ -33,9 +33,7 @@ failures=0
 # checkout on stderr and a table on stdout, unless --json names a file: then
 # it writes the result there too and prints neither. Where the progress says
 # <checkout>, the stub prints the path of the directory it runs in, without
-# symbolic links, as the harness names a case by such a path. A run that
-# ended in an error leaves its sandbox in the temporary directory, read-only,
-# unless --json names a file.
+# symbolic links, as the harness names a case by such a path.
 #
 # A checkout without a canned result stands for a run that writes none: the
 # stub prints the canned progress and the file canned-stdout of the checkout,
@@ -56,12 +54,15 @@ cat >"$tmp/bin/claude" <<'EOF'
 set -euo pipefail
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
 printf '%s\t%s\n' "$PWD" "$(check-pull-request 2>/dev/null || echo none)" >>"$FAKE_BUILD_LOG"
-json="" output=evals/results/stub filter=""
+json="" output=evals/results/stub filter="" keep=""
 while (($# > 0)); do
   case "$1" in
     --json)
       json=$2
       shift
+      ;;
+    --keep-temp)
+      keep=1
       ;;
     --output-dir)
       output=$2
@@ -97,22 +98,32 @@ if jq -e '.cases == []' canned-result.json >/dev/null 2>&1; then
   [[ -z $json ]] || cp canned-result.json "$json"
   exit 1
 fi
-if [[ -z $json ]]; then
-  print_progress
-  if jq -e '[.cases[]?.arms.with[]?.error // empty] != []' canned-result.json >/dev/null 2>&1; then
-    kept=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
-    mkdir -p "$kept/sealed/home"
-    echo "written by the plugin under test" >"$kept/sealed/home/notes.md"
-    chmod 000 "$kept/sealed"
-    chmod 500 "$kept"
-    echo "  kept temp (run failed): $kept" >&2
+[[ -n $json ]] || print_progress
+result=$(<canned-result.json)
+while IFS= read -r run; do
+  if jq -e --argjson run "$run" 'getpath($run) | has("tracePath")' <<<"$result" >/dev/null; then
+    continue
   fi
-fi
+  sandbox=$(mktemp -d "${TMPDIR:-/tmp}/claude-eval-XXXXXX")
+  mkdir "$sandbox/out"
+  jq -c --argjson run "$run" 'getpath($run).trace // [] | .[]' <<<"$result" >"$sandbox/out/trace.jsonl"
+  result=$(jq --argjson run "$run" --arg trace "$sandbox/out/trace.jsonl" \
+    'setpath($run + ["tracePath"]; $trace) | delpaths([$run + ["trace"]])' <<<"$result")
+  if [[ -z $keep ]]; then
+    rm -rf "$sandbox"
+    continue
+  fi
+  [[ -n $json ]] || echo "  kept temp: $sandbox" >&2
+  mkdir -p "$sandbox/sealed/home"
+  echo "written by the plugin under test" >"$sandbox/sealed/home/notes.md"
+  chmod 000 "$sandbox/sealed"
+  chmod 500 "$sandbox"
+done < <(jq -c 'path(.cases[]?.arms.with[]?)' canned-result.json)
 mkdir -p "$output"
-cp canned-result.json "$output/aggregate-result.json"
+echo "$result" >"$output/aggregate-result.json"
 echo "<html></html>" >"$output/report.html"
 if [[ -n $json ]]; then
-  cp canned-result.json "$json"
+  echo "$result" >"$json"
 else
   echo "CASE  SCORE PASS% RUNS COST  NOTES"
 fi
@@ -168,7 +179,7 @@ chmod +x "$tmp/devenv/devenv"
 # The program and the stubs run with these tools and no others, so that no
 # test can reach the real Claude Code or devenv, whatever the PATH of the shell
 # that runs it.
-for tool in bash chmod cp env git jq mkdir mktemp python3 sleep; do
+for tool in bash chmod cp env git jq mkdir mktemp python3 rm sleep; do
   ln -s "$(command -v "$tool")" "$tmp/tools/$tool"
 done
 with_claude=$tmp/bin:$tmp/devenv:$tmp/tools
@@ -195,6 +206,20 @@ case_of() {
 with_grader() {
   jq --arg name "$1" --arg verdicts "$2" \
     '.arms.with |= [to_entries[] | .value.graders += [{name: $name, passed: ($verdicts[.key:.key + 1] == "p")}] | .value]'
+}
+
+shell_call() {
+  jq -n -c --arg id "toolu_$1" --argjson failed "$2" --arg output "$3" '
+    {type: "assistant", message: {role: "assistant", content: [{type: "tool_use", id: $id, name: "Bash", input: {command: "git status"}}]}, parent_tool_use_id: null},
+    {type: "user", message: {role: "user", content: [{tool_use_id: $id, type: "tool_result", content: $output, is_error: $failed}]}, parent_tool_use_id: null}'
+}
+
+trace_of() {
+  printf '%s\n' "$@" | jq -s -c .
+}
+
+with_traces() {
+  jq --argjson traces "$(printf '%s\n' "$@" | jq -s -c .)" '.arms.with |= [to_entries[] | .value.trace = $traces[.key] | .value]'
 }
 
 # result <cost> <case>...: a whole result file.
@@ -779,7 +804,7 @@ check "run errors: the reason follows the table, once" equals "$(grep -c -F -- "
 check "run errors: the reason names its case and commit" contains "$out" "
 plugins/one/evals/needs-bash at head: run error: $refusal
 "
-check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp (run failed): "
+check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp: "
 check "run errors: that sandbox is removed too" nothing_left "$repo"
 progress_of needs-bash "$not_granted: Bash" >"$repo/canned-progress"
 commit "$repo" "chore: the harness says that the case lacked a tool"
@@ -791,6 +816,47 @@ result 0 "$(case_of plugins/one/evals/red-then-green 0 1 "run hit the turn cap")
 commit "$repo" "chore: a case with one run error"
 compare "$repo" base
 check "one run error: is counted in the singular" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.00 (1 run, 1 error)"
+
+repo=$(two_commits)
+seed_failed="scaffold failed (exit 1): "
+result 0 "$(case_of plugins/one/evals/red-then-green 0 1 "$seed_failed" | jq '.arms.with[0].tracePath = ""')" \
+  >"$repo/canned-result.json"
+commit "$repo" "chore: a case whose seed script failed"
+compare "$repo" base
+check "a run without a trace: exits 0" equals "$code" 0
+check "a run without a trace: is counted as an error" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)   0.00 (1 run, 1 error)"
+
+sandbox_failed=$'Exit code 1\nbwrap: Can\'t mkdir parents for /run/secrets.d/1: Permission denied'
+not_a_repository=$'Exit code 128\nfatal: not a git repository (or any of the parent directories): .git'
+broken=$(trace_of "$(shell_call 1 true "$sandbox_failed")" "$(shell_call 2 true "$sandbox_failed")")
+working=$(trace_of "$(shell_call 1 true "$not_a_repository")" "$(shell_call 2 false "On branch main")")
+repo=$(two_commits)
+result 0 \
+  "$(case_of plugins/one/evals/needs-bash 0 3 | with_traces "$broken" "$broken" "$working")" \
+  "$(case_of plugins/one/evals/red-then-green 1 1 | with_traces "$working")" >"$repo/canned-result.json"
+commit "$repo" "chore: runs in which every shell command failed"
+compare "$repo" base
+check "failed shells: exits 0" equals "$code" 0
+check "failed shells: a run in which every shell command failed is counted beside the score" contains "$out" \
+  "plugins/one/evals/needs-bash       -              0.00 (3 runs, 2 failed shells)"
+check "failed shells: a run in which a shell command worked is unmarked" contains "$out" \
+  "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run)"
+check "failed shells: what the first command of such a run said follows the table, once" contains "$out" "
+
+plugins/one/evals/needs-bash at head: every shell command failed in 2 of 3 runs, the first ending in: bwrap: Can't mkdir parents for /run/secrets.d/1: Permission denied
+"
+check "failed shells: every sandbox is removed" nothing_left "$repo"
+
+repo=$(two_commits)
+gone=$tmp/gone/out/trace.jsonl
+result 0 "$(case_of plugins/one/evals/red-then-green 1 1 | jq --arg trace "$gone" '.arms.with[0].tracePath = $trace')" \
+  >"$repo/canned-result.json"
+commit "$repo" "chore: a run whose trace is gone"
+compare "$repo" base
+check "a trace that cannot be read: exits 1" equals "$code" 1
+check "a trace that cannot be read: says which" contains "$err" \
+  "compare-evals: the trace of a run at head cannot be read: [Errno 2] No such file or directory: '$gone'"
+check "a trace that cannot be read: keeps the table of the base run" contains "$out" "plugins/one/evals/red-then-green   0.00 (1 run)"
 
 repo=$(two_commits)
 echo 1 >"$repo/canned-exit"
