@@ -117,23 +117,30 @@ new_worktree() {
   echo "$worktree"
 }
 
-# run_hook <dir> <project> <event>[:<source>] [VAR=value]...: run the export
-# hook in <dir> as Claude Code does in a session launched in <project>, with
-# devenv but not direnv on PATH and inherited direnv state: CLAUDE_PROJECT_DIR
-# stays at <project>, CLAUDE_ENV_FILE is set at SessionStart only, and the
-# input names the session and the source of a SessionStart. Each run of the
+# run_hook <dir> <project> <event>:<source or tool> [VAR=value]...: run the
+# export hook that hooks.json registers for a SessionStart from that source,
+# or for a PreToolUse of that tool, in <dir> as Claude Code does in a session
+# launched in <project>, with devenv but not direnv on PATH and inherited
+# direnv state: CLAUDE_PROJECT_DIR stays at <project>, and CLAUDE_ENV_FILE is
+# set at SessionStart only. With no such hook, code is 99. Each run of the
 # stub devenv adds a line to $project.evaluations. Sets out, err, code.
 run_hook() {
-  local dir=$1 project=$2 event=${3%%:*} source=${3#*:}
+  local dir=$1 project=$2 event=${3%%:*} detail=${3#*:} command field=tool_name
   shift 3
   local env_file=()
-  [[ $event != SessionStart ]] || env_file=(CLAUDE_ENV_FILE="$project/env-file.sh")
+  if [[ $event == SessionStart ]]; then
+    env_file=(CLAUDE_ENV_FILE="$project/env-file.sh")
+    field=source
+  fi
+  command=$(jq -r --arg event "$event" --arg tool "$detail" '.hooks[$event][]?
+    | select($event != "PreToolUse" or (.matcher as $matcher | $tool | test("^(" + $matcher + ")$")))
+    | .hooks[].command | select(contains("/hooks/export-environment.sh"))' "$hooks/hooks.json")
   code=0
   out=$(cd "$dir" && env -i PATH="$stubs_devenv:$tools" HOME="$tmp" _=/usr/bin/env DIRENV_DIFF=inherited DIRENV_WATCHES=inherited \
-    CLAUDE_PROJECT_DIR="$project" "${env_file[@]}" CLAUDE_PLUGIN_DATA="$tmp/plugin-data" \
+    CLAUDE_PLUGIN_ROOT="${hooks%/hooks}" CLAUDE_PROJECT_DIR="$project" "${env_file[@]}" CLAUDE_PLUGIN_DATA="$tmp/plugin-data" \
     STUB_DEVENV_SCRIPT="$devenv_script" STUB_DEVENV_LOG="$project.evaluations" "$@" \
-    "$hooks/export-environment.sh" "$event" 2>"$tmp/stderr" \
-    <<<"{\"session_id\":\"session-${project##*.}\",\"hook_event_name\":\"$event\",\"source\":\"$source\"}") || code=$?
+    "$tools/bash" -c "${command:-exit 99}" 2>"$tmp/stderr" \
+    <<<"{\"session_id\":\"session-${project##*.}\",\"hook_event_name\":\"$event\",\"$field\":\"$detail\"}") || code=$?
   err=$(<"$tmp/stderr")
 }
 
@@ -223,19 +230,19 @@ check "devenv path: zsh, the other shell of Bash commands, reads every value bac
 project=$(new_project)
 worktree=$(new_worktree "$project" moved)
 run_hook "$project" "$project" SessionStart:startup
-run_hook "$worktree" "$project" PreToolUse
+run_hook "$worktree" "$project" PreToolUse:Bash
 in_worktree=$(command_sees "$worktree" "$project" DEVENV_ROOT)
-run_hook "$project" "$project" PreToolUse
+run_hook "$project" "$project" PreToolUse:Bash
 in_project=$(command_sees "$project" "$project" DEVENV_ROOT)
 run_hook "$project" "$project" SessionStart:resume
-run_hook "$worktree" "$project" PreToolUse
+run_hook "$worktree" "$project" PreToolUse:Bash
 check "a move into a worktree, back out, and a resume into it: each command gets the devenv environment of its own tree" \
   equals "$in_worktree|$in_project|$(command_sees "$worktree" "$project" DEVENV_ROOT)" "$worktree|$project|$worktree"
 
 project=$(new_project)
 mkdir -p "$project/tmp/scratch/.git"
 run_hook "$project" "$project" SessionStart:startup
-run_hook "$project/tmp/scratch" "$project" PreToolUse
+run_hook "$project/tmp/scratch" "$project" PreToolUse:Bash
 check "a package directory and a repository without devenv.nix inside the tree get the tree's environment, outside every tree none" \
   equals "$(command_sees "$project/apps/demo" "$project" DEVENV_ROOT)|$(command_sees "$project/tmp/scratch" "$project" DEVENV_ROOT)|$(command_sees "$tmp" "$project" DEVENV_ROOT)|$(evaluations "$project")" \
   "$project|$project|unset|1"
@@ -243,13 +250,13 @@ check "a package directory and a repository without devenv.nix inside the tree g
 project=$(new_project)
 worktree=$(new_worktree "$project" kept)
 run_hook "$project" "$project" SessionStart:startup
-run_hook "$worktree" "$project" PreToolUse
+run_hook "$worktree" "$project" PreToolUse:Bash
 run_hook "$project" "$project" SessionStart:compact
-run_hook "$worktree" "$project" PreToolUse
+run_hook "$worktree" "$project" PreToolUse:Bash
 check "a compaction keeps the worktree's environment: no second evaluation of it" \
   equals "$(grep -c -x "$worktree" "$project.evaluations")" "1"
 run_hook "$project" "$project" SessionStart:resume PATH="$stubs_devenv:$tools:/resumed"
-run_hook "$worktree" "$project" PreToolUse PATH="$stubs_devenv:$tools:/resumed"
+run_hook "$worktree" "$project" PreToolUse:Bash PATH="$stubs_devenv:$tools:/resumed"
 check "a resume evaluates the worktree again, on top of the environment of the new process" \
   equals "$(grep -c -x "$worktree" "$project.evaluations")|$(command_sees "$worktree" "$project" PATH)" \
   "2|/nix/store/0000-devenv-profile/bin:$stubs_devenv:$tools:/resumed"
@@ -258,7 +265,7 @@ project=$(new_project)
 worktree=$(new_worktree "$project" later)
 rm "$project/devenv.nix"
 run_hook "$project" "$project" SessionStart:startup
-run_hook "$worktree" "$project" PreToolUse
+run_hook "$worktree" "$project" PreToolUse:Bash
 check "a session launched in a tree without devenv.nix: a worktree with one still gets its environment" \
   equals "$(command_sees "$worktree" "$project" DEVENV_ROOT)" "$worktree"
 
@@ -266,24 +273,24 @@ project=$(new_project)
 script=$(mktemp "$tmp/script.XXXXXX")
 cp "$devenv_script" "$script"
 run_hook "$project" "$project" SessionStart:startup STUB_DEVENV_SCRIPT="$script"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 mkdir -p "$project/.devenv/bootstrap"
 touch "$project/.devenv/bootstrap/default.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 check "nothing the evaluation reads changed, devenv's own state aside: PreToolUse evaluates nothing and prints nothing" \
   equals "$(evaluations "$project")|$code|$out|$err" "1|0||"
 echo "TRICKY=changed; export TRICKY" >>"$script"
 touch "$project/apps/demo/devenv.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 check "a package devenv.nix that the last evaluation read changed: the next command gets the new environment" \
   equals "$(evaluations "$project")|$(command_sees "$project" "$project" TRICKY)" "2|changed"
 grep -v TRICKY "$devenv_script" >"$script"
 touch "$project/devenv.local.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 check "a root devenv file added: the next command gets the new environment, without a variable the evaluation dropped" \
   equals "$(evaluations "$project")|$(command_sees "$project" "$project" TRICKY)" "3|unset"
 rm "$project/devenv.local.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 check "a root devenv file removed: evaluates again" \
   equals "$(evaluations "$project")" "4"
 
@@ -293,20 +300,20 @@ script=$(mktemp "$tmp/script.XXXXXX")
 cp "$devenv_script" "$script"
 run_hook "$project" "$project" SessionStart:startup
 touch "$project/devenv.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_FAIL=1
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_FAIL=1
 check "failed evaluation: commands keep the tree's previous environment" \
   equals "$(command_sees "$project" "$project" DEVENV_ROOT)" "$project"
 check "failed evaluation: exits 0, says so, and tells the session" \
   equals "$code|$out|$err" "0|{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"The devenv evaluation of $project failed, so Bash commands there keep its previous devenv environment until a devenv file changes. Run devenv shell there to see why.\"}}|repo plugin: kept the previous devenv environment of $project, because the evaluation failed; run devenv shell there to see why"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_FAIL=1
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_FAIL=1
 check "failed evaluation: no second try and no second message until a devenv file changes" \
   equals "$(evaluations "$project")|$out" "2|"
 echo "TRICKY=fixed; export TRICKY" >>"$script"
 touch "$project/devenv.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$script"
 check "failed evaluation: a fix reaches the next command" \
   equals "$(evaluations "$project")|$(command_sees "$project" "$project" TRICKY)" "3|fixed"
-run_hook "$worktree" "$project" PreToolUse STUB_DEVENV_FAIL=1
+run_hook "$worktree" "$project" PreToolUse:Bash STUB_DEVENV_FAIL=1
 check "failed first evaluation of a tree: commands there run without a devenv environment, not the launch tree's, and the session is told" \
   equals "$(command_sees "$worktree" "$project" DEVENV_ROOT)|$out" \
   "unset|{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"The devenv evaluation of $worktree failed, so Bash commands there run without its devenv environment until a devenv file changes. Run devenv shell there to see why.\"}}"
@@ -316,7 +323,7 @@ project=$(new_project)
 ln -s "$project" "$tmp/linked"
 run_hook "$tmp/linked" "$project" SessionStart:startup
 touch "$project/apps/demo/devenv.nix"
-run_hook "$tmp/linked" "$project" PreToolUse
+run_hook "$tmp/linked" "$project" PreToolUse:Bash
 check "project reached through a symbolic link: a command there gets its environment, and a package change still counts" \
   equals "$(command_sees "$tmp/linked" "$project" DEVENV_ROOT)|$(evaluations "$project")" "$project|2"
 
@@ -338,7 +345,7 @@ project=$(new_project)
 run_hook "$project" "$project" SessionStart:startup PATH="$stubs_direnv:$tools"
 check "no devenv on PATH: a command gets no devenv environment, and session start says why" \
   equals "$(command_sees "$project" "$project" DEVENV_ROOT)|$code|$out|$err" "unset|0||repo plugin: no devenv environment to export, because devenv is not on PATH"
-run_hook "$project" "$project" PreToolUse PATH="$stubs_direnv:$tools"
+run_hook "$project" "$project" PreToolUse:Bash PATH="$stubs_direnv:$tools"
 check "no devenv on PATH: PreToolUse, which runs before every command, says nothing" \
   equals "$code|$out|$err" "0||"
 
@@ -365,7 +372,7 @@ check "agent identity: a command runs the token line" \
 check "agent identity: its message is the session's context, as one JSON string" \
   equals "$out" "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":$identity_message}}"
 touch "$project/devenv.nix"
-run_hook "$project" "$project" PreToolUse STUB_DEVENV_SCRIPT="$identity_script"
+run_hook "$project" "$project" PreToolUse:Bash STUB_DEVENV_SCRIPT="$identity_script"
 check "agent identity on a later evaluation: no message, and commands keep the identity of the session start" \
   equals "$(evaluations "$project")|$out|$(command_sees "$project" "$project" GH_TOKEN)" "2||minted"
 

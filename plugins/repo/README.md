@@ -27,26 +27,34 @@ Repository setup and package creation for Lyngon.
 ### The devenv environment in a session
 
 Claude Code captures its environment once, at start, so without help the packages and variables of `devenv.nix` are missing from the agent's Bash commands, or stale after a change.
-`hooks/export-environment.sh` fixes that in every project whose root has a `devenv.nix`:
+`hooks/export-environment.sh` gives each Bash command, a subagent's included, the devenv environment of the working tree the command starts in.
+That tree is the nearest directory at or above the command's directory that holds both `.git` and `devenv.nix`.
+So a linked worktree is a tree of its own, and a repository without a `devenv.nix` inside a tree belongs to that tree.
 
-- `SessionStart`: evaluates the devenv environment and writes it to `$CLAUDE_ENV_FILE`, which Claude Code runs before every Bash command, including a subagent's.
+- `SessionStart`: writes lines to `$CLAUDE_ENV_FILE`, which Claude Code runs before every Bash command.
+  The lines find the command's tree and source the environment that this session keeps for it, under `$CLAUDE_PLUGIN_DATA/sessions/`.
+  The hook then evaluates the tree the session starts in.
   It exports through `direnv export bash` when direnv has allowed `.envrc`, and otherwise from `devenv direnv-export`, keeping only the variables the devenv shell adds or changes.
-  It returns the files to watch: the root devenv files and every file under the project the last evaluation read, so a package's `devenv.nix` is watched too.
   When the environment names the baseline's `agent-identity` command, it also appends the lines that make the session's agents act on GitHub as a GitHub App, and passes the command's message to the session as context; the devkit's `devenv/agent-identity.md` explains the rest.
-- `FileChanged`: when a watched file changes, evaluates again and replaces the environment.
-- `CwdChanged`: evaluates again after a `cd`.
-  Claude Code fires it only when a settings file also has a `CwdChanged` or `FileChanged` hook, and in that case it discards the `FileChanged` export and the watch list on every `cd`; this hook restores both.
+  A startup or a resume drops the environments of the session's earlier process, because each one builds on the environment of the process that evaluated it.
+  A compaction or `/clear` keeps them.
+  It also deletes the environments of every session whose last start is more than a week old.
+- `PreToolUse` on `Bash` and `Monitor`: evaluates the call's tree when this session has no environment for it yet, or when a watched file changed, appeared or went away since the last evaluation.
+  The watched files are the root devenv files and every file under the tree that the last evaluation read, so a package's `devenv.nix` is watched too.
+  The command waits for the evaluation and runs with its result.
 
-When the evaluation fails, the hook keeps the previous environment and says so on stderr; it never fails the session.
+When an evaluation fails, commands in the tree keep its previous environment, or run without one when it had none, until a watched file changes.
+The hook says so on stderr and, before a command, in the session's context; it never fails the session or the command.
 
-Verified in headless sessions (`claude -p`) with Claude Code 2.1.283, devenv 2.4.0 and direnv 2.37.1, in a scratch repository that imports the baseline:
+The hook evaluates before each command, and not on `CwdChanged` or `FileChanged`, because Claude Code fires no `CwdChanged`, `FileChanged` or `SessionStart` hook when a session moves between trees.
+`CLAUDE_PROJECT_DIR` stays at the tree the session started in, while a `PreToolUse` hook runs in the directory of the call.
 
-- `jq`, declared only in `devenv.nix`, resolves in the first Bash command, and a subagent sees the same environment, updates included.
-- Adding a package to the root `devenv.nix`, or changing a variable in an imported package's `devenv.nix`, reaches the first Bash command after the new evaluation, about 9 s later in that repository; a cached evaluation takes under a second.
-  Commands in between still see the previous environment, and a variable removed from `devenv.nix` stays set until the next session.
-- A plugin's `FileChanged` matcher adds nothing to Claude Code's watch list, which only settings hooks and returned `watchPaths` fill.
-  A settings matcher watches its names in the current directory only, so `devenv.nix` there misses `apps/<name>/devenv.nix` until the agent changes into that directory.
-  That is why the hook returns the files to watch instead of naming them in a matcher.
+Verified on 2026-11-14 in headless sessions (`claude -p`) in a scratch repository with a minimal `devenv.nix`, with devenv 2.4.0, on Claude Code 2.1.321 (the Nix package) and 2.1.323 (the binary of the VS Code extension):
+
+- `printenv DEVENV_ROOT` printed the tree it ran in after `EnterWorktree`, after `ExitWorktree`, in a `--worktree` session, in a resumed session that moved back into its worktree, in a `Monitor` command and in a subagent's command in a worktree.
+- In 22 such sessions, with 132 hook events, no `CwdChanged` or `FileChanged` hook fired, and the `SessionStart` hook of every resumed worktree session ran in the launch tree.
+- When a worktree's `devenv.nix` broke between two turns, the next command there ran without the devenv environment, and the model quoted the hook's message word for word.
+- The hook took 21 to 28 ms before a command when nothing had changed, 172 to 242 ms to evaluate a tree devenv had evaluated before, and 4.5 to 5.0 s for the first evaluation of a new worktree.
 
 ## Install
 

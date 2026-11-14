@@ -3,13 +3,14 @@
 # with the devenv environment of the working tree it starts in. Claude Code
 # captures its own environment once, at start, and gives $CLAUDE_ENV_FILE,
 # which it runs before every Bash command, only to SessionStart, CwdChanged
-# and FileChanged hooks, none of which runs when a session enters or leaves a
-# worktree. So at SessionStart this hook writes lines there that source the
-# environment this session keeps for the command's tree, and before each Bash
-# or Monitor call it evaluates that tree again when a file the evaluation
-# reads has changed. The only argument is the hook event; the input is the
-# hook's JSON. A failed evaluation keeps the tree's previous environment and
-# never fails the hook.
+# and FileChanged hooks, none of which runs in the new tree when a session
+# enters or leaves a worktree or resumes into one, while CLAUDE_PROJECT_DIR
+# stays at the launch tree. So at SessionStart this hook writes lines there
+# that source the environment this session keeps for the command's tree, and
+# before each Bash or Monitor call it evaluates that tree again when it has no
+# environment yet or a file the evaluation reads has changed. The only
+# argument is the hook event; the input is the hook's JSON. A failed
+# evaluation keeps the tree's previous environment and never fails the hook.
 set -euo pipefail
 
 event=$1
