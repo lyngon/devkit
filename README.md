@@ -159,7 +159,7 @@ And the way of working in it, in the order things happen:
 
 A Lyngon repository installs `all`, the bundle of every plugin for development, see the table above.
 Its members assume a Lyngon development repository (Nix, devenv, the baseline, the documents and the workflow) and each other, so they are installed together and never as a subset.
-Among them, `conventions` carries the workflow's standing instruction to commit, push and open pull requests without asking.
+Among them, `build` carries the standing instructions, which say to commit, push and open pull requests without asking.
 In the repository:
 
 ```sh
