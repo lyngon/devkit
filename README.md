@@ -167,6 +167,11 @@ claude plugin marketplace add lyngon/devkit
 claude plugin install all@lyngon --scope project
 ```
 
+The plugins need Claude Code 2.1.321 or later, which runs a subagent's own subagent to its end, so that its report reaches the subagent that started it.
+The skills rely on that wherever a subagent invokes `discover:how`, which starts subagents of its own.
+Claude Code 2.1.283 runs such a subagent in the background and sends its report to the lead, and the subagent that started it hands back a turn that only says it is waiting (measured for issue 127).
+No hook works around an older version: refusing a subagent's `Agent` call would take nested subagents away on every version.
+
 Any other repository installs `writing` alone.
 It assumes nothing about the repository it is installed in and needs no other plugin:
 
@@ -334,9 +339,9 @@ A case proves a change only when it scores the same in every run, so write it to
 - Grade the `Write` call too when no file may be written under the name of a seeded one. For `file_exists` a seeded file that was deleted and written again is no file the run created (measured on Claude Code 2.1.283).
 - Give a claim a case of its own when a second route reaches the same end. A ledger file past the limit is deleted by the prune script as well as by the rule for a repeat, so the case of that rule seeds a file within the limit.
 - List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283), and `compare-evals` repeats that line below its table.
-- Grade how a subagent started on what its `Agent` call returned, with a `regex` on the target `trace` that fails on `Async agent launched`, the result of a start in the background. Write the pattern `Async agent launch[e]d`, which does not match its own text, so that a run that reads the grader does not fail it. The call itself is the input that the model wrote, also when a hook changed it before it ran (measured on Claude Code 2.1.283 and 2.1.299). A `tool_used` grader counts the calls that subagents make too, at every depth.
+- Grade an `Agent` call on its input, which is the input that the model wrote, also when a hook changed it before it ran (measured on Claude Code 2.1.283 and 2.1.299). A `tool_used` grader counts the calls that subagents make too, at every depth, and a call that a hook refused (measured in a headless session on Claude Code 2.1.283 and 2.1.322).
 - Grade a commit of the agent in the run's repository on `.git/logs/HEAD`, with a `regex` on that file, not on its `git commit` call. Each commit in the working directory adds a line whose message starts with a tab and `commit:`, and the seed commit's message starts with `commit (initial):`. A subagent that commits in a worktree of its own writes that worktree's log instead (measured on Claude Code 2.1.283 for the working directory).
-- Grade that the agent ends one turn with the pattern `"type":"result"` and `match: "count:1"` on the target `trace`. The trace holds one such event for each turn the agent ends, and `last_message` holds the text of the last turn only (measured on Claude Code 2.1.283).
+- Grade no count of turns. The trace holds one event of `"type":"result"` for each turn the agent ends, and an agent ends one to wait whenever a subagent or a command it needs runs in the background, as a subagent may whatever its call asks. `last_message` holds the text of the last turn only, so a grader on the reply sees nothing of an earlier turn (measured on Claude Code 2.1.283).
 - When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
 - When the three votes of one run disagree, the rubric leaves the judge room. To find the clause, have the judge vote on that reply again, in a scratch case whose prompt asks the agent to repeat the reply word for word and whose graders are the clauses of the rubric, one each. Count only the runs whose `evidence` in the result is that reply, since the agent drops a line now and then.
 

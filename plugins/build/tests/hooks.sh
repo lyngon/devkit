@@ -87,23 +87,6 @@ check "copy: exits 0" equals "$code" 0
 check "copy: the last line names the copy's file of the mode" equals "${out##*$'\n'}" "If the operator started this session with /build:auto and its text is no longer in your context, read $copy/skills/auto/SKILL.md before you continue."
 check "copy: the rest of the text is unchanged" equals "${out%$'\n'*}" "${text%$'\n'*}"
 
-call='{"description": "Fix the bug", "prompt": "Read the brief.", "subagent_type": "build:implementer"}'
-foreground='{"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": {"description": "Fix the bug", "prompt": "Read the brief.", "subagent_type": "build:implementer", "run_in_background": false}}}'
-
-run_tool_hook "$root" Agent "$call"
-check "Agent without run_in_background: exits 0" equals "$code" 0
-check "Agent without run_in_background: prints nothing on stderr" equals "$err" ""
-check "Agent without run_in_background: runs the call's input in the foreground" json_equals "$out" "$foreground"
-
-run_tool_hook "$copy" Agent "$call"
-check "Agent from the copy: runs the call's input in the foreground" json_equals "$out" "$foreground"
-
-for value in true false; do
-  run_tool_hook "$root" Agent '{"description": "Watch the build", "prompt": "Report when it ends.", "subagent_type": "general-purpose", "run_in_background": '"$value"'}'
-  check "Agent with run_in_background $value: exits 0" equals "$code" 0
-  check "Agent with run_in_background $value: prints nothing, so the call runs as it is" equals "$out$err" ""
-done
-
 route="An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill, proposes the command with the skill's tool and runs it there on the owner's go-ahead, and a subagent stops and reports the command to its lead."
 
 denied() {

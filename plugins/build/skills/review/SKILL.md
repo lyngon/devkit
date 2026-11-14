@@ -39,7 +39,7 @@ If you're unsure about the intent, ask the operator before proceeding.
 
 ## Spawn reviewers
 
-Spawn two reviewers in a single message and in the foreground (`run_in_background: false` on each call), so that they run concurrently and every finding is back before you go on.
+Spawn two reviewers in a single message, so that they run concurrently, and go on only once every finding is back.
 Give each a different model where the harness offers more than one (the Agent tool's `model`), none of them weaker than the model that did the work, and at least one of them different from it.
 Reviewers read and search, and they change nothing.
 

@@ -28,7 +28,7 @@ If it catches real bugs or protects correctness or safety, delete the suppressio
 
 `IMPORTANT`, `do not remove`, `too risky`, `fine for now`, and long justifications are a lead, not a verdict.
 Before judging, read nearby code.
-If its claim is not obvious there, have a subagent of your own invoke `discover:how`, `discover:why`, or both on the named symbol or call, started in the foreground (`run_in_background: false`).
+If its claim is not obvious there, invoke `discover:how`, `discover:why`, or both yourself on the named symbol or call.
 Only an exception from the list, proven true today on a live path, stays.
 Surprises in our own code go with the flag above.
 Doubt after the investigation means the comment goes.

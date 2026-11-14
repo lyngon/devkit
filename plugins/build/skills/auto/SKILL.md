@@ -29,7 +29,7 @@ When you write the summary for a compaction of this session, say in it that the 
 
 ## Triggers
 
-- A nontrivial change, an architecture decision, or "are we sure?": have a subagent invoke `discover:how` over the subsystem, in the foreground (`run_in_background: false`). What it returns grounds your work and is never the reply.
+- A nontrivial change, an architecture decision, or "are we sure?": have a subagent invoke `discover:how` over the subsystem. What it returns grounds your work and is never the reply.
 - Any code: name its data shape first, and choose its organizing structure per the principle `model-the-domain`.
 - Code crossing a function boundary: `build:architect`, which sketches competing designs before the code.
 - A design or code bakeoff, where a base is picked and the best parts of the others are grafted onto it: `build:arena`.
@@ -81,8 +81,6 @@ Its brief names the files, the data shape and its organizing structure, what mus
 It also names the path of this file, `${CLAUDE_SKILL_DIR}/SKILL.md`, which the delegate reads in full before any work.
 Give file pointers, not pasted context.
 
-Start every subagent in the foreground (`run_in_background: false`).
-Start several at once in a single message and in the foreground (`run_in_background: false` on each call).
 A skill this mode routes to starts its own subagents and picks their models; leave that to it.
 
 The hardest changes (cross-cutting design, concurrency, subtle algorithms) go to the strongest model the harness offers, whether the brief leaves judgment to the delegate or spells out every step.

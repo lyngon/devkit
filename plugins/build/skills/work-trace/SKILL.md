@@ -98,7 +98,7 @@ If this run's own work shows one of them is wrong, supersede it like any wrong c
 
 ## Review of the trail on another model
 
-Before handing back, spawn a subagent on a different model than yours that is no weaker, where the harness offers one (the Agent tool's `model`), in the foreground (`run_in_background: false`).
+Before handing back, spawn a subagent on a different model than yours that is no weaker, where the harness offers one (the Agent tool's `model`), and hand back only once its flags are back.
 Self-review is not a substitute.
 Give it the paths of the log and of the transcript.
 The subagent reads the audit trail and the run's transcript, then flags what the owner should pay attention to.
