@@ -52,9 +52,9 @@ The hook evaluates before each command, and not on `CwdChanged` or `FileChanged`
 Verified on 2026-11-14 in headless sessions (`claude -p`) in a scratch repository with a minimal `devenv.nix`, with devenv 2.4.0, on Claude Code 2.1.321 (the Nix package) and 2.1.323 (the binary of the VS Code extension):
 
 - `printenv DEVENV_ROOT` printed the tree it ran in after `EnterWorktree`, after `ExitWorktree`, in a `--worktree` session, in a resumed session that moved back into its worktree, in a `Monitor` command and in a subagent's command in a worktree.
-- In 22 such sessions, with 132 hook events, no `CwdChanged` or `FileChanged` hook fired, and the `SessionStart` hook of every resumed worktree session ran in the launch tree.
+- In 36 such sessions, with 214 hook events, no `CwdChanged` or `FileChanged` hook fired, and the `SessionStart` hook of every resumed worktree session ran in the launch tree.
 - When a worktree's `devenv.nix` broke between two turns, the next command there ran without the devenv environment, and the model quoted the hook's message word for word.
-- The hook took 21 to 28 ms before a command when nothing had changed, 172 to 242 ms to evaluate a tree devenv had evaluated before, and 4.5 to 5.0 s for the first evaluation of a new worktree.
+- The hook took 16 to 32 ms before a command when nothing had changed, 172 to 303 ms to evaluate a tree devenv had evaluated before, and 4.5 to 6.3 s for the first evaluation of a new worktree, the slowest while a `devenv test` ran beside it.
 
 ## Install
 
