@@ -48,11 +48,13 @@ stubs_direnv=$tmp/stubs-direnv
 mkdir -p "$stubs_devenv" "$stubs_direnv"
 cat >"$stubs_devenv/devenv" <<'EOF'
 #!/usr/bin/env bash
-# Stub: `devenv direnv-export` prints the fixture script, or fails.
+# Stub: `devenv direnv-export` prints the fixture script and the DEVENV_ROOT
+# of the directory it runs in, or fails.
 [[ "$*" == direnv-export && "${_DEVENV_CALLER-}" == direnv ]] || exit 2
 echo "• Running devenv:enterShell" >&2
 [[ -z "${STUB_DEVENV_FAIL-}" ]] || exit 1
 cat "$STUB_DEVENV_SCRIPT"
+printf 'DEVENV_ROOT=%q\nexport DEVENV_ROOT\n' "$PWD"
 EOF
 cat >"$stubs_direnv/direnv" <<'EOF'
 #!/usr/bin/env bash
@@ -91,13 +93,13 @@ identity_script=$tmp/direnv-export-identity.sh
   echo "export LYNGON_AGENT_IDENTITY"
 } >"$identity_script"
 
-# A project with devenv.nix, .envrc and an input list naming a package file,
-# a file outside the project and devenv's own state.
+# A git working tree with devenv.nix, .envrc and an input list naming a
+# package file, a file outside the project and devenv's own state.
 new_project() {
   local project
   project=$(mktemp -d "$tmp/project.XXXXXX")
   project=$(cd "$project" && pwd -P)
-  mkdir -p "$project/.devenv" "$project/apps/demo"
+  mkdir -p "$project/.git" "$project/.devenv" "$project/apps/demo"
   touch "$project/devenv.nix" "$project/.envrc" "$project/apps/demo/devenv.nix"
   printf '%s\n' "$project/apps/demo/devenv.nix" "$project/devenv.nix" /elsewhere/devenv.nix "$project/.devenv/bootstrap/default.nix" >"$project/.devenv/input-paths.txt"
   echo "$project"
@@ -113,6 +115,42 @@ run_export() {
     CLAUDE_PROJECT_DIR="$project" CLAUDE_ENV_FILE="$project/env-file.sh" STUB_DEVENV_SCRIPT="$devenv_script" \
     "$@" "$hooks/export-environment.sh" "$event" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
+}
+
+# new_worktree <project> <name>: a linked worktree of <project> where
+# EnterWorktree puts one, with the same devenv files.
+new_worktree() {
+  local worktree=$1/.claude/worktrees/$2
+  mkdir -p "$worktree/.devenv"
+  echo "gitdir: $1/.git/worktrees/$2" >"$worktree/.git"
+  touch "$worktree/devenv.nix" "$worktree/.envrc"
+  echo "$worktree"
+}
+
+# run_hook <dir> <project> <event>[:<source>] [VAR=value]...: run the export
+# hook in <dir> as Claude Code does in a session launched in <project>, with
+# devenv but not direnv on PATH: CLAUDE_PROJECT_DIR stays at <project>,
+# CLAUDE_ENV_FILE is set at SessionStart only, and the input names the
+# session and the source of a SessionStart. Sets out, err, code.
+run_hook() {
+  local dir=$1 project=$2 event=${3%%:*} source=${3#*:}
+  shift 3
+  local env_file=()
+  [[ $event != SessionStart ]] || env_file=(CLAUDE_ENV_FILE="$project/env-file.sh")
+  code=0
+  out=$(cd "$dir" && env -i PATH="$stubs_devenv:$tools" HOME="$tmp" CLAUDE_PROJECT_DIR="$project" "${env_file[@]}" \
+    CLAUDE_PLUGIN_DATA="$tmp/plugin-data" STUB_DEVENV_SCRIPT="$devenv_script" "$@" \
+    "$hooks/export-environment.sh" "$event" 2>"$tmp/stderr" \
+    <<<"{\"session_id\":\"session-${project##*.}\",\"hook_event_name\":\"$event\",\"source\":\"$source\"}") || code=$?
+  err=$(<"$tmp/stderr")
+}
+
+# command_sees <dir> <project> <name>: the value of variable <name> in a Bash
+# command that starts in <dir>, in the session launched in <project>, which
+# runs the session's environment file first.
+command_sees() {
+  # shellcheck disable=SC2016  # the inner shell expands the single-quoted script
+  (cd "$1" && env -i "$tools/bash" --norc --noprofile -c 'source "$1" >/dev/null 2>&1; printf "%s" "${!2-unset}"' bash "$2/env-file.sh" "$3")
 }
 
 # --- Assertions --------------------------------------------------------------
@@ -164,7 +202,7 @@ check "no direnv: says why it used devenv" \
 check "devenv path: standard output is the watch list alone, as Claude Code parses it" \
   equals "$(wc -l <<<"$out")${out:0:22}" '1{"hookSpecificOutput":'
 check "devenv path: exports exactly the variables the devenv script added or changed" \
-  equals "$(sed -n 's/^export \([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$fallback" | sort | tr '\n' ' ')" "DEVENV_PROFILE PATH TRICKY "
+  equals "$(sed -n 's/^export \([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$fallback" | sort | tr '\n' ' ')" "DEVENV_PROFILE DEVENV_ROOT PATH TRICKY "
 # shellcheck disable=SC2016  # the inner shell expands the single-quoted script
 check "devenv path: sourcing the file in bash prints nothing and defines no function" \
   equals "$(env -i "$tools/bash" --norc --noprofile -c 'source "$1" || echo "source failed"; type stdenvFunction >/dev/null 2>&1 && echo defined; true' bash "$fallback" 2>&1)" ""
@@ -255,6 +293,21 @@ project=$(new_project)
 run_export "$project" "$stubs_devenv:$tools" SessionStart STUB_DEVENV_SCRIPT="$identity_script" STUB_DEVENV_FAIL=1
 check "failed evaluation at session start: the context says agents act as the operator" \
   grep -qF '"additionalContext":"Agent identity: agents act on GitHub as you, the operator, because the devenv evaluation failed' <<<"$out"
+
+# Issue 154: Claude Code keeps CLAUDE_PROJECT_DIR at the launch tree, and runs
+# no SessionStart, CwdChanged or FileChanged hook when a session enters or
+# leaves a worktree, or when a resumed session moves back into one.
+project=$(new_project)
+worktree=$(new_worktree "$project" moved)
+run_hook "$project" "$project" SessionStart:startup
+run_hook "$worktree" "$project" PreToolUse
+in_worktree=$(command_sees "$worktree" "$project" DEVENV_ROOT)
+run_hook "$project" "$project" PreToolUse
+in_project=$(command_sees "$project" "$project" DEVENV_ROOT)
+run_hook "$project" "$project" SessionStart:resume
+run_hook "$worktree" "$project" PreToolUse
+check "a move into a worktree, back out, and a resume into it: each command gets the devenv environment of its own tree" \
+  equals "$in_worktree|$in_project|$(command_sees "$worktree" "$project" DEVENV_ROOT)" "$worktree|$project|$worktree"
 
 # --- session-start.sh --------------------------------------------------------
 
