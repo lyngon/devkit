@@ -403,6 +403,16 @@ When a file failed to load and no case that the filter matches loads, the harnes
 When no case ran at either commit, it prints no comparison and ends with status 1, naming each file that failed to load.
 Below the table each grader that failed is listed with the number of runs it failed in.
 A run of a case that the harness refused or cut short is counted as an error beside the score, and its reason is listed too.
+A run in which every call of the shell tool ended in an error is counted as a failed shell beside the score.
+Below the table, the last line of what its first call said is listed with the number of runs that said it:
+
+```text
+plugins/build/evals/next-change-branches-from-origin-after-a-merge at head: every shell command failed in 3 of 3 runs, the first ending in: bwrap: Can't mkdir parents for /run/secrets.d/1: Permission denied
+```
+
+Such a run scores like any other, whether its sandbox failed to start or each of its commands ran and failed, and only those words tell the two apart.
+`compare-evals` reads the calls from the trace of each run, which the harness keeps only under `--keep-temp`.
+A trace that it cannot read counts as a run that wrote no result.
 A line that the harness printed about a case as a whole is counted as a note beside the score, and listed in the harness's words.
 That is how a comparison names a gated tool that a case lists and the run did not grant:
 
@@ -412,7 +422,7 @@ plugins/discover/evals/brainstorm-no-docs at head: not granted (missing --allow-
 
 `compare-evals` finds such a line by the name of the case at its start and reads none of the words after it (measured on Claude Code 2.1.283).
 When a later harness starts such a line otherwise, the note is missing from the comparison and the line is still in the output of the run, which goes to stderr as it comes.
-There the harness also says `kept temp` for the sandbox of a run that ended in an error, and `compare-evals` removes that sandbox with the rest.
+There the harness also says `kept temp` for the sandbox of each run, which `--keep-temp` keeps, and `compare-evals` removes the sandboxes with the rest.
 A case that is new at head has no score at the base commit.
 To see it fail first, commit the case before the change it proves and name that commit as the base.
 
@@ -422,7 +432,7 @@ While iterating, narrow both runs to one case, one run and a cheaper model:
 compare-evals origin/main --allow-tools Write --case python-domain-value --runs 1 --model sonnet
 ```
 
-A run that grants Bash puts every command under the sandbox of the harness, and the sandbox needs two things from the machine.
+A run that grants Bash puts every command under the sandbox of the harness, and the sandbox needs three things from the machine.
 
 It must be able to exclude the credential stores of the machine.
 Where it cannot, the harness refuses the run, with a message of these two parts:
@@ -435,6 +445,21 @@ a Bash-granting evaluation cannot run here; keep the store's contents in one pla
 So `~/.aws` must hold no symbolic link inside it.
 A `~/.aws/config` that the machine's Nix configuration links into the store is one, and the fix belongs in that configuration.
 The refusal is a safety check of the sandbox, so never work around it, for example by pointing `HOME` elsewhere.
+
+The sandbox hides a credential store by mounting over its directory, so you must be able to read every directory above it that another user owns.
+Where you cannot, the harness refuses nothing, the run scores like any other, and every call of the shell tool ends with status 1 before its command starts (measured on Claude Code 2.1.283 with bubblewrap 0.12.0):
+
+```text
+bwrap: Can't mkdir parents for /run/secrets.d/1: Permission denied
+```
+
+sops-nix links `/run/secrets` to a directory in `/run/secrets.d`, which it creates as `root:keys` with mode `0751`, so on a machine with sops-nix secrets you must be in the group `keys`.
+The group can list the names of the secrets and read none of them, because each secret keeps its own owner and mode.
+The mount works when this command exits 0:
+
+```sh
+bwrap --ro-bind / / --tmpfs "$(readlink -f /run/secrets)" true
+```
 
 The shell of a run must find `bwrap` and `socat`, the two programs that the sandbox starts.
 A run inherits the PATH of the shell that started it and few other variables, and `__NIXOS_SET_ENVIRONMENT_DONE` is not among them.
