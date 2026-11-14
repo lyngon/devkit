@@ -105,6 +105,11 @@ The person who started the session an agent is working in.
 An operator answers for the task at hand, and for the product only when they are also an owner.
 _Avoid_: user, driver
 
+**Live session**:
+A Claude Code session whose process is still running, busy or idle.
+A session that crashed or was closed is not live, whatever it left behind.
+_Avoid_: active session, open session
+
 **Agent identity**:
 The forge account that agents act under, separate from every person's account, so that the forge can tell an agent's work from a person's.
 _Avoid_: bot account, machine user, service account
@@ -182,6 +187,7 @@ _Avoid_: apply log, evidence (for the whole record)
 - An **Owner** approves every change to a **Steering document** of their repository.
 - An **Owner** may act as an **Operator**; an **Operator** need not be an **Owner**.
 - An **Operator**'s agent acts under the **Agent identity**, and an **Owner** approves its pull requests.
+- Two **Live sessions** never work in one working tree: the later one moves to a worktree of its own.
 - A mistake in the **Mistake ledger** that repeats becomes a **Rule** with its check, or a **Principle** when no tool can decide it.
 - The **Standing instructions** reach every session, and a **Mode** reaches only a session whose **Operator** switched it on, where it adds to them.
 - A **Mode** has one **Playbook** for each kind of task it routes.
