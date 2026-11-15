@@ -847,6 +847,31 @@ plugins/one/evals/needs-bash at head: every shell command failed in 2 of 3 runs,
 "
 check "failed shells: every sandbox is removed" nothing_left "$repo"
 
+# On Claude Code 2.1.321 a run whose sandbox lies under /tmp reads, and every
+# write of its shell fails (issue 161). The words are copied from such runs.
+read_only=$'Exit code 128\nfatal: Unable to create \'/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock\': Read-only file system'
+zsh_read_only=$'Exit code 1\nzsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af'
+reads_work=$(trace_of "$(shell_call 1 false "On branch main")" "$(shell_call 2 true "$read_only")")
+quotes_it=$(trace_of "$(shell_call 1 false "and every write ends in Read-only file system")")
+repo=$(two_commits)
+result 0 \
+  "$(case_of plugins/one/evals/needs-bash 0 3 | with_traces "$reads_work" "$reads_work" "$quotes_it")" \
+  "$(case_of plugins/one/evals/red-then-green 1 1 | with_traces "$(trace_of "$(shell_call 1 true "$zsh_read_only")")")" \
+  >"$repo/canned-result.json"
+commit "$repo" "chore: runs whose shell commands read and could not write"
+compare "$repo" base
+check "read-only shells: exits 0" equals "$code" 0
+check "read-only shells: a run whose reads worked and whose writes failed is counted beside the score" contains "$out" \
+  "plugins/one/evals/needs-bash       -              0.00 (3 runs, 2 read-only shells)"
+check "read-only shells: the first line that said so follows the table, once" contains "$out" "
+plugins/one/evals/needs-bash at head: a shell command could not write in 2 of 3 runs, the first saying: fatal: Unable to create '/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock': Read-only file system
+"
+check "read-only shells: a run in which every shell command failed so counts as both" contains "$out" \
+  "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run, 1 failed shell, 1 read-only shell)"
+check "read-only shells: the words of zsh count too" contains "$out" \
+  "plugins/one/evals/red-then-green at head: a shell command could not write in 1 of 1 runs, the first saying: zsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af"
+check "read-only shells: every sandbox is removed" nothing_left "$repo"
+
 repo=$(two_commits)
 gone=$tmp/gone/out/trace.jsonl
 result 0 "$(case_of plugins/one/evals/red-then-green 1 1 | jq --arg trace "$gone" '.arms.with[0].tracePath = $trace')" \
