@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Exercise the repo plugin's session check against a real repository with a
-# linked worktree, and a registry of live sessions whose entries belong to
-# processes this test starts. Run through `devenv test`.
 set -euo pipefail
 
 if (($# != 1)); then
@@ -30,8 +27,6 @@ stop_sessions() {
 }
 trap 'stop_sessions; rm -rf "$tmp"' EXIT
 
-# --- Fixture helpers ---------------------------------------------------------
-
 config=$tmp/config
 registry=$config/sessions
 mkdir -p "$registry"
@@ -42,10 +37,6 @@ git init -q -b main "$main"
 git -C "$main" -c user.name=test -c user.email=test@example.com -c commit.gpgsign=false commit -q --allow-empty -m base
 git -C "$main" worktree add -q -b worktree-shared "$shared"
 
-# A session's process, as the check sees one: it works in its directory, and
-# for each hook command of hooks.json written to its requests FIFO it runs the
-# command as its child, with only the script tools on PATH, and writes the
-# exit status to its done FIFO.
 session_script=$tmp/session.sh
 cat >"$session_script" <<'EOF'
 #!/usr/bin/env bash
@@ -75,10 +66,10 @@ process_start() {
   echo "${fields[19]}"
 }
 
-# register <name> <entrypoint> <status> [procStart]: write the registry entry
-# of a session, idle for 2 h 5 min and 30 s when it is idle.
+idle_seconds_shown_as_2_h_5_min=$(((2 * 60 + 5) * 60 + 30))
+
 register() {
-  local id=${pid[$1]} since=$((${EPOCHREALTIME/./} / 1000 - 7530000))
+  local id=${pid[$1]} since=$((${EPOCHREALTIME/./} / 1000 - idle_seconds_shown_as_2_h_5_min * 1000))
   jq -n --argjson pid "$id" --arg name "$1" --arg entrypoint "$2" --arg status "$3" \
     --arg start "${4:-$(process_start "$id")}" --arg cwd "$(readlink "/proc/$id/cwd")" --argjson since "$since" \
     '{pid: $pid, sessionId: "id-\($name)", cwd: $cwd, startedAt: $since, procStart: $start, kind: "interactive",
@@ -86,12 +77,13 @@ register() {
     >"$registry/$id.json"
 }
 
-# start_session <name> <dir> <entrypoint> <status>: a live session in a
-# directory, registered, at least one clock tick after the session before it,
-# so that the order of two sessions never falls back to their pids.
+wait_out_a_10_ms_clock_tick_of_the_start_time() {
+  sleep 0.03
+}
+
 start_session() {
   local files=$tmp/sessions/$1
-  sleep 0.03
+  wait_out_a_10_ms_clock_tick_of_the_start_time
   mkdir -p "$files"
   mkfifo "$files/requests" "$files/done"
   (cd "$2" && exec bash "$session_script" "$files") &
@@ -99,8 +91,6 @@ start_session() {
   register "$1" "$3" "$4"
 }
 
-# run_hook <name> <event> [tool]: let the session run its hook. Sets out, err,
-# code.
 run_hook() {
   local files=$tmp/sessions/$1
   jq -n --arg event "$2" --arg tool "${3-}" '{session_id: "id", hook_event_name: $event}
@@ -110,14 +100,11 @@ run_hook() {
   code=$(<"$files/done") out=$(<"$files/out") err=$(<"$files/err")
 }
 
-# No session or entry left from the case before.
 next_case() {
   stop_sessions
   pid=()
   rm -rf "$tmp/sessions" "${registry:?}"/*
 }
-
-# --- Assertions --------------------------------------------------------------
 
 check() {
   local label=$1
@@ -147,8 +134,6 @@ verdict() {
 }
 
 why="Two sessions in one working tree change its HEAD, its index and its files under each other, so the repo plugin refuses this session's edits and shell commands here until this session has moved to a worktree of its own or that session has ended. Every other tool still works, Read, EnterWorktree and ExitWorktree among them. The standing instructions at the start of this session ask for this move, so it counts as the operator asking for each call below."
-
-# --- The session check -------------------------------------------------------
 
 check "hooks.json runs the check before Edit, Write, NotebookEdit, Bash and Monitor, and at session start" \
   equals "$(for tool in Edit Write NotebookEdit Bash Monitor Read EnterWorktree ExitWorktree Agent; do echo "$tool $(hook_command PreToolUse "$tool" | wc -l)"; done | tr '\n' ' ')$(hook_command SessionStart | wc -l)" \

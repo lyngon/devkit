@@ -11,22 +11,22 @@ if grep -qsE '^[[:space:]]*lyngon\.structure\.enable[[:space:]]*=[[:space:]]*tru
   cat "$here/session-start-structure.txt"
 fi
 
-# Claude Code creates a session's worktrees under .claude/worktrees/, which git
-# lists as untracked in a clone whose .gitignore predates the line repo:init
-# writes for them. The rule goes into info/exclude, which git does not track
-# and every worktree of the clone shares. Two sessions that start at once each
-# replace the whole file, so it holds the rule once.
+add_line_atomically() {
+  local file=$1 line=$2 content="" temporary
+  [[ ! -f $file ]] || content=$(<"$file")
+  temporary=$(mktemp "$file.XXXXXX")
+  printf '%s\n' ${content:+"$content"} "$line" >"$temporary"
+  mv "$temporary" "$file"
+}
+
 ignore_session_worktrees() {
-  local top exclude content="" temporary code=0
+  local top exclude code=0
   top=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || return 0
   git -C "$top" check-ignore -q --no-index .claude/worktrees/ || code=$?
   ((code == 1)) || return 0
   exclude=$(git -C "$top" rev-parse --path-format=absolute --git-path info/exclude)
   mkdir -p "${exclude%/*}"
-  [[ ! -f $exclude ]] || content=$(<"$exclude")
-  temporary=$(mktemp "$exclude.XXXXXX")
-  printf '%s\n' ${content:+"$content"} /.claude/worktrees/ >"$temporary"
-  mv "$temporary" "$exclude"
+  add_line_atomically "$exclude" /.claude/worktrees/
 }
 ignore_session_worktrees
 

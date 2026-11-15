@@ -274,8 +274,6 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/hooks.sh" "$@"'';
   };
-  # Fixture tests for the repo plugin's session check, whose hook runs with
-  # the baseline's lyngon.scriptTools and nothing else on its PATH.
   testOneSessionPerTree = pkgs.writeShellApplication {
     name = "test-one-session-per-tree";
     runtimeInputs = [
