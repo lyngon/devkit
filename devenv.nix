@@ -274,6 +274,18 @@ let
     ];
     text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/hooks.sh" "$@"'';
   };
+  testOneSessionPerTree = pkgs.writeShellApplication {
+    name = "test-one-session-per-tree";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.findutils
+      pkgs.git
+      pkgs.gnused
+      pkgs.jq
+    ];
+    text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/one-session-per-tree.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
+  };
   # Fixture tests for the devkit plugin's hook script; zsh and bash read back
   # the environment file, as Claude Code's Bash tool does before a command.
   testDevkitHooks = pkgs.writeShellApplication {
@@ -494,6 +506,7 @@ in
     declared_tools_only ${lib.getExe testHooksRunAfterTheShellSetup} "$(command -v devenv)"
     declared_tools_only ${lib.getExe testValidateShippedText}
     declared_tools_only ${lib.getExe testRepoHooks}
+    declared_tools_only ${lib.getExe testOneSessionPerTree}
     declared_tools_only ${lib.getExe testDevkitHooks}
     declared_tools_only ${lib.getExe testBuildHooks}
     declared_tools_only ${lib.getExe testPruneMistakes}

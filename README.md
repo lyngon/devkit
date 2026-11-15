@@ -64,7 +64,7 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 
 ## Flows
 
-Every session starts with the standing instructions, which the hook of the `build` plugin prints: when to ask, how a change is branched, checked and handed over, and when to read the principles and record a mistake.
+Every session starts with the standing instructions, which the hook of the `build` plugin prints: when to ask, how a change is branched, checked and handed over, when to read the principles and record a mistake, and when a session moves to a worktree of its own.
 Under them the agent decides and acts, and invokes each skill whose trigger matches.
 `/build:auto` with a task switches the mode on for that task, with its playbooks and its delegate, and only the operator starts it.
 `/discover:approach` is the owner's gate on a design, and `/discover:brainstorm` writes nothing.
@@ -142,7 +142,7 @@ And the way of working in it, in the order things happen:
 - A decision record only for a decision that passes the admission test in [DECISION-RECORD-FORMAT.md](shared/DECISION-RECORD-FORMAT.md), and only while the decision holds; a decision a check can carry becomes the check.
 - `/discover:why` when a reason is needed: it answers from the decision records, the deleted ones included, and from git, pull requests and issues, and says what it found, what it inferred and what it could not find out.
 - `/discover:how` when the question is how code works, and `/discover:explanation` to have a change or a subsystem explained plainly, from what `how` and `why` find.
-- The standing instructions at the start of every session, from the hook of the `build` plugin: when to ask, how a change is branched, checked and handed over, and when to read the principles and record a mistake.
+- The standing instructions at the start of every session, from the hook of the `build` plugin: when to ask, how a change is branched, checked and handed over, when to read the principles and record a mistake, and when a session moves to a worktree of its own.
 - `principles:index` before work that takes judgment; the agent then reads the file of each principle that applies. A repository's own principles are its rule files under `.claude/rules/`.
 - Conventions come from the `conventions` plugin, whose session hook and skill descriptions tell agents to invoke them before working: one skill per language, and the rules for Markdown, decision records and the steering documents. Nothing is copied into the repository.
 - `/build:auto` when the operator wants the mode for one task: a route to the playbook for its kind, a delegate that writes the code, and a reply whose every claim carries its proof. The agent never starts it.

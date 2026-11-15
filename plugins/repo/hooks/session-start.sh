@@ -11,6 +11,25 @@ if grep -qsE '^[[:space:]]*lyngon\.structure\.enable[[:space:]]*=[[:space:]]*tru
   cat "$here/session-start-structure.txt"
 fi
 
+add_line_atomically() {
+  local file=$1 line=$2 content="" temporary
+  [[ ! -f $file ]] || content=$(<"$file")
+  temporary=$(mktemp "$file.XXXXXX")
+  printf '%s\n' ${content:+"$content"} "$line" >"$temporary"
+  mv "$temporary" "$file"
+}
+
+ignore_session_worktrees() {
+  local top exclude code=0
+  top=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || return 0
+  git -C "$top" check-ignore -q --no-index .claude/worktrees/ || code=$?
+  ((code == 1)) || return 0
+  exclude=$(git -C "$top" rev-parse --path-format=absolute --git-path info/exclude)
+  mkdir -p "${exclude%/*}"
+  add_line_atomically "$exclude" /.claude/worktrees/
+}
+ignore_session_worktrees
+
 commits() {
   if (($1 == 1)); then echo "1 commit"; else echo "$1 commits"; fi
 }

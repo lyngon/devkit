@@ -15,4 +15,4 @@ When the later session's task continues the work on the branch checked out in th
 - Telling the later session without refusing anything relies on an instruction for concurrency control.
 - An override that the operator grants needs a marker with a lifetime, and the marker can outlive the reason it was granted for.
 
-Enforced by: judgment
+Enforced by: test-one-session-per-tree and judgment
