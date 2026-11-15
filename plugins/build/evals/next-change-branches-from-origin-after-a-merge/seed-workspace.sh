@@ -12,6 +12,9 @@ cp -R "$orders/workspace/." .
 git init -q -b main
 git config user.name "Ada Lovelace"
 git config user.email ada@example.com
+# The sandbox of a run refuses every write to .git/config, so a branch started
+# from origin/main records no upstream.
+git config branch.autoSetupMerge false
 git add -A
 git commit -q -m "feat(orders): price the lines of an order"
 git init -q --bare -b main "$forge/origin.git"
