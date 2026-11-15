@@ -76,7 +76,7 @@ The decision and the options it rejected are in `docs/decisions/a-session-moves-
 - Of two sessions, the earlier is the one with the smaller `procStart`, then the smaller pid.
   A resumed session runs in a new process, so it is the later one.
 - The refusal names each earlier session in the tree, with its name, whether it runs in the CLI, headless or in VS Code, and whether it is busy or how long it has been idle.
-  It names the tree and what is checked out there, and says that the operator's standing instructions ask for the move, since the description of `EnterWorktree` tells the model to use it only when someone asked for a worktree.
+  It names the tree and what is checked out there, and says that the standing instructions ask for the move, which a paragraph of the `build` plugin's standing instructions does, since the descriptions of `EnterWorktree` and `ExitWorktree` tell the model to call them only when asked.
   When the task continues the work on that branch, the session asks the operator to close the other session.
   Otherwise it calls `EnterWorktree` without a name, so that Claude Code generates one, since a name in use enters that worktree and a session refused the shell cannot list the names in use.
   When `EnterWorktree` answers that the session is in a worktree session already, as it does after `--worktree` and after a resume into a worktree, the session first calls `ExitWorktree` with action `keep`, which leaves the worktree, and the other session's lock on it, in place.
@@ -93,7 +93,7 @@ Verified on 2026-11-15 on Claude Code 2.1.321 (the Nix package) and 2.1.323 (the
   It called `ExitWorktree` with `keep`, then `EnterWorktree`, and its `Bash` call ran in the new worktree, in 4 of 4 runs with the final text.
   The shared worktree kept the earlier session's lock.
 - Without the paragraph of the standing instructions, the later session in the shared worktree moved in 0 of 2 runs, and said that the refusal's claim did not match its `CLAUDE.md`.
-  With a paragraph that named only `EnterWorktree`, it stopped in 1 of 2 runs, because the description of `ExitWorktree` says to call it only when asked.
+  With a paragraph that named only `EnterWorktree`, it stopped in 1 of 8 runs, because the description of `ExitWorktree` says to call it only when asked.
 - With a name of its own, `EnterWorktree` entered a leftover worktree of the same name in 5 of 6 runs, so the refusal asks for no name.
 - The check took 59 to 168 ms before a call, median 72 ms over 85 calls, about 19 ms of it the start of `python3` and about 15 ms the import of `dataclasses`.
 - A copy of the registry entry of a live VS Code session on 2.1.325 gave the refusal that names it as a VS Code session idle for 17 h 26 min.
