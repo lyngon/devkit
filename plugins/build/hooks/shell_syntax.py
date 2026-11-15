@@ -1,5 +1,5 @@
 # ruff: noqa: INP001  # a module beside the hook scripts that import it, which no package holds
-"""The simple commands and redirections of a shell command, read from the syntax tree that shfmt writes."""
+"""The simple commands and redirections of a shell command."""
 
 import collections
 import collections.abc as ct
@@ -179,3 +179,292 @@ def calls_and_redirections(
 def command_name(value: str | None) -> str | None:
     """Return the name of the command that a word names, without its directory."""
     return None if value is None else pathlib.PurePath(value).name
+
+
+class UnreadableError(Exception):
+    """A command holds a construct whose extent may_run cannot tell. The message names it, as a clause."""
+
+
+OPERATORS = re.compile(r";;&|;;|;&|&&|\|\||\|&|&>>|&>|>>|>\||>&|<<<|<<-|<<|<>|<&|\(\(|[;&|()<>\n]")
+
+REDIRECTIONS = frozenset({"<", ">", ">>", ">|", "&>", "&>>", "<>", "<<<", ">&", "<&", "<<", "<<-"})
+
+HERE_DOCUMENTS = frozenset({"<<", "<<-"})
+
+WORD_ENDS = frozenset(" \t\n;&|()<>")
+
+BLANKS = (" ", "\t", "\\\n")
+
+ESCAPED_IN_DOUBLE_QUOTES = frozenset({"$", "`", '"', "\\"})
+
+PARAMETER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-]")
+
+ARITHMETIC = "an arithmetic expression"
+
+EXPRESSIONS = {"$((": ("))", ARITHMETIC), "$[": ("]", ARITHMETIC), "${": ("}", "a ${...}")}
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class HereDocument:
+    """A here-document whose body starts on the next line: the line that ends it, and how its body reads."""
+
+    delimiter: str
+    expands: bool
+    strips_tabs: bool
+
+
+def line_end(source: str, index: int) -> int:
+    """Return the index of the newline that ends the line at index, or the length of the source."""
+    end = source.find("\n", index)
+    return len(source) if end < 0 else end
+
+
+def unescaped(source: str, index: int, char: str) -> int:
+    """Return the index of the first char at or after index that no backslash escapes. Raises UnreadableError."""
+    while index < len(source):
+        if source[index] == char:
+            return index
+        index += 2 if source[index] == "\\" else 1
+    raise UnreadableError(f"a {char} is not closed")
+
+
+@t.final
+class CommandReader:
+    """Reads a command from left to right, and keeps each simple command and redirection that it may run."""
+
+    def __init__(self, source: str) -> None:
+        self.source: str = source
+        self.found: list[Call | Redirection] = []
+        self.here_documents: list[HereDocument] = []
+
+    def commands(self, index: int, closer: str | None) -> int:
+        """Read the commands from index up to the closer, or to the end without one, and return the index after it."""
+        source = self.source
+        words: list[tuple[Word, int, int]] = []
+        while index < len(source):
+            if source[index] == "#":
+                index = line_end(source, index)
+            elif source.startswith(BLANKS, index):
+                index += 2 if source[index] == "\\" else 1
+            elif (operator := self.operator(index)) is None:
+                index = self.command_word(index, words, closer)
+            elif operator.group() in REDIRECTIONS:
+                index = self.redirection(operator)
+            elif operator.group() == ")" and closer == ")":
+                self.simple_command(words)
+                return index + 1
+            else:
+                self.simple_command(words)
+                index = self.after_operator(operator)
+        if closer is not None:
+            raise UnreadableError("a parenthesis is not closed")
+        self.simple_command(words)
+        if self.here_documents:
+            raise UnreadableError(f"no line {self.here_documents[0].delimiter} ends its here-document")
+        return index
+
+    def operator(self, index: int) -> re.Match[str] | None:
+        """Return the operator at index, or None where a word starts, a process substitution included."""
+        return None if self.source.startswith(("<(", ">("), index) else OPERATORS.match(self.source, index)
+
+    def command_word(self, index: int, words: list[tuple[Word, int, int]], closer: str | None) -> int:
+        """Read a word of a simple command into its words, and return the index after it."""
+        begin = index
+        word, quoted, index = self.word(index)
+        if self.names_a_file_descriptor(word, index, quoted=quoted):
+            return index
+        if closer == ")" and word.value == "case":
+            raise UnreadableError("it holds a case statement inside parentheses")
+        words.append((word, begin, index))
+        return index
+
+    def names_a_file_descriptor(self, word: Word, end: int, *, quoted: bool) -> bool:
+        """Return whether a word ending at end numbers the file descriptor of the redirection right after it, as 2>x."""
+        return not quoted and (word.value or "").isdigit() and self.source.startswith(("<", ">"), end)
+
+    def redirection(self, operator: re.Match[str]) -> int:
+        """Keep the redirection of an operator and the word after it, and the here-document it opens.
+
+        Returns the index after the word.
+        """
+        source = self.source
+        index = operator.end()
+        while source.startswith(BLANKS, index):
+            index += 2 if source[index] == "\\" else 1
+        if index >= len(source) or self.operator(index) is not None:
+            raise UnreadableError(f"`{operator.group()}` has no word after it")
+        target, quoted, end = self.word(index)
+        if operator.group() in HERE_DOCUMENTS:
+            if target.value is None:
+                raise UnreadableError("the word that ends a here-document holds an expansion")
+            strips_tabs = operator.group() == "<<-"
+            self.here_documents.append(HereDocument(target.value, expands=not quoted, strips_tabs=strips_tabs))
+        self.found.append(Redirection(operator.group(), target, source[operator.start() : end]))
+        return end
+
+    def after_operator(self, operator: re.Match[str]) -> int:
+        """Read what an operator that ends a simple command opens, and return the index after it."""
+        match operator.group():
+            case "((":
+                return self.expression(operator.end(), "))", ARITHMETIC)
+            case "(":
+                return self.commands(operator.end(), ")")
+            case "\n":
+                return self.here_document_bodies(operator.end())
+            case _:
+                return operator.end()
+
+    def simple_command(self, words: list[tuple[Word, int, int]]) -> None:
+        """Keep a simple command, also from each of its later words on, and empty the words for the next one."""
+        for first, (_, begin, _) in enumerate(words):
+            self.found.append(Call(tuple(word for word, _, _ in words[first:]), self.source[begin : words[-1][2]]))
+        words.clear()
+
+    def here_document_bodies(self, index: int) -> int:
+        """Read the bodies of the here-documents that start at index, and return the index after them."""
+        source = self.source
+        while self.here_documents:
+            document = self.here_documents.pop(0)
+            while True:
+                if index >= len(source):
+                    raise UnreadableError(f"no line {document.delimiter} ends its here-document")
+                line = source[index : line_end(source, index)]
+                if (line.lstrip("\t") if document.strips_tabs else line) == document.delimiter:
+                    index += len(line) + 1
+                    break
+                index = self.expansions_of_line(index) if document.expands else index + len(line) + 1
+        return index
+
+    def expansions_of_line(self, index: int) -> int:
+        """Read the expansions of a line of a here-document's body, and return the index of the next line."""
+        source = self.source
+        while index < len(source) and source[index] != "\n":
+            if source[index] == "\\":
+                index += 2
+            elif source[index] in "$`" and (after := self.expansion(index)) is not None:
+                index = after
+            else:
+                index += 1
+        return index + 1
+
+    def word(self, index: int) -> tuple[Word, bool, int]:
+        """Read the word that starts at index: return it, whether any of it is quoted, and the index after it."""
+        source = self.source
+        word_start, literal, complete, quoted = index, "", True, False
+        while index < len(source):
+            char = source[index]
+            text, whole = "", True
+            if (index == word_start and source.startswith(("<(", ">("), index)) or (index > word_start and char == "("):
+                index, whole = self.commands(index + (1 if char == "(" else 2), ")"), False
+            elif char in WORD_ENDS:
+                break
+            elif char in "\\'\"" or source.startswith(("$'", '$"'), index):
+                quoted = quoted or not source.startswith("\\\n", index)
+                text, whole, index = self.quoted(index)
+            elif char in "$`" and (after := self.expansion(index)) is not None:
+                index, whole = after, False
+            else:
+                text, index = char, index + 1
+            if complete:
+                literal += text
+                complete = whole
+        return Word(literal, complete=complete, text=source[word_start:index]), quoted, index
+
+    def quoted(self, index: int) -> tuple[str, bool, int]:
+        """Read the quoted text at index: return its literal text up to any expansion, whether it has none, its end."""
+        source = self.source
+        if source[index] == "\\":
+            following = source[index + 1 : index + 2]
+            return ("" if following == "\n" else following or "\\"), True, index + 2
+        if source[index] == "'":
+            end = source.find("'", index + 1)
+            if end < 0:
+                raise UnreadableError("a ' is not closed")
+            return source[index + 1 : end], True, end + 1
+        if source.startswith("$'", index):
+            end = unescaped(source, index + 2, "'")
+            return source[index + 2 : end], True, end + 1
+        return self.double_quoted(index + (2 if source[index] == "$" else 1))
+
+    def double_quoted(self, index: int) -> tuple[str, bool, int]:
+        """Read a double-quoted text from index: its literal text up to any expansion, whether it has none, its end."""
+        source = self.source
+        literal, whole = "", True
+        while index < len(source):
+            char = source[index]
+            text = ""
+            if char == '"':
+                return literal, whole, index + 1
+            if char == "\\":
+                following = source[index + 1 : index + 2]
+                text = following if following in ESCAPED_IN_DOUBLE_QUOTES else char + following
+                text = "" if following == "\n" else text
+                index += 2
+            elif char in "$`" and (after := self.expansion(index)) is not None:
+                index, whole = after, False
+            else:
+                text, index = char, index + 1
+            if whole:
+                literal += text
+        raise UnreadableError('a " is not closed')
+
+    def expansion(self, index: int) -> int | None:
+        """Read the expansion that a $ or a backquote at index starts, and return the index after it.
+
+        Returns None for a $ that expands nothing, before a blank, a double quote or the end of a word.
+        """
+        source = self.source
+        following = source[index + 1 : index + 2]
+        opening = next((opening for opening in EXPRESSIONS if source.startswith(opening, index)), None)
+        if source[index] == "`":
+            return self.backquoted(index + 1)
+        if opening is not None:
+            return self.expression(index + len(opening), *EXPRESSIONS[opening])
+        if following == "(":
+            return self.commands(index + 2, ")")
+        if following in {"", '"'} or following in WORD_ENDS:
+            return None
+        name = PARAMETER.match(source, index + 1)
+        return index + 1 if name is None else name.end()
+
+    def backquoted(self, index: int) -> int:
+        """Read the commands of a backquoted substitution whose text starts at index, and return the index after it."""
+        closing_quote = unescaped(self.source, index, "`")
+        inner = CommandReader(re.sub(r"\\([\\`$])", r"\1", self.source[index:closing_quote]))
+        _ = inner.commands(0, None)
+        self.found.extend(inner.found)
+        return closing_quote + 1
+
+    def expression(self, index: int, closing: str, name: str) -> int:
+        """Read an arithmetic expression or a ${...} from index to its closing, and return the index after it."""
+        source = self.source
+        depth = 0
+        while index < len(source):
+            char = source[index]
+            if depth == 0 and source.startswith(closing, index):
+                return index + len(closing)
+            if char in "'\"":
+                raise UnreadableError(f"{name} holds a quote")
+            if char == ")" and depth == 0:
+                raise UnreadableError(f"the parentheses of {name} do not match")
+            depth += {"(": 1, ")": -1}.get(char, 0)
+            if char == "\\":
+                index += 2
+            elif char in "$`" and (after := self.expansion(index)) is not None:
+                index = after
+            else:
+                index += 1
+        raise UnreadableError(f"{name} is not closed")
+
+
+def may_run(command: str) -> list[Call | Redirection]:
+    """Return the simple commands and redirections that a command may run, read in Python alone.
+
+    The list holds every simple command and every redirection that bash runs for the command, those inside its
+    substitutions included, and more: each simple command also from each of its later words on, since a keyword or an
+    assignment before the name of a command reads as a word, and a comparison inside [[ ]] reads as a redirection.
+    Raises UnreadableError, naming the construct, for a command whose structure the reader cannot follow.
+    """
+    reader = CommandReader(command)
+    _ = reader.commands(0, None)
+    return reader.found
