@@ -375,9 +375,7 @@ gone() {
 
 # compare <repo> <argument>...: run the program in the repository, capturing
 # stdout, stderr and the exit code in out, err and code, the stub's calls in
-# calls and the builds that its runs found in builds. Temporary files go to an
-# empty directory of their own, which the program finds where runtime says,
-# as its XDG_RUNTIME_DIR. Its TMPDIR is another empty directory.
+# calls and the builds that its runs found in builds.
 # The shell that starts the program is the devenv shell of the repository,
 # unless shell_root names another directory, and its Nix store is $tmp/store.
 runtime=$tmp/scratch
@@ -492,9 +490,6 @@ directory_of() {
   echo "$path"
 }
 
-# On Claude Code 2.1.321 no shell command of a run whose sandbox lies under
-# /tmp can write, and one under XDG_RUNTIME_DIR can (issue 161), so the
-# sandboxes go there, wherever TMPDIR points.
 repo=$(two_commits)
 compare "$repo" main~1
 check "XDG_RUNTIME_DIR: the sandbox of each run lies in it, not in TMPDIR" contains "$err" "  kept temp: $runtime/compare-evals-"
@@ -871,8 +866,6 @@ plugins/one/evals/needs-bash at head: every shell command failed in 2 of 3 runs,
 "
 check "failed shells: every sandbox is removed" nothing_left "$repo"
 
-# On Claude Code 2.1.321 a run whose sandbox lies under /tmp reads, and every
-# write of its shell fails (issue 161). The words are copied from such runs.
 read_only=$'Exit code 128\nfatal: Unable to create \'/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock\': Read-only file system'
 zsh_read_only=$'Exit code 1\nzsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af'
 reads_work=$(trace_of "$(shell_call 1 false "On branch main")" "$(shell_call 2 true "$read_only")")

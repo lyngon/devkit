@@ -32,6 +32,7 @@ import argparse
 import collections
 import collections.abc as ct
 import dataclasses
+import errno
 import json
 import os
 import pathlib
@@ -53,6 +54,8 @@ any other (measured on Claude Code 2.1.283). Where an external proxy port is
 configured, the sandbox also binds `claude-socks-<16 hex digits>.sock`, a byte
 longer, which leaves 50 (read from its binary, not measured).
 """
+
+READ_ONLY_FILE_SYSTEM: str = os.strerror(errno.EROFS).lower()
 
 
 class CompareError(Exception):
@@ -103,10 +106,8 @@ class Case:
     score alone is no proof. A run the harness refused or cut short adds its
     reason to the errors, and still counts in the score. A run in which every
     shell command failed adds to the failed shells what the first of them
-    said. A run in which a shell command failed on a read-only file system
-    adds to the read-only shells the first line that said so; such a run can
-    be among the failed shells too. A grader that failed is listed with the
-    number of runs it failed in, in the order the case declares its graders.
+    said. A grader that failed is listed with the number of runs it failed
+    in, in the order the case declares its graders.
     """
 
     score: float
@@ -351,14 +352,8 @@ class Launcher:
 def runtime_directory(environment: ct.Mapping[str, str]) -> pathlib.Path:
     """Return the directory that the scratch directory goes in, which XDG_RUNTIME_DIR names.
 
-    The harness puts the sandbox of a run under the run's TMPDIR, and on Linux
-    it denies a shell command every write under `/tmp`, `/var/tmp`, `/dev/shm`
-    and `/run/shm`, the run's own home and temp directory included when they
-    lie there. So no shell command of a run whose TMPDIR is in `/tmp` can
-    write, and one under XDG_RUNTIME_DIR can (measured on Claude Code 2.1.321
-    and 2.1.325, issue 161). Raises CompareError when the variable names no
-    directory by its absolute path, which the XDG Base Directory
-    Specification requires of it.
+    Raises CompareError when the variable names no directory by its absolute
+    path.
     """
     runtime = environment.get("XDG_RUNTIME_DIR", "")
     path = pathlib.Path(runtime)
@@ -605,18 +600,13 @@ def read_only_shell(results: ct.Sequence[ct.Mapping[str, object]]) -> str | None
     On Claude Code 2.1.321 and 2.1.325, a run whose sandbox lies under
     `/tmp` gets its home and temp directory bound read-only, so its shell
     commands read and every write fails, and the run scores like any other
-    (issue 161). A run that reads has calls that worked, so failed_shell
-    misses it. The words are those of EROFS, which zsh starts in lower case,
-    so the case of the line is ignored. A write to a path that the sandbox
-    protects on purpose, such as `.git/hooks`, fails with the same words, and
-    only the path in the line tells the two apart. A command that worked and
-    printed the words is no such failure.
+    (issue 161).
     """
     for result in results:
         if result.get("is_error") is not True:
             continue
         for line in text_of(result).splitlines():
-            if "read-only file system" in line.lower():
+            if READ_ONLY_FILE_SYSTEM in line.lower():
                 return line.strip()
     return None
 
@@ -676,15 +666,7 @@ def counted(number: int, noun: str) -> str:
 
 
 def cell(column: Column, name: str) -> str:
-    """Return one cell of the table.
-
-    It holds the score of the case with the number of runs behind it, how
-    many notes the harness left about the case, how many of the runs ended
-    in an error, in how many every shell command failed and in how many a
-    shell command failed on a read-only file system. A case that the run
-    gave no result for has the words `no result` when it is present at the
-    commit, and a dash when it is not.
-    """
+    """Return one cell of the table."""
     case = column.result.cases.get(name)
     if case is None:
         return "no result" if name in column.present else "-"
@@ -701,14 +683,7 @@ def cell(column: Column, name: str) -> str:
 
 
 def reasons(case: Case) -> list[str]:
-    """Return what stands behind a score.
-
-    That is what the harness said about the case, each distinct run error,
-    each distinct thing that the first command of a failed shell said and
-    each distinct line of a read-only shell, with the number of runs it was
-    said in, and each grader that failed with the number of runs it failed
-    in.
-    """
+    """Return what stands behind a score."""
     return [
         *case.notes,
         *(f"run error: {error}" for error in dict.fromkeys(case.errors)),
