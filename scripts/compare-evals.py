@@ -10,9 +10,11 @@ starts with `devenv shell`, so it gets the commands of that commit's
 environment, and the run in the working tree keeps the devenv shell that
 this program starts from. A case that seeds its working directory does so
 with a script of its own, which runs as whoever runs this, at both commits.
-The clone and everything a run writes are removed again.
-Before the first run it refuses a TMPDIR under which the sandbox of a run
-would have no room for its sockets, which would fail every shell command.
+The clone and everything a run writes go in a directory of their own in
+XDG_RUNTIME_DIR, and are removed again. Before the first run it refuses an
+XDG_RUNTIME_DIR that names no directory, and one under which the sandbox of
+a run would have no room for its sockets, which would fail every shell
+command.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
@@ -346,6 +348,32 @@ class Launcher:
     environment: ct.Mapping[str, str]
 
 
+def runtime_directory(environment: ct.Mapping[str, str]) -> pathlib.Path:
+    """Return the directory that the scratch directory goes in, which XDG_RUNTIME_DIR names.
+
+    The harness puts the sandbox of a run under the run's TMPDIR, and on Linux
+    it denies a shell command every write under `/tmp`, `/var/tmp`, `/dev/shm`
+    and `/run/shm`, the run's own home and temp directory included when they
+    lie there. So no shell command of a run whose TMPDIR is in `/tmp` can
+    write, and one under XDG_RUNTIME_DIR can (measured on Claude Code 2.1.321
+    and 2.1.325, issue 161). Raises CompareError when the variable names no
+    directory by its absolute path, which the XDG Base Directory
+    Specification requires of it.
+    """
+    runtime = environment.get("XDG_RUNTIME_DIR", "")
+    path = pathlib.Path(runtime)
+    if path.is_absolute() and path.is_dir():
+        return path
+    said = f"is {runtime}, no absolute path of a directory" if runtime else "is not set"
+    words = (
+        f"the sandbox of each run goes in XDG_RUNTIME_DIR, which {said}, since on Claude Code 2.1.321 and later",
+        "no shell command of a run whose sandbox lies under /tmp, /var/tmp, /dev/shm or /run/shm can write",
+        "(issue 161). Start compare-evals with XDG_RUNTIME_DIR set to a directory of yours outside those,",
+        f"such as /run/user/{os.getuid()}.",
+    )
+    raise CompareError(" ".join(words))
+
+
 def run_temporary(scratch: pathlib.Path) -> pathlib.Path:
     """Return the TMPDIR of a run: a directory in the scratch directory, so that the run's sandbox goes with it."""
     return scratch / "tmp"
@@ -363,7 +391,8 @@ def check_room_for_sandbox(scratch: pathlib.Path) -> None:
         f"each run would get the TMPDIR {temporary}, {length} bytes long,",
         f"and the sandbox of a run has room for its sockets only under a TMPDIR of at most {LONGEST_RUN_TMPDIR} bytes,",
         "without which every shell command of the run fails.",
-        f"Start compare-evals with a TMPDIR of at most {longest_start} bytes, such as TMPDIR=/tmp.",
+        f"Start compare-evals with an XDG_RUNTIME_DIR of at most {longest_start} bytes,",
+        f"such as /run/user/{os.getuid()}.",
     )
     raise CompareError(" ".join(words))
 
@@ -789,7 +818,8 @@ def compare(options: Options) -> Comparison:
 
     Raises CompareError outside a git repository, outside the devenv shell of
     the working tree, for a base that names no commit, without `claude` or
-    `devenv` on the PATH, when the base run writes no readable result, which
+    `devenv` on the PATH, for an XDG_RUNTIME_DIR that names no directory or
+    is too long, when the base run writes no readable result, which
     spares the cost of the run in the working tree, and when no case ran at
     either commit, each with what the runs said about their suites. Raises it
     too when the head result names a case that the working tree does not
@@ -811,7 +841,7 @@ def compare(options: Options) -> Comparison:
         "",
     )
 
-    with tempfile.TemporaryDirectory(prefix="compare-evals-") as directory:
+    with tempfile.TemporaryDirectory(prefix="compare-evals-", dir=runtime_directory(os.environ)) as directory:
         scratch = pathlib.Path(directory)
         check_room_for_sandbox(scratch)
         checkout = clone_of(root, base_commit, scratch / "checkout")
