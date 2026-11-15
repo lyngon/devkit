@@ -19,6 +19,10 @@ tools=$tmp/tools
 mkdir -p "$tools"
 ln -s "$(command -v bash)" "$tools/bash"
 
+python_only=$tmp/python-only
+mkdir -p "$python_only"
+ln -s "$(PATH=$script_tools command -v python3)" "$python_only/python3"
+
 # run_hook <hooks directory>: run its hook as a session does. Sets out, err, code.
 run_hook() {
   code=0
@@ -214,9 +218,6 @@ tofu_runs "a run of build:live-mutation's tool" \
 tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
   "$(writes "tofu -chdir=$organization apply organization.tfplan")" '{"agent_id": "a1", "agent_type": "general-purpose"}'
 
-python_only=$tmp/python-only
-mkdir -p "$python_only"
-ln -s "$(PATH=$script_tools command -v python3)" "$python_only/python3"
 tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
   '{}' "$python_only"
@@ -261,7 +262,7 @@ run_mode_hook() {
   jq -n --arg tool "$tool" --argjson tool_input "$tool_input" --argjson agent "$agent" --arg cwd "$repository" \
     '{session_id: "s", cwd: $cwd, hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $agent' >"$tmp/stdin"
   code=0
-  out=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$root" "$tools/bash" -c "$mode_command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+  out=$(env -i PATH="$python_only" CLAUDE_PLUGIN_ROOT="$root" "$tools/bash" -c "$mode_command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
 }
 
@@ -343,6 +344,36 @@ lead_command_refused "sed -i on a path in a variable" \
   "for f in src/orders/*.py; do sed -i 's/a/b/' \"\$f\"; done" "sed -i 's/a/b/' \"\$f\""
 lead_command_refused "sed -i in a command substitution" \
   "git status --short && echo \"\$(sed -i 's/a/b/' src/orders/pricing.py)\"" "sed -i 's/a/b/' src/orders/pricing.py"
+lead_command_refused "rm in backquotes" "echo \`rm tests/test_pricing.py\`" "rm tests/test_pricing.py"
+lead_command_refused "rm after a keyword" "if true; then rm tests/test_pricing.py; fi" "rm tests/test_pricing.py"
+lead_command_refused "rm under sudo" "sudo rm tests/test_pricing.py" "rm tests/test_pricing.py"
+lead_command_refused "git rm" "git rm -q tests/test_pricing.py" "rm -q tests/test_pricing.py"
+lead_command_refused "rm with its file on the next line" "rm -f \\
+  tests/test_pricing.py" "rm -f \\
+  tests/test_pricing.py"
+lead_command_refused "rm of a file named ';'" "rm ';' README.md" "rm ';' README.md"
+lead_command_refused "a redirection after a word that holds #" "nix run nixpkgs#hello > README.md" "> README.md"
+lead_command_refused "sed -i in a zsh loop, which does not parse as bash" \
+  "for f in \${=files}; do sed -i 's/a/b/' \"\$f\"; done" "sed -i 's/a/b/' \"\$f\""
+
+unread_command() {
+  jq -n --arg why "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
+    permissionDecisionReason: "In /build:auto the lead writes no code, and the hook cannot read this command, since \($why), so it cannot tell what it writes. Write the command without that construct. Start a build:implementer delegate (subagent_type \"build:implementer\") with a brief that names the file, and review its diff. The lead writes, by any tool, only under tmp/, docs/plans/ and docs/mistakes/ of the repository, and outside it, and its command names such a file by a path without a variable or a substitution."}}'
+}
+
+lead_command_unread() {
+  local label=$1 command=$2 why=$3
+  run_lead_command "$command"
+  check "the lead's command, $label: exits 0" equals "$code" 0
+  check "the lead's command, $label: refused, saying why it cannot read it" json_equals "$out" "$(unread_command "$why")"
+}
+
+lead_command_unread "a quote that is not closed" "echo 'it is > README.md" "a ' is not closed"
+lead_command_unread "a case statement in a substitution" \
+  "echo \"\$(case x in x) rm README.md;; esac)\"" "it holds a case statement inside parentheses"
+lead_command_unread "a here-document without its end line" "cat > tmp/notes.md <<'EOF'
+notes" "no line EOF ends its here-document"
+lead_command_unread "a quote inside a zsh expansion" "print -l \${(f)\"\$(ls)\"}" "a \${...} holds a quote"
 
 lead_command_runs "the full check" "devenv test"
 lead_command_runs "the full check, its output kept under tmp/" "devenv test > tmp/check.log 2>&1"
@@ -365,7 +396,17 @@ lead_command_runs "writes under tmp/" \
   "echo notes > tmp/notes.md && cp src/orders/pricing.py tmp/pricing.py && sed -i 's/a/b/' tmp/pricing.py && mv tmp/pricing.py tmp/prices.py && rm tmp/prices.py"
 lead_command_runs "an append under docs/plans/" "printf '%s\n' '- step' >> docs/plans/2026-10-31-bulk-discount.md"
 lead_command_runs "a write outside any repository" "echo x > $outside_any_repository/notes.md 2>/dev/null"
-lead_command_runs "a command that does not parse as bash" "print -l \${(f)\"\$(ls)\"}"
+lead_command_runs "reads that send errors to /dev/null" \
+  "cd /recorded/orders 2>/dev/null; pwd; find / -maxdepth 6 -iname \"orders\" -type d 2>/dev/null"
+lead_command_runs "a read with a substitution" \
+  "gh pr view feat/bulk-discount 2>&1 || gh pr view \$(git rev-parse --abbrev-ref HEAD) 2>&1"
+lead_command_runs "a proposal of build:live-mutation's tool" "python3 $root/skills/live-mutation/scripts/live-mutation.py propose bulk-discount \\
+  --derive 'cloudctl plan production --out \"\$LIVE_MUTATION_INPUTS/plan\"' \\
+  --check 'replicas=cloudctl get production service.orders | python3 -c \"import json,sys;sys.exit(json.load(sys.stdin)[\\\"replicas\\\"]!=3)\"' \\
+  2>&1"
+lead_command_runs "a comment that names a write" "git status --short # then > README.md"
+lead_command_runs "comparisons in arithmetic" "echo \$(( 3 > 2 )); (( 10 >= 9 )) && echo bulk"
+lead_command_runs "a search for the name of a writer" "grep -rn 'sed -i' src | head -5"
 
 run_lead_command "sed -i 's/>/>=/' src/orders/pricing.py" '{"agent_id": "a1", "agent_type": "build:implementer"}'
 check "a delegate's sed -i of src/orders/pricing.py: exits 0" equals "$code" 0

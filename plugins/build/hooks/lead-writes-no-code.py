@@ -26,6 +26,8 @@ DELEGATE = (
 
 BY_ITS_PATH = "and its command names such a file by a path without a variable or a substitution"
 
+REWRITE = "Write the command without that construct."
+
 REDIRECTIONS_THAT_WRITE = frozenset({">", ">>", ">|", "&>", "&>>", "<>"})
 
 DUPLICATES_OR_CLOSES_IN_BASH_AND_ZSH = re.compile(r"[0-9]+|-")
@@ -181,15 +183,11 @@ def written(part: shell_syntax.Call | shell_syntax.Redirection) -> list[shell_sy
 
 
 def shell_write(command: str, cwd: pathlib.Path) -> str | None:
-    """Return the text of the first part of a command that writes a file of the change, or None.
+    """Return the text of the first part of a command that may write a file of the change, or None.
 
-    Exits 1 when shfmt, which parses it, is not on the PATH.
+    Raises shell_syntax.UnreadableError for a command that the hook cannot read.
     """
-    try:
-        parts = shell_syntax.calls_and_redirections(command)
-    except shell_syntax.ParserMissingError:
-        sys.exit("lead-writes-no-code.py: shfmt, which parses a command of the lead, is not on the PATH")
-    for part in parts or []:
+    for part in shell_syntax.may_run(command):
         for target in written(part):
             if target.value is None or in_the_change((cwd / target.value).resolve()):
                 return part.text
@@ -220,7 +218,11 @@ def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
         command = tool_input.get("command")
         if not isinstance(command, str):
             sys.exit("lead-writes-no-code.py: its tool_input names no command")
-        part = shell_write(command, cwd)
+        try:
+            part = shell_write(command, cwd)
+        except shell_syntax.UnreadableError as error:
+            unread = f"and the hook cannot read this command, since {error}, so it cannot tell what it writes"
+            return refusal(f"In /build:auto the lead writes no code, {unread}. {REWRITE} {DELEGATE}, {BY_ITS_PATH}.")
         if part is None:
             return None
         return refusal(
