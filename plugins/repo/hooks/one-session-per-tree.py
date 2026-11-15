@@ -14,13 +14,11 @@ import sys
 import time
 import typing as t
 
-PARENT_PID = 4
+STAT_PPID = 4
 
-START_TIME = 22
+STAT_STARTTIME = 22
 
 ENTRYPOINTS = {"cli": "a CLI session", "sdk-cli": "a headless session", "claude-vscode": "a VS Code session"}
-
-WORKTREE_OPTIONS = frozenset({b"-w", b"--worktree"})
 
 UNREGISTERED = (
     "Claude Code's registry of live sessions, {registry}, holds no entry for this session,"
@@ -84,7 +82,7 @@ def session(path: pathlib.Path) -> Session | None:
         return None
     entry = t.cast("dict[str, object]", value)
     pid, process_start, since = entry.get("pid"), str(entry.get("procStart")), entry.get("statusUpdatedAt")
-    if not isinstance(pid, int) or not process_start.isdigit() or stat_field(pid, START_TIME) != int(process_start):
+    if not isinstance(pid, int) or not process_start.isdigit() or stat_field(pid, STAT_STARTTIME) != int(process_start):
         return None
     return Session(
         pid=pid,
@@ -99,15 +97,15 @@ def session(path: pathlib.Path) -> Session | None:
 def own_session() -> Session | None:
     """Return the session that runs this hook: the nearest ancestor process with a live entry in the registry.
 
-    Claude Code starts a hook as its own child, and the nearest ancestor and not the parent keeps it so when a shell
-    that runs the hook's command stays in between.
+    Claude Code starts a hook as a child of the session's process. The search goes on past the parent because a shell
+    that runs the hook's command may stay in between, as Ubuntu's dash does for a lone command.
     """
     pid = os.getppid()
     while pid > 1:
         found = session(registry() / f"{pid}.json")
         if found is not None and found.pid == pid:
             return found
-        pid = stat_field(pid, PARENT_PID) or 0
+        pid = stat_field(pid, STAT_PPID) or 0
     return None
 
 
@@ -142,22 +140,6 @@ def checked_out(tree: pathlib.Path) -> str | None:
     if head.startswith("ref: "):
         return f"the branch {head.removeprefix('ref: ').removeprefix('refs/heads/')}"
     return f"the detached HEAD at {head[:12]}"
-
-
-def in_worktree_session(own: Session, tree: pathlib.Path) -> bool:
-    """Return whether the session is in a worktree session, where EnterWorktree creates no new worktree.
-
-    It is when it started with --worktree, and when it moved into its tree after it started, by EnterWorktree or by a
-    resume into a worktree, both of which leave CLAUDE_PROJECT_DIR at the tree it started in.
-    """
-    try:
-        arguments = pathlib.Path(f"/proc/{own.pid}/cmdline").read_bytes().split(b"\0")
-    except OSError:
-        arguments = []
-    if any(argument in WORKTREE_OPTIONS or argument.startswith(b"--worktree=") for argument in arguments):
-        return True
-    project = os.environ.get("CLAUDE_PROJECT_DIR")
-    return project is not None and tree_of(pathlib.Path(project).resolve()) != tree
 
 
 def duration(seconds: float) -> str:
@@ -206,19 +188,19 @@ def denial(own: Session, tree: pathlib.Path, now: float) -> str | None:
         " so the repo plugin refuses this session's edits and shell commands here"
         f" until this session has moved to a worktree of its own or {ended}."
         " Every other tool still works, Read, EnterWorktree and ExitWorktree among them."
-        " The operator's standing instructions ask for this move, so it counts as the operator asking for a worktree."
+        " The standing instructions at the start of this session ask for this move,"
+        " so it counts as the operator asking for each call below."
     )
     stay = (
         f"- If your task continues the work on {head or 'what is checked out there'},"
         f" ask the operator to close the {sessions} {names}, and carry on here once {it} ended."
     )
-    if in_worktree_session(own, tree):
-        move = (
-            f"- Otherwise, ask the operator to close the {sessions} {names} or to start this session again"
-            " in another worktree, because this session cannot leave its worktree by itself."
-        )
-    else:
-        move = "- Otherwise, call EnterWorktree with a name of your own for your task, and carry on there."
+    move = (
+        "- Otherwise, call EnterWorktree without a name, so that it creates a new worktree under a name it generates,"
+        " since a name in use would enter that worktree, and carry on there."
+        " If EnterWorktree answers that this session is in a worktree session already,"
+        f" call ExitWorktree with action keep first, never remove, because the other {sessions} {work} in it."
+    )
     return f"{who}\n{why}\n{stay}\n{move}"
 
 
