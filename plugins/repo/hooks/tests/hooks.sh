@@ -495,6 +495,34 @@ printf '{\n  # lyngon.structure.enable = true;\n  lyngon.structure.enable = fals
 run_session_start "$dir"
 check "the option commented out or false: nothing" equals "$code|$out|$err" "0||"
 
+clone=$(upstream_clone 0)
+exclude=$clone/.git/info/exclude
+before=$(<"$exclude")
+run_session_start "$clone"
+run_session_start "$clone"
+mkdir -p "$clone/.claude/worktrees/session"
+touch "$clone/.claude/worktrees/session/file"
+check "no rule ignores .claude/worktrees/: session start adds one to info/exclude after what was there, once over two starts, and says nothing" \
+  equals "$code|$out|$err|$(<"$exclude")|$(git -C "$clone" status --porcelain)" "0|||$before"$'\n'"/.claude/worktrees/|"
+
+clone=$(upstream_clone 0)
+rm "$clone/.git/info/exclude"
+run_session_start "$clone"
+check "no info/exclude: session start writes it with the rule alone" equals "$(<"$clone/.git/info/exclude")" "/.claude/worktrees/"
+
+clone=$(upstream_clone 0)
+echo ".claude/" >"$clone/.gitignore"
+before=$(<"$clone/.git/info/exclude")
+run_session_start "$clone"
+check "a .gitignore rule covers .claude/worktrees/ already: info/exclude stays as it was" \
+  equals "$(<"$clone/.git/info/exclude")" "$before"
+
+clone=$(upstream_clone 0)
+git -C "$clone" worktree add -q -b worktree-linked "$clone/.claude/worktrees/linked"
+run_session_start "$clone/.claude/worktrees/linked"
+check "session start in a linked worktree: the rule goes into the info/exclude that the clone's worktrees share" \
+  equals "$(tail -n 1 "$clone/.git/info/exclude")|$(git -C "$clone" status --porcelain)" "/.claude/worktrees/|"
+
 if ((failures > 0)); then
   echo "repo hooks tests: $failures failure(s)" >&2
   exit 1

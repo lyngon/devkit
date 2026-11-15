@@ -11,6 +11,25 @@ if grep -qsE '^[[:space:]]*lyngon\.structure\.enable[[:space:]]*=[[:space:]]*tru
   cat "$here/session-start-structure.txt"
 fi
 
+# Claude Code creates a session's worktrees under .claude/worktrees/, which git
+# lists as untracked in a clone whose .gitignore predates the line repo:init
+# writes for them. The rule goes into info/exclude, which git does not track
+# and every worktree of the clone shares. Two sessions that start at once each
+# replace the whole file, so it holds the rule once.
+ignore_session_worktrees() {
+  local top exclude content="" temporary code=0
+  top=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || return 0
+  git -C "$top" check-ignore -q --no-index .claude/worktrees/ || code=$?
+  ((code == 1)) || return 0
+  exclude=$(git -C "$top" rev-parse --path-format=absolute --git-path info/exclude)
+  mkdir -p "${exclude%/*}"
+  [[ ! -f $exclude ]] || content=$(<"$exclude")
+  temporary=$(mktemp "$exclude.XXXXXX")
+  printf '%s\n' ${content:+"$content"} /.claude/worktrees/ >"$temporary"
+  mv "$temporary" "$exclude"
+}
+ignore_session_worktrees
+
 commits() {
   if (($1 == 1)); then echo "1 commit"; else echo "$1 commits"; fi
 }
