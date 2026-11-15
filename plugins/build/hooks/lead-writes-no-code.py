@@ -28,7 +28,7 @@ BY_ITS_PATH = "and its command names such a file by a path without a variable or
 
 REDIRECTIONS_THAT_WRITE = frozenset({">", ">>", ">|", "&>", "&>>", "<>"})
 
-FILE_DESCRIPTOR = re.compile(r"[0-9]+-?|-")
+DUPLICATES_OR_CLOSES_IN_BASH_AND_ZSH = re.compile(r"[0-9]+|-")
 
 RUNNERS = frozenset({"find", "xargs"})
 
@@ -155,12 +155,9 @@ def json_object(value: object, name: str) -> dict[str, object]:
 
 
 def writes_its_file(redirection: shell_syntax.Redirection) -> bool:
-    """Return whether a redirection writes the file that its word names.
-
-    bash and zsh read >&word as &>word unless word numbers a file descriptor or is -.
-    """
+    """Return whether a redirection writes the file that its word names."""
     if redirection.operator == ">&":
-        return FILE_DESCRIPTOR.fullmatch(redirection.target.value or "") is None
+        return DUPLICATES_OR_CLOSES_IN_BASH_AND_ZSH.fullmatch(redirection.target.value or "") is None
     return redirection.operator in REDIRECTIONS_THAT_WRITE
 
 
