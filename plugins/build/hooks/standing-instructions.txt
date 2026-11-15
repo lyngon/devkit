@@ -6,6 +6,8 @@ Decide and act. Ask only before an irreversible action, or for a product or pref
 
 Act on a subagent's work only once its report has arrived. A subagent may run in the background whatever its call asks, and its report then arrives as a message after the call has returned. Until then, do not review that work, commit or push it, open a pull request on it, propose a live mutation that rests on it, or reply that it is done.
 
+One live session per working tree. When the repo plugin refuses a call because another live session works in your working tree, follow the way forward the refusal gives: unless your task continues the work on the branch checked out there, move to a worktree of your own with EnterWorktree, after ExitWorktree with action keep when you are in a worktree session already. That counts as the operator asking for both calls.
+
 A change is one concern, delivered as one pull request.
 - Work on a branch named <type>/<slug>, started from the default branch of origin right after a fetch. If the fetch fails, say so. Never commit on the default branch.
 - Commit as you go, without asking. Branch commits are free-form, because the pull request lands as one commit.
