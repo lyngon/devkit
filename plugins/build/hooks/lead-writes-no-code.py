@@ -10,6 +10,7 @@ import collections.abc as ct
 import dataclasses
 import json
 import pathlib
+import re
 import sys
 import typing as t
 
@@ -28,6 +29,8 @@ BY_ITS_PATH = "and its command names such a file by a path without a variable or
 REWRITE = "Write the command without that construct."
 
 REDIRECTIONS_THAT_WRITE = frozenset({">", ">>", ">|", "&>", "&>>", "<>"})
+
+DUPLICATES_OR_CLOSES_IN_BASH_AND_ZSH = re.compile(r"[0-9]+|-")
 
 RUNNERS = frozenset({"find", "xargs"})
 
@@ -153,10 +156,17 @@ def json_object(value: object, name: str) -> dict[str, object]:
     return t.cast("dict[str, object]", value)
 
 
+def writes_its_file(redirection: shell_syntax.Redirection) -> bool:
+    """Return whether a redirection writes the file that its word names."""
+    if redirection.operator == ">&":
+        return DUPLICATES_OR_CLOSES_IN_BASH_AND_ZSH.fullmatch(redirection.target.value or "") is None
+    return redirection.operator in REDIRECTIONS_THAT_WRITE
+
+
 def written(part: shell_syntax.Call | shell_syntax.Redirection) -> list[shell_syntax.Word]:
     """Return the words that name the files a part of a command writes, UNSEEN for files it cannot name."""
     if isinstance(part, shell_syntax.Redirection):
-        return [part.target] if part.operator in REDIRECTIONS_THAT_WRITE else []
+        return [part.target] if writes_its_file(part) else []
     if not part.words:
         return []
     name, *arguments = part.words

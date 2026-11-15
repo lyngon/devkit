@@ -44,7 +44,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   Claude Code registers a hook of a skill's frontmatter when the skill starts, and runs it in that session's lead from then on, after a compaction too, and never in a subagent, whose hook input holds an `agent_id` (measured on Claude Code 2.1.283 and 2.1.299).
   A session without the mode never runs the hook, and neither does a session resumed in a new process, which drops it.
   The hook reads a shell command in Python alone, with `may_run` of `hooks/shell_syntax.py`, so it decides the same whatever the PATH that Claude Code gives its hooks holds.
-  It refuses the writes it can name before the command runs: a redirection with `>`, `>>`, `>|`, `&>`, `&>>` or `<>`, and the files that `sed -i`, `perl -i`, `tee`, `cp`, `mv`, `rm` and `touch` write, also inside a substitution, backquotes or a loop and when `find` or `xargs` runs one of them.
+  It refuses the writes it can name before the command runs: a redirection with `>`, `>>`, `>|`, `&>`, `&>>` or `<>`, or with `>&` to any word but a number or `-`, as in `>&run.log`, and the files that `sed -i`, `perl -i`, `tee`, `cp`, `mv`, `rm` and `touch` write, also inside a substitution, backquotes or a loop and when `find` or `xargs` runs one of them.
   It takes every word of a simple command for a possible command name, so it also refuses such a writer after a keyword or behind a program that starts it, as in `sudo rm`, and `git rm` and `git mv` of a file of the change.
   A path that holds a variable or a substitution, and the files that `find` or `xargs` hands over, count as files of the change.
   A relative path resolves from the session's working directory, and a `cd` in the command does not move it.

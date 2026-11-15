@@ -324,6 +324,10 @@ def round_price(price):
 EOF" "> src/orders/rounding.py"
 lead_command_refused "an append to README.md" \
   "echo '- 10 percent off from 10 items on' >> README.md" ">> README.md"
+lead_command_refused ">& to a file, which writes both outputs there" \
+  "python3 -m unittest discover tests >&tests/run.log" ">&tests/run.log"
+lead_command_refused ">&3-, which bash reads as a move of descriptor 3 and zsh as a write of the file 3-" \
+  "exec 3>&1; python3 -m unittest discover tests >&3-" ">&3-"
 lead_command_refused "tee -a" \
   "printf 'x\n' | tee -a src/orders/pricing.py" "tee -a src/orders/pricing.py"
 lead_command_refused "cp from tmp/ into the change" \
@@ -373,6 +377,7 @@ lead_command_unread "a quote inside a zsh expansion" "print -l \${(f)\"\$(ls)\"}
 
 lead_command_runs "the full check" "devenv test"
 lead_command_runs "the full check, its output kept under tmp/" "devenv test > tmp/check.log 2>&1"
+lead_command_runs ">& to a file descriptor" "echo 'no remote' >&2; exec 3>&1; ls 1>&3 3>&-"
 lead_command_runs "git status and diff" "git status --short && git diff main...HEAD -- src"
 lead_command_runs "git commit" "git commit -m 'fix(orders): give a line of 10 items the bulk discount'"
 lead_command_runs "git restore of a file of the change" "git restore src/orders/pricing.py"
