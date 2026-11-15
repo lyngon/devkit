@@ -19,7 +19,6 @@ tools=$tmp/tools
 mkdir -p "$tools"
 ln -s "$(command -v bash)" "$tools/bash"
 
-# The PATH of a session that has python3 and no other tool of the script tools, such as shfmt.
 python_only=$tmp/python-only
 mkdir -p "$python_only"
 ln -s "$(PATH=$script_tools command -v python3)" "$python_only/python3"

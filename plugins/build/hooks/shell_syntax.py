@@ -1,9 +1,5 @@
 # ruff: noqa: INP001  # a module beside the hook scripts that import it, which no package holds
-"""The simple commands and redirections of a shell command.
-
-calls_and_redirections reads them exactly, from the syntax tree that shfmt writes. may_run reads them in Python alone,
-to a list that holds them all and more.
-"""
+"""The simple commands and redirections of a shell command."""
 
 import collections
 import collections.abc as ct
@@ -272,18 +268,19 @@ class CommandReader:
         return None if self.source.startswith(("<(", ">("), index) else OPERATORS.match(self.source, index)
 
     def command_word(self, index: int, words: list[tuple[Word, int, int]], closer: str | None) -> int:
-        """Read a word of a simple command into its words, and return the index after it.
-
-        A number right before < or > names the file descriptor of a redirection, and is no word of the command.
-        """
+        """Read a word of a simple command into its words, and return the index after it."""
         begin = index
         word, quoted, index = self.word(index)
-        if not quoted and (word.value or "").isdigit() and self.source.startswith(("<", ">"), index):
+        if self.names_a_file_descriptor(word, index, quoted=quoted):
             return index
         if closer == ")" and word.value == "case":
             raise UnreadableError("it holds a case statement inside parentheses")
         words.append((word, begin, index))
         return index
+
+    def names_a_file_descriptor(self, word: Word, end: int, *, quoted: bool) -> bool:
+        """Return whether a word ending at end numbers the file descriptor of the redirection right after it, as 2>x."""
+        return not quoted and (word.value or "").isdigit() and self.source.startswith(("<", ">"), end)
 
     def redirection(self, operator: re.Match[str]) -> int:
         """Keep the redirection of an operator and the word after it, and the here-document it opens.
@@ -324,10 +321,7 @@ class CommandReader:
         words.clear()
 
     def here_document_bodies(self, index: int) -> int:
-        """Read the bodies of the here-documents that start at index, and return the index after them.
-
-        A body holds no command, but the expansions of a body whose end word has no quote run.
-        """
+        """Read the bodies of the here-documents that start at index, and return the index after them."""
         source = self.source
         while self.here_documents:
             document = self.here_documents.pop(0)

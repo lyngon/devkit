@@ -4,8 +4,6 @@
 Of a shell command it refuses the writes that it can name before the command runs: a redirection
 that writes, and a command of WRITERS, also when find or xargs runs it. Any other program may
 write files as well, an interpreter or git among them, and the hook cannot tell that from a read.
-It reads the command in Python alone, so it decides the same whatever the PATH holds, and it
-refuses a command that it cannot read.
 """
 
 import collections.abc as ct
