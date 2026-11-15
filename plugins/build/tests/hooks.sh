@@ -325,6 +325,8 @@ lead_command_refused "an append to README.md" \
   "echo '- 10 percent off from 10 items on' >> README.md" ">> README.md"
 lead_command_refused ">& to a file, which writes both outputs there" \
   "python3 -m unittest discover tests >&tests/run.log" ">&tests/run.log"
+lead_command_refused ">&3-, which bash reads as a move of descriptor 3 and zsh as a write of the file 3-" \
+  "exec 3>&1; python3 -m unittest discover tests >&3-" ">&3-"
 lead_command_refused "tee -a" \
   "printf 'x\n' | tee -a src/orders/pricing.py" "tee -a src/orders/pricing.py"
 lead_command_refused "cp from tmp/ into the change" \
