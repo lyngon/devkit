@@ -411,6 +411,16 @@ plugins/build/evals/next-change-branches-from-origin-after-a-merge at head: ever
 ```
 
 Such a run scores like any other, whether its sandbox failed to start or each of its commands ran and failed, and only those words tell the two apart.
+A run in which a shell command failed and named a read-only file system is counted as a read-only shell beside the score, also when its other commands worked.
+Below the table, the first line that named it is listed with the number of runs that said it:
+
+```text
+plugins/writing/evals/probe-writes at head: a shell command could not write in 1 of 1 runs, the first saying: zsh:1: read-only file system: /tmp/ce-161/compare-evals-f6taeiiu/tmp/claude-eval-kyOj9C/tmp/claude-1000/cwd-976d
+```
+
+The sandbox of that run lay under `/tmp`, where no shell command can write on Claude Code 2.1.321 and later (see below).
+After each command the shell tool writes a file `cwd-<hex>` into the temp directory of the run, so where that directory is read-only every call fails, and the run is counted as a failed shell too.
+A write to a path that the sandbox protects on purpose, such as `.git/hooks`, fails with the same words, so read the path in the line before saying that the shell of a run could not write.
 `compare-evals` reads the calls from the trace of each run, which the harness keeps only under `--keep-temp`.
 A trace that it cannot read counts as a run that wrote no result.
 A line that the harness printed about a case as a whole is counted as a note beside the score, and listed in the harness's words.
@@ -491,9 +501,26 @@ Sandbox is required but failed to initialize: Failed to create bridge sockets af
 ```
 
 Where an external proxy port is configured, the sandbox also binds `claude-socks-<16 hex digits>.sock`, a byte longer (read from its binary, not measured).
-So start a run with `TMPDIR` unset, which puts its sandbox under `/tmp`, or set to a directory of at most 50 bytes.
+So the `TMPDIR` of a run must be a directory of at most 50 bytes.
 A session's scratchpad is longer than that.
-`compare-evals` gives each run a `TMPDIR` 27 bytes past its own, so it refuses a `TMPDIR` longer than 23 bytes before its first run, and says how to start it instead.
+
+On Claude Code 2.1.321 and later a run that grants Bash cannot write through the shell when its sandbox lies under `/tmp`, `/var/tmp`, `/dev/shm` or `/run/shm` (issue #161).
+The harness denies a shell command every write under those four directories, and on Linux the denial covers the home and the temp directory of the run itself, which the sandbox binds read-only over their writable binds.
+Reads work, so the run scores like any other, and every write fails:
+
+```text
+fatal: Unable to create '/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock': Read-only file system
+```
+
+Under `XDG_RUNTIME_DIR` the shell of a run writes in its working directory, its home and its temp directory (measured on Claude Code 2.1.321 and 2.1.325).
+So start a run that grants Bash with `TMPDIR` set to `XDG_RUNTIME_DIR`:
+
+```sh
+TMPDIR="$XDG_RUNTIME_DIR" claude plugin eval . --no-publish --ablation none --trust-plugin --scaffold --allow-tools Write Bash "Read(/$(pwd -P)/shared/**)"
+```
+
+`compare-evals` puts its clone and the sandbox of each run in a directory of its own in `XDG_RUNTIME_DIR`, whatever `TMPDIR` says, and refuses to start where `XDG_RUNTIME_DIR` names no directory.
+It gives each run a `TMPDIR` 27 bytes past `XDG_RUNTIME_DIR`, so it refuses an `XDG_RUNTIME_DIR` longer than 23 bytes before its first run, and says how to start it instead.
 
 A command of a run finds the tools of the shell that started the run, so start a run from the devenv shell.
 The hook of the `devkit` plugin hands that PATH over when the session starts.
