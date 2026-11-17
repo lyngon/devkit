@@ -8,7 +8,7 @@
 # Nothing in the run reaches a network. The upstream acme/brevity is a git
 # repository at tmp/forge/acme-brevity, made from upstream/, where git ignores
 # it; under .git/ the harness would refuse a command that copies from it.
-# The case puts .git/forge/bin in front of the PATH, which also holds a devenv
+# The case puts .git/forge/bin in front of the PATH, which holds a devenv
 # whose `devenv test` runs scripts/check.sh, and a claude and a compare-evals
 # that refuse to start an eval run.
 set -euo pipefail
