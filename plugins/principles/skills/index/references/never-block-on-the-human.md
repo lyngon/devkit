@@ -17,4 +17,5 @@ Since code changes are reversible and reviewable, a wrong decision usually costs
 - Ask only before an irreversible action, or for a product or preference call that no run can settle.
 - Product direction is the owner's.
 - Always ask before a merge, a push to the default branch, a force-push, a tag, a release, a publish, deleting data or a remote branch, any message outside GitHub, and spending money.
+- Deleting a local branch whose changes the default branch of origin already holds is not deleting data: do it without asking.
 - A live mutation, such as an apply or a deploy, waits where `build:live-mutation` says: on a protected target always, elsewhere when it cannot be undone.

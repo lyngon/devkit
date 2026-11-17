@@ -408,18 +408,48 @@ upstream_clone() {
 }
 
 squash_merge_on_origin() {
-  local clone=$1 branch=$2 github
+  local clone=$1 branch=$2 github said
   github=$(mktemp -d "$tmp/github.XXXXXX")
   git clone -q "$(git -C "$clone" remote get-url origin)" "$github"
-  git -C "$github" merge -q --squash "origin/$branch" >/dev/null
+  said=$(git -C "$github" -c user.name=test -c user.email=test@example.com merge -q --squash "origin/$branch" 2>&1) || {
+    echo "$said" >&2
+    return 1
+  }
   commit "$github" "squash of $branch"
   git -C "$github" push -q origin main
   git -C "$github" push -q origin --delete "$branch"
 }
 
+commit_file() {
+  printf '%s\n' "$3" >"$1/$2"
+  git -C "$1" add "$2"
+  commit "$1" "$4"
+}
+
+pushed_branch() {
+  git -C "$1" switch -q -c "$2" main
+  commit_file "$1" "$3" "$4" "$2"
+  git -C "$1" push -q -u origin "$2"
+  git -C "$1" switch -q main
+}
+
+change_on_origin() {
+  local github
+  github=$(mktemp -d "$tmp/github.XXXXXX")
+  git clone -q "$(git -C "$1" remote get-url origin)" "$github"
+  commit_file "$github" "$2" "$3" "$4"
+  git -C "$github" push -q origin main
+}
+
+branches() {
+  git -C "$1" for-each-ref --format='%(refname:lstrip=2)' refs/heads | tr '\n' ' '
+}
+
 run_session_start() {
+  local dir=$1
+  shift
   code=0
-  out=$(env -i PATH="$tools" HOME="$tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 CLAUDE_PROJECT_DIR="$1" "$hooks/session-start.sh" 2>"$tmp/stderr") || code=$?
+  out=$(env -i PATH="$tools" HOME="$tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 CLAUDE_PROJECT_DIR="$dir" "$@" "$hooks/session-start.sh" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
 }
 
@@ -522,6 +552,61 @@ git -C "$clone" worktree add -q -b worktree-linked "$clone/.claude/worktrees/lin
 run_session_start "$clone/.claude/worktrees/linked"
 check "session start in a linked worktree: the rule goes into the info/exclude that the clone's worktrees share" \
   equals "$(tail -n 1 "$clone/.git/info/exclude")|$(git -C "$clone" status --porcelain)" "/.claude/worktrees/|"
+
+clone=$(upstream_clone 0)
+commit_file "$clone" shared.txt one "the shared line"
+git -C "$clone" push -q origin main
+git -C "$clone" branch worktree-agent-left-behind
+pushed_branch "$clone" feat/squashed squashed.txt squashed
+pushed_branch "$clone" feat/conflicting shared.txt two
+pushed_branch "$clone" feat/unmerged unmerged.txt unmerged
+pushed_branch "$clone" feat/in-locked-worktree in-locked-worktree.txt in-locked-worktree
+pushed_branch "$clone" feat/rebasing rebasing.txt rebasing
+for branch in feat/squashed feat/conflicting feat/in-locked-worktree feat/rebasing; do
+  squash_merge_on_origin "$clone" "$branch"
+done
+change_on_origin "$clone" shared.txt three "a later change to the shared line"
+git -C "$clone" worktree add -q --lock "$clone/.claude/worktrees/locked" feat/in-locked-worktree
+git -C "$clone" worktree add -q "$clone/.claude/worktrees/rebasing" feat/rebasing
+git -C "$clone/.claude/worktrees/rebasing" rebase -q --exec false HEAD~1 >/dev/null 2>&1 || true
+squashed=$(git -C "$clone" rev-parse feat/squashed)
+conflicting=$(git -C "$clone" rev-parse feat/conflicting)
+left_behind=$(git -C "$clone" rev-parse worktree-agent-left-behind)
+run_session_start "$clone"
+check "branches whose squash merge is on origin/main, the merge of one conflicting with a later change, and a branch left at an older commit of it are deleted and named with their tips; work, a locked worktree's branch and a branch a worktree is rebasing stay" \
+  equals "$code|$out|$err|$(branches "$clone")|$(git -C "$clone/.claude/worktrees/rebasing" rev-parse --abbrev-ref HEAD)" \
+  "0|The current branch is 5 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/conflicting at $conflicting, feat/squashed at $squashed, worktree-agent-left-behind at $left_behind. To restore one, run \`git branch <branch> <commit>\`.||feat/in-locked-worktree feat/rebasing feat/unmerged main |HEAD"
+
+slow_tools=$tmp/slow-tools
+mkdir -p "$slow_tools"
+cp -P "$tools"/* "$slow_tools/"
+rm "$slow_tools/git"
+cat >"$slow_tools/git" <<EOF
+#!$(command -v bash)
+[[ " \$* " != *" cherry "* ]] || exec sleep 60
+exec $(command -v git) "\$@"
+EOF
+chmod +x "$slow_tools/git"
+clone=$(upstream_clone 0)
+commit_file "$clone" shared.txt one "the shared line"
+git -C "$clone" push -q origin main
+pushed_branch "$clone" feat/001-merges-cleanly clean.txt clean
+pushed_branch "$clone" feat/002-needs-the-patch-id shared.txt two
+pushed_branch "$clone" feat/003-after-the-budget late.txt late
+for branch in feat/001-merges-cleanly feat/002-needs-the-patch-id feat/003-after-the-budget; do
+  squash_merge_on_origin "$clone" "$branch"
+done
+change_on_origin "$clone" shared.txt three "a later change to the shared line"
+git -C "$clone" fetch -q --prune
+git -C "$clone" merge -q --ff-only origin/main
+git -C "$clone" config remote.origin.uploadpack 'sleep 60; git-upload-pack'
+clean=$(git -C "$clone" rev-parse feat/001-merges-cleanly)
+start=$EPOCHREALTIME
+run_session_start "$clone" PATH="$slow_tools"
+seconds=$(((${EPOCHREALTIME/./} - ${start/./}) / 1000000))
+check "origin never answers and a branch test never ends: that branch stays, so do the branches after it, and the hook ends in $seconds s, before its timeout of $timeout s" \
+  equals "$code|$out|$(branches "$clone")|$((seconds < timeout))" \
+  "0|Could not fetch origin at session start (no answer within 10 s), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again. If that fetch fails too, say so."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/001-merges-cleanly at $clean. To restore one, run \`git branch <branch> <commit>\`.|feat/002-needs-the-patch-id feat/003-after-the-budget main |1"
 
 if ((failures > 0)); then
   echo "repo hooks tests: $failures failure(s)" >&2

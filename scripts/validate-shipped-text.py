@@ -73,6 +73,7 @@ NAMESPACES: ct.Mapping[str, str] = {
     "github": "a flake reference, github:owner/repository",
     "in": "a GitHub search qualifier, in:title",
     "node": "a Node builtin module, node:fs",
+    "refname": "a field of git for-each-ref, %(refname:lstrip=2)",
     "upstream": "a field of git for-each-ref, %(upstream:short)",
 }
 

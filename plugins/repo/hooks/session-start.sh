@@ -64,3 +64,52 @@ if [[ -n "$default" && "$local_default" != "$branch" ]] &&
   behind=$(git -C "$root" rev-list --count "refs/heads/$local_default..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
   echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."
 fi
+
+sweep_seconds=5
+
+in_time() {
+  local seconds=$((deadline - SECONDS))
+  ((seconds > 0)) && timeout "$seconds" git -C "$root" "$@"
+}
+
+merging_changes_nothing() {
+  local tree
+  tree=$(in_time merge-tree --write-tree --no-messages "$default_ref" "$1" 2>/dev/null) && [[ $tree == "$default_tree" ]]
+}
+
+squash_that_is_the_same_object_every_run() {
+  GIT_AUTHOR_NAME=squash GIT_AUTHOR_EMAIL=squash GIT_AUTHOR_DATE='@0 +0000' \
+    GIT_COMMITTER_NAME=squash GIT_COMMITTER_EMAIL=squash GIT_COMMITTER_DATE='@0 +0000' \
+    in_time commit-tree -p "$1" -m squash "$2^{tree}"
+}
+
+default_branch_has_the_patch_id_of_its_squash() {
+  local base squash
+  base=$(in_time merge-base "$default_ref" "$1") &&
+    squash=$(squash_that_is_the_same_object_every_run "$base" "$1") &&
+    [[ $(in_time cherry "$default_ref" "$squash") == "- $squash" ]]
+}
+
+delete_unless_a_worktree_uses_it() {
+  git -C "$root" branch --quiet --delete --force "$1" 2>/dev/null
+}
+
+delete_branches_with_nothing_new() {
+  local branch tip deleted=() list
+  while read -r branch tip; do
+    ((SECONDS < deadline)) || break
+    [[ $branch != "$local_default" ]] || continue
+    merging_changes_nothing "$tip" || default_branch_has_the_patch_id_of_its_squash "$tip" || continue
+    delete_unless_a_worktree_uses_it "$branch" || continue
+    deleted+=("$branch at $tip")
+  done < <(git -C "$root" for-each-ref --format='%(refname:lstrip=2) %(objectname)' refs/heads)
+  ((${#deleted[@]} > 0)) || return 0
+  list=$(printf ', %s' "${deleted[@]}")
+  echo "Deleted the local branches whose changes are already in $default: ${list#, }. To restore one, run \`git branch <branch> <commit>\`."
+}
+
+default_ref=refs/remotes/$default
+if [[ -n "$default" ]] && default_tree=$(git -C "$root" rev-parse --verify --quiet "$default_ref^{tree}"); then
+  deadline=$((SECONDS + sweep_seconds))
+  delete_branches_with_nothing_new
+fi
