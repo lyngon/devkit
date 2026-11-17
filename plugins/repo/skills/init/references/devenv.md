@@ -496,7 +496,7 @@ Never add a service because the stack suggests one.
 
 - **direnv**: `direnv allow` once; `.envrc` does the rest.
 - **devenv hook**: `eval "$(devenv hook zsh)"` (or `bash`, `fish`; `devenv hook fish | source`) in the user's shell configuration, then `devenv allow` in the repository. Subshell-based, deactivates on leaving the directory.
-- **VS Code**: the `mkhl.direnv` extension loads `.envrc` into the extension host, so integrated terminals see the devenv tools and the Claude Code extension starts with them. The `repo` plugin's hooks export the current environment into each agent session and refresh it when the devenv files change. Without `mkhl.direnv`, Claude Code hooks and MCP servers still load (they are files), but the tools an MCP server calls are missing from PATH.
+- **VS Code**: open the repository with `code .` from a shell where the devenv environment is loaded. A window starts with the environment of the `code` command that opened it, and the Claude Code extension reads the PATH of every session in the window once, from that environment, so the tools of the plugins' hooks come from there. The `mkhl.direnv` extension brings later changes of `.envrc` into the editor and its terminals, but not into that PATH. The `repo` plugin's hooks export the current environment into each agent's Bash commands and refresh it when the devenv files change, and say at session start when the hooks' PATH lacks `python3` or `shfmt`.
 - **AI agents**: devenv detects Claude Code and switches to quiet, non-TUI output on its own. Set `DEVENV_NO_AI_AGENT=1` to disable that.
 
 ## Verification
