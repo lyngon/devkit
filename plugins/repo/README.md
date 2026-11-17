@@ -24,10 +24,7 @@ Repository setup and package creation for Lyngon.
   Otherwise it prints nothing.
   The default branch of `origin` holds a branch's changes when merging the branch into it changes nothing, as for a branch left at an older commit of it.
   It also holds them when `git cherry` finds a squash of the branch among its commits since the merge base, as when a later change conflicts with the branch's squash merge.
-  The local default branch always stays, and git refuses to delete a branch that a worktree has checked out (a locked or missing worktree included), rebases or bisects.
-  The branch `worktree-<name>` also stays while a worktree named `<name>` exists, since Claude Code started that worktree on it.
-  Without it, `ExitWorktree` cannot count the worktree session's commits, and asks the operator before it removes the worktree (read from the code of Claude Code 2.1.322).
-  The tests stop 5 s after the fetch, and a branch left untested waits for a later session start.
+  The local default branch always stays, and git refuses to delete a branch that a worktree has checked out (a locked or missing worktree included), rebases or bisects.  The tests stop 5 s after the fetch, and a branch left untested waits for a later session start.
   Measured on 2026-11-17 with git 2.54, `git cherry` took 80 to 150 ms for a squash 150 to 300 commits behind in the devkit and another small clone, and 39 s for one 1,390 commits behind in nixpkgs.
   Its timeout in `hooks/hooks.json` is 20 s, so a remote that never answers and a test that never ends still leave the hook time to say so.
   When no ignore rule covers `.claude/worktrees/`, where Claude Code creates a session's worktrees, it adds `/.claude/worktrees/` to `info/exclude` in the clone's common git directory, which every worktree of the clone reads and git does not track.

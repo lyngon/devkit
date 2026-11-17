@@ -65,9 +65,6 @@ if [[ -n "$default" && "$local_default" != "$branch" ]] &&
   echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."
 fi
 
-# fetch_seconds and sweep_seconds together stay under the hook's timeout in
-# hooks.json, however long the branch tests take. A branch left untested waits
-# for a later session start.
 sweep_seconds=5
 
 in_time() {
@@ -75,37 +72,35 @@ in_time() {
   ((seconds > 0)) && timeout "$seconds" git -C "$root" "$@"
 }
 
-# A branch has nothing new when merging it changes nothing, or when a squash of
-# it has the patch-id of a commit of the default branch since the merge base,
-# as when a later change on the default branch conflicts with its squash merge.
-has_nothing_new() {
-  local tip=$1 tree base squash
-  if tree=$(in_time merge-tree --write-tree --no-messages "$default_ref" "$tip" 2>/dev/null) && [[ $tree == "$default_tree" ]]; then
-    return 0
-  fi
-  base=$(in_time merge-base "$default_ref" "$tip") || return 1
-  # Fixed fields make the squash one object, however many sessions start.
-  squash=$(GIT_AUTHOR_NAME=squash GIT_AUTHOR_EMAIL=squash GIT_AUTHOR_DATE='@0 +0000' \
+merging_changes_nothing() {
+  local tree
+  tree=$(in_time merge-tree --write-tree --no-messages "$default_ref" "$1" 2>/dev/null) && [[ $tree == "$default_tree" ]]
+}
+
+squash_that_is_the_same_object_every_run() {
+  GIT_AUTHOR_NAME=squash GIT_AUTHOR_EMAIL=squash GIT_AUTHOR_DATE='@0 +0000' \
     GIT_COMMITTER_NAME=squash GIT_COMMITTER_EMAIL=squash GIT_COMMITTER_DATE='@0 +0000' \
-    in_time commit-tree -p "$base" -m squash "$tip^{tree}") || return 1
-  [[ $(in_time cherry "$default_ref" "$squash") == "- $squash" ]]
+    in_time commit-tree -p "$1" -m squash "$2^{tree}"
+}
+
+default_branch_has_the_patch_id_of_its_squash() {
+  local base squash
+  base=$(in_time merge-base "$default_ref" "$1") &&
+    squash=$(squash_that_is_the_same_object_every_run "$base" "$1") &&
+    [[ $(in_time cherry "$default_ref" "$squash") == "- $squash" ]]
+}
+
+delete_unless_a_worktree_uses_it() {
+  git -C "$root" branch --quiet --delete --force "$1" 2>/dev/null
 }
 
 delete_branches_with_nothing_new() {
-  local branch tip deleted=() list key path
-  local -A worktree_names=()
-  while read -r key path; do
-    [[ $key != worktree ]] || worktree_names[${path##*/}]=1
-  done < <(git -C "$root" worktree list --porcelain)
+  local branch tip deleted=() list
   while read -r branch tip; do
     ((SECONDS < deadline)) || break
     [[ $branch != "$local_default" ]] || continue
-    # Claude Code starts the worktree <name> on the branch worktree-<name>, and
-    # without that branch its ExitWorktree cannot count the session's commits.
-    [[ $branch != worktree-* || -z ${worktree_names[${branch#worktree-}]-} ]] || continue
-    has_nothing_new "$tip" || continue
-    # git refuses a branch that any worktree has checked out, rebases or bisects.
-    git -C "$root" branch --quiet --delete --force "$branch" 2>/dev/null || continue
+    merging_changes_nothing "$tip" || default_branch_has_the_patch_id_of_its_squash "$tip" || continue
+    delete_unless_a_worktree_uses_it "$branch" || continue
     deleted+=("$branch at $tip")
   done < <(git -C "$root" for-each-ref --format='%(refname:lstrip=2) %(objectname)' refs/heads)
   ((${#deleted[@]} > 0)) || return 0
