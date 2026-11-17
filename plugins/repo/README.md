@@ -19,9 +19,15 @@ Repository setup and package creation for Lyngon.
   - The current branch is behind its upstream. The line gives the count and `git pull --ff-only`.
   - The upstream of the current branch no longer exists, as after GitHub merges its pull request and deletes the branch.
   - The local default branch is behind the default branch of `origin`, and another branch is current. The line says to start every new branch from the default branch of `origin`.
+  - It deleted local branches whose changes the default branch of `origin` already holds. The line names each branch with its last commit, which `git branch <branch> <commit>` restores.
 
   Otherwise it prints nothing.
-  Its timeout in `hooks/hooks.json` is 20 s, so a remote that never answers still leaves the hook time to say so.
+  The default branch of `origin` holds a branch's changes when merging the branch into it changes nothing, as for a branch left at an older commit of it.
+  It also holds them when `git cherry` finds a squash of the branch among its commits since the merge base, as when a later change conflicts with the branch's squash merge.
+  The local default branch always stays, and git refuses to delete a branch that a worktree has checked out (a locked or missing worktree included), rebases or bisects.
+  The tests stop 5 s after the fetch, and a branch left untested waits for a later session start.
+  Measured on 2026-11-17 with git 2.54, `git cherry` took 80 to 150 ms for a squash 150 to 300 commits behind in the devkit and another small clone, and 39 s for one 1,390 commits behind in nixpkgs.
+  Its timeout in `hooks/hooks.json` is 20 s, so a remote that never answers and a test that never ends still leave the hook time to say so.
   When no ignore rule covers `.claude/worktrees/`, where Claude Code creates a session's worktrees, it adds `/.claude/worktrees/` to `info/exclude` in the clone's common git directory, which every worktree of the clone reads and git does not track.
   A repository set up before `/repo:init` wrote that line into `.gitignore` has no such rule.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
