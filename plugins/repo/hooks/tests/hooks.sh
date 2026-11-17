@@ -553,6 +553,7 @@ check "session start in a linked worktree: the rule goes into the info/exclude t
 clone=$(upstream_clone 0)
 commit_file "$clone" shared.txt one "the shared line"
 git -C "$clone" push -q origin main
+git -C "$clone" branch worktree-agent-left-behind
 pushed_branch "$clone" feat/squashed squashed.txt squashed
 pushed_branch "$clone" feat/conflicting shared.txt two
 pushed_branch "$clone" feat/unmerged unmerged.txt unmerged
@@ -567,10 +568,11 @@ git -C "$clone" worktree add -q "$clone/.claude/worktrees/rebasing" feat/rebasin
 git -C "$clone/.claude/worktrees/rebasing" rebase -q --exec false HEAD~1 >/dev/null 2>&1 || true
 squashed=$(git -C "$clone" rev-parse feat/squashed)
 conflicting=$(git -C "$clone" rev-parse feat/conflicting)
+left_behind=$(git -C "$clone" rev-parse worktree-agent-left-behind)
 run_session_start "$clone"
-check "branches whose squash merge is on origin/main, the merge of one conflicting with a later change, are deleted and named with their tips; work, a locked worktree's branch and a branch a worktree is rebasing stay" \
+check "branches whose squash merge is on origin/main, the merge of one conflicting with a later change, and a branch left at an older commit of it are deleted and named with their tips; work, a locked worktree's branch and a branch a worktree is rebasing stay" \
   equals "$code|$out|$err|$(branches "$clone")|$(git -C "$clone/.claude/worktrees/rebasing" rev-parse --abbrev-ref HEAD)" \
-  "0|The current branch is 5 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/conflicting at $conflicting, feat/squashed at $squashed. To restore one, run \`git branch <branch> <commit>\`.||feat/in-locked-worktree feat/rebasing feat/unmerged main |HEAD"
+  "0|The current branch is 5 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/conflicting at $conflicting, feat/squashed at $squashed, worktree-agent-left-behind at $left_behind. To restore one, run \`git branch <branch> <commit>\`.||feat/in-locked-worktree feat/rebasing feat/unmerged main |HEAD"
 
 slow_tools=$tmp/slow-tools
 mkdir -p "$slow_tools"
@@ -594,13 +596,14 @@ done
 change_on_origin "$clone" shared.txt three "a later change to the shared line"
 git -C "$clone" fetch -q --prune
 git -C "$clone" merge -q --ff-only origin/main
+git -C "$clone" config remote.origin.uploadpack 'sleep 60; git-upload-pack'
 clean=$(git -C "$clone" rev-parse feat/001-merges-cleanly)
 start=$EPOCHREALTIME
 run_session_start "$clone" PATH="$slow_tools"
 seconds=$(((${EPOCHREALTIME/./} - ${start/./}) / 1000000))
-check "a branch test that never ends: the branch stays, so do the branches after it, and the hook ends in $seconds s, before its timeout of $timeout s" \
+check "origin never answers and a branch test never ends: that branch stays, so do the branches after it, and the hook ends in $seconds s, before its timeout of $timeout s" \
   equals "$code|$out|$(branches "$clone")|$((seconds < timeout))" \
-  "0|Deleted the local branches whose changes are already in origin/main: feat/001-merges-cleanly at $clean. To restore one, run \`git branch <branch> <commit>\`.|feat/002-needs-the-patch-id feat/003-after-the-budget main |1"
+  "0|Could not fetch origin at session start (no answer within 10 s), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again. If that fetch fails too, say so."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/001-merges-cleanly at $clean. To restore one, run \`git branch <branch> <commit>\`.|feat/002-needs-the-patch-id feat/003-after-the-budget main |1"
 
 if ((failures > 0)); then
   echo "repo hooks tests: $failures failure(s)" >&2

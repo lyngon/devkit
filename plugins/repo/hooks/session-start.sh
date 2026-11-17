@@ -64,3 +64,50 @@ if [[ -n "$default" && "$local_default" != "$branch" ]] &&
   behind=$(git -C "$root" rev-list --count "refs/heads/$local_default..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
   echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."
 fi
+
+# fetch_seconds and sweep_seconds together stay under the hook's timeout in
+# hooks.json, however long the branch tests take. A branch left untested waits
+# for a later session start.
+sweep_seconds=5
+
+in_time() {
+  local seconds=$((deadline - SECONDS))
+  ((seconds > 0)) && timeout "$seconds" git -C "$root" "$@"
+}
+
+# A branch has nothing new when merging it changes nothing, or when a squash of
+# it has the patch-id of a commit of the default branch since the merge base,
+# as when a later change on the default branch conflicts with its squash merge.
+has_nothing_new() {
+  local tip=$1 tree base squash
+  if tree=$(in_time merge-tree --write-tree --no-messages "$default_ref" "$tip" 2>/dev/null) && [[ $tree == "$default_tree" ]]; then
+    return 0
+  fi
+  base=$(in_time merge-base "$default_ref" "$tip") || return 1
+  # Fixed fields make the squash one object, however many sessions start.
+  squash=$(GIT_AUTHOR_NAME=squash GIT_AUTHOR_EMAIL=squash GIT_AUTHOR_DATE='@0 +0000' \
+    GIT_COMMITTER_NAME=squash GIT_COMMITTER_EMAIL=squash GIT_COMMITTER_DATE='@0 +0000' \
+    in_time commit-tree -p "$base" -m squash "$tip^{tree}") || return 1
+  [[ $(in_time cherry "$default_ref" "$squash") == "- $squash" ]]
+}
+
+delete_branches_with_nothing_new() {
+  local branch tip deleted=() list
+  while read -r branch tip; do
+    ((SECONDS < deadline)) || break
+    [[ $branch != "$local_default" ]] || continue
+    has_nothing_new "$tip" || continue
+    # git refuses a branch that any worktree has checked out, rebases or bisects.
+    git -C "$root" branch --quiet --delete --force "$branch" 2>/dev/null || continue
+    deleted+=("$branch at $tip")
+  done < <(git -C "$root" for-each-ref --format='%(refname:lstrip=2) %(objectname)' refs/heads)
+  ((${#deleted[@]} > 0)) || return 0
+  list=$(printf ', %s' "${deleted[@]}")
+  echo "Deleted the local branches whose changes are already in $default: ${list#, }. To restore one, run \`git branch <branch> <commit>\`."
+}
+
+default_ref=refs/remotes/$default
+if [[ -n "$default" ]] && default_tree=$(git -C "$root" rev-parse --verify --quiet "$default_ref^{tree}"); then
+  deadline=$((SECONDS + sweep_seconds))
+  delete_branches_with_nothing_new
+fi
