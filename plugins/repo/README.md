@@ -19,9 +19,15 @@ Repository setup and package creation for Lyngon.
   - The current branch is behind its upstream. The line gives the count and `git pull --ff-only`.
   - The upstream of the current branch no longer exists, as after GitHub merges its pull request and deletes the branch.
   - The local default branch is behind the default branch of `origin`, and another branch is current. The line says to start every new branch from the default branch of `origin`.
+  - It deleted local branches whose changes the default branch of `origin` already holds. The line names each branch with its last commit, which `git branch <branch> <commit>` restores.
 
   Otherwise it prints nothing.
-  Its timeout in `hooks/hooks.json` is 20 s, so a remote that never answers still leaves the hook time to say so.
+  The default branch of `origin` holds a branch's changes when merging the branch into it changes nothing, as for a branch left at an older commit of it.
+  It also holds them when `git cherry` finds a squash of the branch among its commits since the merge base, as when a later change conflicts with the branch's squash merge.
+  The local default branch always stays, and git refuses to delete a branch that a worktree has checked out (a locked or missing worktree included), rebases or bisects.
+  The tests stop 5 s after the fetch, and a branch left untested waits for a later session start.
+  Measured on 2026-11-17 with git 2.54, `git cherry` took 80 to 150 ms for a squash 150 to 300 commits behind in the devkit and another small clone, and 39 s for one 1,390 commits behind in nixpkgs.
+  Its timeout in `hooks/hooks.json` is 20 s, so a remote that never answers and a test that never ends still leave the hook time to say so.
   When no ignore rule covers `.claude/worktrees/`, where Claude Code creates a session's worktrees, it adds `/.claude/worktrees/` to `info/exclude` in the clone's common git directory, which every worktree of the clone reads and git does not track.
   A repository set up before `/repo:init` wrote that line into `.gitignore` has no such rule.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
@@ -57,6 +63,53 @@ Verified on 2026-11-14 in headless sessions (`claude -p`) in a scratch repositor
 - In 36 such sessions, with 214 hook events, no `CwdChanged` or `FileChanged` hook fired, and the `SessionStart` hook of every resumed worktree session ran in the launch tree.
 - When a worktree's `devenv.nix` broke between two turns, the next command there ran without the devenv environment, and the model quoted the hook's message word for word.
 - The hook took 16 to 32 ms before a command when nothing had changed, 172 to 303 ms to evaluate a tree devenv had evaluated before, and 4.5 to 6.3 s for the first evaluation of a new worktree, the slowest while a `devenv test` ran beside it.
+
+### The tools of the plugins' hooks
+
+Claude Code runs every hook with the environment of the session's process, and the environment that `hooks/export-environment.sh` gives Bash commands never reaches a hook.
+A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3` and `shfmt` by default, so it needs them on the PATH the session started with.
+Without `python3`, no Python hook of any plugin runs, and Claude Code treats each failed start as a non-blocking error and runs the call as if the hook did not exist.
+The `build` plugin's guard on OpenTofu commands that write is one of those hooks.
+
+`hooks/script-tools-on-hook-path.sh` is a `SessionStart` hook that runs on bash alone, so it still runs when those tools are missing.
+In a session that starts in a working tree with both `.git` and a `devenv.nix`, at or above the launch directory, it looks for `python3` and `shfmt` on its PATH.
+When one is missing, it names it, says what goes without it and how to start a session that has it.
+It gives that text twice:
+
+- As `systemMessage`, which the CLI shows to the operator at start, after `SessionStart:startup says:`.
+- As context for the model, with the instruction to tell the operator in its first reply.
+  As far as its code shows, the VS Code extension shows no hook's message.
+  Its stream carries the message only inside the `hook_response` event, and the code of its panel (2.1.325) never names that event.
+
+Verified on 2026-11-17 in headless sessions on haiku, in a scratch repository with a `devenv.nix`, on Claude Code 2.1.322 (the Nix package) and 2.1.325 (the binary of the VS Code extension).
+With a PATH of the system and user profiles, which hold neither tool, the model quoted the hook's first sentence word for word.
+Run from the devkit's devenv shell, the hook printed nothing and the model answered that no such sentence was in its context.
+An interactive session on 2.1.325 under `script` showed the message on screen.
+
+#### How a session gets the devenv environment
+
+From the CLI, a session has the environment of the shell it starts from, so start it in `devenv shell` or in a shell where direnv has loaded `.envrc`.
+
+In VS Code, open the repository from such a shell:
+
+```sh
+code .
+```
+
+Measured on 2026-11-17 on Linux, with VS Code 1.139.1, the Claude Code extension 2.1.322 and 2.1.325, and `mkhl.direnv` 0.17.0:
+
+- The extension starts each session with the environment of the window's extension host, except the PATH.
+  It takes the PATH from the output of `$SHELL -lic 'printenv PATH'`, which it runs when the first Claude Code panel of the extension host opens, and keeps it until the extension host stops (`resolveShellPath` and `shellPathCache` in its `extension.js`).
+- A window's extension host starts with the environment of the `code` command that opened the window.
+  Every VS Code session read in lyngon.com and in the devkit on 2026-11-15 and 2026-11-17 was in a window opened that way, and had `python3` and `shfmt` on its PATH.
+- `mkhl.direnv` writes the result of `direnv export json` into the extension host's environment about a second after the extension host starts, and again when a file it watches changes, but only when the result differs from what is there.
+  A session that starts after that gets the new variables, but still the PATH the extension read before.
+  So after a change to the devenv files, the sessions of a window keep the earlier devenv PATH until the window is opened again from an updated shell.
+
+One case comes from the code and was not observed.
+In a window opened outside such a shell, as from a desktop launcher, a session gets the devenv PATH only when `mkhl.direnv` writes it before the first panel reads the PATH.
+A session that loses that race has no `python3`, and this hook says so.
+A new session in the same window does not help, since it gets the PATH the extension read already.
 
 ### One live session per working tree
 

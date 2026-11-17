@@ -151,5 +151,5 @@ Print the next steps for the owner:
 
 1. `devenv allow` in the repository.
 2. Either `direnv allow`, or `eval "$(devenv hook zsh)"` (or the equivalent for their shell) in their shell configuration.
-3. Install the VS Code extension `mkhl.direnv` so the Claude Code extension sees the devenv tools.
+3. Open the repository in VS Code with `code .` from a shell where the devenv environment is loaded, so the Claude Code extension starts with the devenv tools, and install the VS Code extension `mkhl.direnv`.
 4. In fresh mode without a remote: add one and push `main`.
