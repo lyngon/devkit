@@ -375,12 +375,12 @@ gone() {
 
 # compare <repo> <argument>...: run the program in the repository, capturing
 # stdout, stderr and the exit code in out, err and code, the stub's calls in
-# calls and the builds that its runs found in builds. Temporary files go to an
-# empty directory of their own, which the program finds where temporary says.
+# calls and the builds that its runs found in builds.
 # The shell that starts the program is the devenv shell of the repository,
 # unless shell_root names another directory, and its Nix store is $tmp/store.
-temporary=$tmp/scratch
+runtime=$tmp/scratch
 ln -s scratch "$tmp/link"
+mkdir "$tmp/tmpdir"
 shell_root=""
 compare() {
   local repo=$1 root
@@ -390,8 +390,8 @@ compare() {
   : >"$FAKE_CLAUDE_LOG"
   : >"$FAKE_BUILD_LOG"
   code=0
-  out=$(cd "$repo" && TMPDIR=$temporary NIX_STORE=$tmp/store DEVENV_ROOT=$root PATH=$path "$program" "$@" \
-    2>"$tmp/stderr" </dev/null) || code=$?
+  out=$(cd "$repo" && XDG_RUNTIME_DIR=$runtime TMPDIR=$tmp/tmpdir NIX_STORE=$tmp/store DEVENV_ROOT=$root PATH=$path \
+    "$program" "$@" 2>"$tmp/stderr" </dev/null) || code=$?
   err=$(<"$tmp/stderr")
   calls=$(<"$FAKE_CLAUDE_LOG")
   builds=$(<"$FAKE_BUILD_LOG")
@@ -475,13 +475,14 @@ nothing_left() {
   local repo=$1
   equals "$(git -C "$repo" worktree list | wc -l)" 1 &&
     equals "$(git -C "$repo" status --porcelain)" "" &&
-    equals "$(ls -A "$tmp/scratch")" ""
+    equals "$(ls -A "$tmp/scratch")" "" &&
+    equals "$(ls -A "$tmp/tmpdir")" ""
 }
 
 # --- Cases -------------------------------------------------------------------
 
 directory_of() {
-  local length=$1 path=$tmp/tmpdir-
+  local length=$1 path=$tmp/runtime-
   while ((${#path} < length)); do
     path+=x
   done
@@ -490,21 +491,39 @@ directory_of() {
 }
 
 repo=$(two_commits)
-temporary=$(directory_of 23)
 compare "$repo" main~1
-check "a TMPDIR of 23 bytes: the comparison runs at both commits" equals "$code $(wc -l <<<"$calls")" "0 2"
-remove "$temporary"
-temporary=$(directory_of 24)
+check "XDG_RUNTIME_DIR: the sandbox of each run lies in it, not in TMPDIR" contains "$err" "  kept temp: $runtime/compare-evals-"
+runtime=""
 compare "$repo" main~1
-check "a TMPDIR of 24 bytes: exits 1" equals "$code" 1
-check "a TMPDIR of 24 bytes: starts no run" equals "$calls" ""
-check "a TMPDIR of 24 bytes: names the length, the limit and a shorter TMPDIR" contains "$err" \
-  "bytes long, and the sandbox of a run has room for its sockets only under a TMPDIR of at most 50 bytes, without which every shell command of the run fails. Start compare-evals with a TMPDIR of at most 23 bytes, such as TMPDIR=/tmp."
-check "a TMPDIR of 24 bytes: names the TMPDIR that a run would get" contains "$err" "each run would get the TMPDIR $temporary/compare-evals-"
-check "a TMPDIR of 24 bytes: says how long it is" contains "$err" ", 51 bytes long,"
-check "a TMPDIR of 24 bytes: leaves nothing behind" equals "$(ls -A "$temporary")" ""
-remove "$temporary"
-temporary=$tmp/scratch
+check "no XDG_RUNTIME_DIR: exits 1" equals "$code" 1
+check "no XDG_RUNTIME_DIR: starts no run" equals "$calls" ""
+check "no XDG_RUNTIME_DIR: says why it needs one and what to set" equals "$err" \
+  "compare-evals: the sandbox of each run goes in XDG_RUNTIME_DIR, which is not set, since on Claude Code 2.1.321 and later no shell command of a run whose sandbox lies under /tmp, /var/tmp, /dev/shm or /run/shm can write (issue 161). Start compare-evals with XDG_RUNTIME_DIR set to a directory of yours outside those, such as /run/user/$(id -u)."
+runtime=scratch
+compare "$repo" main~1
+check "a relative XDG_RUNTIME_DIR: exits 1 before any run" equals "$code $calls" "1 "
+check "a relative XDG_RUNTIME_DIR: says what it is" contains "$err" \
+  "compare-evals: the sandbox of each run goes in XDG_RUNTIME_DIR, which is scratch, no absolute path of a directory, since"
+runtime=$tmp/gone
+compare "$repo" main~1
+check "an XDG_RUNTIME_DIR that does not exist: exits 1 before any run" equals "$code $calls" "1 "
+check "an XDG_RUNTIME_DIR that does not exist: says what it is" contains "$err" \
+  "which is $tmp/gone, no absolute path of a directory, since"
+runtime=$(directory_of 23)
+compare "$repo" main~1
+check "an XDG_RUNTIME_DIR of 23 bytes: the comparison runs at both commits" equals "$code $(wc -l <<<"$calls")" "0 2"
+remove "$runtime"
+runtime=$(directory_of 24)
+compare "$repo" main~1
+check "an XDG_RUNTIME_DIR of 24 bytes: exits 1" equals "$code" 1
+check "an XDG_RUNTIME_DIR of 24 bytes: starts no run" equals "$calls" ""
+check "an XDG_RUNTIME_DIR of 24 bytes: names the length, the limit and a shorter XDG_RUNTIME_DIR" contains "$err" \
+  "bytes long, and the sandbox of a run has room for its sockets only under a TMPDIR of at most 50 bytes, without which every shell command of the run fails. Start compare-evals with an XDG_RUNTIME_DIR of at most 23 bytes, such as /run/user/$(id -u)."
+check "an XDG_RUNTIME_DIR of 24 bytes: names the TMPDIR that a run would get" contains "$err" "each run would get the TMPDIR $runtime/compare-evals-"
+check "an XDG_RUNTIME_DIR of 24 bytes: says how long it is" contains "$err" ", 51 bytes long,"
+check "an XDG_RUNTIME_DIR of 24 bytes: leaves nothing behind" equals "$(ls -A "$runtime")" ""
+remove "$runtime"
+runtime=$tmp/scratch
 
 repo=$(two_commits)
 compare "$repo" main~1
@@ -583,9 +602,9 @@ granted tools: Write, Bash(git:*), Edit
 # a path without symbolic links, so the grant names the checkout by that path.
 # Here the temporary directory of the base checkout is reached through a link.
 repo=$(two_commits)
-temporary=$tmp/link
+runtime=$tmp/link
 compare "$repo" main~1
-temporary=$tmp/scratch
+runtime=$tmp/scratch
 call=$(calls_outside "$repo")
 check "a checkout behind a symbolic link: its run is granted its shared documents by the path without the link" \
   equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
@@ -847,6 +866,29 @@ plugins/one/evals/needs-bash at head: every shell command failed in 2 of 3 runs,
 "
 check "failed shells: every sandbox is removed" nothing_left "$repo"
 
+read_only=$'Exit code 128\nfatal: Unable to create \'/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock\': Read-only file system'
+zsh_read_only=$'Exit code 1\nzsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af'
+reads_work=$(trace_of "$(shell_call 1 false "On branch main")" "$(shell_call 2 true "$read_only")")
+quotes_it=$(trace_of "$(shell_call 1 false "and every write ends in Read-only file system")")
+repo=$(two_commits)
+result 0 \
+  "$(case_of plugins/one/evals/needs-bash 0 3 | with_traces "$reads_work" "$reads_work" "$quotes_it")" \
+  "$(case_of plugins/one/evals/red-then-green 1 1 | with_traces "$(trace_of "$(shell_call 1 true "$zsh_read_only")")")" \
+  >"$repo/canned-result.json"
+commit "$repo" "chore: runs whose shell commands read and could not write"
+compare "$repo" base
+check "read-only shells: exits 0" equals "$code" 0
+check "read-only shells: a run whose reads worked and whose writes failed is counted beside the score" contains "$out" \
+  "plugins/one/evals/needs-bash       -              0.00 (3 runs, 2 read-only shells)"
+check "read-only shells: the first line that said so follows the table, once" contains "$out" "
+plugins/one/evals/needs-bash at head: a shell command could not write in 2 of 3 runs, the first saying: fatal: Unable to create '/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock': Read-only file system
+"
+check "read-only shells: a run in which every shell command failed so counts as both" contains "$out" \
+  "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run, 1 failed shell, 1 read-only shell)"
+check "read-only shells: the words of zsh count too" contains "$out" \
+  "plugins/one/evals/red-then-green at head: a shell command could not write in 1 of 1 runs, the first saying: zsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af"
+check "read-only shells: every sandbox is removed" nothing_left "$repo"
+
 repo=$(two_commits)
 gone=$tmp/gone/out/trace.jsonl
 result 0 "$(case_of plugins/one/evals/red-then-green 1 1 | jq --arg trace "$gone" '.arms.with[0].tracePath = $trace')" \
@@ -971,9 +1013,9 @@ git -C "$repo" tag fails-to-load
 result 0.5 "$(case_of plugins/two/evals/new-at-head 1 1)" "$(case_of plugins/one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
 rm "$repo/canned-progress" "$repo/canned-exit"
 commit "$repo" "chore: the file loads again"
-temporary=$tmp/link
+runtime=$tmp/link
 compare "$repo" fails-to-load
-temporary=$tmp/scratch
+runtime=$tmp/scratch
 check "a case file that failed to load at the base commit: is named from the root, also behind a symbolic link" contains "$out" "
 
 the eval run at base failed to load plugins/one/evals/red-then-green: $invalid_yaml
@@ -1175,7 +1217,7 @@ repo=$(two_commits)
 : >"$repo/canned-hang"
 commit "$repo" "chore: a run that never ends"
 remove "$tmp/scratch" && mkdir "$tmp/scratch"
-(cd "$repo" && TMPDIR=$tmp/scratch DEVENV_ROOT=$repo PATH=$path \
+(cd "$repo" && XDG_RUNTIME_DIR=$tmp/scratch TMPDIR=$tmp/tmpdir DEVENV_ROOT=$repo PATH=$path \
   exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
 program_pid=$!
 for _ in {1..100}; do
@@ -1201,7 +1243,7 @@ commit "$repo" "chore: an environment whose task never ends"
 : >"$FAKE_CLAUDE_PID"
 : >"$FAKE_TASK_PID"
 remove "$tmp/scratch" && mkdir "$tmp/scratch"
-(cd "$repo" && TMPDIR=$tmp/scratch DEVENV_ROOT=$repo PATH=$path \
+(cd "$repo" && XDG_RUNTIME_DIR=$tmp/scratch TMPDIR=$tmp/tmpdir DEVENV_ROOT=$repo PATH=$path \
   exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
 program_pid=$!
 for _ in {1..100}; do

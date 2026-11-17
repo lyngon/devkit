@@ -10,25 +10,29 @@ starts with `devenv shell`, so it gets the commands of that commit's
 environment, and the run in the working tree keeps the devenv shell that
 this program starts from. A case that seeds its working directory does so
 with a script of its own, which runs as whoever runs this, at both commits.
-The clone and everything a run writes are removed again.
-Before the first run it refuses a TMPDIR under which the sandbox of a run
-would have no room for its sockets, which would fail every shell command.
+The clone and everything a run writes go in a directory of their own in
+XDG_RUNTIME_DIR, and are removed again. Before the first run it refuses an
+XDG_RUNTIME_DIR that names no directory, and one under which the sandbox of
+a run would have no room for its sockets, which would fail every shell
+command.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
 that itself: a tool that a suite lacked, an error that ended a run of a
-case, a run of a case in which every shell command failed, a case that the
-commit has and its suite gave no result for, a case file that a suite failed
-to load, a grant that the harness refused, and a suite that the harness cut
-short. When the run in the working tree gives no result after the run at the
-base commit gave one, it prints the table of the base run, which was paid
-for, and exits 1, since there is no comparison.
+case, a run of a case in which every shell command failed, one in which a
+shell command failed on a read-only file system, a case that the commit has
+and its suite gave no result for, a case file that a suite failed to load, a
+grant that the harness refused, and a suite that the harness cut short. When
+the run in the working tree gives no result after the run at the base commit
+gave one, it prints the table of the base run, which was paid for, and exits
+1, since there is no comparison.
 """
 
 import argparse
 import collections
 import collections.abc as ct
 import dataclasses
+import errno
 import json
 import os
 import pathlib
@@ -50,6 +54,8 @@ any other (measured on Claude Code 2.1.283). Where an external proxy port is
 configured, the sandbox also binds `claude-socks-<16 hex digits>.sock`, a byte
 longer, which leaves 50 (read from its binary, not measured).
 """
+
+READ_ONLY_FILE_SYSTEM: str = os.strerror(errno.EROFS).lower()
 
 
 class CompareError(Exception):
@@ -109,6 +115,7 @@ class Case:
     notes: tuple[str, ...]
     errors: tuple[str, ...]
     failed_shells: tuple[str, ...]
+    read_only_shells: tuple[str, ...]
     failed_graders: ct.Mapping[str, int]
 
 
@@ -342,6 +349,26 @@ class Launcher:
     environment: ct.Mapping[str, str]
 
 
+def runtime_directory(environment: ct.Mapping[str, str]) -> pathlib.Path:
+    """Return the directory that the scratch directory goes in, which XDG_RUNTIME_DIR names.
+
+    Raises CompareError when the variable names no directory by its absolute
+    path.
+    """
+    runtime = environment.get("XDG_RUNTIME_DIR", "")
+    path = pathlib.Path(runtime)
+    if path.is_absolute() and path.is_dir():
+        return path
+    said = f"is {runtime}, no absolute path of a directory" if runtime else "is not set"
+    words = (
+        f"the sandbox of each run goes in XDG_RUNTIME_DIR, which {said}, since on Claude Code 2.1.321 and later",
+        "no shell command of a run whose sandbox lies under /tmp, /var/tmp, /dev/shm or /run/shm can write",
+        "(issue 161). Start compare-evals with XDG_RUNTIME_DIR set to a directory of yours outside those,",
+        f"such as /run/user/{os.getuid()}.",
+    )
+    raise CompareError(" ".join(words))
+
+
 def run_temporary(scratch: pathlib.Path) -> pathlib.Path:
     """Return the TMPDIR of a run: a directory in the scratch directory, so that the run's sandbox goes with it."""
     return scratch / "tmp"
@@ -359,7 +386,8 @@ def check_room_for_sandbox(scratch: pathlib.Path) -> None:
         f"each run would get the TMPDIR {temporary}, {length} bytes long,",
         f"and the sandbox of a run has room for its sockets only under a TMPDIR of at most {LONGEST_RUN_TMPDIR} bytes,",
         "without which every shell command of the run fails.",
-        f"Start compare-evals with a TMPDIR of at most {longest_start} bytes, such as TMPDIR=/tmp.",
+        f"Start compare-evals with an XDG_RUNTIME_DIR of at most {longest_start} bytes,",
+        f"such as /run/user/{os.getuid()}.",
     )
     raise CompareError(" ".join(words))
 
@@ -522,23 +550,16 @@ def blocks_in(event: object) -> list[dict[str, object]]:
     return [t.cast("dict[str, object]", block) for block in t.cast("list[object]", content) if isinstance(block, dict)]
 
 
-def failed_shell(trace: str) -> str | None:
-    """Return the last line of what the first shell command of a run said, when every one of them failed.
+def shell_results(trace: str) -> list[dict[str, object]]:
+    """Return the result of each call of the shell tool in the trace of a run, in the order of the trace.
 
-    It is None for a run without a shell command, for one in which a shell
-    command worked, and for one without a trace, whose result names the
-    empty path: a run that never started, such as one whose seed script
-    failed (measured on Claude Code 2.1.283).
-
-    When the sandbox of a run cannot start, every call of the shell tool
-    fails before its command starts, and the run scores like any other
-    (measured on Claude Code 2.1.283, issue 130). A command that ran and
-    failed is marked `is_error` too, so only the words tell the two apart,
-    and the last line is the one that names the failure. Raises OSError for a
-    trace that cannot be read, and ValueError for a line that is no JSON.
+    A run without a trace has none. Its result names the empty path: a run
+    that never started, such as one whose seed script failed (measured on
+    Claude Code 2.1.283). Raises OSError for a trace that cannot be read, and
+    ValueError for a line that is no JSON.
     """
     if not trace:
-        return None
+        return []
     calls: set[object] = set()
     results: list[dict[str, object]] = []
     for line in pathlib.Path(trace).read_text(encoding="utf-8").splitlines():
@@ -547,11 +568,47 @@ def failed_shell(trace: str) -> str | None:
                 calls.add(block.get("id"))
             elif block.get("type") == "tool_result" and block.get("tool_use_id") in calls:
                 results.append(block)
+    return results
+
+
+def text_of(result: ct.Mapping[str, object]) -> str:
+    """Return what a call of the shell tool said, as text, which JSON spells for content of another shape."""
+    content = result.get("content")
+    return content if isinstance(content, str) else json.dumps(content)
+
+
+def failed_shell(results: ct.Sequence[ct.Mapping[str, object]]) -> str | None:
+    """Return the last line of what the first shell command of a run said, when every one of them failed.
+
+    It is None for a run without a shell command and for one in which a
+    shell command worked.
+
+    When the sandbox of a run cannot start, every call of the shell tool
+    fails before its command starts, and the run scores like any other
+    (measured on Claude Code 2.1.283, issue 130). A command that ran and
+    failed is marked `is_error` too, so only the words tell the two apart,
+    and the last line is the one that names the failure.
+    """
     if not results or any(result.get("is_error") is not True for result in results):
         return None
-    content = results[0].get("content")
-    text = content if isinstance(content, str) else json.dumps(content)
-    return text.strip().rsplit("\n", 1)[-1]
+    return text_of(results[0]).strip().rsplit("\n", 1)[-1]
+
+
+def read_only_shell(results: ct.Sequence[ct.Mapping[str, object]]) -> str | None:
+    """Return the first line in which a failed shell command of a run named a read-only file system, or None.
+
+    On Claude Code 2.1.321 and 2.1.325, a run whose sandbox lies under
+    `/tmp` gets its home and temp directory bound read-only, so its shell
+    commands read and every write fails, and the run scores like any other
+    (issue 161).
+    """
+    for result in results:
+        if result.get("is_error") is not True:
+            continue
+        for line in text_of(result).splitlines():
+            if READ_ONLY_FILE_SYSTEM in line.lower():
+                return line.strip()
+    return None
 
 
 def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said) -> Result:
@@ -581,14 +638,14 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
                 for grader in json_array(json_field(run, "graders"))
             ]
             failures = {name: verdicts.count((name, False)) for name, _ in verdicts}
+            shells = [shell_results(str(json_field(run, "tracePath"))) for run in runs]
             parsed[str(json_field(entry, "dir"))] = Case(
                 score=json_number(json_field(json_field(entry, "aggregates"), "score")),
                 runs=len(runs),
                 notes=notes_about(str(json_field(entry, "name")), progress),
                 errors=tuple(str(json_field(run, "error")) for run in runs if json_field(run, "error") is not None),
-                failed_shells=tuple(
-                    shell for run in runs if (shell := failed_shell(str(json_field(run, "tracePath")))) is not None
-                ),
+                failed_shells=tuple(line for results in shells if (line := failed_shell(results)) is not None),
+                read_only_shells=tuple(line for results in shells if (line := read_only_shell(results)) is not None),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
             )
         return Result(
@@ -609,14 +666,7 @@ def counted(number: int, noun: str) -> str:
 
 
 def cell(column: Column, name: str) -> str:
-    """Return one cell of the table.
-
-    It holds the score of the case with the number of runs behind it, how
-    many notes the harness left about the case, how many of the runs ended
-    in an error and in how many every shell command failed. A case that the
-    run gave no result for has the words `no result` when it is present at
-    the commit, and a dash when it is not.
-    """
+    """Return one cell of the table."""
     case = column.result.cases.get(name)
     if case is None:
         return "no result" if name in column.present else "-"
@@ -627,23 +677,23 @@ def cell(column: Column, name: str) -> str:
         counts.append(counted(len(case.errors), "error"))
     if case.failed_shells:
         counts.append(counted(len(case.failed_shells), "failed shell"))
+    if case.read_only_shells:
+        counts.append(counted(len(case.read_only_shells), "read-only shell"))
     return f"{case.score:.2f} ({', '.join(counts)})"
 
 
 def reasons(case: Case) -> list[str]:
-    """Return what stands behind a score.
-
-    That is what the harness said about the case, each distinct run error,
-    each distinct thing that the first command of a failed shell said with
-    the number of runs it said it in, and each grader that failed with the
-    number of runs it failed in.
-    """
+    """Return what stands behind a score."""
     return [
         *case.notes,
         *(f"run error: {error}" for error in dict.fromkeys(case.errors)),
         *(
             f"every shell command failed in {count} of {case.runs} runs, the first ending in: {shell}"
             for shell, count in collections.Counter(case.failed_shells).items()
+        ),
+        *(
+            f"a shell command could not write in {count} of {case.runs} runs, the first saying: {line}"
+            for line, count in collections.Counter(case.read_only_shells).items()
         ),
         *(f"grader {name} failed in {count} of {case.runs} runs" for name, count in case.failed_graders.items()),
     ]
@@ -743,7 +793,8 @@ def compare(options: Options) -> Comparison:
 
     Raises CompareError outside a git repository, outside the devenv shell of
     the working tree, for a base that names no commit, without `claude` or
-    `devenv` on the PATH, when the base run writes no readable result, which
+    `devenv` on the PATH, for an XDG_RUNTIME_DIR that names no directory or
+    is too long, when the base run writes no readable result, which
     spares the cost of the run in the working tree, and when no case ran at
     either commit, each with what the runs said about their suites. Raises it
     too when the head result names a case that the working tree does not
@@ -765,7 +816,7 @@ def compare(options: Options) -> Comparison:
         "",
     )
 
-    with tempfile.TemporaryDirectory(prefix="compare-evals-") as directory:
+    with tempfile.TemporaryDirectory(prefix="compare-evals-", dir=runtime_directory(os.environ)) as directory:
         scratch = pathlib.Path(directory)
         check_room_for_sandbox(scratch)
         checkout = clone_of(root, base_commit, scratch / "checkout")
