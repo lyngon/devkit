@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# SessionStart hook of the repo plugin. It says so when a tool that the
-# plugins' hooks run is missing from the PATH that Claude Code gives every
-# hook, and so it runs on bash alone.
 set -euo pipefail
 
 tree=$(cd "${CLAUDE_PROJECT_DIR:-$PWD}" && pwd -P)

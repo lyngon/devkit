@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Run the repo plugin's SessionStart hook on the PATH that a session gives its
-# hooks: with the baseline's lyngon.scriptTools, and with one or both of its
-# default tools missing. Run through `devenv test`.
 set -euo pipefail
 
 if (($# != 1)); then
@@ -15,7 +12,6 @@ tmp=$(cd "$tmp" && pwd -P)
 trap 'rm -rf "$tmp"' EXIT
 failures=0
 
-# Each directory holds bash, which the hook runs on, and the tools it names.
 tools_dir() {
   local dir=$tmp/tools-$1 tool
   shift
