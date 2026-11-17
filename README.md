@@ -231,8 +231,14 @@ devenv shell
 ```
 
 Automatic activation: either `direnv allow` (uses `.envrc`), or add `eval "$(devenv hook zsh)"` to your shell configuration and skip direnv.
-The VS Code extension `mkhl.direnv` loads the same environment into the editor, but the Claude Code extension keeps the environment it started with.
-The `repo` plugin's hooks export the current environment into each agent session and refresh it when the devenv files change.
+In VS Code, open the repository from a shell where that environment is loaded, because the Claude Code extension takes the PATH of its sessions, and so the tools of the plugins' hooks, from the environment the window started with:
+
+```sh
+code .
+```
+
+The VS Code extension `mkhl.direnv` brings later changes into the editor, but a Claude Code session keeps the PATH of its window.
+The `repo` plugin's hooks export the current environment into each agent's Bash commands and refresh it when the devenv files change.
 
 Run every check the way CI does:
 
