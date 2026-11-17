@@ -408,10 +408,13 @@ upstream_clone() {
 }
 
 squash_merge_on_origin() {
-  local clone=$1 branch=$2 github
+  local clone=$1 branch=$2 github said
   github=$(mktemp -d "$tmp/github.XXXXXX")
   git clone -q "$(git -C "$clone" remote get-url origin)" "$github"
-  git -C "$github" merge -q --squash "origin/$branch" >/dev/null 2>&1
+  said=$(git -C "$github" -c user.name=test -c user.email=test@example.com merge -q --squash "origin/$branch" 2>&1) || {
+    echo "$said" >&2
+    return 1
+  }
   commit "$github" "squash of $branch"
   git -C "$github" push -q origin main
   git -C "$github" push -q origin --delete "$branch"
