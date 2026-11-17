@@ -7,10 +7,7 @@
 #
 # Nothing in the run reaches a network. The upstream acme/brevity is a git
 # repository at tmp/forge/acme-brevity, made from upstream/, where git ignores
-# it; under .git/ the harness would refuse a command that copies from it. The
-# forge is the stand-in for GitHub of the cases of build:pull-request: the
-# remote is a bare repository under .git/forge, and their gh records the pull
-# requests there.
+# it; under .git/ the harness would refuse a command that copies from it.
 # The case puts .git/forge/bin in front of the PATH, which also holds a devenv
 # whose `devenv test` runs scripts/check.sh, and a claude and a compare-evals
 # that refuse to start an eval run.
