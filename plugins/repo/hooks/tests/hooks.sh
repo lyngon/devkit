@@ -565,14 +565,16 @@ done
 change_on_origin "$clone" shared.txt three "a later change to the shared line"
 git -C "$clone" worktree add -q --lock "$clone/.claude/worktrees/locked" feat/in-locked-worktree
 git -C "$clone" worktree add -q "$clone/.claude/worktrees/rebasing" feat/rebasing
+git -C "$clone" worktree add -q -b worktree-session "$clone/.claude/worktrees/session"
+git -C "$clone/.claude/worktrees/session" switch -q -c feat/session-work
 git -C "$clone/.claude/worktrees/rebasing" rebase -q --exec false HEAD~1 >/dev/null 2>&1 || true
 squashed=$(git -C "$clone" rev-parse feat/squashed)
 conflicting=$(git -C "$clone" rev-parse feat/conflicting)
 left_behind=$(git -C "$clone" rev-parse worktree-agent-left-behind)
 run_session_start "$clone"
-check "branches whose squash merge is on origin/main, the merge of one conflicting with a later change, and a branch left at an older commit of it are deleted and named with their tips; work, a locked worktree's branch and a branch a worktree is rebasing stay" \
+check "branches whose squash merge is on origin/main, the merge of one conflicting with a later change, and a branch left at an older commit of it are deleted and named with their tips; work, a locked worktree's branch, a branch a worktree is rebasing and the branch a live worktree session started on stay" \
   equals "$code|$out|$err|$(branches "$clone")|$(git -C "$clone/.claude/worktrees/rebasing" rev-parse --abbrev-ref HEAD)" \
-  "0|The current branch is 5 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/conflicting at $conflicting, feat/squashed at $squashed, worktree-agent-left-behind at $left_behind. To restore one, run \`git branch <branch> <commit>\`.||feat/in-locked-worktree feat/rebasing feat/unmerged main |HEAD"
+  "0|The current branch is 5 commits behind its upstream; fast-forward before starting: \`git pull --ff-only\`."$'\n'"Deleted the local branches whose changes are already in origin/main: feat/conflicting at $conflicting, feat/squashed at $squashed, worktree-agent-left-behind at $left_behind. To restore one, run \`git branch <branch> <commit>\`.||feat/in-locked-worktree feat/rebasing feat/session-work feat/unmerged main worktree-session |HEAD"
 
 slow_tools=$tmp/slow-tools
 mkdir -p "$slow_tools"

@@ -92,10 +92,17 @@ has_nothing_new() {
 }
 
 delete_branches_with_nothing_new() {
-  local branch tip deleted=() list
+  local branch tip deleted=() list key path
+  local -A worktree_names=()
+  while read -r key path; do
+    [[ $key != worktree ]] || worktree_names[${path##*/}]=1
+  done < <(git -C "$root" worktree list --porcelain)
   while read -r branch tip; do
     ((SECONDS < deadline)) || break
     [[ $branch != "$local_default" ]] || continue
+    # Claude Code starts the worktree <name> on the branch worktree-<name>, and
+    # without that branch its ExitWorktree cannot count the session's commits.
+    [[ $branch != worktree-* || -z ${worktree_names[${branch#worktree-}]-} ]] || continue
     has_nothing_new "$tip" || continue
     # git refuses a branch that any worktree has checked out, rebases or bisects.
     git -C "$root" branch --quiet --delete --force "$branch" 2>/dev/null || continue
