@@ -10,4 +10,6 @@ pythonVersion = "3.13"
 # unlike ruff, would still read.
 exclude = ["**/node_modules", "**/__pycache__", "**/.*", "plugins/*/evals", "tmp"]
 # The baseline runs agent-identity.py with devenv/ on PYTHONPATH, for agent_token.py.
-extraPaths = ["devenv", "plugins/build/hooks"]
+# The hooks of the build plugin and the script of its live-mutation skill import
+# a module from their own directory, which Python puts first on the path of a script.
+extraPaths = ["devenv", "plugins/build/hooks", "plugins/build/skills/live-mutation/scripts"]

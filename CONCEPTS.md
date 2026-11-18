@@ -162,8 +162,12 @@ _Avoid_: live action, operation, deployment (for the general case)
 A running system, or a part of one, such as an AWS account, a database or a DNS zone, where every live mutation waits for a go-ahead, reversible or not.
 _Avoid_: protected environment, production (for the general case)
 
+**Unprotected target**:
+A target that a rule file of its repository names unprotected, such as the Sandbox Account, where only a live mutation that cannot be undone waits for a go-ahead. Every target that no rule file names is a protected target.
+_Avoid_: sandbox (for the general case), test environment
+
 **Proposal**:
-What the owner is shown and approves before a live mutation: the exact command, the frozen inputs it reads with their digest, the rendering the owner reads, and the checks that judge the result.
+What a live mutation runs from, and what the owner is shown where it waits: the exact command, the frozen inputs it reads with their digest, the rendering, and the checks that judge the result.
 _Avoid_: approval artifact, saved plan (one kind of frozen input), plan (a design file under `docs/plans/`)
 
 **Go-ahead**:
