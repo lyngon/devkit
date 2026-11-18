@@ -434,6 +434,11 @@ with_tmpdir "$repository/tmp" lead_command_refused "a write under \$TMPDIR:h, th
   "echo 'BULK = 9' > \"\$TMPDIR:h/src/orders/pricing.py\"" "> \"\$TMPDIR:h/src/orders/pricing.py\""
 with_tmpdir "$outside_any_repository" lead_command_refused "a write into the change under \$PWD beside a TMPDIR" \
   "echo 'BULK = 9' > \"\$PWD/src/orders/pricing.py\"" "> \"\$PWD/src/orders/pricing.py\""
+with_tmpdir "$outside_any_repository" lead_command_unread "a here-document that \$TMPDIR ends, which bash leaves unexpanded" \
+  "cat <<\$TMPDIR
+$outside_any_repository
+echo 'BULK = 9' > src/orders/pricing.py
+\$TMPDIR" "the word that ends a here-document holds an expansion"
 lead_command_runs "reads that send errors to /dev/null" \
   "cd /recorded/orders 2>/dev/null; pwd; find / -maxdepth 6 -iname \"orders\" -type d 2>/dev/null"
 lead_command_runs "a read with a substitution" \
