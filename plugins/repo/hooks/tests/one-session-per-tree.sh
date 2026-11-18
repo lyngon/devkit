@@ -109,13 +109,21 @@ hook_command() {
     | .hooks[].command | select(contains("/hooks/one-session-per-tree.py"))' "$plugin_root/hooks/hooks.json"
 }
 
-# The start time of a process in clock ticks after boot, field 22 of
-# /proc/<pid>/stat, counted after the command name in parentheses.
-process_start() {
+# Field <number> of /proc/<pid>/stat as proc(5) numbers it, counted after the
+# command name in parentheses, which may hold spaces.
+stat_field() {
   local stat fields
   stat=$(<"/proc/$1/stat")
   read -ra fields <<<"${stat##*") "}"
-  echo "${fields[19]}"
+  echo "${fields[$2 - 3]}"
+}
+
+process_start_in_clock_ticks_after_boot() {
+  stat_field "$1" 22
+}
+
+process_state() {
+  stat_field "$1" 3
 }
 
 idle_seconds_shown_as_2_h_5_min=$(((2 * 60 + 5) * 60 + 30))
@@ -123,7 +131,7 @@ idle_seconds_shown_as_2_h_5_min=$(((2 * 60 + 5) * 60 + 30))
 register() {
   local id=${pid[$1]} since=$((${EPOCHREALTIME/./} / 1000 - idle_seconds_shown_as_2_h_5_min * 1000))
   jq -n --argjson pid "$id" --arg name "$1" --arg entrypoint "$2" --arg status "$3" \
-    --arg start "${4:-$(process_start "$id")}" --arg cwd "$(readlink "/proc/$id/cwd")" --argjson since "$since" \
+    --arg start "${4:-$(process_start_in_clock_ticks_after_boot "$id")}" --arg cwd "$(readlink "/proc/$id/cwd")" --argjson since "$since" \
     '{pid: $pid, sessionId: "id-\($name)", cwd: $cwd, startedAt: $since, procStart: $start, kind: "interactive",
       entrypoint: $entrypoint, name: $name, nameSource: "user", status: $status, statusUpdatedAt: $since}' \
     >"$registry/$id.json"
@@ -144,12 +152,9 @@ start_session() {
 }
 
 stop_session() {
-  local stat
   kill -STOP "${pid[$1]}"
-  stat=$(<"/proc/${pid[$1]}/stat")
-  until [[ ${stat##*") "} == T* ]]; do
+  until [[ $(process_state "${pid[$1]}") == T ]]; do
     sleep 0.01
-    stat=$(<"/proc/${pid[$1]}/stat")
   done
 }
 
@@ -307,7 +312,7 @@ start_session reused "$main" cli busy
 start_session later "$main" cli busy
 run_hook later PreToolUse Bash
 before=$(verdict)
-register reused cli busy "$(($(process_start "${pid[reused]}") - 1))"
+register reused cli busy "$(($(process_start_in_clock_ticks_after_boot "${pid[reused]}") - 1))"
 run_hook later PreToolUse Bash
 check "an entry whose pid runs with another start time: counts until the start time differs" \
   equals "$before|$code|$out|$err" "refused|0||"

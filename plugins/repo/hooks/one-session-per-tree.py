@@ -44,7 +44,7 @@ class Session:
     status: str
     status_since: float | None
     stopped: bool
-    terminal: int
+    terminal: int | None
 
     @property
     def order(self) -> tuple[int, int]:
@@ -104,7 +104,7 @@ def session(path: pathlib.Path) -> Session | None:
         status=text(entry, "status"),
         status_since=since / 1000 if isinstance(since, int | float) else None,
         stopped=fields[STAT_STATE] == "T",
-        terminal=int(fields[STAT_TERMINAL]),
+        terminal=int(fields[STAT_TERMINAL]) or None,
     )
 
 
@@ -172,12 +172,12 @@ def enumeration(items: list[str]) -> str:
     return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
 
 
-def terminal_path(device: int) -> str | None:
+def terminal_path(device: int | None) -> str | None:
     """Return the path of the terminal with a device number, as field 7 of /proc/<pid>/stat gives it.
 
-    None for 0 and for a number that no terminal under /dev has.
+    None without a terminal and for a number that no terminal under /dev has.
     """
-    if device == 0:
+    if device is None:
         return None
     for path in (*pathlib.Path("/dev/pts").glob("*"), *pathlib.Path("/dev").glob("tty*")):
         try:
@@ -207,7 +207,7 @@ def ending(other: Session, own: Session) -> str:
     name = f'"{other.name}"'
     if not other.stopped:
         return f"kill {other.pid} ends {name}."
-    if not other.terminal:
+    if other.terminal is None:
         return f"{name} is stopped, so a plain kill leaves it stopped, and kill -KILL {other.pid} ends it."
     here = other.terminal == own.terminal
     where = "this terminal" if here else terminal_path(other.terminal) or "another terminal"
