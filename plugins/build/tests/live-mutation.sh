@@ -567,13 +567,14 @@ expect_waits "a plan that imports and updates" staging-adopt infra/staging \
   'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
+sed -i '/^resource "terraform_data" "credentials" {$/,/^}$/d' "$repository/infra/staging/main.tf"
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
 propose_tofu staging-destroy --opentofu infra/staging --destroy
-expect "a destroy plans and checks with -destroy" 0 \
+expect "a destroy of resources that hold no sensitive value plans and checks with -destroy" 0 \
   'terraform_data\.logging will be destroyed.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -destroy -detailed-exitcode`'
 expect_waits "a destroy plan" staging-destroy infra/staging \
-  'The plan does more than create, read or update these resources: `terraform_data\.credentials`, `terraform_data\.logging`, `terraform_data\.spare`\.' \
+  'The plan does more than create, read or update these resources: `terraform_data\.logging`, `terraform_data\.spare`\.' \
   'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
@@ -946,6 +947,14 @@ else
   fail "a proposal stopped by its rendering is no proposal, and its rendering shows where the tool hid the value" \
     "the rendering:"$'\n'"$rendering"
 fi
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+propose_tofu staging-destroy --opentofu infra/staging --destroy
+expect "a destroy of a terraform_data resource whose input holds a sensitive value stops the proposal" 1 \
+  '^live-mutation\.py: sensitive-value-shown: '
+expect_token_kept "a destroy stopped by its rendering"
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
