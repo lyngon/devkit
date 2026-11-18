@@ -17,6 +17,12 @@
 # stand-in for a tool that would reach outside the run, such as the forge CLI,
 # which its scaffold script copies into the working directory.
 #
+# A run that resumes a history file gets a CLAUDE_ENV_FILE in the directory of
+# a new session, while its commands read the files in the directory of the
+# session it resumes, which the hook input names (Claude Code 2.1.322 and
+# 2.1.325, issue #189). So the hook writes the file into the directory of the
+# session that its input names.
+#
 # The hook prints its lines on stderr and exits 0.
 set -euo pipefail
 
@@ -25,6 +31,14 @@ set -euo pipefail
 if [[ -z ${CLAUDE_ENV_FILE-} ]]; then
   echo "devkit plugin: no PATH to export, because CLAUDE_ENV_FILE is not set" >&2
   exit 0
+fi
+
+input=$(cat)
+env_file=$CLAUDE_ENV_FILE
+sessions=${env_file%/*/*}
+if [[ ${sessions##*/} == session-env && $input =~ \"session_id\":\"([A-Za-z0-9_-]+)\" ]]; then
+  env_file=$sessions/${BASH_REMATCH[1]}/${env_file##*/}
+  mkdir -p "${env_file%/*}"
 fi
 
 path=$PATH
@@ -46,5 +60,5 @@ fi
       echo "devkit plugin: left out $carrier, because $name is no name of a variable" >&2
     fi
   done
-} >"$CLAUDE_ENV_FILE"
+} >"$env_file"
 echo "devkit plugin: exported the PATH of the session to the shell commands of this eval run" >&2

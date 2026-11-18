@@ -16,6 +16,7 @@ failures=0
 tools=$tmp/tools
 mkdir -p "$tools" "$tmp/with space" "$tmp/it's"
 ln -s "$(command -v bash)" "$tools/bash"
+ln -s "$(command -v cat)" "$tools/cat"
 ln -s "$(command -v mkdir)" "$tools/mkdir"
 session_path="$tmp/with space:$tmp/it's:$tools"
 
