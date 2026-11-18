@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# seed-workspace.sh [<title> <branch files> <open|none> [<main files>...]]
-#
-# Seed the run's empty working directory with the repository acme/orders:
-# main holds the tree under workspace/ and the files of each <main files>
-# directory, and the state of the OpenTofu root infra/staging, in
-# .git/forge/cloud, is applied from main. The files under <branch files>, or
-# under branch/, are the one commit of feat/debug-staging-logs, titled
-# <title>, checked out and pushed. With open, the default, that branch is open
-# as pull request 71; with none, it has no pull request.
-#
-# The forge is a stand-in for GitHub: the remote is a bare repository under
-# .git/forge, and .git/forge/bin, which the case puts in front of the PATH,
-# holds the stand-in gh, and the tofu and shfmt of the devkit's nixpkgs.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
