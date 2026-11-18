@@ -55,6 +55,14 @@ live_value() {
   cat "$repository/live"
 }
 
+contents() {
+  cat "$1" 2>/dev/null || echo "no file $1"
+}
+
+line_count() {
+  wc -l <"$1" 2>/dev/null || echo "no file $1"
+}
+
 pass() {
   echo "ok: $1"
 }
@@ -157,7 +165,7 @@ expect "a demonstration that passes is reported as showing nothing" 1 'The demon
 
 mutation session-one record set-value
 expect "the record is written once every check has failed somewhere" 0 'tmp/live-mutation/session-one/set-value/record-1\.md'
-record=$(cat "$repository/tmp/live-mutation/session-one/set-value/record-1.md")
+record=$(contents "$repository/tmp/live-mutation/session-one/set-value/record-1.md")
 pattern='^## Action record of `set-value`.*Proposal digest `'"$digest"'`.*Go-ahead at [0-9TZ:-]+, in the owner.s words: "Go ahead with set-value\.".*Drift check at [0-9TZ:-]+: the rendering derived again equals the approved one.*The run passes.*\| `matches` \| fails \(1\) \| passes \| none \|.*\| `present` \| passes \| passes \| fails \(1\), passes \|.*value: old -> new.*applied new'
 if [[ "$record" =~ $pattern ]]; then
   pass "the record holds the digest, the owner's words, the run, every check and the rendering"
@@ -291,7 +299,7 @@ set_level() {
 }
 
 state_of() {
-  sha256sum "$repository/$1/terraform.tfstate"
+  sha256sum "$repository/$1/terraform.tfstate" 2>/dev/null || echo "no state"
 }
 
 propose_tofu() {
@@ -303,11 +311,11 @@ expect_waits() {
   local label=$1 name=$2 root=$3 reason=$4 state lines
   local log=$repository/$proposals/$name/log.jsonl
   state=$(state_of "$root")
-  lines=$(wc -l <"$log")
+  lines=$(line_count "$log")
   tofu_mutation session-one run "$name" "$digest"
   expect "$label: a run without a go-ahead is refused" 1 \
     "^live-mutation\.py: needs-go-ahead: proposal $name runs only on the owner's go-ahead:"$'\n'"(- [^"$'\n'"]*"$'\n'")*- $reason"
-  if [[ "$(state_of "$root")" == "$state" && "$(wc -l <"$log")" == "$lines" ]]; then
+  if [[ "$(state_of "$root")" == "$state" && "$(line_count "$log")" == "$lines" ]]; then
     pass "$label: the refused run changes no state and adds no line to the log"
   else
     fail "$label: the refused run changes no state and adds no line to the log" "the state or the log changed"
@@ -333,7 +341,7 @@ expect "an update-only plan of a root module declared on origin/HEAD needs no go
   'tofu -chdir=infra/staging apply -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the owner's words>'"
 tofu_mutation session-one run staging-logs "$digest"
 expect "a run without a go-ahead applies the plan and checks it again" 0 'The run passes.*- `no-changes` passes'
-level=$(tofu_in infra/staging output -raw level)
+level=$(tofu_in infra/staging output -raw level || true)
 if [[ "$level" == debug ]]; then
   pass "the run without a go-ahead changes the state"
 else
@@ -341,7 +349,7 @@ else
 fi
 tofu_mutation session-one run staging-logs "$digest"
 expect "a second run without a go-ahead is refused" 1 '^live-mutation\.py: already-ran: proposal staging-logs ran without a go-ahead at '
-plan_json=$(tofu_in infra/staging show -json "$repository/$proposals/staging-logs/inputs/plan")
+plan_json=$(tofu_in infra/staging show -json "$repository/$proposals/staging-logs/inputs/plan" || true)
 holders=$(grep -rl --binary-files=text "$token" "$repository/tmp/live-mutation" || true)
 unexpected=$(grep -v '/staging-logs/\(drift/\)\{0,1\}inputs/plan$' <<<"$holders" || true)
 if [[ "$plan_json" == *"$token"* && -z "$unexpected" ]]; then
@@ -351,7 +359,7 @@ else
 fi
 tofu_mutation session-one record staging-logs
 expect "the record of a run without a go-ahead is written" 0 'session-one/staging-logs/record-1\.md'
-record=$(cat "$repository/$proposals/staging-logs/record-1.md")
+record=$(contents "$repository/$proposals/staging-logs/record-1.md")
 pattern='^## Action record of `staging-logs`.*- No go-ahead was asked: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''- Drift check at [0-9TZ:-]+: the rendering derived again equals the proposed one\..*\| `no-changes` \| fails \(2\) \| passes \| none \|.*<summary>The rendering of the proposal</summary>'
 if [[ "$record" =~ $pattern && "$record" != *owner* ]]; then
   pass "the record names the rule file, says that no go-ahead was asked, and names no owner"
