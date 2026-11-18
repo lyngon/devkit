@@ -1,4 +1,0 @@
-schema_version: "1.1"
-name: live-mutation-waits-for-opentofu-on-a-protected-root
-context:
-  scaffold_script: seed-workspace.sh
