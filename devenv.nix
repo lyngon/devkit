@@ -379,7 +379,8 @@ let
   };
 
   # Fixture tests for the stand-in for gh that the eval cases of build:pull-request
-  # run, in a workspace that their seed script writes.
+  # run, in a workspace that their seed script writes, and in the workspace of
+  # each other seed that copies it.
   testEvalForge = pkgs.writeShellApplication {
     name = "test-eval-forge";
     runtimeInputs = [
