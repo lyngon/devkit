@@ -20,8 +20,7 @@
 # A run that resumes a history file gets a CLAUDE_ENV_FILE in the directory of
 # a new session, while its commands read the files in the directory of the
 # session it resumes, which the hook input names (Claude Code 2.1.322 and
-# 2.1.325, issue #189). So the hook writes the file into the directory of the
-# session that its input names.
+# 2.1.325, issue #189).
 #
 # The hook prints its lines on stderr and exits 0.
 set -euo pipefail
