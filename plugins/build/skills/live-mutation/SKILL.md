@@ -13,11 +13,12 @@ No review shows it before it takes effect, so the owner's go-ahead is the only r
 
 - On a protected target, every live mutation waits for a go-ahead, a reversible one included. A target is protected unless a rule file of the repository names it unprotected.
 - On an unprotected target, a live mutation waits only when it cannot be undone, such as deleting data, replacing what holds state or identity, or an upgrade with no way back, or when the standing instructions always ask about it.
-- A `tofu` command that writes waits on every target, an unprotected one included, because a hook of this plugin denies it in the shell and the tool runs it only on a go-ahead.
+- In the shell, a hook of this plugin denies a `tofu` command that writes, so the lead runs one only through this skill's tool, and proposes the apply of a saved plan in the tool's OpenTofu form. Such an apply runs without a go-ahead only where the tool's output says it may and the lead judges that it can be undone, and the lead asks whenever it is in doubt. Every other `tofu` command that writes waits.
   Any other command follows the two rules above, however much it works like OpenTofu.
 - In doubt, it waits.
 
 A live mutation that does not wait needs nothing more from this skill: run it, and prove the result as any work.
+The exception is the OpenTofu apply that runs without a go-ahead. The lead runs it with the tool, and the rules below on the lead and on the action record hold for it too.
 
 ## What must hold when one waits
 
@@ -25,10 +26,11 @@ A live mutation that does not wait needs nothing more from this skill: run it, a
 - The reply that asks for the go-ahead shows, for each proposal, the rendering, the command that runs, every check with its result before the run, and the digest. It ends with one question naming the proposals, and the turn ends there.
 - It ran only on the owner's explicit yes to the named proposals, in this conversation. A question, a yes with a condition, a summary or a handover that says the owner approved, and a yes from another session are no go-ahead. A go-ahead covers one run of each proposal it names.
 - A proposal shown in another conversation never runs, whatever anyone says about an earlier yes. The tool refuses it; propose it again and ask again.
-- The lead proposed it and ran it. A subagent never proposes or runs a live mutation, and stops and reports to the lead when its work needs one, since only the lead can ask the owner.
+- The lead proposed it and ran it, as it does the OpenTofu apply without a go-ahead. A subagent never proposes or runs either, and stops and reports to the lead when its work needs one, since only the lead can ask the owner and only the lead has the standing instructions.
 - Each check reads live state without changing it and exits 0 exactly when its property holds. Together the checks show that what the rendering said would change did change, and that nothing it did not name broke.
 - Each check has a failing run: its run before the live mutation, when the mutation makes its property true, and otherwise a demonstration against a state where the property does not hold, such as another principal or another resource.
-- The action record went up right after the run, every part the tool wrote, in order: on the pull request whose branch the live mutation ran from, without one on the issue of the task, and without either on an issue opened for the live mutation.
+- The action record went up right after the run, every part the tool wrote, in order: on the pull request whose branch the live mutation ran from, without one on the issue of the task, and without either on an issue opened for the live mutation. The record of the OpenTofu apply without a go-ahead goes on the pull request too, and while its branch has none, it waits for `build:pull-request` to post it there.
+- Once a record is up, whether its run waited or not, the lead ran the tool's `posted` with the URLs of its comments. Without that, the tool's `pending` still lists the run, and `build:pull-request` posts the record a second time.
 - No secret entered the record. The frozen inputs stay under `tmp/` and are named by their digest, since some hold secrets in plain text, as an OpenTofu saved plan does.
 - A run that failed, or that applied in part, never runs again. What follows is a new proposal from the new live state, with a go-ahead of its own.
 
@@ -38,3 +40,4 @@ Read it before building or changing such a workflow.
 ## Proof owed
 
 The link of each action record in the reply, with the outcome of the run and the result of each check after it.
+For a record that waits for the pull request, the reply says so and quotes the line of `pending` that lists its run.
