@@ -445,12 +445,24 @@ branches() {
   git -C "$1" for-each-ref --format='%(refname:lstrip=2)' refs/heads | tr '\n' ' '
 }
 
+run_session_event() {
+  local session=$1 dir=$2 event=${3%%:*} source=${3#*:} command fields
+  shift 3
+  fields="\"session_id\":\"$session\",\"hook_event_name\":\"$event\""
+  [[ $event != SessionStart ]] || fields+=",\"source\":\"$source\""
+  [[ $event != UserPromptSubmit ]] || fields+=",\"prompt\":\"carry on\""
+  command=$(jq -r --arg event "$event" '.hooks[$event][]?.hooks[].command | select(endswith("/hooks/session-start.sh"))' "$hooks/hooks.json")
+  code=0
+  out=$(cd "$dir" && env -i PATH="$tools" HOME="$tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+    CLAUDE_PLUGIN_ROOT="${hooks%/hooks}" CLAUDE_PROJECT_DIR="$dir" CLAUDE_PLUGIN_DATA="$tmp/plugin-data" "$@" \
+    "$tools/bash" -c "${command:-exit 99}" 2>"$tmp/stderr" <<<"{$fields}") || code=$?
+  err=$(<"$tmp/stderr")
+}
+
 run_session_start() {
   local dir=$1
   shift
-  code=0
-  out=$(env -i PATH="$tools" HOME="$tmp" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 CLAUDE_PROJECT_DIR="$dir" "$@" "$hooks/session-start.sh" 2>"$tmp/stderr") || code=$?
-  err=$(<"$tmp/stderr")
+  run_session_event started "$dir" SessionStart:startup "$@"
 }
 
 run_session_start "$(upstream_clone 2)"
@@ -552,6 +564,38 @@ git -C "$clone" worktree add -q -b worktree-linked "$clone/.claude/worktrees/lin
 run_session_start "$clone/.claude/worktrees/linked"
 check "session start in a linked worktree: the rule goes into the info/exclude that the clone's worktrees share" \
   equals "$(tail -n 1 "$clone/.git/info/exclude")|$(git -C "$clone" status --porcelain)" "/.claude/worktrees/|"
+
+clone=$(upstream_clone 1)
+worktree=$clone/.claude/worktrees/resumed
+git -C "$clone" worktree add -q -b worktree-resumed "$worktree"
+printf '{\n  lyngon.structure.enable = true;\n}\n' >"$worktree/devenv.nix"
+worktree_lines="$(cat "$hooks/session-start-structure.txt")"$'\n'"The local main is 1 commit behind origin/main. Start every new branch from origin/main, not from main."
+run_session_event resumed-into-its-worktree "$clone" SessionStart:resume
+resumed="$code|$out|$err"
+run_session_event resumed-into-its-worktree "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
+first_prompt="$code|$out|$err"
+run_session_event resumed-into-its-worktree "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
+check "a worktree session resumed from a launch tree whose branch is behind: the resume says nothing of a tree, its first prompt, in the worktree, gets the worktree's lines, and the next prompt nothing" \
+  equals "resume $resumed; first prompt $first_prompt; next prompt $code|$out|$err" "resume 0||; first prompt 0|$worktree_lines|; next prompt 0||"
+
+run_session_event moved-into-a-worktree "$worktree" SessionStart:compact CLAUDE_PROJECT_DIR="$clone"
+check "a compaction after a move into a worktree: the worktree's lines, though CLAUDE_PROJECT_DIR names the launch tree" \
+  equals "$code|$out|$err" "0|$worktree_lines|"
+
+run_session_event resumed-then-compacted "$clone" SessionStart:resume
+run_session_event resumed-then-compacted "$worktree" SessionStart:compact CLAUDE_PROJECT_DIR="$clone"
+compacted="$code|$out|$err"
+run_session_event resumed-then-compacted "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
+check "a resume whose first turn is /compact, which submits no prompt: the compaction gives the worktree's lines, and the prompt after it nothing" \
+  equals "compaction $compacted; prompt $code|$out|$err" "compaction 0|$worktree_lines|; prompt 0||"
+
+untold=$tmp/plugin-data-untold/resumed-without-tree-lines
+mkdir -p "$untold"
+touch -d "8 days ago" "$untold/resumed-long-ago"
+touch "$untold/resumed-recently"
+run_session_event resumed-now "$(upstream_clone 0)" SessionStart:resume CLAUDE_PLUGIN_DATA="$tmp/plugin-data-untold"
+check "a resume forgets the sessions resumed more than a week ago that never got a prompt, and keeps a recent one" \
+  equals "$(cd "$untold" && echo *)" "resumed-now resumed-recently"
 
 clone=$(upstream_clone 0)
 commit_file "$clone" shared.txt one "the shared line"
