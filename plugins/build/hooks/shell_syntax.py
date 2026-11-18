@@ -199,6 +199,10 @@ ESCAPED_IN_DOUBLE_QUOTES = frozenset({"$", "`", '"', "\\"})
 
 PARAMETER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-]")
 
+PLAIN_EXPANSION = re.compile(r"\$(?:\{(?P<braced>[A-Za-z_][A-Za-z0-9_]*)\}|(?P<bare>[A-Za-z_][A-Za-z0-9_]*))")
+
+ENDS_A_BARE_EXPANSION_IN_BASH_AND_ZSH = WORD_ENDS | {"/", '"'}
+
 ARITHMETIC = "an arithmetic expression"
 
 EXPRESSIONS = {"$((": ("))", ARITHMETIC), "$[": ("]", ARITHMETIC), "${": ("}", "a ${...}")}
@@ -232,8 +236,9 @@ def unescaped(source: str, index: int, char: str) -> int:
 class CommandReader:
     """Reads a command from left to right, and keeps each simple command and redirection that it may run."""
 
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, variables: ct.Mapping[str, str]) -> None:
         self.source: str = source
+        self.variables: ct.Mapping[str, str] = variables
         self.found: list[Call | Redirection] = []
         self.here_documents: list[HereDocument] = []
 
@@ -293,7 +298,8 @@ class CommandReader:
             index += 2 if source[index] == "\\" else 1
         if index >= len(source) or self.operator(index) is not None:
             raise UnreadableError(f"`{operator.group()}` has no word after it")
-        target, quoted, end = self.word(index)
+        reader = CommandReader(source, {}) if operator.group() in HERE_DOCUMENTS else self
+        target, quoted, end = reader.word(index)
         if operator.group() in HERE_DOCUMENTS:
             if target.value is None:
                 raise UnreadableError("the word that ends a here-document holds an expansion")
@@ -361,6 +367,8 @@ class CommandReader:
             elif char in "\\'\"" or source.startswith(("$'", '$"'), index):
                 quoted = quoted or not source.startswith("\\\n", index)
                 text, whole, index = self.quoted(index)
+            elif (known := self.known_variable(index)) is not None:
+                text, index = known
             elif char in "$`" and (after := self.expansion(index)) is not None:
                 index, whole = after, False
             else:
@@ -400,6 +408,8 @@ class CommandReader:
                 text = following if following in ESCAPED_IN_DOUBLE_QUOTES else char + following
                 text = "" if following == "\n" else text
                 index += 2
+            elif (known := self.known_variable(index)) is not None:
+                text, index = known
             elif char in "$`" and (after := self.expansion(index)) is not None:
                 index, whole = after, False
             else:
@@ -407,6 +417,21 @@ class CommandReader:
             if whole:
                 literal += text
         raise UnreadableError('a " is not closed')
+
+    def known_variable(self, index: int) -> tuple[str, int] | None:
+        """Return the value of a plain expansion of a variable of variables at index, and the index after it, or None.
+
+        A plain expansion is ${NAME}, or $NAME before a slash, a double quote or the end of its word, since zsh reads a
+        subscript or a modifier right after $NAME, as in $NAME[1] or $NAME:h.
+        """
+        match = PLAIN_EXPANSION.match(self.source, index)
+        if match is None:
+            return None
+        name = match.group("braced") or match.group("bare")
+        ends_bare = match.end() == len(self.source) or self.source[match.end()] in ENDS_A_BARE_EXPANSION_IN_BASH_AND_ZSH
+        if name not in self.variables or not (match.group("braced") or ends_bare):
+            return None
+        return self.variables[name], match.end()
 
     def expansion(self, index: int) -> int | None:
         """Read the expansion that a $ or a backquote at index starts, and return the index after it.
@@ -430,7 +455,7 @@ class CommandReader:
     def backquoted(self, index: int) -> int:
         """Read the commands of a backquoted substitution whose text starts at index, and return the index after it."""
         closing_quote = unescaped(self.source, index, "`")
-        inner = CommandReader(re.sub(r"\\([\\`$])", r"\1", self.source[index:closing_quote]))
+        inner = CommandReader(re.sub(r"\\([\\`$])", r"\1", self.source[index:closing_quote]), self.variables)
         _ = inner.commands(0, None)
         self.found.extend(inner.found)
         return closing_quote + 1
@@ -457,14 +482,25 @@ class CommandReader:
         raise UnreadableError(f"{name} is not closed")
 
 
-def may_run(command: str) -> list[Call | Redirection]:
+def named_only_in_plain_expansions(command: str, variables: ct.Mapping[str, str]) -> dict[str, str]:
+    """Return the variables of variables that a command names only as $NAME or ${NAME}."""
+    return {
+        name: value
+        for name, value in variables.items()
+        if re.search(rf"\b{name}\b", re.sub(rf"\$(?:{name}\b|\{{{name}\}})", "", command)) is None
+    }
+
+
+def may_run(command: str, variables: ct.Mapping[str, str]) -> list[Call | Redirection]:
     """Return the simple commands and redirections that a command may run, read in Python alone.
 
     The list holds every simple command and every redirection that bash runs for the command, those inside its
     substitutions included, and more: each simple command also from each of its later words on, since a keyword or an
     assignment before the name of a command reads as a word, and a comparison inside [[ ]] reads as a redirection.
+    A plain expansion of a variable of variables, which holds its value as the command starts, stands for that value
+    where the command names the variable nowhere else.
     Raises UnreadableError, naming the construct, for a command whose structure the reader cannot follow.
     """
-    reader = CommandReader(command)
+    reader = CommandReader(command, named_only_in_plain_expansions(command, variables))
     _ = reader.commands(0, None)
     return reader.found

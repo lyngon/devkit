@@ -7,6 +7,7 @@ files as well, an interpreter or git among them, and nothing here can tell that 
 
 import collections.abc as ct
 import dataclasses
+import os
 import pathlib
 import re
 import typing as t
@@ -18,6 +19,8 @@ REDIRECTIONS_THAT_WRITE = frozenset({">", ">>", ">|", "&>", "&>>", "<>"})
 DUPLICATES_OR_CLOSES_IN_BASH_AND_ZSH = re.compile(r"[0-9]+|-")
 
 RUNNERS = frozenset({"find", "xargs"})
+
+NEITHER_SPLIT_NOR_GLOBBED_ABSOLUTE_PATH = re.compile(r"/[^\s*?\[]*")
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -151,13 +154,26 @@ def written(part: shell_syntax.Call | shell_syntax.Redirection) -> list[shell_sy
     return [] if writer is None else writer.targets(arguments)
 
 
+def temporary_directory() -> dict[str, str]:
+    """Return TMPDIR with the value that the shell of the session starts a command with, or nothing.
+
+    That is the TMPDIR that Claude Code runs the hook with, or under its sandbox a directory inside it, where the
+    sandbox tells the model to put temporary files (measured on Claude Code 2.1.325). The hook judges a path under
+    $TMPDIR by its own TMPDIR, since the two directories lie alike in a repository's tmp/, in its change or outside
+    every repository.
+    """
+    value = os.environ.get("TMPDIR", "")
+    return {"TMPDIR": value} if NEITHER_SPLIT_NOR_GLOBBED_ABSOLUTE_PATH.fullmatch(value) else {}
+
+
 def first_write(command: str, cwd: pathlib.Path, guarded: ct.Callable[[pathlib.Path], bool]) -> str | None:
     """Return the text of the first part of a command that may write a guarded file, or None.
 
-    A file that a path with a variable or a substitution names counts as guarded.
+    A file that a path with a substitution or a variable names counts as guarded, unless that variable is a plain
+    $TMPDIR of a command that names TMPDIR nowhere else: of the temporary directory the hook knows the value.
     Raises shell_syntax.UnreadableError for a command that the hook cannot read.
     """
-    for part in shell_syntax.may_run(command):
+    for part in shell_syntax.may_run(command, temporary_directory()):
         for target in written(part):
             if target.value is None or guarded((cwd / target.value).resolve()):
                 return part.text

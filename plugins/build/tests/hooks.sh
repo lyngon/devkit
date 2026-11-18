@@ -30,6 +30,14 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
+hook_environment=()
+
+with_tmpdir() {
+  hook_environment=(TMPDIR="$1")
+  "${@:2}"
+  hook_environment=()
+}
+
 run_tool_hook() {
   local plugin_root=$1 tool=$2 tool_input=$3 fields=${4:-'{}'} path=${5:-$script_tools} commands command
   commands=$(jq -r --arg tool "$tool" '.hooks.PreToolUse[]? | select(.matcher as $matcher | $tool | test("^(\($matcher))$"))
@@ -38,7 +46,7 @@ run_tool_hook() {
     '{session_id: "s", hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $fields' >"$tmp/stdin"
   code=0 out="" err=""
   while IFS= read -r command; do
-    out+=$(env -i PATH="$path" CLAUDE_PLUGIN_ROOT="$plugin_root" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+    out+=$(env -i PATH="$path" CLAUDE_PLUGIN_ROOT="$plugin_root" "${hook_environment[@]}" "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
     err+=$(<"$tmp/stderr")
   done <<<"$commands"
 }
@@ -262,7 +270,7 @@ run_mode_hook() {
   jq -n --arg tool "$tool" --argjson tool_input "$tool_input" --argjson agent "$agent" --arg cwd "$repository" \
     '{session_id: "s", cwd: $cwd, hook_event_name: "PreToolUse", tool_name: $tool, tool_input: $tool_input, tool_use_id: "t"} + $agent' >"$tmp/stdin"
   code=0
-  out=$(env -i PATH="$python_only" CLAUDE_PLUGIN_ROOT="$root" "$tools/bash" -c "$mode_command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+  out=$(env -i PATH="$python_only" CLAUDE_PLUGIN_ROOT="$root" "${hook_environment[@]}" "$tools/bash" -c "$mode_command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
 }
 
@@ -396,6 +404,46 @@ lead_command_runs "writes under tmp/" \
   "echo notes > tmp/notes.md && cp src/orders/pricing.py tmp/pricing.py && sed -i 's/a/b/' tmp/pricing.py && mv tmp/pricing.py tmp/prices.py && rm tmp/prices.py"
 lead_command_runs "an append under docs/plans/" "printf '%s\n' '- step' >> docs/plans/2026-10-31-bulk-discount.md"
 lead_command_runs "a write outside any repository" "echo x > $outside_any_repository/notes.md 2>/dev/null"
+
+revert_through_a_scratch_patch="cat > \"\$TMPDIR/docstring.patch\" <<'EOF'
+diff --git a/src/orders/pricing.py b/src/orders/pricing.py
+--- a/src/orders/pricing.py
++++ b/src/orders/pricing.py
+@@ -1,2 +1 @@
+-\"\"\"Prices of the lines of an order.\"\"\"
+ BULK = 10
+EOF
+git apply -R \"\$TMPDIR/docstring.patch\""
+with_tmpdir "$outside_any_repository" lead_command_runs "a revert through a scratch patch under a TMPDIR outside any repository" \
+  "$revert_through_a_scratch_patch"
+with_tmpdir "$outside_any_repository" lead_command_runs "a write under \${TMPDIR} outside any repository" \
+  "git diff -- src/orders/pricing.py > \"\${TMPDIR}/auditor.diff\""
+with_tmpdir "$repository/tmp" lead_command_runs "a write under an unquoted \$TMPDIR in tmp/ of the repository" \
+  "echo notes > \$TMPDIR/notes.md"
+with_tmpdir "$repository/src" lead_command_refused "a revert through a scratch patch under a TMPDIR inside the change" \
+  "$revert_through_a_scratch_patch" "> \"\$TMPDIR/docstring.patch\""
+lead_command_refused "a revert through a scratch patch under \$TMPDIR, which the hook's environment leaves unset" \
+  "$revert_through_a_scratch_patch" "> \"\$TMPDIR/docstring.patch\""
+for assignment in "TMPDIR=src/orders;" "export TMPDIR=src/orders;" "read -r TMPDIR <<<src/orders;" \
+  "for TMPDIR in src/orders; do" ": \"\${TMPDIR::=src/orders}\";"; do
+  done_word=""
+  [[ $assignment != for* ]] || done_word="; done"
+  with_tmpdir "$outside_any_repository" lead_command_refused "a write under a \$TMPDIR that \`$assignment\` assigns" \
+    "$assignment echo 'BULK = 9' > \"\$TMPDIR/pricing.py\"$done_word" "> \"\$TMPDIR/pricing.py\""
+done
+with_tmpdir "$outside_any_repository/a b" lead_command_refused "cp to an unquoted \$TMPDIR that bash splits at a space" \
+  "cp tmp/pricing.py \$TMPDIR/src/orders/pricing.py" "cp tmp/pricing.py \$TMPDIR/src/orders/pricing.py"
+with_tmpdir "$outside_any_repository" lead_command_refused "cp to a path that leaves \$TMPDIR for the change" \
+  "cp tmp/pricing.py \"\$TMPDIR/../orders/src/orders/pricing.py\"" "cp tmp/pricing.py \"\$TMPDIR/../orders/src/orders/pricing.py\""
+with_tmpdir "$repository/tmp/scratch" lead_command_refused "a write under \$TMPDIR:h, the directory above it in zsh" \
+  "echo 'BULK = 9' > \"\$TMPDIR:h/../src/orders/pricing.py\"" "> \"\$TMPDIR:h/../src/orders/pricing.py\""
+with_tmpdir "$outside_any_repository" lead_command_refused "a write into the change under \$PWD beside a TMPDIR" \
+  "echo 'BULK = 9' > \"\$PWD/src/orders/pricing.py\"" "> \"\$PWD/src/orders/pricing.py\""
+with_tmpdir "$outside_any_repository" lead_command_unread "a here-document that \$TMPDIR ends, which bash leaves unexpanded" \
+  "cat <<\$TMPDIR
+$outside_any_repository
+echo 'BULK = 9' > src/orders/pricing.py
+\$TMPDIR" "the word that ends a here-document holds an expansion"
 lead_command_runs "reads that send errors to /dev/null" \
   "cd /recorded/orders 2>/dev/null; pwd; find / -maxdepth 6 -iname \"orders\" -type d 2>/dev/null"
 lead_command_runs "a read with a substitution" \
@@ -712,6 +760,12 @@ audit_runs "the auditor's reads through git and grep"
 
 auditor_command "echo x > $outside_any_repository/notes.md"
 audit_runs "the auditor's write outside any repository"
+
+with_tmpdir "$outside_any_repository" auditor_command "git diff -- rates/cache.py > \"\$TMPDIR/comments.diff\""
+audit_runs "the auditor's write under a TMPDIR outside any repository"
+
+with_tmpdir "$repository/rates" auditor_command "git diff -- rates/cache.py > \"\$TMPDIR/comments.diff\""
+audit_refused "write under a TMPDIR inside a repository" "$(through_the_shell "> \"\$TMPDIR/comments.diff\"")"
 
 if ((failures > 0)); then
   echo "test-build-hooks: $failures failure(s)" >&2
