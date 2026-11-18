@@ -22,11 +22,11 @@ directory relative to the root of the repository, and adds the check
 no-changes. It reads the plan's JSON into memory only, since that holds
 sensitive values in plain text. A proposal of that form runs without a go-ahead
 when no resource change of its plan does more than create, read or update, its
-configuration holds no provisioner, no TF_CLI_ARGS variable is set, the root
-module's workspace is default, HEAD was on a branch other than the default
-branch of origin whose upstream is not that branch, and a rule file under
-.claude/rules/, as unprotected_roots.py reads it at that default branch, lists
-the root module or a directory above it under unprotected-roots in its
+configuration holds no provisioner, no TF_CLI_ARGS variable and no TF_DATA_DIR
+is set, the root module's workspace is default, HEAD was on a branch other than
+the default branch of origin whose upstream is not that branch, and a rule file
+under .claude/rules/, as unprotected_roots.py reads it at that default branch,
+lists the root module or a directory above it under unprotected-roots in its
 frontmatter. Every other proposal runs only on the owner's go-ahead.
 
 `run` refuses a proposal of another session, another digest, a second run,
@@ -752,14 +752,16 @@ def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
 def reach_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
     """Return why the tool's environment makes the apply reach more than the plan of the declared directory shows.
 
-    A TF_CLI_ARGS variable passes arguments that the form does not write, and a workspace other than default reaches
-    a state that the rule file does not name.
+    A TF_CLI_ARGS variable passes arguments that the form does not write, TF_DATA_DIR picks a backend and a state
+    that -chdir does not, and a workspace other than default reaches a state that the rule file does not name.
     """
     reasons = [
         f"`{name}` is set, so tofu runs with arguments that the OpenTofu form does not write."
         for name in sorted(os.environ)
         if name == "TF_CLI_ARGS" or name.startswith("TF_CLI_ARGS_")
     ]
+    if "TF_DATA_DIR" in os.environ:
+        reasons.append("`TF_DATA_DIR` is set, so tofu reads a backend and a state that `-chdir` does not choose.")
     command = form.tofu("workspace show")
     result = captured(root, place, command)
     workspace = result.stdout.decode(errors="replace").strip()

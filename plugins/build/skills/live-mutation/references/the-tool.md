@@ -70,6 +70,7 @@ It needs no go-ahead only when none of these holds, and otherwise it waits and t
 - A resource change of the plan has no action, an action beyond no-op, create, read and update, such as a delete, a replace or a forget, or a form that the tool cannot read.
 - The configuration of the plan, in the root module or in any module that it calls, holds a provisioner, which runs code that the plan does not show.
 - `TF_CLI_ARGS` or a `TF_CLI_ARGS_` variable is set in the tool's environment, since the form takes no plan argument beyond its own.
+- `TF_DATA_DIR` is set in the tool's environment, since it picks a backend and a state that `-chdir` does not.
 - `tofu -chdir=<root module> workspace show`, run in the tool's environment, fails or names a workspace other than `default`, as `TF_WORKSPACE` or a selected workspace does.
 - HEAD is detached, so the action record has no branch to wait on.
 - HEAD is on the default branch of origin, or on a branch whose upstream is that branch, so a push may land its commits where no pull request takes the action record.
@@ -78,6 +79,8 @@ It needs no go-ahead only when none of these holds, and otherwise it waits and t
 When it needs no go-ahead, the output names the rule file and gives the command that runs without one, to run only when you judge that the apply can be undone and that the plan reaches only the target that the rule names.
 The command that runs on a go-ahead follows it.
 When it waits, the output gives the command that runs on a go-ahead.
+
+The tool reads none of the other variables that choose a backend, a provider or the configuration of the CLI, such as `TF_HTTP_ADDRESS`, `TF_FORCE_LOCAL_BACKEND`, `TF_CLI_CONFIG_FILE`, `TF_REATTACH_PROVIDERS` and the `TF_VAR_` variables, so whether one of them points the apply elsewhere is yours to judge.
 
 A destroy is planned with `--destroy`, and it always waits, since its plan deletes every resource.
 An import is an `import` block in the code, planned like any change.
