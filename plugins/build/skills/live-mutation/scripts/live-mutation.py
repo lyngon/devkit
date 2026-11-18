@@ -530,8 +530,8 @@ def root_module(root: pathlib.Path, text: str) -> str:
 def blocking_changes(plan: str) -> tuple[str, ...]:
     """Return the address of each resource change of a plan's JSON whose actions go beyond DELETES_NOTHING.
 
-    A resource change that the tool cannot read counts as one, since it only makes the run wait. Raises
-    RefusalError for JSON that holds no list of resource changes.
+    A resource change that the tool cannot read counts as one, and so does one with no action, since either only
+    makes the run wait. Raises RefusalError for JSON that holds no list of resource changes.
     """
     try:
         fields = json_object(t.cast("object", json.loads(plan)))
@@ -545,8 +545,8 @@ def blocking_changes(plan: str) -> tuple[str, ...]:
         change = json_object(item) or {}
         address = change.get("address")
         actions = (json_object(change.get("change")) or {}).get("actions")
-        listed = t.cast("list[object]", actions) if isinstance(actions, list) else [None]
-        if not all(action in DELETES_NOTHING for action in listed):
+        listed = t.cast("list[object]", actions) if isinstance(actions, list) else []
+        if not listed or not all(isinstance(action, str) and action in DELETES_NOTHING for action in listed):
             blocking.append(address if isinstance(address, str) else f"resource change {number}")
     return tuple(blocking)
 
