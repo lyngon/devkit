@@ -376,7 +376,7 @@ let
       pkgs.git
       pkgs.gnused
     ];
-    text = ''exec "${config.devenv.root}/plugins/build/tests/live-mutation.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
+    text = ''exec "${config.devenv.root}/plugins/build/tests/live-mutation.sh" "${lib.makeBinPath config.lyngon.scriptTools}" "${lib.getBin pkgs.opentofu}/bin"'';
   };
 
   testEvalForge = pkgs.writeShellApplication {
