@@ -77,11 +77,13 @@ DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
 URL = re.compile(r"https://\S+")
+SHOWN_WAITING = (
+    "The proposal was shown as waiting for the owner's go-ahead, and such a proposal never runs without one."
+)
 # The fields that the tool did not write before it had the OpenTofu form, each with the value that reads as it did:
 # the generic form, which always waits, and no branch, so that pending lists none of its runs.
 RELEASED_PROPOSAL: ct.Mapping[str, object] = {
     "form": None,
-    "blocking": [],
     "route": {"kind": "go-ahead-needed", "reasons": [GENERIC]},
     "branch": None,
 }
@@ -142,29 +144,37 @@ class Commands:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class Generic:
+    """The generic form of a proposal: the commands as the agent wrote them."""
+
+    commands: Commands
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class OpenTofu:
-    """The OpenTofu form of a proposal: a saved plan of one root module, a directory relative to the repository."""
+    """The OpenTofu form of a proposal: a saved plan of one root module, a directory relative to the repository.
+
+    The form holds the checks that the agent gave, never no-changes, and writes every command itself, so no stored
+    command can differ from the commands that it runs.
+    """
 
     root: str
     destroy: bool
+    checks: dict[str, str]
 
     def tofu(self, arguments: str) -> str:
         """Return a line of sh that runs tofu in the root module."""
         return f"tofu -chdir={shlex.quote(self.root)} {arguments}"
 
-    def commands(self, checks: ct.Mapping[str, str]) -> Commands:
-        """Return the commands of the form, with the check no-changes before the given ones.
-
-        Raises RefusalError for a given check named no-changes, which the form adds itself.
-        """
-        if NO_CHANGES in checks:
-            raise RefusalError(f"reserved-check: the OpenTofu form adds the check {NO_CHANGES}; name yours otherwise")
+    @property
+    def commands(self) -> Commands:
+        """Return the commands of the form, with the check no-changes before the given ones."""
         destroy = " -destroy" if self.destroy else ""
         return Commands(
             derive=self.tofu(f"plan -no-color -input=false{destroy} -out={PLAN}"),
             show=self.tofu(f"show -no-color {PLAN}"),
             run=self.tofu(f"apply -no-color -input=false {PLAN}"),
-            checks={NO_CHANGES: self.tofu(f"plan -no-color -input=false{destroy} -detailed-exitcode"), **checks},
+            checks={NO_CHANGES: self.tofu(f"plan -no-color -input=false{destroy} -detailed-exitcode"), **self.checks},
         )
 
     def plan_json(self) -> str:
@@ -188,25 +198,25 @@ class GoAheadNeeded:
     reasons: tuple[str, ...]
 
 
+type Form = Generic | OpenTofu
 type Route = NoGoAheadNeeded | GoAheadNeeded
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Proposal:
-    """What the owner is shown, and what the tool found when it proposed it.
+    """What the owner is shown, and the route that the tool found when it proposed it.
 
-    The form is None for the generic form. The branch is None when HEAD was detached.
+    The digest covers the commands of the form, the inputs and the rendering. The branch is None when HEAD was
+    detached.
     """
 
     name: str
     session: str
     created: str
-    commands: Commands
+    form: Form
     inputs: dict[str, str]
     rendering: str
     digest: str
-    form: OpenTofu | None
-    blocking: tuple[str, ...]
     route: Route
     branch: str | None
 
@@ -328,15 +338,32 @@ def strings_of(fields: ct.Mapping[str, object], key: str) -> tuple[str, ...]:
     return strings
 
 
-def form_of(value: object) -> OpenTofu | None:
-    """Parse the form of a proposal, null for the generic form. Raises RefusalError for any other value."""
-    if value is None:
-        return None
-    fields = json_object(value)
-    destroy = None if fields is None else fields.get("destroy")
-    if fields is None or text_of(fields, "kind") != "opentofu" or not isinstance(destroy, bool):
-        raise RefusalError("corrupt: form is neither null nor an OpenTofu form")
-    return OpenTofu(root=text_of(fields, "root"), destroy=destroy)
+def form_of(fields: ct.Mapping[str, object]) -> Form:
+    """Parse the form of a proposal. Raises RefusalError for a form that is neither of the two.
+
+    The generic form keeps its commands beside the other fields, and the OpenTofu form keeps under form the root
+    module and the checks the agent gave.
+    """
+    if fields["form"] is None:
+        derive, show, executes = (text_of(fields, field) for field in ("derive", "show", "run"))
+        return Generic(Commands(derive, show, executes, texts_of(fields, "checks")))
+    form = json_object(fields["form"])
+    destroy = None if form is None else form.get("destroy")
+    if form is None or text_of(form, "kind") != "opentofu" or not isinstance(destroy, bool):
+        raise RefusalError("corrupt: form is neither missing nor an OpenTofu form")
+    checks = texts_of(form, "checks")
+    if NO_CHANGES in checks:
+        raise RefusalError(f"corrupt: the OpenTofu form holds a check of its own named {NO_CHANGES}")
+    return OpenTofu(root=text_of(form, "root"), destroy=destroy, checks=checks)
+
+
+def form_fields(form: Form) -> dict[str, object]:
+    """Return a form as the fields of a proposal that form_of parses."""
+    match form:
+        case Generic(commands=commands):
+            return dataclasses.asdict(commands)
+        case OpenTofu(root=root, destroy=destroy, checks=checks):
+            return {"form": {"kind": "opentofu", "root": root, "destroy": destroy, "checks": checks}}
 
 
 def route_from(value: object) -> Route:
@@ -357,48 +384,43 @@ def route_fields(route: Route) -> dict[str, object]:
 
 
 def load(place: Place) -> Proposal:
-    """Read a proposal from its directory."""
+    """Read a proposal from its directory.
+
+    Raises RefusalError for a proposal whose digest is not the one that its commands, inputs and rendering give.
+    """
     fields = {**RELEASED_PROPOSAL, **fields_of(place.proposal.read_text(encoding="utf-8"))}
-    commands = Commands(
-        derive=text_of(fields, "derive"),
-        show=text_of(fields, "show"),
-        run=text_of(fields, "run"),
-        checks=texts_of(fields, "checks"),
-    )
     branch = fields["branch"]
     if branch is not None and not isinstance(branch, str):
         raise RefusalError("corrupt: branch is neither null nor a string")
-    return Proposal(
+    proposal = Proposal(
         name=text_of(fields, "name"),
         session=text_of(fields, "session"),
         created=text_of(fields, "created"),
-        commands=commands,
+        form=form_of(fields),
         inputs=texts_of(fields, "inputs"),
         rendering=text_of(fields, "rendering"),
         digest=text_of(fields, "digest"),
-        form=form_of(fields["form"]),
-        blocking=strings_of(fields, "blocking"),
         route=route_from(fields["route"]),
         branch=branch,
     )
+    if digest_of(proposal.form.commands, proposal.inputs, proposal.rendering) != proposal.digest:
+        message = (
+            f"corrupt: the digest of proposal {proposal.name} is not the one its commands, inputs and rendering give"
+        )
+        raise RefusalError(message)
+    return proposal
 
 
 def save(place: Place, proposal: Proposal) -> None:
-    """Write a proposal into its directory, its commands beside its other fields."""
-    form = proposal.form
+    """Write a proposal into its directory."""
     fields = {
         "name": proposal.name,
         "session": proposal.session,
         "created": proposal.created,
-        "derive": proposal.commands.derive,
-        "show": proposal.commands.show,
-        "run": proposal.commands.run,
-        "checks": proposal.commands.checks,
+        **form_fields(proposal.form),
         "inputs": proposal.inputs,
         "rendering": proposal.rendering,
         "digest": proposal.digest,
-        "form": None if form is None else {"kind": "opentofu", "root": form.root, "destroy": form.destroy},
-        "blocking": list(proposal.blocking),
         "route": route_fields(proposal.route),
         "branch": proposal.branch,
     }
@@ -559,13 +581,14 @@ def exempted(route: NoGoAheadNeeded) -> str:
     )
 
 
-def route_of(root: pathlib.Path, form: OpenTofu | None, blocking: ct.Sequence[str], branch: str | None) -> Route:
-    """Return whether a proposal may run without a go-ahead, from what the tool found and the rule files at origin/HEAD.
+def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None) -> Route:
+    """Return whether a proposal may run without a go-ahead, from its frozen plan and the rule files at origin/HEAD.
 
-    Reads the rule files only for the OpenTofu form, since a proposal of the generic form always waits.
+    Reads the plan and the rule files only for the OpenTofu form, since a proposal of the generic form always waits.
     """
-    if form is None:
+    if isinstance(form, Generic):
         return GoAheadNeeded((GENERIC,))
+    blocking = plan_blocking(root, place, form)
     declaration = unprotected_roots.declaration_of(root)
     reasons: list[str] = []
     if blocking:
@@ -662,8 +685,18 @@ def plan_blocking(root: pathlib.Path, place: Place, form: OpenTofu) -> tuple[str
     return blocking_changes(result.stdout.decode(errors="replace"))
 
 
-def propose(root: pathlib.Path, session: str, name: str, commands: Commands, form: OpenTofu | None) -> str:
-    """Derive, render and check a proposal of this session, and return the text that shows it to the owner."""
+def changed_inputs(before: ct.Mapping[str, str], after: ct.Mapping[str, str]) -> str:
+    """Return the inputs whose digests differ, by their paths, or nothing when none does."""
+    return ", ".join(sorted(path for path in {*before, *after} if before.get(path) != after.get(path)))
+
+
+def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
+    """Derive, render and check a proposal of this session, and return the text that shows it to the owner.
+
+    Raises RefusalError (inputs-changed) when a check changes an input, so that the route, the digest and the run all
+    read the inputs that the derive command wrote.
+    """
+    commands = form.commands
     place = place_of(root, session, name)
     for check in commands.checks:
         if not NAME.fullmatch(check):
@@ -685,20 +718,23 @@ def propose(root: pathlib.Path, session: str, name: str, commands: Commands, for
     append(place, Entry(Kind.SHOW, started, now(), status, commands.show, output))
     if status != 0:
         raise RefusalError(f"show-failed: show exited {status}; see {place.outputs / output}")
-    blocking = () if form is None else plan_blocking(root, place, form)
+    rendered = place.rendering.read_bytes()
+    inputs = digests_of(place.inputs)
     checked = [step(root, place, Kind.CHECK, command, check) for check, command in commands.checks.items()]
-    if form is not None and any(entry.check == NO_CHANGES and entry.status == 0 for entry in checked):
+    changed = changed_inputs(inputs, digests_of(place.inputs))
+    if changed:
+        raise RefusalError(f"inputs-changed: {changed} changed while the checks ran; a check only reads, so fix it")
+    if isinstance(form, OpenTofu) and any(entry.check == NO_CHANGES and entry.status == 0 for entry in checked):
         message = (
             f"nothing-to-apply: the plan of {form.root} changes nothing, since its check {NO_CHANGES} passes,"
             " so the check could never fail"
         )
         raise RefusalError(message)
-    route = route_of(root, form, blocking, branch)
-    rendering = place.rendering.read_text(encoding="utf-8", errors="replace")
-    inputs = digests_of(place.inputs)
-    rendering_digest = hashlib.sha256(place.rendering.read_bytes()).hexdigest()
+    route = route_of(root, place, form, branch)
+    rendering = rendered.decode(encoding="utf-8", errors="replace")
+    rendering_digest = hashlib.sha256(rendered).hexdigest()
     digest = digest_of(commands, inputs, rendering_digest)
-    proposal = Proposal(name, session, now(), commands, inputs, rendering_digest, digest, form, blocking, route, branch)
+    proposal = Proposal(name, session, now(), form, inputs, rendering_digest, digest, route, branch)
     save(place, proposal)
     checks = [f"- `{entry.check}` {outcome(entry.status)}: `{entry.command}`" for entry in checked] or ["- none"]
     lines = [
@@ -747,7 +783,7 @@ def find(root: pathlib.Path, session: str, name: str) -> Place:
 def demonstrate(root: pathlib.Path, session: str, name: str, check: str, command: str) -> tuple[int, str]:
     """Run a check's command against a state where its property does not hold, and log it."""
     place = find(root, session, name)
-    if check not in load(place).commands.checks:
+    if check not in load(place).form.commands.checks:
         raise RefusalError(f"no-such-check: proposal {name} has no check {check}")
     entry = step(root, place, Kind.DEMONSTRATION, command, check)
     if entry.status == 0:
@@ -761,7 +797,7 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, *, approve
     The rendering is the one the owner approved on a go-ahead, and the proposed one without.
     """
     started = now()
-    status, rendering = derive_and_show(root, place.drift, proposal.commands)
+    status, rendering = derive_and_show(root, place.drift, proposal.form.commands)
     shown = place.rendering.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     label = "approved" if approved else "proposed"
     diff = "".join(difflib.unified_diff(shown, rendering.splitlines(keepends=True), label, "live now"))
@@ -775,15 +811,19 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, *, approve
         raise RefusalError(f"drifted: live state no longer gives {what}\n{diff}")
 
 
-def exemption_of(root: pathlib.Path, name: str, proposal: Proposal) -> NoGoAheadNeeded:
-    """Return what lets a proposal run without a go-ahead, from the rule files as they are now.
+def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAheadNeeded:
+    """Return what lets a proposal run without a go-ahead, read again from its frozen plan and the rule files.
 
-    Raises RefusalError (needs-go-ahead) with each reason when nothing does.
+    Raises RefusalError (needs-go-ahead) with each reason when the route read now needs a go-ahead, or the proposal
+    was shown with a route that needs one.
     """
-    route = route_of(root, proposal.form, proposal.blocking, proposal.branch)
-    if isinstance(route, NoGoAheadNeeded):
+    route = route_of(root, place, proposal.form, proposal.branch)
+    shown_waiting = isinstance(proposal.route, GoAheadNeeded)
+    if isinstance(route, NoGoAheadNeeded) and not shown_waiting:
         return route
-    reasons = "".join(f"\n- {reason}" for reason in route.reasons)
+    waits = [*(route.reasons if isinstance(route, GoAheadNeeded) else ()), *([SHOWN_WAITING] if shown_waiting else [])]
+    name = proposal.name
+    reasons = "".join(f"\n- {reason}" for reason in waits)
     message = (
         f"needs-go-ahead: proposal {name} runs only on the owner's go-ahead:{reasons}\n"
         f"Show the owner the proposal and ask. On a go-ahead: {go_ahead_command(name, proposal.digest)}"
@@ -793,11 +833,13 @@ def exemption_of(root: pathlib.Path, name: str, proposal: Proposal) -> NoGoAhead
 
 def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | None) -> tuple[int, str]:
     """Run a proposal of this session once, on a go-ahead for its digest or where it needs none, then check it."""
+    if words is not None and not words.strip():
+        raise RefusalError("empty-go-ahead: --go-ahead holds no words; quote the owner's go-ahead word for word")
     place = find(root, session, name)
     proposal = load(place)
     if digest != proposal.digest:
         message = (
-            f"digest-mismatch: the go-ahead names {digest}, and proposal {name} is at {proposal.digest};"
+            f"digest-mismatch: the run names {digest}, and proposal {name} is at {proposal.digest};"
             " show the owner the proposal at that digest and ask again"
         )
         raise RefusalError(message)
@@ -814,11 +856,10 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
             " a proposal runs once, so propose again from the new live state"
         )
         raise RefusalError(message)
-    current = digests_of(place.inputs)
-    changed = sorted(path for path in {*proposal.inputs, *current} if proposal.inputs.get(path) != current.get(path))
+    changed = changed_inputs(proposal.inputs, digests_of(place.inputs))
     if changed:
-        raise RefusalError(f"inputs-changed: {', '.join(changed)} changed since the proposal; propose again")
-    allowed_by = words if words is not None else exemption_of(root, name, proposal)
+        raise RefusalError(f"inputs-changed: {changed} changed since the proposal; propose again")
+    allowed_by = words if words is not None else exemption_of(root, place, proposal)
     drift_check(root, place, proposal, approved=isinstance(allowed_by, str))
     output = output_name(place, Kind.RUN)
     if isinstance(allowed_by, str):
@@ -837,9 +878,10 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
     append(place, allowed)
     started = now()
     path = place.outputs / output
-    status = execute(proposal.commands.run, root, place.inputs, path, None)
-    append(place, Entry(Kind.RUN, started, now(), status, proposal.commands.run, output))
-    after = [step(root, place, Kind.CHECK, command, check) for check, command in proposal.commands.checks.items()]
+    commands = proposal.form.commands
+    status = execute(commands.run, root, place.inputs, path, None)
+    append(place, Entry(Kind.RUN, started, now(), status, commands.run, output))
+    after = [step(root, place, Kind.CHECK, command, check) for check, command in commands.checks.items()]
     lines = [
         f"The run {outcome(status)}; its whole output is in {path}. Its last lines:",
         "",
@@ -878,7 +920,8 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
     used = consumed(entries)
     if used is None:
         raise RefusalError(f"not-run: proposal {name} has not run, so there is no run to record")
-    for check in proposal.commands.checks:
+    commands = proposal.form.commands
+    for check in commands.checks:
         if all(entry.status == 0 for entry in entries if entry.check == check):
             message = (
                 f"check-never-failed: the check {check} never failed, so it is no evidence;"
@@ -908,7 +951,7 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
                 f"{outcomes(entries, Kind.DEMONSTRATION, check)} |",
             ]
         )
-        for check in proposal.commands.checks
+        for check in commands.checks
     ]
     header = [
         f"## Action record of `{name}`",
@@ -922,9 +965,9 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
         "| --- | --- | --- | --- |",
         *rows,
         "",
-        f"{fence(proposal.commands.run)}sh",
-        proposal.commands.run,
-        fence(proposal.commands.run),
+        f"{fence(commands.run)}sh",
+        commands.run,
+        fence(commands.run),
         "",
         "",
     ]
@@ -1052,23 +1095,25 @@ def parser() -> argparse.ArgumentParser:
     return parsing
 
 
-def proposed(
-    parsing: argparse.ArgumentParser, parsed: argparse.Namespace, root: pathlib.Path
-) -> tuple[Commands, OpenTofu | None]:
-    """Return the commands and the form that the arguments of propose ask for. Exits 2 on a wrong combination."""
+def proposed(parsing: argparse.ArgumentParser, parsed: argparse.Namespace, root: pathlib.Path) -> Form:
+    """Return the form that the arguments of propose ask for. Exits 2 on a wrong combination.
+
+    Raises RefusalError for a check of the OpenTofu form named no-changes, which the form adds itself.
+    """
     derive, show, executes = (t.cast("str | None", getattr(parsed, flag)) for flag in ("derive", "show", "run"))
     opentofu, destroy = t.cast("str | None", parsed.opentofu), t.cast("bool", parsed.destroy)
     checks = dict(t.cast("list[tuple[str, str]]", parsed.check))
     if opentofu is not None:
         if derive is not None or show is not None or executes is not None:
             parsing.error("--opentofu writes the derive, show and run commands itself, so it takes none of them")
-        form = OpenTofu(root=root_module(root, opentofu), destroy=destroy)
-        return form.commands(checks), form
+        if NO_CHANGES in checks:
+            raise RefusalError(f"reserved-check: the OpenTofu form adds the check {NO_CHANGES}; name yours otherwise")
+        return OpenTofu(root=root_module(root, opentofu), destroy=destroy, checks=checks)
     if derive is None or show is None or executes is None:
         parsing.error("propose takes --derive, --show and --run, or --opentofu")
     if destroy:
         parsing.error("--destroy plans a destroy of the OpenTofu form, so it takes --opentofu")
-    return Commands(derive, show, executes, checks), None
+    return Generic(Commands(derive, show, executes, checks))
 
 
 def session_named(parsed: argparse.Namespace, environ: ct.Mapping[str, str]) -> str:
@@ -1098,8 +1143,8 @@ def main(arguments: ct.Sequence[str], environ: ct.Mapping[str, str]) -> int:
     try:
         match command:
             case "propose":
-                commands, form = proposed(parsing, parsed, root)
-                text = propose(root, session_of(environ), t.cast("str", parsed.name), commands, form)
+                form = proposed(parsing, parsed, root)
+                text = propose(root, session_of(environ), t.cast("str", parsed.name), form)
             case "demonstrate":
                 name, check, cmd = (t.cast("str", getattr(parsed, field)) for field in ("name", "check", "cmd"))
                 status, text = demonstrate(root, session_of(environ), name, check, cmd)
