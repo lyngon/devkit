@@ -89,11 +89,18 @@ class Event:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Finding:
-    """A line of a history that is behind: how, and what the update does to it, or None for a new recording."""
+    """A record of a history that is behind: how, and its fix, an output to write into it, its deletion or none."""
 
-    line: int
+    index: int
     message: str
-    action: t.Literal["rewritten", "deleted"] | None
+    fix: Output | t.Literal["delete", "record again"]
+
+    @property
+    def action(self) -> str:
+        """Say what the update does to the record, as the update reports it."""
+        if isinstance(self.fix, Output):
+            return "rewritten"
+        return "deleted" if self.fix == "delete" else "needs a new recording"
 
 
 def table(value: object, where: str) -> dict[str, object]:
@@ -290,11 +297,7 @@ class Replayer:
     scratch: pathlib.Path
 
     def run(self, hook: Hook, event: Event) -> Output:
-        """Run a hook on an event's input and return what it printed, with the paths that the recording replaced.
-
-        Each run gets a new working directory, home and plugin data, so that what one hook leaves there changes
-        nothing that another prints.
-        """
+        """Run a hook on an event's input and return what it printed, with the paths that the recording replaced."""
         own = pathlib.Path(tempfile.mkdtemp(dir=self.scratch))
         workdir = own / "cwd"
         workdir.mkdir()
@@ -375,11 +378,15 @@ def holds(record: dict[str, object], output: Output) -> bool:
             return False
 
 
-def rewrite(record: dict[str, object], output: Output) -> bool:
-    """Write an output into a hook record that succeeded, and say whether the record can hold it."""
+def writable(record: dict[str, object], output: Output) -> bool:
+    """Say whether the program can write an output into a hook record: text that a hook printed when it succeeded."""
     attachment = table(record.get("attachment"), "a hook record")
-    if attachment.get("type") != "hook_success" or output.code != 0 or json_reply(output.stdout) is not None:
-        return False
+    return attachment.get("type") == "hook_success" and output.code == 0 and json_reply(output.stdout) is None
+
+
+def rewrite(record: dict[str, object], output: Output) -> None:
+    """Write an output into a hook record that succeeded, as Claude Code records it."""
+    attachment = table(record.get("attachment"), "a hook record")
     content = output.stdout.strip()
     attachment["content"] = content
     attachment["stdout"] = output.stdout
@@ -388,7 +395,6 @@ def rewrite(record: dict[str, object], output: Output) -> bool:
         record["rendered"] = rendered(str(attachment.get("hookName")), content)
     else:
         _ = record.pop("rendered", None)
-    return True
 
 
 def hung_on(records: list[dict[str, object]], record: dict[str, object]) -> bool:
@@ -413,11 +419,8 @@ def reconcile(
     outputs: list[Output],
     command: str,
     event: Event,
-) -> tuple[list[Finding], set[int]]:
-    """Bring the records of one command in one event up to date, and return what was behind and the records to delete.
-
-    Changes in place each record that it can bring up to date.
-    """
+) -> list[Finding]:
+    """Return the records of a command in an event that are behind the outputs of its hooks, each with its fix."""
     printing = [output for output in outputs if not output.silent]
     unheld = list(range(len(printing)))
     stale: list[int] = []
@@ -434,22 +437,21 @@ def reconcile(
             kept = hung_on(records, records[index])
             reason = ", and records hang off this one" if kept else ""
             message = f"{label} prints nothing at head that this record holds{reason}"
-            findings.append(Finding(index + 1, message, None if kept else "deleted"))
-        return findings, {finding.line - 1 for finding in findings if finding.action == "deleted"}
+            findings.append(Finding(index, message, "record again" if kept else "delete"))
+        return findings
     if len(stale) == len(unheld):
         findings = []
         for index, number in zip(stale, unheld, strict=True):
             output = printing[number]
-            fixed = rewrite(records[index], output)
+            fits = writable(records[index], output)
             kind = table(records[index].get("attachment"), "a hook record").get("type")
-            reason = "" if fixed else f", which the program cannot write into a record of type {kind}"
+            reason = "" if fits else f", which the program cannot write into a record of type {kind}"
             findings.append(
-                Finding(index + 1, f"{label} {describe(output)} at head{reason}", "rewritten" if fixed else None)
+                Finding(index, f"{label} {describe(output)} at head{reason}", output if fits else "record again")
             )
-        return findings, set()
-    line = (stale or indices)[0] + 1
+        return findings
     message = f"{label}: {len(stale)} records are behind, and {len(unheld)} hooks print at head what no record holds"
-    return [Finding(line, message, None)], set()
+    return [Finding((stale or indices)[0], message, "record again")]
 
 
 def dumps(record: dict[str, object]) -> str:
@@ -461,7 +463,6 @@ def update(history: pathlib.Path, hooks: list[Hook], replayer: Replayer) -> tupl
     """Return the lines of a history brought up to date, and what was behind in it."""
     lines = history.read_text(encoding="utf-8").splitlines()
     records = [table(t.cast("object", json.loads(line)), f"{history}:{number}") for number, line in enumerate(lines, 1)]
-    before = [dumps(record) for record in records]
     events: dict[tuple[str, str], dict[str, list[int]]] = {}
     for index, record in enumerate(records):
         where = f"{history}:{index + 1}"
@@ -473,22 +474,23 @@ def update(history: pathlib.Path, hooks: list[Hook], replayer: Replayer) -> tupl
         key = (text(attachment.get("hookEvent"), f"{where}: hookEvent"), str(attachment.get("toolUseID")))
         events.setdefault(key, {}).setdefault(command_of(attachment, where), []).append(index)
     findings: list[Finding] = []
-    deleted: set[int] = set()
     for commands in events.values():
         first = min(index for indices in commands.values() for index in indices)
         event = event_of(records, records[first], f"{history}:{first + 1}")
         for command, indices in commands.items():
             matching = [hook for hook in hooks if hook.event == event.name and hook.command == command]
             outputs = [replayer.run(hook, event) for hook in matching if hook.matches(event.matched)]
-            found, deletable = reconcile(records, indices, outputs, command, event)
-            findings.extend(found)
-            deleted |= deletable
-    updated = [
-        line if (after := dumps(record)) == old else after
-        for line, record, old in zip(lines, records, before, strict=True)
-    ]
-    kept = [line for index, line in enumerate(updated) if index not in deleted]
-    return kept, sorted(findings, key=lambda finding: finding.line)
+            findings.extend(reconcile(records, indices, outputs, command, event))
+    fixes = {finding.index: finding.fix for finding in findings}
+    updated: list[str] = []
+    for index, (line, record) in enumerate(zip(lines, records, strict=True)):
+        fix = fixes.get(index)
+        if isinstance(fix, Output):
+            rewrite(record, fix)
+            updated.append(dumps(record))
+        elif fix != "delete":
+            updated.append(line)
+    return updated, sorted(findings, key=lambda finding: finding.index)
 
 
 def toplevel() -> pathlib.Path:
@@ -518,13 +520,10 @@ def main() -> None:
                 lines, findings = update(history, hooks, replayer)
                 shown = history.relative_to(root)
                 for finding in findings:
-                    if check:
-                        print(f"{shown}:{finding.line}: behind: {finding.message}", file=sys.stderr)
-                    elif finding.action is not None:
-                        print(f"{shown}:{finding.line}: {finding.action}: {finding.message}")
-                    else:
-                        print(f"{shown}:{finding.line}: record the session again: {finding.message}", file=sys.stderr)
-                failed |= bool(findings) if check else any(finding.action is None for finding in findings)
+                    status = "behind" if check else finding.action
+                    stream = sys.stderr if check or finding.fix == "record again" else sys.stdout
+                    print(f"{shown}:{finding.index + 1}: {status}: {finding.message}", file=stream)
+                failed |= bool(findings) if check else any(finding.fix == "record again" for finding in findings)
                 if findings and not check:
                     _ = history.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
     except HistoryError as error:

@@ -58,20 +58,17 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/compare-evals.py" "$@"'';
   };
-  # The hook output that the eval histories record, made what the hooks print
-  # at head. The hooks it replays run with its PATH: the tools that a hook of a
-  # plugin may run, and the shell tools that every session has.
+  toolsOfAReplayedHook = config.lyngon.scriptTools ++ [
+    pkgs.bash
+    pkgs.coreutils
+    pkgs.findutils
+    pkgs.git
+    pkgs.gnugrep
+    pkgs.gnused
+  ];
   updateEvalHistories = pkgs.writeShellApplication {
     name = "update-eval-histories";
-    runtimeInputs = config.lyngon.scriptTools ++ [
-      pkgs.bash
-      pkgs.coreutils
-      pkgs.findutils
-      pkgs.git
-      pkgs.gnugrep
-      pkgs.gnused
-      pkgs.yq-go
-    ];
+    runtimeInputs = toolsOfAReplayedHook ++ [ pkgs.yq-go ];
     text = ''exec "${config.devenv.root}/scripts/update-eval-histories.py" "$@"'';
   };
   testUpdateEvalHistories = pkgs.writeShellApplication {
