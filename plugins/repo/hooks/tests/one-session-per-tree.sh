@@ -63,8 +63,6 @@ EOF
 export SCRIPT_TOOLS=$script_tools TEST_HOME=$tmp TEST_CONFIG=$config PLUGIN_ROOT=$plugin_root
 export SESSION_SCRIPT=$session_script
 
-# A terminal starts each session in the directory a request names, as a shell
-# starts a job, so that the sessions it starts share its controlling terminal.
 terminal_script=$tmp/terminal.sh
 cat >"$terminal_script" <<'EOF'
 #!/usr/bin/env bash
@@ -78,8 +76,6 @@ while read -r directory files <&3; do
 done
 EOF
 
-# Runs a command on a new pseudo-terminal, which becomes its controlling
-# terminal, as a terminal emulator runs a shell.
 on_a_new_terminal='
 import os, pty, sys
 pid, master = pty.fork()
@@ -147,8 +143,6 @@ start_session() {
   register "$1" "$3" "$4"
 }
 
-# Stops a session as Ctrl+Z stops a job, and waits until its process is in
-# state T, field 3 of /proc/<pid>/stat.
 stop_session() {
   local stat
   kill -STOP "${pid[$1]}"
@@ -206,7 +200,6 @@ on_screen() {
   jq -r '.systemMessage' <<<"$out"
 }
 
-# Whether the model gets what the screen shows, and the request to pass it on.
 model_asked_to_tell() {
   jq -r '.hookSpecificOutput.hookEventName == "SessionStart"
     and .hookSpecificOutput.additionalContext == .systemMessage + "\nTell the operator in your first reply."' <<<"$out"

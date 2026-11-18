@@ -45,7 +45,6 @@ class Session:
     status_since: float | None
     stopped: bool
     terminal: int
-    """The device number of the process's controlling terminal, or 0 when it has none."""
 
     @property
     def order(self) -> tuple[int, int]:
@@ -176,7 +175,7 @@ def enumeration(items: list[str]) -> str:
 def terminal_path(device: int) -> str | None:
     """Return the path of the terminal with a device number, as field 7 of /proc/<pid>/stat gives it.
 
-    None for 0, which stands for no terminal, and for a number that no terminal under /dev has.
+    None for 0 and for a number that no terminal under /dev has.
     """
     if device == 0:
         return None
@@ -204,7 +203,7 @@ def describe(other: Session, now: float) -> str:
 
 
 def ending(other: Session, own: Session) -> str:
-    """Return how the operator ends a session in the state it is in: a stopped job only through fg in its shell."""
+    """Return how the operator ends a session in the state it is in."""
     name = f'"{other.name}"'
     if not other.stopped:
         return f"kill {other.pid} ends {name}."
