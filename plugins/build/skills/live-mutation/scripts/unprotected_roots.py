@@ -17,8 +17,10 @@ import typing as t
 
 DEFAULT_BRANCH = "refs/remotes/origin/HEAD"
 REMOTE_BRANCHES = "refs/remotes/origin/"
-SYMBOLIC = "ref: refs/heads/"
-ORIGIN_HEAD = ("ls-remote", "--symref", "origin", "HEAD")
+BRANCHES = "refs/heads/"
+SYMBOLIC = f"ref: {BRANCHES}"
+ORIGIN = "origin"
+ORIGIN_HEAD = ("ls-remote", "--symref", ORIGIN, "HEAD")
 ORIGIN_SECONDS = 60
 FETCH = "Run `git fetch origin` and `git remote set-head origin --auto`, and propose again."
 GIT_MISSING = "git-missing: the tool runs git, which lyngon.scriptTools puts on the PATH"
@@ -147,9 +149,19 @@ def printed(result: subprocess.CompletedProcess[bytes]) -> str:
 
 
 def branch_of(root: pathlib.Path) -> str | None:
-    """Return the branch that HEAD is on, or None when HEAD is detached."""
-    result = git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
-    return None if result.returncode == 1 else printed(result).strip()
+    """Return the branch that HEAD is on, its full name without refs/heads/, or None when HEAD is detached.
+
+    The full name, since git shortens refs/heads/main to heads/main when a tag or another ref is named main too.
+    """
+    result = git(root, "symbolic-ref", "--quiet", "HEAD")
+    return None if result.returncode == 1 else printed(result).strip().removeprefix(BRANCHES)
+
+
+def upstream_of(root: pathlib.Path, branch: str) -> tuple[str, str]:
+    """Return the remote that a branch tracks and the branch it tracks there, both empty when it tracks none."""
+    tracked = "--format=%(upstream:remotename)%00%(upstream:remoteref)"
+    remote, _, ref = printed(git(root, "for-each-ref", tracked, f"{BRANCHES}{branch}")).rstrip("\n").partition("\0")
+    return remote, ref.removeprefix(BRANCHES)
 
 
 def origin_default(root: pathlib.Path) -> tuple[str, str]:
