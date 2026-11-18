@@ -23,11 +23,13 @@ apply='read -r p _ <"$LIVE_MUTATION_INPUTS/plan" && printf "%s\n" "$p" >live && 
 matches='read -r l <live && read -r d <desired && test "$l" = "$d"'
 present='test -f live'
 
+environment=()
+
 call_tool() {
   local path=$1 session=$2
   shift 2
   status=0
-  output=$(cd "$repository" && env -i PATH="$path" CLAUDE_CODE_SESSION_ID="$session" "$script" "$@" 2>&1) || status=$?
+  output=$(cd "$repository" && env -i PATH="$path" CLAUDE_CODE_SESSION_ID="$session" "${environment[@]}" "$script" "$@" 2>&1) || status=$?
 }
 
 mutation() {
@@ -774,6 +776,47 @@ set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
 expect_waits "a proposal on origin's default branch" staging-logs infra/staging \
   'HEAD is on `main`, the default branch of origin, so no pull request will take the action record\.' \
+  "$shown_waiting"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+tofu_in infra/staging workspace new production >/dev/null
+tofu_in infra/staging apply -input=false -auto-approve >/dev/null
+tofu_in infra/staging workspace select default >/dev/null
+set_level infra/staging
+default_state=$(state_of infra/staging)
+environment=(TF_WORKSPACE=production)
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "TF_WORKSPACE set to another workspace of a declared root module" staging-logs \
+  infra/staging/terraform.tfstate.d/production \
+  'The workspace of `infra/staging` is `production`, and only its `default` workspace runs without a go-ahead, since a rule file declares a directory and not a workspace\.' \
+  "$shown_waiting"
+environment=()
+expect_state "a run in the production workspace changes no state of the default one" infra/staging "$default_state"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+set_level infra/staging
+environment=(TF_CLI_ARGS_plan=-var=level=from-the-environment)
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "TF_CLI_ARGS_plan set" staging-logs infra/staging \
+  '`TF_CLI_ARGS_plan` is set, so tofu runs with arguments that the OpenTofu form does not write\.' \
+  "$shown_waiting"
+environment=()
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+mkdir -p "$repository/modules/notify"
+printf '%s\n' 'resource "terraform_data" "notify" {' '  provisioner "local-exec" {' '    command = "touch provisioned"' '  }' '}' \
+  >"$repository/modules/notify/main.tf"
+printf '%s\n' 'module "notify" {' '  source = "../../modules/notify"' '}' >"$repository/infra/staging/notify.tf"
+tofu_in infra/staging init -input=false >/dev/null
+propose_tofu staging-notify --opentofu infra/staging
+expect_waits "a local-exec provisioner in a module that a create-only plan calls" staging-notify infra/staging \
+  'A provisioner runs code that the plan does not show, and the configuration holds one in `module\.notify\.terraform_data\.notify`\.' \
   "$shown_waiting"
 
 if ((failures > 0)); then
