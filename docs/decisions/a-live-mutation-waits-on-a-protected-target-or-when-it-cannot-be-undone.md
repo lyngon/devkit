@@ -13,4 +13,4 @@ An OpenTofu command that writes is the exception: it runs only through the tool 
 - Declaring the protected targets instead leaves a production-like target ungated until someone remembers to declare it.
 - A proposal and an action record for every live mutation would put a record of each Sandbox change made in the shell on every pull request, where nobody reads it.
 
-Enforced by: judgment
+Enforced by: `plugins/build/hooks/tofu-writes-go-through-live-mutation.py` and `plugins/build/tests/live-mutation.sh` for the OpenTofu exception, and judgment

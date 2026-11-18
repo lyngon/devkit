@@ -10,4 +10,4 @@ The record of a run without a go-ahead whose branch has no pull request yet wait
 - A committed file per live mutation, such as under `docs/actions/`, keeps history in the tree, which the principle `the-tree-is-current` forbids, and grows with every mutation.
 - The gitignored workspace the mutation ran from dies with the session or the worktree, which is where the evidence of the applies in [feat: bootstrap the state bucket and LyngonTofu](<https://github.com/lyngon/lyngon.com/pull/3>) was lost.
 
-Enforced by: judgment
+Enforced by: `plugins/build/tests/live-mutation.sh` for a record that holds no frozen input and for one that waits, which `pending` lists, and judgment
