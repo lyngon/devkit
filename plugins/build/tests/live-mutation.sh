@@ -56,11 +56,11 @@ live_value() {
 }
 
 contents() {
-  cat "$1" 2>/dev/null || echo "no file $1"
+  if [[ -f "$1" ]]; then cat "$1"; else echo "no file $1"; fi
 }
 
 line_count() {
-  wc -l <"$1" 2>/dev/null || echo "no file $1"
+  if [[ -f "$1" ]]; then wc -l <"$1"; else echo "no file $1"; fi
 }
 
 pass() {
@@ -199,7 +199,7 @@ run = subprocess.Popen(sys.argv[1:], start_new_session=True)
 time.sleep(1)
 os.killpg(run.pid, signal.SIGINT)
 sys.exit(run.wait())' "$script" run interruptible "$digest" --go-ahead "yes" 2>&1) || status=$?
-interrupts=$(cat "$repository/interrupts" 2>/dev/null || echo none)
+interrupts=$(contents "$repository/interrupts")
 logged='The run (passes|ended by signal 2); its whole output is in '
 if [[ "$interrupts" == 1 && "$output" =~ $logged ]]; then
   pass "a Ctrl-C reaches the running command once, and the run is waited for"
@@ -299,7 +299,8 @@ set_level() {
 }
 
 state_of() {
-  sha256sum "$repository/$1/terraform.tfstate" 2>/dev/null || echo "no state"
+  local file=$repository/$1/terraform.tfstate
+  if [[ -f "$file" ]]; then sha256sum "$file"; else echo "no state"; fi
 }
 
 propose_tofu() {
@@ -308,21 +309,24 @@ propose_tofu() {
 }
 
 expect_waits() {
-  local label=$1 name=$2 root=$3 reason=$4 state lines
+  local label=$1 name=$2 root=$3 reason=$4 state lines state_after lines_after
   local log=$repository/$proposals/$name/log.jsonl
   state=$(state_of "$root")
   lines=$(line_count "$log")
   tofu_mutation session-one run "$name" "$digest"
   expect "$label: a run without a go-ahead is refused" 1 \
     "^live-mutation\.py: needs-go-ahead: proposal $name runs only on the owner's go-ahead:"$'\n'"(- [^"$'\n'"]*"$'\n'")*- $reason"
-  if [[ "$(state_of "$root")" == "$state" && "$(line_count "$log")" == "$lines" ]]; then
+  state_after=$(state_of "$root")
+  lines_after=$(line_count "$log")
+  if [[ "$state_after" == "$state" && "$lines_after" == "$lines" ]]; then
     pass "$label: the refused run changes no state and adds no line to the log"
   else
     fail "$label: the refused run changes no state and adds no line to the log" "the state or the log changed"
   fi
   tofu_mutation session-one run "$name" "$digest" --go-ahead "Go ahead with $name."
   expect "$label: a run on a go-ahead applies the plan" 0 'The run passes.*- `no-changes` passes'
-  if [[ "$(state_of "$root")" != "$state" ]]; then
+  state_after=$(state_of "$root")
+  if [[ "$state_after" != "$state" ]]; then
     pass "$label: the run on a go-ahead changes the state"
   else
     fail "$label: the run on a go-ahead changes the state" "the state is unchanged"
@@ -350,12 +354,14 @@ fi
 tofu_mutation session-one run staging-logs "$digest"
 expect "a second run without a go-ahead is refused" 1 '^live-mutation\.py: already-ran: proposal staging-logs ran without a go-ahead at '
 plan_json=$(tofu_in infra/staging show -json "$repository/$proposals/staging-logs/inputs/plan" || true)
-holders=$(grep -rl --binary-files=text "$token" "$repository/tmp/live-mutation" || true)
-unexpected=$(grep -v '/staging-logs/\(drift/\)\{0,1\}inputs/plan$' <<<"$holders" || true)
-if [[ "$plan_json" == *"$token"* && -z "$unexpected" ]]; then
+searched=0
+holders=$(grep -rl --binary-files=text "$token" "$repository/tmp/live-mutation") || searched=$?
+unexpected=$(sed '\#/staging-logs/\(drift/\)\{0,1\}inputs/plan$#d' <<<"$holders")
+if ((searched <= 1)) && [[ "$plan_json" == *"$token"* && -z "$unexpected" ]]; then
   pass "the plan's JSON holds the sensitive value, and no file of the proposal does but its saved plans"
 else
-  fail "the plan's JSON holds the sensitive value, and no file of the proposal does but its saved plans" "found it in:"$'\n'"$unexpected"
+  fail "the plan's JSON holds the sensitive value, and no file of the proposal does but its saved plans" \
+    "grep exited $searched and found it in:"$'\n'"$unexpected"
 fi
 tofu_mutation session-one record staging-logs
 expect "the record of a run without a go-ahead is written" 0 'session-one/staging-logs/record-1\.md'
