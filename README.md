@@ -559,7 +559,29 @@ env: { EVAL_PREPEND_TO_PATH: ".git/forge/bin" }
 The cases of `build:pull-request` and the case `add-skill-finishes-a-planned-change` run `forge/gh` of the case `pull-request-says-it-met-nothing` this way.
 It answers the commands that filing an issue and opening a pull request take, and records both under `.git/forge`, where the graders read them.
 Without a stand-in, a command of a run finds whichever `gh` the PATH holds.
-The sandbox of a run refuses every write to `.git/config`, so `git push -u` pushes the branch and then fails to record its upstream (measured on Claude Code 2.1.283).
+
+The sandbox of a run binds `.git/config` read-only and a read-only device at `.git/config.lock` (read from the mounts of a live run on Claude Code 2.1.321).
+So git cannot take the lock on `.git/config`, and `git push -u` pushes the branch, fails to record its upstream and exits 0:
+
+```text
+ * [new branch]      feat/brevity -> feat/brevity
+error: could not lock config file .git/config: File exists
+error: unable to write upstream branch configuration
+```
+
+That error in the trace of a run comes from the harness, not from the agent, so no grader depends on `git push -u` printing nothing or on an upstream being recorded.
+No setting in a seed avoids it, because git takes the lock even when `.git/config` already records that upstream.
+The same binds reproduce it outside the harness, in an empty directory, with `$devkit` the root of a checkout of this repository:
+
+```sh
+bash "$devkit/plugins/devkit/evals/add-skill-finishes-a-planned-change/seed-workspace.sh"
+git switch -c feat/brevity origin/main
+git commit -q --allow-empty -m probe
+bwrap --bind / / --dev /dev --proc /proc --ro-bind "$PWD/.git/config" "$PWD/.git/config" --ro-bind /dev/null "$PWD/.git/config.lock" git push -u origin feat/brevity
+rm .git/config.lock
+```
+
+The last command deletes the empty file that bwrap leaves behind as the mount point of the device.
 
 When an eval cannot run, the pull request says so and makes no claim about the behaviour.
 
