@@ -589,24 +589,27 @@ def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None) -
     if isinstance(form, Generic):
         return GoAheadNeeded((GENERIC,))
     blocking = plan_blocking(root, place, form)
-    declaration = unprotected_roots.declaration_of(root)
     reasons: list[str] = []
     if blocking:
         listed = ", ".join(f"`{address}`" for address in blocking)
         reasons.append(f"The plan does more than create, read or update these resources: {listed}.")
     if branch is None:
         reasons.append("HEAD was detached at the proposal, so its action record has no branch to wait on.")
-    if declaration is None:
-        missing = f"{unprotected_roots.DEFAULT_BRANCH} is missing, so the tool cannot read which root modules"
-        reasons.append(f"{missing} are unprotected.")
-        return GoAheadNeeded(tuple(reasons))
+    try:
+        declaration = unprotected_roots.declaration_of(root)
+    except unprotected_roots.UndeclaredError as error:
+        return GoAheadNeeded((*reasons, str(error)))
     commit = declaration.commit
+    if branch == declaration.branch:
+        on_default = (
+            f"HEAD is on `{branch}`, the default branch of origin, so no pull request will take the action record."
+        )
+        reasons.append(on_default)
     reasons.extend(
         f"`{path}` at `{commit}` names `{KEY}` in a form the tool does not read, since {why}."
         for path, why in declaration.unreadable
     )
-    module = pathlib.PurePosixPath(form.root)
-    covering = next(((path, d) for path, d in declaration.roots if module.is_relative_to(d)), None)
+    covering = declaration.covering(form.root)
     if covering is None:
         uncovered = (
             f"No rule file under `{unprotected_roots.RULES}` at `{commit}` lists `{form.root}`"
