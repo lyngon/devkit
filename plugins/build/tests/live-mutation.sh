@@ -12,6 +12,9 @@ script=$devkit/plugins/build/skills/live-mutation/scripts/live-mutation.py
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 failures=0
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME="Ada Lovelace" GIT_AUTHOR_EMAIL=ada@example.com
+export GIT_COMMITTER_NAME="Ada Lovelace" GIT_COMMITTER_EMAIL=ada@example.com
 
 derive='read -r v <desired && printf "%s planned-by-%s\n" "$v" "$$" >"$LIVE_MUTATION_INPUTS/plan"'
 show='read -r l <live && read -r p _ <"$LIVE_MUTATION_INPUTS/plan" && printf "value: %s -> %s\n" "$l" "$p"'
@@ -28,7 +31,7 @@ mutation() {
 
 new_repository() {
   repository=$(mktemp -d "$tmp/repository.XXXXXX")
-  mkdir "$repository/.git"
+  git init -q -b main "$repository"
   printf '%s\n' "$1" >"$repository/live"
   printf '%s\n' "$2" >"$repository/desired"
 }
