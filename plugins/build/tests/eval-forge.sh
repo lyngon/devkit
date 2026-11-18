@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Exercise the stand-in for gh that the eval cases of build:pull-request put in front
-# of the PATH, in a workspace that the seed script of pull-request-says-it-met-nothing
-# writes: what it prints for each command, and what it records in .git/forge
-# for the graders. Then the repository it names in the workspace of each seed
-# that copies it. Run through `devenv test`.
 set -euo pipefail
 
 plugins=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -122,8 +117,6 @@ check "a command that names the repository fails when the seed named none" \
   "1|$forge/repository is missing: the seed of the case writes the repository there, as acme/orders" "$code|$err"
 mv "$tmp/repository" "$forge/repository"
 
-# Each seed that copies the stand-in, in an empty directory of its own, makes
-# it name the repository that its case stands in for.
 for entry in \
   "build/evals/pull-request-says-it-met-nothing acme/orders 71" \
   "build/evals/live-mutation-stops-with-the-proposal acme/orders 72" \
