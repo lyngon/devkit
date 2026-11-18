@@ -767,8 +767,7 @@ def working_tree_root() -> pathlib.Path:
 def harness_version(harness: str) -> str:
     """Return what the harness at the path prints for `--version`, such as `2.1.325 (Claude Code)`.
 
-    Raises CompareError when it fails or prints nothing, since a comparison
-    names the version of the harness that both runs start.
+    Raises CompareError when it fails or prints nothing.
     """
     said = subprocess.run([harness, "--version"], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
     version = said.stdout.strip()
@@ -785,12 +784,10 @@ def launchers() -> tuple[str, Launcher, Launcher]:
     """Return the version of the harness, and how the run at the base commit and the run in the working tree start it.
 
     Both runs start the same file, the one that `claude` on the PATH leads
-    to now, without symbolic links. A profile that is updated while the suite
-    runs at one commit points that name at another file, and neither run
-    starts it. The base run enters the environment of the base commit, and
-    the head run keeps the one it was started from, the working tree's.
-    Raises CompareError without `claude` or `devenv` on the PATH, and when
-    the harness gives no version.
+    to now, without symbolic links. The base run enters the environment of
+    the base commit, and the head run keeps the one it was started from, the
+    working tree's. Raises CompareError without `claude` or `devenv` on the
+    PATH, and when the harness gives no version.
     """
     claude, devenv = shutil.which("claude"), shutil.which("devenv")
     if claude is None:
@@ -815,9 +812,8 @@ def compare(options: Options) -> Comparison:
 
     Raises CompareError outside a git repository, outside the devenv shell of
     the working tree, for a base that names no commit, without `claude` or
-    `devenv` on the PATH, when the harness gives no version that the header
-    can name, for an XDG_RUNTIME_DIR that names no directory or
-    is too long, when the base run writes no readable result, which
+    `devenv` on the PATH, when the harness gives no version, for an
+    XDG_RUNTIME_DIR that names no directory or is too long, when the base run writes no readable result, which
     spares the cost of the run in the working tree, and when no case ran at
     either commit, each with what the runs said about their suites. Raises it
     too when the head result names a case that the working tree does not

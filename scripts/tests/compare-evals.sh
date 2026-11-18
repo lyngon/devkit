@@ -48,10 +48,6 @@ failures=0
 # The stub also writes to the file that FAKE_BUILD_LOG names what the command
 # check-pull-request that it finds says, or `none`, which tells the build of
 # the environment that it runs in.
-# Where FAKE_PROFILE_LINK names a symbolic link, a run of the stub points it at
-# the file that FAKE_PROFILE_UPDATE names, as a switch of a profile does.
-# The stub answers --version with the line that Claude Code 2.1.325 prints,
-# and logs no such call, since it is no run.
 mkdir "$tmp/bin" "$tmp/devenv" "$tmp/tools" "$tmp/empty" "$tmp/store"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
@@ -1447,10 +1443,6 @@ check "devenv is not on the PATH: says so" contains "$err" "compare-evals: deven
 check "devenv is not on the PATH: runs nothing" equals "$calls" ""
 path=$with_claude
 
-# Both runs start the file that `claude` on the PATH leads to when the program
-# starts, whose version the header names. Here that name is a link, as in a
-# profile, and the base run switches the profile to a harness that answers
-# --version with the line that Claude Code 2.1.322 prints and fails any run.
 mkdir "$tmp/profile" "$tmp/switched"
 ln -s "$tmp/bin/claude" "$tmp/profile/claude"
 cat >"$tmp/switched/claude" <<'EOF'
@@ -1477,9 +1469,6 @@ check "a profile switched while the suite runs: the header names the version of 
   contains "$out" $'\nclaude: 2.1.325 (Claude Code)\n'
 path=$with_claude
 
-# A harness that gives no version leaves the header nothing to name, so no run
-# starts. One fails as a wrapper does whose interpreter is gone, and one
-# prints nothing. Any other call goes to the stub, so a run would be logged.
 mkdir "$tmp/failing" "$tmp/silent"
 cat >"$tmp/failing/claude" <<EOF
 #!/usr/bin/env bash
