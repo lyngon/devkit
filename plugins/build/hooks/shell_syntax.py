@@ -255,10 +255,7 @@ class SyntaxTree:
         return Call(words, text, self.standard_input(statement))
 
     def standard_input(self, statement: dict[str, object]) -> Word | Call | None:
-        """Return the standard input of the simple command of a Stmt node, as Call.standard_input describes it.
-
-        The last redirection of file descriptor 0 decides it, and without one, the pipe from the statement before it.
-        """
+        """Return the standard input of the simple command of a Stmt node, as Call.standard_input describes it."""
         redirects = [redirect for redirect in objects(statement.get("Redirs")) if self.redirects_input(redirect)]
         if not redirects:
             writer = self.writers.get(id(statement))

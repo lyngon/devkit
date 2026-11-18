@@ -203,11 +203,7 @@ def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str) -> str | None
 
 
 def script(operand: shell_syntax.Word) -> str | None:
-    """Return the command that a shell runs from a word, or None when an expansion hides it.
-
-    A word that the shell does not split, in double quotes or the body of a here-document, stands for its text, where
-    each expansion stays one for the hook to read.
-    """
+    """Return the command that a shell runs from a word, or None when an expansion hides it."""
     return operand.unexpanded if operand.value is None else operand.value
 
 
@@ -231,26 +227,19 @@ def evaluated(arguments: ct.Sequence[shell_syntax.Word]) -> str | None:
 
 
 def echoed(arguments: ct.Sequence[shell_syntax.Word]) -> str | None:
-    """Return the text that echo writes with these arguments, or None when an expansion hides it.
-
-    Its leading options, -n, -e and -E, are no text.
-    """
+    """Return the text that echo writes with these arguments, or None when an expansion hides it."""
     return evaluated(list(itertools.dropwhile(lambda word: ECHO_OPTIONS.fullmatch(word.value or ""), arguments)))
 
 
 def handed(command: str | None, call: shell_syntax.Call) -> str | None:
-    """Return why the hook denies a command that a call hands a shell, or None to let it run.
-
-    The command is None when an expansion hides it.
-    """
+    """Return why the hook denies a command that a call hands a shell, or None to let it run."""
     return hidden(call.text, f"the command it hands a shell {EXPANDED}") if command is None else denial(command)
 
 
 def input_denial(call: shell_syntax.Call) -> str | None:
     """Return why the hook denies the commands that a shell of a call reads on standard input, or None to let them run.
 
-    It reads them as it reads the operand of -c in a here-document and a here-string, and in what echo writes into a
-    pipe, and denies any other standard input, and an echo with a backslash, which it may turn into a line break.
+    It denies an echo with a backslash, which the echo of zsh may turn into a line break.
     """
     source = call.standard_input
     if isinstance(source, shell_syntax.Word):
@@ -267,12 +256,7 @@ def input_denial(call: shell_syntax.Call) -> str | None:
 
 
 def shell_denial(call: shell_syntax.Call) -> str | None:
-    """Return why the hook denies a command that a call hands a shell to run, or None to let them all run.
-
-    Such a command is what eval joins, the operand of -c after a shell's name, and what a shell without -c reads on
-    standard input where the call may run it as a program, since a shell's name alone is often an argument, as in
-    `shfmt -ln bash`.
-    """
+    """Return why the hook denies a command that a call hands a shell to run, or None to let them all run."""
     words = call.words
     if words and words[0].value == "eval":
         return handed(evaluated(words[1:]), call)
