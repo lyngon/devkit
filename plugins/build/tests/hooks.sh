@@ -502,6 +502,9 @@ lead_command_refused "rm with its file on the next line" "rm -f \\
   tests/test_pricing.py"
 lead_command_refused "rm of a file named ';'" "rm ';' README.md" "rm ';' README.md"
 lead_command_refused "a redirection after a word that holds #" "nix run nixpkgs#hello > README.md" "> README.md"
+lead_command_refused "an append through a .. that escapes in \$'...' spell" \
+  "echo x >> \$'$outside_any_repository/\\x2e\\x2e/orders/README.md'" \
+  ">> \$'$outside_any_repository/\\x2e\\x2e/orders/README.md'"
 lead_command_refused "sed -i in a zsh loop, which does not parse as bash" \
   "for f in \${=files}; do sed -i 's/a/b/' \"\$f\"; done" "sed -i 's/a/b/' \"\$f\""
 
