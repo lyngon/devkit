@@ -5,8 +5,6 @@
 # session works in.
 set -euo pipefail
 
-here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$PWD
 input=$(cat)
 event="" source=""
 [[ ! $input =~ \"hook_event_name\":\"([A-Za-z]+)\" ]] || event=${BASH_REMATCH[1]}
@@ -16,6 +14,12 @@ if [[ ! $input =~ \"session_id\":\"([A-Za-z0-9_-]+)\" ]]; then
   exit 1
 fi
 untold=$CLAUDE_PLUGIN_DATA/resumed-without-tree-lines/${BASH_REMATCH[1]}
+if [[ $event == UserPromptSubmit ]] && ! rm "$untold" 2>/dev/null; then
+  exit 0
+fi
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$PWD
 
 commits() {
   if (($1 == 1)); then echo "1 commit"; else echo "$1 commits"; fi
@@ -75,9 +79,7 @@ fetch_origin() {
   echo "Could not fetch origin at session start ($reason), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again. If that fetch fails too, say so."
 }
 
-if [[ $event == UserPromptSubmit ]]; then
-  rm "$untold" 2>/dev/null || exit 0
-else
+if [[ $event != UserPromptSubmit ]]; then
   ignore_session_worktrees
   fetch_origin
 fi

@@ -446,8 +446,8 @@ branches() {
 }
 
 run_session_event() {
-  local dir=$1 event=${2%%:*} source=${2#*:} command fields
-  shift 2
+  local session=$1 dir=$2 event=${3%%:*} source=${3#*:} command fields
+  shift 3
   fields="\"session_id\":\"$session\",\"hook_event_name\":\"$event\""
   [[ $event != SessionStart ]] || fields+=",\"source\":\"$source\""
   [[ $event != UserPromptSubmit ]] || fields+=",\"prompt\":\"carry on\""
@@ -459,12 +459,10 @@ run_session_event() {
   err=$(<"$tmp/stderr")
 }
 
-session="session-start"
-
 run_session_start() {
   local dir=$1
   shift
-  run_session_event "$dir" SessionStart:startup "$@"
+  run_session_event started "$dir" SessionStart:startup "$@"
 }
 
 run_session_start "$(upstream_clone 2)"
@@ -572,25 +570,22 @@ worktree=$clone/.claude/worktrees/resumed
 git -C "$clone" worktree add -q -b worktree-resumed "$worktree"
 printf '{\n  lyngon.structure.enable = true;\n}\n' >"$worktree/devenv.nix"
 worktree_lines="$(cat "$hooks/session-start-structure.txt")"$'\n'"The local main is 1 commit behind origin/main. Start every new branch from origin/main, not from main."
-session="resumed-into-its-worktree"
-run_session_event "$clone" SessionStart:resume
+run_session_event resumed-into-its-worktree "$clone" SessionStart:resume
 resumed="$code|$out|$err"
-run_session_event "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
+run_session_event resumed-into-its-worktree "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
 first_prompt="$code|$out|$err"
-run_session_event "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
+run_session_event resumed-into-its-worktree "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
 check "a worktree session resumed from a launch tree whose branch is behind: the resume says nothing of a tree, its first prompt, in the worktree, gets the worktree's lines, and the next prompt nothing" \
   equals "resume $resumed; first prompt $first_prompt; next prompt $code|$out|$err" "resume 0||; first prompt 0|$worktree_lines|; next prompt 0||"
 
-session="moved-into-a-worktree"
-run_session_event "$worktree" SessionStart:compact CLAUDE_PROJECT_DIR="$clone"
+run_session_event moved-into-a-worktree "$worktree" SessionStart:compact CLAUDE_PROJECT_DIR="$clone"
 check "a compaction after a move into a worktree: the worktree's lines, though CLAUDE_PROJECT_DIR names the launch tree" \
   equals "$code|$out|$err" "0|$worktree_lines|"
 
-session="resumed-then-compacted"
-run_session_event "$clone" SessionStart:resume
-run_session_event "$worktree" SessionStart:compact CLAUDE_PROJECT_DIR="$clone"
+run_session_event resumed-then-compacted "$clone" SessionStart:resume
+run_session_event resumed-then-compacted "$worktree" SessionStart:compact CLAUDE_PROJECT_DIR="$clone"
 compacted="$code|$out|$err"
-run_session_event "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
+run_session_event resumed-then-compacted "$worktree" UserPromptSubmit CLAUDE_PROJECT_DIR="$clone"
 check "a resume whose first turn is /compact, which submits no prompt: the compaction gives the worktree's lines, and the prompt after it nothing" \
   equals "compaction $compacted; prompt $code|$out|$err" "compaction 0|$worktree_lines|; prompt 0||"
 
@@ -598,8 +593,7 @@ untold=$tmp/plugin-data-untold/resumed-without-tree-lines
 mkdir -p "$untold"
 touch -d "8 days ago" "$untold/resumed-long-ago"
 touch "$untold/resumed-recently"
-session="resumed-now"
-run_session_event "$(upstream_clone 0)" SessionStart:resume CLAUDE_PLUGIN_DATA="$tmp/plugin-data-untold"
+run_session_event resumed-now "$(upstream_clone 0)" SessionStart:resume CLAUDE_PLUGIN_DATA="$tmp/plugin-data-untold"
 check "a resume forgets the sessions resumed more than a week ago that never got a prompt, and keeps a recent one" \
   equals "$(cd "$untold" && echo *)" "resumed-now resumed-recently"
 
