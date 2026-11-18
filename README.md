@@ -328,10 +328,18 @@ The `case.yaml` holds `schema_version`, `name` and `context` and nothing else, s
 Its `name` is the name of the case's directory, and `validate-marketplace` fails another name and any other key.
 `context.add_dirs` does not serve here: it lets a run read a directory of the case where it lies, and nothing tells the agent where that is (measured on Claude Code 2.1.283).
 
-A case about what a session does after a compaction resumes a recorded session: `context.history_file` in its `case.yaml` names a transcript in the case directory, and the prompt is the next turn.
-The cases `mode-survives-compaction` and `mode-lost-is-reread` keep what follows the compaction boundary of a real session's transcript, with the paths of the machine that recorded it replaced, and their seed script rebuilds the repository as that session left it.
+A case that goes on from a recorded session, such as one about what a session does after a compaction, resumes it: `context.history_file` in its `case.yaml` names a transcript in the case directory, and the prompt is the next turn.
+The cases `mode-survives-compaction` and `mode-lost-is-reread` keep what follows the compaction boundary of a real session's transcript, with the paths of the machine that recorded it replaced (the checkout by `/recorded/devkit`), and their seed script rebuilds the repository as that session left it.
 A session resumed from that part alone goes on from the compaction (measured on Claude Code 2.1.283).
-The output of a hook in the transcript is the text that the hook prints at head.
+The output of a hook in a transcript is the text that the hook prints at head.
+`update-eval-histories` keeps it so.
+It runs each hook whose output a transcript holds again, on the input that the transcript shows the hook got, and writes what the hook prints now into the record, or deletes the record when the hook prints nothing.
+`devenv test` fails a transcript that it would change, so run it after a change to a hook or to the text that one prints:
+
+```sh
+update-eval-histories
+```
+
 A path that the transcript names no longer resolves, so a run at another commit cannot read the files of the checkout that recorded it, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name.
 
 A case proves a change only when it scores the same in every run, so write it to leave the model little room:
