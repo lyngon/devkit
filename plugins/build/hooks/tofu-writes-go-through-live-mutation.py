@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """PreToolUse hook of the build plugin on Bash and Monitor: OpenTofu writes go through live-mutation.
 
-A subagent, whose hook input holds an agent_id, never calls propose, demonstrate or run of that skill's tool.
+A subagent, whose hook input holds an agent_id, never calls propose, demonstrate or run of that skill's tool, nor
+the tool in a call whose subcommand the hook cannot read.
 """
 
 import collections.abc as ct
@@ -34,6 +35,8 @@ NAMES_THE_TOOL = re.compile(r"live-mutation\.py")
 TOOL_AT_THE_END = re.compile(r"(?:^|/)live-mutation\.py[\"']?$")
 
 LIVE_SUBCOMMANDS = frozenset({"propose", "demonstrate", "run"})
+
+READS_FILES = frozenset({"cat", "diff", "file", "git", "grep", "head", "less", "ls", "rg", "sed", "stat", "tail", "wc"})
 
 WRITES_ALWAYS = frozenset(
     {
@@ -173,6 +176,13 @@ def script(operand: shell_syntax.Word) -> str | None:
     return None if quoted is None else re.sub(r"\\([\\\"`$])", r"\1", quoted.group(1))
 
 
+def command_option(arguments: ct.Sequence[shell_syntax.Word]) -> int | None:
+    """Return the position of a shell's -c option among its arguments, or None when it has none."""
+    return next(
+        (at for at, argument in enumerate(arguments) if SHELL_COMMAND_OPTION.fullmatch(argument.value or "")), None
+    )
+
+
 def shell_scripts(words: ct.Sequence[shell_syntax.Word]) -> list[str | None]:
     """Return the commands that a call hands a shell to run, the operand of a shell's -c or what eval joins.
 
@@ -185,9 +195,7 @@ def shell_scripts(words: ct.Sequence[shell_syntax.Word]) -> list[str | None]:
     for index, word in enumerate(words):
         rest = words[index + 1 :]
         if shell_syntax.command_name(word.value) in SHELLS:
-            option = next(
-                (at for at, argument in enumerate(rest) if SHELL_COMMAND_OPTION.fullmatch(argument.value or "")), None
-            )
+            option = command_option(rest)
             operand = None if option is None else next((w for w in rest[option + 1 :] if not passed_over(w)), None)
             if operand is not None:
                 found.append(script(operand))
@@ -238,11 +246,40 @@ def names_the_tool(word: shell_syntax.Word) -> bool:
     return TOOL_AT_THE_END.search(word.text) is not None
 
 
+def runs_unseen_commands(words: ct.Sequence[shell_syntax.Word]) -> bool:
+    """Return whether a call runs a shell without -c, which runs commands from its standard input or from a file."""
+    return any(
+        shell_syntax.command_name(word.value) in SHELLS and command_option(words[index + 1 :]) is None
+        for index, word in enumerate(words)
+    )
+
+
+def call_calls_the_tool(words: ct.Sequence[shell_syntax.Word]) -> bool:
+    """Return whether a simple command may call propose, demonstrate or run of the tool of build:live-mutation.
+
+    The subcommand is the first word after the tool's path that is not --. A call counts when an expansion hides it,
+    and when no word follows the path in a call of a program that does more than read files, as xargs, which adds
+    the words of its standard input.
+    """
+    if any(script is None or calls_the_tool(script) for script in shell_scripts(words)) or runs_unseen_commands(words):
+        return True
+    for index, word in enumerate(words):
+        if not names_the_tool(word):
+            continue
+        subcommand = next((later for later in words[index + 1 :] if later.value != "--"), None)
+        if subcommand is None:
+            if shell_syntax.command_name(words[0].value) not in READS_FILES:
+                return True
+        elif subcommand.value is None or subcommand.value in LIVE_SUBCOMMANDS:
+            return True
+    return False
+
+
 def calls_the_tool(command: str) -> bool:
     """Return whether a shell command may call propose, demonstrate or run of the tool of build:live-mutation.
 
-    A command that names the tool counts when the hook cannot parse it, and so does a subcommand or a shell's command
-    that an expansion hides.
+    A command that names the tool counts when the hook cannot parse it, when a shell in it runs commands that the
+    hook does not see, and when a call in it may call one of the three.
     """
     if NAMES_THE_TOOL.search(command) is None:
         return False
@@ -252,13 +289,7 @@ def calls_the_tool(command: str) -> bool:
         return True
     if parts is None:
         return True
-    for call in (part for part in parts if isinstance(part, shell_syntax.Call)):
-        if any(script is None or calls_the_tool(script) for script in shell_scripts(call.words)):
-            return True
-        for word, subcommand in itertools.pairwise(call.words):
-            if names_the_tool(word) and (subcommand.value is None or subcommand.value in LIVE_SUBCOMMANDS):
-                return True
-    return False
+    return any(call_calls_the_tool(part.words) for part in parts if isinstance(part, shell_syntax.Call))
 
 
 def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
