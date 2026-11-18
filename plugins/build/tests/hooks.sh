@@ -257,6 +257,25 @@ tofu_runs "pending of build:live-mutation's tool in a subagent" "$live_mutation 
 tofu_runs "record of build:live-mutation's tool in a subagent" \
   "$live_mutation record staging-logs --session 20261110-0900-4000-8000-000000000150" "$subagent"
 tofu_runs "a search of build:live-mutation's tool in a subagent" "grep -n 'def run' $live_mutation" "$subagent"
+tofu_runs "a read of build:live-mutation's tool in a subagent" "cat $live_mutation" "$subagent"
+tofu_runs "a diff of build:live-mutation's tool in a subagent" "git diff main -- $live_mutation" "$subagent"
+tofu_denied "a run of build:live-mutation's tool after -- in a subagent" \
+  "$live_mutation -- run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_runs "pending of build:live-mutation's tool after -- in a subagent" "$live_mutation -- pending" "$subagent"
+tofu_denied "build:live-mutation's tool under xargs, its subcommand on standard input, in a subagent" \
+  "echo 'run staging-logs 3f9a1c0d5e7b2a46' | xargs $live_mutation" "$reports" "$subagent"
+tofu_denied "build:live-mutation's tool under xargs, its subcommand in a here-string, in a subagent" \
+  "xargs $live_mutation <<<'run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a heredoc fed to bash in a subagent" "bash <<'SH'
+$live_mutation run staging-logs 3f9a1c0d5e7b2a46
+SH" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool piped as text into sh in a subagent" \
+  "echo '$live_mutation run staging-logs 3f9a1c0d5e7b2a46' | sh" "$reports" "$subagent"
+tofu_runs "build:live-mutation's tool under xargs, by the lead" \
+  "echo 'run staging-logs 3f9a1c0d5e7b2a46' | xargs $live_mutation"
+tofu_runs "a run of build:live-mutation's tool in a heredoc fed to bash, by the lead" "bash <<'SH'
+$live_mutation run staging-logs 3f9a1c0d5e7b2a46
+SH"
 
 tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
