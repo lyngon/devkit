@@ -411,7 +411,7 @@ declared=$(git -C "$repository" rev-parse refs/remotes/origin/HEAD)
 set_level infra/staging
 propose_tofu staging-logs --opentofu ./infra/staging/
 expect "an update-only plan of a root module declared on origin/HEAD needs no go-ahead" 0 \
-  'tofu -chdir=infra/staging apply -no-color -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the owner's words>'"
+  'tofu -chdir=infra/staging apply -no-color -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone and that the plan reaches only the target that the rule names:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the owner's words>'"
 tofu_mutation session-one run staging-logs "$digest"
 expect "a run without a go-ahead applies the plan and checks it again" 0 'The run passes.*- `no-changes` passes'
 level=$(tofu_in infra/staging output -raw level || true)
