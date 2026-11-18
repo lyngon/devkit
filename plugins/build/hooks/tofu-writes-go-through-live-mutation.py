@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""PreToolUse hook of the build plugin on Bash and Monitor: OpenTofu writes go through live-mutation."""
+"""PreToolUse hook of the build plugin on Bash and Monitor: OpenTofu writes go through live-mutation.
+
+A subagent, whose hook input holds an agent_id, never calls propose, demonstrate or run of that skill's tool.
+"""
 
 import collections.abc as ct
 import itertools
@@ -17,6 +20,20 @@ ROUTE = (
     " and every other write on the owner's go-ahead."
     " A subagent stops and reports the command to its lead."
 )
+
+SUBAGENT = (
+    "A subagent never proposes, demonstrates or runs a live mutation with the tool of build:live-mutation,"
+    " since only the lead can ask the owner for a go-ahead and only the lead has the standing instructions."
+    " Stop, and report to your lead the live mutation that your work needs."
+)
+
+TOOL = "live-mutation.py"
+
+NAMES_THE_TOOL = re.compile(r"live-mutation\.py")
+
+TOOL_AT_THE_END = re.compile(r"(?:^|/)live-mutation\.py[\"']?$")
+
+LIVE_SUBCOMMANDS = frozenset({"propose", "demonstrate", "run"})
 
 WRITES_ALWAYS = frozenset(
     {
@@ -214,13 +231,45 @@ def denial(command: str) -> str | None:
     return next((reason for call in calls if (reason := call_denial(call)) is not None), None)
 
 
+def names_the_tool(word: shell_syntax.Word) -> bool:
+    """Return whether a word names the tool of build:live-mutation, by its name or a path that ends in it."""
+    if word.value is not None:
+        return shell_syntax.command_name(word.value) == TOOL
+    return TOOL_AT_THE_END.search(word.text) is not None
+
+
+def calls_the_tool(command: str) -> bool:
+    """Return whether a shell command may call propose, demonstrate or run of the tool of build:live-mutation.
+
+    A command that names the tool counts when the hook cannot parse it, and so does a subcommand or a shell's command
+    that an expansion hides.
+    """
+    if NAMES_THE_TOOL.search(command) is None:
+        return False
+    try:
+        parts = shell_syntax.calls_and_redirections(command, DIALECTS, resolve_variables=True)
+    except shell_syntax.ParserMissingError:
+        return True
+    if parts is None:
+        return True
+    for call in (part for part in parts if isinstance(part, shell_syntax.Call)):
+        if any(script is None or calls_the_tool(script) for script in shell_scripts(call.words)):
+            return True
+        for word, subcommand in itertools.pairwise(call.words):
+            if names_the_tool(word) and (subcommand.value is None or subcommand.value in LIVE_SUBCOMMANDS):
+                return True
+    return False
+
+
 def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
     """Return the hook's output for a call, or None to let it run as it is.
 
     Exits 1 when the hook input or its tool_input is no JSON object.
     """
     command = json_object(hook_input.get("tool_input"), "its tool_input").get("command")
-    reason = denial(command) if isinstance(command, str) else None
+    if not isinstance(command, str):
+        return None
+    reason = SUBAGENT if "agent_id" in hook_input and calls_the_tool(command) else denial(command)
     if reason is None:
         return None
     return {
