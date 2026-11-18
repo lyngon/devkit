@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: resumed-shell-command-finds-a-devenv-tool
+context:
+  history_file: history.jsonl
