@@ -114,6 +114,18 @@ mutation session-one propose Set_Value --derive "$derive" --show "$show" --run "
 expect "a name that is no kebab-case name is refused" 1 "^live-mutation\.py: bad-name: 'Set_Value'"
 
 new_repository old new
+treeless=$(printf 'tree %s\nauthor A <a@example.com> 0 +0000\ncommitter A <a@example.com> 0 +0000\n\nno tree\n' \
+  0123456789abcdef0123456789abcdef01234567 | git -C "$repository" hash-object -t commit -w --stdin)
+git -C "$repository" update-ref refs/remotes/origin/HEAD "$treeless"
+propose_value_change
+expect "a proposal of the generic form reads no rule file, so a default branch that git cannot read leaves it alone" 0 \
+  'Proposal `set-value` at digest `[0-9a-f]{16}`.*The run waits for the owner.s go-ahead:'$'\n\n''- The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead\.'$'\n'
+mutation session-one run set-value "$digest"
+expect "a run of the generic form without a go-ahead is refused without reading a rule file" 1 \
+  '^live-mutation\.py: needs-go-ahead: proposal set-value runs only on the owner.s go-ahead:'$'\n''- The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead\.'$'\n'
+expect_live "a refused run of the generic form changes nothing live" old
+
+new_repository old new
 propose_value_change
 mutation session-one run set-value 0000000000000000 --go-ahead "yes"
 expect "a go-ahead for another digest is refused" 1 "^live-mutation\.py: digest-mismatch: the go-ahead names 0000000000000000, and proposal set-value is at $digest"

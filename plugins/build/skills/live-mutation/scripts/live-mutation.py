@@ -687,15 +687,14 @@ def exempted(route: NoGoAheadNeeded) -> str:
     )
 
 
-def route_of(
-    form: OpenTofu | None, blocking: ct.Sequence[str], branch: str | None, declaration: Declaration | None
-) -> Route:
-    """Return whether a proposal may run without a go-ahead, from what the tool found.
+def route_of(root: pathlib.Path, form: OpenTofu | None, blocking: ct.Sequence[str], branch: str | None) -> Route:
+    """Return whether a proposal may run without a go-ahead, from what the tool found and the rule files at origin/HEAD.
 
-    The declaration is None when the default branch of origin is missing.
+    Reads the rule files only for the OpenTofu form, since a proposal of the generic form always waits.
     """
     if form is None:
         return GoAheadNeeded((GENERIC,))
+    declaration = declaration_of(root)
     reasons: list[str] = []
     if blocking:
         listed = ", ".join(f"`{address}`" for address in blocking)
@@ -710,8 +709,8 @@ def route_of(
         f"`{path}` at `{commit}` names `{UNPROTECTED_ROOTS}:` in a form the tool does not read, since {why}."
         for path, why in declaration.unreadable
     )
-    root = pathlib.PurePosixPath(form.root)
-    covering = next(((path, d) for path, d in declaration.roots if root.is_relative_to(d)), None)
+    module = pathlib.PurePosixPath(form.root)
+    covering = next(((path, d) for path, d in declaration.roots if module.is_relative_to(d)), None)
     if covering is None:
         uncovered = (
             f"No rule file under `{RULES}` at `{commit}` lists `{form.root}`"
@@ -821,7 +820,7 @@ def propose(root: pathlib.Path, session: str, name: str, commands: Commands, for
             " so the check could never fail"
         )
         raise RefusalError(message)
-    route = route_of(form, blocking, branch, declaration_of(root))
+    route = route_of(root, form, blocking, branch)
     rendering = place.rendering.read_text(encoding="utf-8", errors="replace")
     inputs = digests_of(place.inputs)
     rendering_digest = hashlib.sha256(place.rendering.read_bytes()).hexdigest()
@@ -908,7 +907,7 @@ def exemption_of(root: pathlib.Path, name: str, proposal: Proposal) -> NoGoAhead
 
     Raises RefusalError (needs-go-ahead) with each reason when nothing does.
     """
-    route = route_of(proposal.form, proposal.blocking, proposal.branch, declaration_of(root))
+    route = route_of(root, proposal.form, proposal.blocking, proposal.branch)
     if isinstance(route, NoGoAheadNeeded):
         return route
     reasons = "".join(f"\n- {reason}" for reason in route.reasons)
