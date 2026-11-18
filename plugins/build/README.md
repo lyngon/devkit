@@ -37,7 +37,12 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   The hook reads a command with `shfmt`, as bash and then as zsh, and finds tofu wherever a word names it, by its name, its path or the flake output `#opentofu`, so it also denies a write after a global option such as `-chdir`, after a `cd`, behind a wrapper such as `devenv shell --`, `aws-vault exec --`, `nix run`, `timeout` or `xargs`, inside a substitution or a loop, and in what `bash -c`, `sh -c` or `eval` runs.
   A variable that the command assigns once, to a literal value, counts as that value.
   It denies rather than asks, since the skill decides whether a live mutation waits for the owner, and it denies in a subagent as in the lead (measured on Claude Code 2.1.283 and 2.1.322).
-  In a subagent, whose hook input holds an `agent_id`, it also denies a call of the script's `propose`, `demonstrate` or `run`, wherever a word names the script, and tells the subagent to report to its lead.
+  In a subagent, whose hook input holds an `agent_id`, it also denies a call of the script's `propose`, `demonstrate` or `run`, and tells the subagent to report to its lead.
+  It counts the script only where the command may run it as a program, never as an argument of another program.
+  A simple command runs its first word, and when that word is a wrapper such as `env`, `timeout`, `nix shell --command` or `python3`, or a variable hides it, the hook takes any later word for a program too.
+  It also reads what `bash -c` and `eval` run and the value of an alias.
+  The subcommand is the first word after the script's path that is not `--`, and the call counts when a variable or a substitution hides that word, when `xargs` runs the script, and when a shell reads its commands from a heredoc, a here-string or a pipe in a command that names the script.
+  So `ruff check`, `cp` or `grep` of the script runs, and so does a shell that runs a script file.
   It fails closed.
   It denies a command that names tofu and that it cannot read, and says why, when `shfmt` is not on its PATH, when the command parses neither as bash nor as zsh, and when a variable or a substitution decides the program, the subcommand or a flag that would make it write.
   It never sees a program that runs tofu as a process of its own, such as a script file, `make`, a devenv task or the script of `live-mutation`, which runs every command of a proposal that way.
