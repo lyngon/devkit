@@ -73,8 +73,6 @@ TOOL = pathlib.Path(__file__).resolve()
 
 NO_CHANGES = "no-changes"
 PLAN = '"$LIVE_MUTATION_INPUTS/plan"'
-# The actions of a resource change that delete and replace nothing. OpenTofu
-# may add actions, and every action outside this set makes a run wait.
 DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
@@ -86,8 +84,6 @@ URL = re.compile(r"https://\S+")
 SHOWN_WAITING = (
     "The proposal was shown as waiting for the owner's go-ahead, and such a proposal never runs without one."
 )
-# The fields that the tool did not write before it had the OpenTofu form, each with the value that reads as it did:
-# the generic form, which always waits, and no branch, so that pending lists none of its runs.
 RELEASED_PROPOSAL: ct.Mapping[str, object] = {
     "form": None,
     "route": {"kind": "go-ahead-needed", "reasons": [GENERIC]},

@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory as the case
-# live-mutation-runs-opentofu-on-an-unprotected-root does, but with no pull
-# request, and apply the branch to staging as a session that ended before the
-# branch had one leaves it: the head's live-mutation.py ran the OpenTofu
-# proposal without a go-ahead in a session of its own, and its action record
-# waits for the pull request.
 set -euo pipefail
 
 case_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
