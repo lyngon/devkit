@@ -70,7 +70,8 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
 
 `correction` keeps one file per mistake under `docs/mistakes/` of the repository it works in, and `validate-documents` of the baseline checks the shape of each.
 Its script `skills/correction/scripts/prune-mistakes.py` deletes the files whose date is older than the baseline option `lyngon.mistakes.maxAgeDays`, 365 days by default.
-The script is Python and imports the standard library only, because the baseline option `lyngon.scriptTools` is all a shipped script may run.
+The script is Python and imports the standard library only, because the baseline option `lyngon.scriptTools`, `python3`, `pygmentize`, `shfmt` and `git` by default, is all a shipped script may run.
+The commands that a script runs for the repository, such as the `tofu` of a live mutation, come from the repository's shell.
 `tests/prune-mistakes.sh` runs it with a PATH that holds those tools and nothing else, and `tests/work-trace.sh` and `tests/live-mutation.sh` run the scripts of `work-trace` and `live-mutation` the same way.
 
 ## Install
