@@ -191,6 +191,25 @@ expect "another session may write the record of a run, naming the session" 0 'tm
 mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply"
 expect "a name that already ran cannot be proposed again" 1 '^live-mutation\.py: already-ran: proposal set-value ran at '
 
+new_repository new new
+mkdir -p "$repository/tmp/live-mutation"
+cp -R "$devkit/plugins/build/tests/live-mutation/released-session" "$repository/tmp/live-mutation/"
+mutation session-two pending
+expect "pending reads a run of the released tool, which kept no branch, and lists it for no branch" 0 \
+  '^No run of branch `main` waits for its action record to be posted\.$'
+mutation session-two record set-value --session released-session
+expect "record writes the record of a run of the released tool" 0 'tmp/live-mutation/released-session/set-value/record-1\.md'
+record=$(contents "$repository/tmp/live-mutation/released-session/set-value/record-1.md")
+pattern='^## Action record of `set-value`.*Proposal digest `d82461173b295852`.*- Go-ahead at 2026-11-18T04:36:17Z, in the owner.s words: "Go ahead with set-value\.".*\| `matches` \| fails \(1\) \| passes \| none \|'
+if [[ "$record" =~ $pattern ]]; then
+  pass "the record of a run of the released tool holds its digest, the owner's words and its check"
+else
+  fail "the record of a run of the released tool holds its digest, the owner's words and its check" "got:"$'\n'"$record"
+fi
+mutation released-session run set-value d82461173b295852 --go-ahead "Go ahead with set-value."
+expect "a run of the released tool reads as used up" 1 \
+  "^live-mutation\.py: already-ran: proposal set-value ran on the go-ahead 'Go ahead with set-value\.'"
+
 new_repository old new
 cat >"$repository/count-interrupts.py" <<'EOF'
 import pathlib, signal, sys, time
