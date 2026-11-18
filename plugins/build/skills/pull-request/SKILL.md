@@ -17,6 +17,7 @@ The title becomes the subject of that commit and the body its message, so both d
 - The body has exactly the seven headings below, in this order, and no other second-level heading.
 - `check-pull-request` accepts the title and the body. It prints nothing when both pass, warns above the target length and fails above the limit, and its message names the numbers and the ways out.
 - The pull request is open and ready, not a draft, and you report its link.
+- Each action record of the branch that waited for the pull request is on it, posted before the work trace, as [Action records](#action-records) says.
 - When `tmp/work-trace/` holds the branch's work trace, the trail and its Attention section are one comment on the pull request, and Verified points at it.
 - A mistake ledger file under `docs/mistakes/` that the change wrote before the pull request existed links the pull request in its line **Caught in**, and that commit is pushed too.
 - After every later push the title and the body are true again.
@@ -61,6 +62,18 @@ File an issue for it with the evidence, or fix it in a pull request of its own w
 
 Evidence too long for the body goes into a comment on the pull request, which Verified points at.
 The body carries no line that names the tool or the agent that wrote it, since it becomes the commit message.
+
+## Action records
+
+A live mutation that ran from the branch before the pull request existed leaves its action record waiting for it.
+Once the pull request is open, list those runs with the tool of `build:live-mutation`:
+
+```sh
+${CLAUDE_SKILL_DIR}/../live-mutation/scripts/live-mutation.py pending
+```
+
+For each run, in the order listed, run the `record` command it prints and post every file that `record` names, in order, with `gh pr comment <number> --body-file <file>`.
+Then run the `posted` command it prints, with the URL of each comment.
 
 ## The work trace
 
