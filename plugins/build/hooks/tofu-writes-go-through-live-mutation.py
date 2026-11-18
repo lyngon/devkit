@@ -11,9 +11,11 @@ import typing as t
 import shell_syntax
 
 ROUTE = (
-    "An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill,"
-    " proposes the command with the skill's tool and runs it there on the owner's go-ahead,"
-    " and a subagent stops and reports the command to its lead."
+    "An OpenTofu command that writes runs only through build:live-mutation."
+    " The lead invokes that skill and proposes the command with the skill's tool, which runs the apply of a saved"
+    " plan on an unprotected root module without a go-ahead when it finds that it may,"
+    " and every other write on the owner's go-ahead."
+    " A subagent stops and reports the command to its lead."
 )
 
 WRITES_ALWAYS = frozenset(

@@ -91,7 +91,7 @@ check "copy: exits 0" equals "$code" 0
 check "copy: the last line names the copy's file of the mode" equals "${out##*$'\n'}" "If the operator started this session with /build:auto and its text is no longer in your context, read $copy/skills/auto/SKILL.md before you continue."
 check "copy: the rest of the text is unchanged" equals "${out%$'\n'*}" "${text%$'\n'*}"
 
-route="An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill, proposes the command with the skill's tool and runs it there on the owner's go-ahead, and a subagent stops and reports the command to its lead."
+route="An OpenTofu command that writes runs only through build:live-mutation. The lead invokes that skill and proposes the command with the skill's tool, which runs the apply of a saved plan on an unprotected root module without a go-ahead when it finds that it may, and every other write on the owner's go-ahead. A subagent stops and reports the command to its lead."
 
 denied() {
   jq -n --arg reason "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
@@ -214,6 +214,13 @@ tofu_runs "a proposal of build:live-mutation's tool" "$live_mutation propose imp
   --check 'no-changes=tofu -chdir=$organization plan -input=false -detailed-exitcode'"
 tofu_runs "a run of build:live-mutation's tool" \
   "$live_mutation run import-organization 3f9a1c0d --go-ahead 'yes, run import-organization'"
+tofu_runs "a proposal of build:live-mutation's tool in its OpenTofu form" \
+  "$live_mutation propose staging-logs --opentofu infra/staging"
+tofu_runs "a run of build:live-mutation's tool without a go-ahead" "$live_mutation run staging-logs 3f9a1c0d5e7b2a46"
+tofu_runs "a proposal in the OpenTofu form of a root module under a directory named tofu" \
+  "$live_mutation propose staging-logs --opentofu infra/tofu/staging --destroy"
+tofu_runs "a proposal in the OpenTofu form of a root module named tofu" \
+  "$live_mutation propose staging-logs --opentofu infra/tofu --check 'reachable=curl -fsS https://staging.example.com'"
 
 tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
   "$(writes "tofu -chdir=$organization apply organization.tfplan")" '{"agent_id": "a1", "agent_type": "general-purpose"}'
