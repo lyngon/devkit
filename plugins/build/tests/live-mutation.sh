@@ -834,6 +834,17 @@ environment=()
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
+set_level infra/staging
+environment=("TF_DATA_DIR=$repository/infra/staging/.terraform")
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "TF_DATA_DIR set" staging-logs infra/staging \
+  '`TF_DATA_DIR` is set, so tofu reads a backend and a state that `-chdir` does not choose\.' \
+  "$shown_waiting"
+environment=()
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
 mkdir -p "$repository/modules/notify"
 printf '%s\n' 'resource "terraform_data" "notify" {' '  provisioner "local-exec" {' '    command = "printf ran >provisioned"' '  }' '}' \
   >"$repository/modules/notify/main.tf"
