@@ -435,8 +435,8 @@ with_tmpdir "$outside_any_repository/a b" lead_command_refused "cp to an unquote
   "cp tmp/pricing.py \$TMPDIR/src/orders/pricing.py" "cp tmp/pricing.py \$TMPDIR/src/orders/pricing.py"
 with_tmpdir "$outside_any_repository" lead_command_refused "cp to a path that leaves \$TMPDIR for the change" \
   "cp tmp/pricing.py \"\$TMPDIR/../orders/src/orders/pricing.py\"" "cp tmp/pricing.py \"\$TMPDIR/../orders/src/orders/pricing.py\""
-with_tmpdir "$repository/tmp" lead_command_refused "a write under \$TMPDIR:h, the directory above it in zsh" \
-  "echo 'BULK = 9' > \"\$TMPDIR:h/src/orders/pricing.py\"" "> \"\$TMPDIR:h/src/orders/pricing.py\""
+with_tmpdir "$repository/tmp/scratch" lead_command_refused "a write under \$TMPDIR:h, the directory above it in zsh" \
+  "echo 'BULK = 9' > \"\$TMPDIR:h/../src/orders/pricing.py\"" "> \"\$TMPDIR:h/../src/orders/pricing.py\""
 with_tmpdir "$outside_any_repository" lead_command_refused "a write into the change under \$PWD beside a TMPDIR" \
   "echo 'BULK = 9' > \"\$PWD/src/orders/pricing.py\"" "> \"\$PWD/src/orders/pricing.py\""
 with_tmpdir "$outside_any_repository" lead_command_unread "a here-document that \$TMPDIR ends, which bash leaves unexpanded" \
