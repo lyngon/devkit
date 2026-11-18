@@ -884,10 +884,13 @@ mkdir -p "$repository/modules/notify"
 printf '%s\n' 'resource "terraform_data" "notify" {' '  provisioner "local-exec" {' '    command = "printf ran >provisioned"' '  }' '}' \
   >"$repository/modules/notify/main.tf"
 printf '%s\n' 'module "notify" {' '  source = "../../modules/notify"' '}' >"$repository/infra/staging/notify.tf"
+printf '%s\n' 'resource "terraform_data" "announce" {' '  provisioner "local-exec" {' '    command = "printf ran >announced"' '  }' '}' \
+  >"$repository/infra/staging/announce.tf"
 tofu_in infra/staging init -input=false >/dev/null
 propose_tofu staging-notify --opentofu infra/staging
-expect_waits "a local-exec provisioner in a module that a create-only plan calls" staging-notify infra/staging \
-  'A provisioner runs code that the plan does not show, and the configuration holds one in `module\.notify\.terraform_data\.notify`\.' \
+expect_waits "a local-exec provisioner in the root module and in a module that a create-only plan calls" staging-notify \
+  infra/staging \
+  'A provisioner runs code that the plan does not show, and the configuration holds one in `terraform_data\.announce`, `module\.notify\.terraform_data\.notify`\.' \
   "$shown_waiting"
 
 if ((failures > 0)); then
