@@ -1199,9 +1199,20 @@ def proposed(
 
 
 def session_named(parsed: argparse.Namespace, environ: ct.Mapping[str, str]) -> str:
-    """Return the session that --session names, or this one."""
+    """Return the session that --session names, or this one without it.
+
+    Raises RefusalError for a --session that is no session ID, which must never fall back to this session.
+    """
     given = t.cast("str | None", parsed.session)
-    return given if given is not None and SESSION.fullmatch(given) else session_of(environ)
+    if given is None:
+        return session_of(environ)
+    if not SESSION.fullmatch(given):
+        message = (
+            f"bad-session: {given!r} is no session ID, which holds only letters, digits, `_` and `-`;"
+            " name the session that pending lists"
+        )
+        raise RefusalError(message)
+    return given
 
 
 def main(arguments: ct.Sequence[str], environ: ct.Mapping[str, str]) -> int:
