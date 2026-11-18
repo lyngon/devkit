@@ -68,6 +68,7 @@ The proposal ends with its route.
 It needs no go-ahead only when none of these holds, and otherwise it waits and the output gives each that holds:
 
 - A resource change of the plan has no action, an action beyond no-op, create, read and update, such as a delete, a replace or a forget, or a form that the tool cannot read.
+- A resource change of the plan imports an object, which the state of the root module never held.
 - The configuration of the plan, in the root module or in any module that it calls, holds a provisioner, which runs code that the plan does not show.
 - `TF_CLI_ARGS` or a `TF_CLI_ARGS_` variable is set in the tool's environment, since the form takes no plan argument beyond its own.
 - `TF_DATA_DIR` is set in the tool's environment, since it picks a backend and a state that `-chdir` does not.
@@ -83,7 +84,7 @@ When it waits, the output gives the command that runs on a go-ahead.
 The tool reads none of the other variables that choose a backend, a provider or the configuration of the CLI, such as `TF_HTTP_ADDRESS`, `TF_FORCE_LOCAL_BACKEND`, `TF_CLI_CONFIG_FILE`, `TF_REATTACH_PROVIDERS` and the `TF_VAR_` variables, so whether one of them points the apply elsewhere is yours to judge.
 
 A destroy is planned with `--destroy`, and it always waits, since its plan deletes every resource.
-An import is an `import` block in the code, planned like any change.
+An import is an `import` block in the code, and its plan always waits.
 A plan that needs any other argument, such as `-target`, `-replace` or `-var-file`, goes through the generic form.
 So do `tofu import`, the `state` commands and `tofu force-unlock`, and all of them always wait.
 A command that has no inputs, such as `tofu force-unlock`, derives nothing (`--derive true`) and shows what it acts on.
