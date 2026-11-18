@@ -3,7 +3,7 @@
 
     live-mutation.py propose <name> --derive <cmd> --show <cmd> --run <cmd> [--check <check>=<cmd>]...
     live-mutation.py propose <name> --opentofu <root module> [--destroy] [--check <check>=<cmd>]...
-    live-mutation.py demonstrate <name> <check> <cmd>
+    live-mutation.py demonstrate <name> <check> <cmd> [--session <id>]
     live-mutation.py run <name> <digest> [--go-ahead <the owner's words>]
     live-mutation.py record <name> [--session <id>]
     live-mutation.py posted <name> <url>... [--session <id>]
@@ -874,9 +874,17 @@ def find(root: pathlib.Path, session: str, name: str) -> Place:
     raise RefusalError(message)
 
 
+def held(root: pathlib.Path, session: str, name: str) -> Place:
+    """Return the place of a proposal of the session, this one or another. Raises RefusalError when it holds none."""
+    place = place_of(root, session, name)
+    if not place.proposal.exists():
+        raise RefusalError(f"not-found: session {session} holds no proposal {name}")
+    return place
+
+
 def demonstrate(root: pathlib.Path, session: str, name: str, check: str, command: str) -> tuple[int, str]:
-    """Run a check's command against a state where its property does not hold, and log it."""
-    place = find(root, session, name)
+    """Run a check's command against a state where its property does not hold, and log it in the session's proposal."""
+    place = held(root, session, name)
     if check not in load(place).form.commands.checks:
         raise RefusalError(f"no-such-check: proposal {name} has no check {check}")
     entry = step(root, place, Kind.DEMONSTRATION, command, check)
@@ -1006,9 +1014,7 @@ def details(summary: str, path: pathlib.Path) -> str:
 
 def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
     """Write the action record of a run as Markdown comments that GitHub accepts, and return their paths."""
-    place = place_of(root, session, name)
-    if not place.proposal.exists():
-        raise RefusalError(f"not-found: session {session} holds no proposal {name}")
+    place = held(root, session, name)
     proposal = load(place)
     entries = read_log(place)
     used = consumed(entries)
@@ -1019,7 +1025,7 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
         if all(entry.status == 0 for entry in entries if entry.check == check):
             message = (
                 f"check-never-failed: the check {check} never failed, so it is no evidence;"
-                f" run {TOOL} demonstrate {name} {check} '<cmd>' where its property does not hold"
+                f" run {TOOL} demonstrate {name} {check} '<cmd>' --session {session} where its property does not hold"
             )
             raise RefusalError(message)
     position = entries.index(used)
@@ -1093,9 +1099,7 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
 
 def posted(root: pathlib.Path, session: str, name: str, urls: ct.Sequence[str]) -> str:
     """Log the URLs of the comments that hold the action record of a run, which takes it off the pending list."""
-    place = place_of(root, session, name)
-    if not place.proposal.exists():
-        raise RefusalError(f"not-found: session {session} holds no proposal {name}")
+    place = held(root, session, name)
     if consumed(read_log(place)) is None:
         raise RefusalError(f"not-run: proposal {name} has not run, so it has no action record to post")
     wrong = [url for url in urls if not URL.fullmatch(url)]
@@ -1174,6 +1178,7 @@ def parser() -> argparse.ArgumentParser:
     _ = demonstrating.add_argument("name")
     _ = demonstrating.add_argument("check")
     _ = demonstrating.add_argument("cmd")
+    _ = demonstrating.add_argument("--session", help="the session that showed it, when not this one")
     running = commands.add_parser("run", help="run a proposal of this conversation once")
     _ = running.add_argument("name")
     _ = running.add_argument("digest")
@@ -1241,7 +1246,7 @@ def main(arguments: ct.Sequence[str], environ: ct.Mapping[str, str]) -> int:
                 text = propose(root, session_of(environ), t.cast("str", parsed.name), form)
             case "demonstrate":
                 name, check, cmd = (t.cast("str", getattr(parsed, field)) for field in ("name", "check", "cmd"))
-                status, text = demonstrate(root, session_of(environ), name, check, cmd)
+                status, text = demonstrate(root, session_named(parsed, environ), name, check, cmd)
             case "run":
                 name, digest = t.cast("str", parsed.name), t.cast("str", parsed.digest)
                 status, text = run(root, session_of(environ), name, digest, t.cast("str | None", parsed.go_ahead))
