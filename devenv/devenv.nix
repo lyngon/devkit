@@ -264,10 +264,9 @@ in
         pkgs.python3
         pygmentize
         pkgs.shfmt
-        pkgs.git
       ];
-      defaultText = lib.literalMD "`python3`, `pygmentize` of `pkgs.python3Packages.pygments` without the package's Python modules, `shfmt` and `git`";
-      description = "The tools a script or a hook that a plugin ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so build it from the default, as in options.lyngon.scriptTools.default ++ [ pkgs.jq ]. The commands that a script runs for the repository, such as the tofu of a live mutation, come from the repository's shell.";
+      defaultText = lib.literalMD "`python3`, `pygmentize` of `pkgs.python3Packages.pygments` without the package's Python modules, and `shfmt`";
+      description = "The tools a script or a hook that a plugin ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so build it from the default, as in options.lyngon.scriptTools.default ++ [ pkgs.jq ].";
     };
 
     fullCheck.showOutput = lib.mkOption {
