@@ -87,7 +87,9 @@ The baseline's hooks are: nixfmt, shellcheck, markdownlint (one sentence per lin
 No hook checks a commit message: a pull request lands as one commit with its title and its body as the message, and the baseline's command `check-pull-request` checks those two, in the devenv shell and in the pull request workflow.
 The options `lyngon.pullRequest.body.targetLines` and `lyngon.pullRequest.body.headroomLines` set how long a body may be, 40 and 20 content lines by default.
 The option `lyngon.mistakes.maxAgeDays` sets how long a file of the mistake ledger, `docs/mistakes/`, is kept, 365 days by default.
-The option `lyngon.scriptTools` lists the tools that the scripts and hooks of the plugins run, Python, Pygments and shfmt by default, and the baseline adds them to the shell.
+The option `lyngon.scriptTools` lists the tools that the scripts and hooks of the plugins run, Python, Pygments, shfmt and git by default, and the baseline adds them to the shell.
+A value set there replaces the default, so build it from the default, as in `options.lyngon.scriptTools.default ++ [ pkgs.jq ]`.
+The commands that a script runs for the repository, such as the `tofu` of a live mutation, come from the repository's shell.
 The option `lyngon.mcp.enable` writes `.mcp.json` with the devenv MCP server; it is off by default, because each Claude Code session then starts a server of its own.
 The option `lyngon.fullCheck.showOutput`, on by default, makes a passing [full check](#verification) print the result of each git hook, the output of each task that runs before `devenv:enterTest`, and the output of `enterTest`, also in an agent session.
 Otherwise devenv hides what passes.
