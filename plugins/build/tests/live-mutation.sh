@@ -334,7 +334,7 @@ publish() {
   git -C "$repository" add -A
   git -C "$repository" commit -q -m "feat(infra): describe staging"
   origin=$(mktemp -d "$tmp/origin.XXXXXX")
-  git init -q --bare "$origin"
+  git init -q --bare -b main "$origin"
   git -C "$repository" remote add origin "$origin"
   git -C "$repository" push -q origin main
   git -C "$repository" remote set-head origin main
@@ -582,7 +582,7 @@ else
 fi
 git -C "$repository" remote set-head origin --delete
 expect_waits "a missing origin/HEAD at the run" staging-logs infra/staging \
-  'refs/remotes/origin/HEAD is missing, so the tool cannot read which root modules are unprotected\.'
+  '`refs/remotes/origin/HEAD` is missing, while origin.s default branch is `main` at `'"$(git -C "$origin" rev-parse main)"'`\. Run `git fetch origin` and `git remote set-head origin --auto`, and propose again\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -725,6 +725,56 @@ expect "a proposal made while origin/HEAD is missing waits" 0 'The run waits for
 git -C "$repository" remote set-head origin main
 expect_waits "a proposal shown as waiting, run after origin/HEAD appears" staging-logs infra/staging \
   'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
+
+shown_waiting='The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
+
+new_tofu_repository
+publish
+rule mine.md "unprotected-roots:" "  - infra/staging"
+git -C "$repository" add -A
+git -C "$repository" commit -q -m "docs(rules): call staging unprotected"
+git -C "$repository" push -q -u origin feat/staging-logs
+git -C "$repository" remote set-head origin feat/staging-logs
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "origin/HEAD set to the agent's branch, which holds a rule" staging-logs infra/staging \
+  '`refs/remotes/origin/HEAD` names `feat/staging-logs` at `'"$(git -C "$repository" rev-parse HEAD)"'`, while origin.s default branch is `main` at `'"$(git -C "$origin" rev-parse main)"'`\. Run `git fetch origin` and `git remote set-head origin --auto`, and propose again\.' \
+  "$shown_waiting"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+stale=$(git -C "$repository" rev-parse refs/remotes/origin/HEAD)
+git clone -q "$origin" "$tmp/protects"
+git -C "$tmp/protects" rm -q .claude/rules/sandbox.md
+git -C "$tmp/protects" commit -q -m "docs(rules): protect staging again"
+git -C "$tmp/protects" push -q origin main
+rm -rf "$tmp/protects"
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "an origin/HEAD not fetched since origin removed the rule" staging-logs infra/staging \
+  '`refs/remotes/origin/HEAD` names `main` at `'"$stale"'`, while origin.s default branch is `main` at `'"$(git -C "$origin" rev-parse main)"'`\. Run `git fetch origin` and `git remote set-head origin --auto`, and propose again\.' \
+  "$shown_waiting"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+git -C "$repository" remote set-url origin "$tmp/no-such-origin"
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "an origin that cannot be reached" staging-logs infra/staging \
+  'origin cannot be reached, so the tool cannot read its default branch: `git ls-remote --symref origin HEAD` exited 128: '"$rest_of_line" \
+  "$shown_waiting"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+git -C "$repository" switch -q main
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "a proposal on origin's default branch" staging-logs infra/staging \
+  'HEAD is on `main`, the default branch of origin, so no pull request will take the action record\.' \
+  "$shown_waiting"
 
 if ((failures > 0)); then
   echo "test-live-mutation: $failures failure(s)" >&2
