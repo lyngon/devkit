@@ -12,14 +12,5 @@
     "plan": "d299a0d6ecffd603bf42e0b493f645a8178b6295210c49db22b2198e83dd7853"
   },
   "rendering": "564f47e88b210ecbd903226c72c3b492caa38665301e2692233613b79d3e3f64",
-  "digest": "56f251d96c1b8c63",
-  "form": null,
-  "blocking": [],
-  "route": {
-    "kind": "go-ahead-needed",
-    "reasons": [
-      "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
-    ]
-  },
-  "branch": "feat/longer-log-retention"
+  "digest": "56f251d96c1b8c63"
 }

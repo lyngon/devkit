@@ -77,6 +77,15 @@ DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
 URL = re.compile(r"https://\S+")
+# The fields that the tool did not write before it had the OpenTofu form, each with the value that reads as it did:
+# the generic form, which always waits, and no branch, so that pending lists none of its runs.
+RELEASED_PROPOSAL: ct.Mapping[str, object] = {
+    "form": None,
+    "blocking": [],
+    "route": {"kind": "go-ahead-needed", "reasons": [GENERIC]},
+    "branch": None,
+}
+RELEASED_LOG_LINE: ct.Mapping[str, object] = {"rule_file": "", "commit": "", "directory": "", "urls": []}
 
 
 class RefusalError(Exception):
@@ -288,13 +297,6 @@ def fields_of(text: str) -> dict[str, object]:
     return data
 
 
-def present(fields: ct.Mapping[str, object], key: str) -> object:
-    """Return a field that may be null. Raises RefusalError when it is missing."""
-    if key not in fields:
-        raise RefusalError(f"corrupt: {key} is missing")
-    return fields[key]
-
-
 def text_of(fields: ct.Mapping[str, object], key: str) -> str:
     """Return a field as a string. Raises RefusalError when it is none."""
     value = fields.get(key)
@@ -356,14 +358,14 @@ def route_fields(route: Route) -> dict[str, object]:
 
 def load(place: Place) -> Proposal:
     """Read a proposal from its directory."""
-    fields = fields_of(place.proposal.read_text(encoding="utf-8"))
+    fields = {**RELEASED_PROPOSAL, **fields_of(place.proposal.read_text(encoding="utf-8"))}
     commands = Commands(
         derive=text_of(fields, "derive"),
         show=text_of(fields, "show"),
         run=text_of(fields, "run"),
         checks=texts_of(fields, "checks"),
     )
-    branch = present(fields, "branch")
+    branch = fields["branch"]
     if branch is not None and not isinstance(branch, str):
         raise RefusalError("corrupt: branch is neither null nor a string")
     return Proposal(
@@ -374,9 +376,9 @@ def load(place: Place) -> Proposal:
         inputs=texts_of(fields, "inputs"),
         rendering=text_of(fields, "rendering"),
         digest=text_of(fields, "digest"),
-        form=form_of(present(fields, "form")),
+        form=form_of(fields["form"]),
         blocking=strings_of(fields, "blocking"),
-        route=route_from(present(fields, "route")),
+        route=route_from(fields["route"]),
         branch=branch,
     )
 
@@ -409,7 +411,7 @@ def read_log(place: Place) -> list[Entry]:
         return []
     entries: list[Entry] = []
     for line in place.log.read_text(encoding="utf-8").splitlines():
-        fields = fields_of(line)
+        fields = {**RELEASED_LOG_LINE, **fields_of(line)}
         status = fields.get("status")
         if not isinstance(status, int):
             raise RefusalError(f"corrupt: a line of {place.log} has no status")
