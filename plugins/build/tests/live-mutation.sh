@@ -133,6 +133,8 @@ new_repository old new
 propose_value_change
 mutation session-one record set-value
 expect "a proposal that never ran has no record" 1 '^live-mutation\.py: not-run: '
+mutation session-one posted set-value https://github.com/acme/orders/pull/7#issuecomment-1
+expect "a proposal that never ran has no record to post" 1 '^live-mutation\.py: not-run: proposal set-value has not run'
 
 mutation session-one run set-value "$digest" --go-ahead "Go ahead with set-value."
 expect "a go-ahead for the digest runs the proposal and checks it again" 0 \
@@ -357,10 +359,33 @@ else
   fail "the record names the rule file, says that no go-ahead was asked, and names no owner" "got:"$'\n'"$record"
 fi
 
+sleep 1
 set_level infra/staging-old
 propose_tofu old-logs --opentofu infra/staging-old
 expect_waits "a root module beside a declared directory with the same prefix" old-logs infra/staging-old \
   'No rule file under `\.claude/rules/` at `'"$declared"'` lists `infra/staging-old` or a directory above it under `unprotected-roots:`\.'
+
+mutation session-two pending
+expect "pending lists the unposted runs of the branch from every session, in the order they ran" 0 \
+  '^The runs of branch `feat/staging-logs` whose action record is not posted, in the order they ran:.*- `staging-logs` of session `session-one`, run without a go-ahead at [0-9TZ:-]+\..*record staging-logs --session session-one'$'\n'' *[^ ]* posted staging-logs <url>\.\.\. --session session-one.*- `old-logs` of session `session-one`, run on a go-ahead at '
+git -C "$repository" switch -q -c feat/other
+mutation session-two pending
+expect "pending lists no run of another branch" 0 '^No run of branch `feat/other` waits for its action record to be posted\.$'
+git -C "$repository" switch -q feat/staging-logs
+mutation session-two posted staging-logs https://github.com/acme/orders/pull/7#issuecomment-1 --session session-one
+expect "posted logs the URL of a run's record, naming its session" 0 \
+  '^The action record of staging-logs is posted at https://github\.com/acme/orders/pull/7#issuecomment-1\.$'
+mutation session-two posted old-logs comment-2 --session session-one
+expect "posted refuses what is no https URL" 1 '^live-mutation\.py: bad-url: comment-2 is no https URL'
+mutation session-two posted old-logs https://github.com/acme/orders/pull/7#issuecomment-2 --session session-one
+mutation session-two pending
+expect "pending lists nothing once every record of the branch is posted" 0 \
+  '^No run of branch `feat/staging-logs` waits for its action record to be posted\.$'
+mkdir -p "$repository/tmp/live-mutation/session-old/stale"
+printf '{}\n' >"$repository/tmp/live-mutation/session-old/stale/proposal.json"
+mutation session-two pending
+expect "pending names a proposal it cannot read, and fails" 1 \
+  'could not be read.*- tmp/live-mutation/session-old/stale/proposal\.json: corrupt: '
 
 new_tofu_repository
 publish
@@ -451,6 +476,8 @@ set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
 expect_waits "a detached HEAD at the proposal" staging-logs infra/staging \
   'HEAD was detached at the proposal, so its action record has no branch to wait on\.'
+mutation session-one pending
+expect "pending refuses a detached HEAD" 1 '^live-mutation\.py: detached-head: '
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
