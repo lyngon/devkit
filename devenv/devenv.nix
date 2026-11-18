@@ -197,6 +197,13 @@ let
         --headroom-lines ${toString cfg.pullRequest.body.headroomLines}
     '';
   };
+
+  # The program alone: its package carries Python's setup hook, which would put
+  # Pygments on PYTHONPATH, ahead of a repository's own Python environment.
+  pygmentize = pkgs.runCommand "pygmentize" { } ''
+    mkdir -p "$out/bin"
+    ln -s ${lib.getExe' pkgs.python3Packages.pygments "pygmentize"} "$out/bin/pygmentize"
+  '';
 in
 {
   options.lyngon = {
@@ -255,10 +262,11 @@ in
       type = lib.types.listOf lib.types.package;
       default = [
         pkgs.python3
+        pygmentize
         pkgs.shfmt
       ];
-      defaultText = lib.literalExpression "[ pkgs.python3 pkgs.shfmt ]";
-      description = "The tools a script or a hook that a plugin ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so keep pkgs.python3 and pkgs.shfmt in it.";
+      defaultText = lib.literalMD "`python3`, `pygmentize` of `pkgs.python3Packages.pygments` without the package's Python modules, and `shfmt`";
+      description = "The tools a script or a hook that a plugin ships may run, added to the shell. Such a script takes nothing else from the PATH. A value set here replaces the default, so build it from the default, as in options.lyngon.scriptTools.default ++ [ pkgs.jq ].";
     };
 
     fullCheck.showOutput = lib.mkOption {

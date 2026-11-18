@@ -378,8 +378,6 @@ let
     text = ''exec "${config.devenv.root}/plugins/build/tests/live-mutation.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
 
-  # Fixture tests for the stand-in for gh that the eval cases of build:pull-request
-  # run, in a workspace that their seed script writes.
   testEvalForge = pkgs.writeShellApplication {
     name = "test-eval-forge";
     runtimeInputs = [
