@@ -402,6 +402,13 @@ expect_waits "a root module beside a declared directory with the same prefix" ol
 mutation session-two pending
 expect "pending lists the unposted runs of the branch from every session, in the order they ran" 0 \
   '^The runs of branch `feat/staging-logs` whose action record is not posted, in the order they ran:.*- `staging-logs` of session `session-one`, run without a go-ahead at [0-9TZ:-]+\..*record staging-logs --session session-one'$'\n'' *[^ ]* posted staging-logs <url>\.\.\. --session session-one.*- `old-logs` of session `session-one`, run on a go-ahead at '
+mutation session-one posted staging-logs https://github.com/acme/orders/pull/7#issuecomment-1 --session 'a b'
+expect "posted refuses a session that is no session ID" 1 "^live-mutation\.py: bad-session: 'a b' is no session ID"
+mutation session-one record staging-logs --session 'a b'
+expect "record refuses a session that is no session ID" 1 "^live-mutation\.py: bad-session: 'a b' is no session ID"
+mutation session-two pending
+expect "a posted that names no session ID leaves the run of this session pending" 0 \
+  '- `staging-logs` of session `session-one`, run without a go-ahead at '
 git -C "$repository" switch -q -c feat/other
 mutation session-two pending
 expect "pending lists no run of another branch" 0 '^No run of branch `feat/other` waits for its action record to be posted\.$'
