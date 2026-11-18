@@ -9,8 +9,8 @@ tool=$evals/../skills/live-mutation/scripts/live-mutation.py
 digest_line='at digest `([0-9a-f]+)`'
 
 bash "$opentofu/seed-workspace.sh" \
-  "feat(infra): log at debug level in staging" "$opentofu/branch" none \
-  "$evals/live-mutation-runs-opentofu-on-an-unprotected-root/planted"
+  --no-pull-request \
+  --main-files "$evals/live-mutation-runs-opentofu-on-an-unprotected-root/planted"
 
 export CLAUDE_CODE_SESSION_ID=20261110-0900-4000-8000-000000000150
 export PATH="$PWD/.git/forge/bin:$PATH"

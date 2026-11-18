@@ -4,14 +4,34 @@ set -euo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 evals=$(dirname "$here")
 branch=feat/debug-staging-logs
-title=${1:-"feat(infra): log at debug level in staging"}
-branch_files=${2:-$here/branch}
-pull_request=${3:-open}
-main_files=("${@:4}")
-if [[ $pull_request != open && $pull_request != none ]]; then
-  echo "seed: the third argument is open or none, not $pull_request" >&2
-  exit 1
-fi
+title="feat(infra): log at debug level in staging"
+branch_files=$here/branch
+opens_pull_request=true
+main_files=()
+while (($# > 0)); do
+  case $1 in
+    --title)
+      title=$2
+      shift
+      ;;
+    --branch-files)
+      branch_files=$2
+      shift
+      ;;
+    --main-files)
+      main_files+=("$2")
+      shift
+      ;;
+    --no-pull-request)
+      opens_pull_request=false
+      ;;
+    *)
+      echo "seed: unknown option $1" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
 forge=.git/forge
 devenv_lock=$(cd "$evals/../../.." && pwd)/devenv.lock
 devenv_nixpkgs=$(nix eval --impure --raw --expr "with (builtins.fromJSON (builtins.readFile \"$devenv_lock\")).nodes.nixpkgs.locked; \"github:\" + owner + \"/\" + repo + \"/\" + rev")
@@ -48,6 +68,6 @@ cp -R "$branch_files/." .
 git add -A
 git commit -q -m "$title"
 git push -q -u origin "$branch"
-if [[ $pull_request == open ]]; then
+if [[ $opens_pull_request == true ]]; then
   "$forge/bin/gh" pr create --title "$title" --body "Changes infra/ only. Live state follows when the change is applied." >/dev/null
 fi
