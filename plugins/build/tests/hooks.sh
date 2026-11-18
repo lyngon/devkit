@@ -263,11 +263,43 @@ $live_mutation run staging-logs 3f9a1c0d5e7b2a46
 SH" "$reports" "$subagent"
 tofu_denied "a run of build:live-mutation's tool piped as text into sh in a subagent" \
   "echo '$live_mutation run staging-logs 3f9a1c0d5e7b2a46' | sh" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under env in a subagent" \
+  "env CLAUDE_CODE_SESSION_ID=s2 $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under timeout in a subagent" \
+  "timeout 600 $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under nix shell --command in a subagent" \
+  "nix shell nixpkgs#opentofu --command $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under a program in a variable in a subagent" \
+  "\"\$PYTHON\" $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "build:live-mutation's tool under xargs -I, its subcommand replaced from standard input, in a subagent" \
+  "echo run | xargs -I{} $live_mutation {} staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash in a subagent" \
+  "bash <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "an alias of build:live-mutation's tool, used to run, in a subagent" \
+  "alias lm=$live_mutation; lm run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "an alias of a run of build:live-mutation's tool in a subagent" \
+  "alias lm='$live_mutation run'; lm staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_runs "a lint of build:live-mutation's tool by ruff in a subagent" "ruff check $live_mutation" "$subagent"
+tofu_runs "a type check of build:live-mutation's tool by basedpyright in a subagent" \
+  "basedpyright $live_mutation" "$subagent"
+tofu_runs "a compile of build:live-mutation's tool by python3 -m py_compile in a subagent" \
+  "python3 -m py_compile $live_mutation" "$subagent"
+tofu_runs "a copy of build:live-mutation's tool to a path in a variable in a subagent" \
+  "cp $live_mutation \"\$scratch/live-mutation.py\"" "$subagent"
+tofu_runs "a search for run in build:live-mutation's tool in a subagent" "grep -n run $live_mutation" "$subagent"
+tofu_runs "a script file run by bash, then a search of build:live-mutation's tool, in a subagent" \
+  "bash plugins/build/tests/live-mutation.sh && grep -n run $live_mutation" "$subagent"
 tofu_runs "build:live-mutation's tool under xargs, by the lead" \
   "echo 'run staging-logs 3f9a1c0d5e7b2a46' | xargs $live_mutation"
 tofu_runs "a run of build:live-mutation's tool in a heredoc fed to bash, by the lead" "bash <<'SH'
 $live_mutation run staging-logs 3f9a1c0d5e7b2a46
 SH"
+tofu_runs "a run of build:live-mutation's tool in a here-string fed to bash, by the lead" \
+  "bash <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'"
+tofu_runs "a run of build:live-mutation's tool under timeout, by the lead" \
+  "timeout 600 $live_mutation run staging-logs 3f9a1c0d5e7b2a46"
+tofu_runs "an alias of build:live-mutation's tool, used to run, by the lead" \
+  "alias lm=$live_mutation; lm run staging-logs 3f9a1c0d5e7b2a46"
 
 tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
