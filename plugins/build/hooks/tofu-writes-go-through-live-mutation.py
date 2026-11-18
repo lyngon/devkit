@@ -291,10 +291,7 @@ def call_denial(call: shell_syntax.Call) -> str | None:
 
 
 def denial(command: str) -> str | None:
-    """Return why the hook denies a command that names tofu, or a script that one hands a shell, or None to let it run.
-
-    A script is read whether or not it names tofu itself, since the command around it does.
-    """
+    """Return why the hook denies a shell command, or None to let it run."""
     try:
         parts = shell_syntax.calls_and_redirections(command, DIALECTS, resolve_variables=True)
     except shell_syntax.ParserMissingError:
