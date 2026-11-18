@@ -27,6 +27,7 @@ cp "$here/../pull-request-says-it-met-nothing/forge/gh" "$forge/bin/gh"
 cp "$here/cloud/cloudctl" "$forge/bin/cloudctl"
 cp "$here/cloud/production.json" "$here/cloud/staging.json" "$forge/cloud/"
 chmod +x "$forge/bin/gh" "$forge/bin/cloudctl"
+echo acme/orders >"$forge/repository"
 git init -q --bare "$forge/origin.git"
 git remote add origin "$PWD/$forge/origin.git"
 git push -q origin main

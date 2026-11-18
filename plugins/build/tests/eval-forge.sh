@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# Exercise the stand-in for gh that the eval cases of build:pull-request put in front
-# of the PATH, in a workspace that the seed script of pull-request-says-it-met-nothing
-# writes: what it prints for each command, and what it records in .git/forge
-# for the graders. Run through `devenv test`.
 set -euo pipefail
 
-evals=$(cd "$(dirname "${BASH_SOURCE[0]}")/../evals" && pwd)
+plugins=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+evals=$plugins/build/evals
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 failures=0
@@ -113,6 +110,30 @@ gh api repos/acme/orders
 check "a command the stand-in does not answer fails and says so" \
   "1|gh api repos/acme/orders: this forge answers only auth status, repo view, issue create, issue list, issue view, issue comment, pr create, pr edit, pr view, pr list, pr comment, pr checks" \
   "$code|$err"
+
+mv "$forge/repository" "$tmp/repository"
+gh pr view 71
+check "a command that names the repository fails when the seed named none" \
+  "1|$forge/repository is missing: the seed of the case writes the repository there, as acme/orders" "$code|$err"
+mv "$tmp/repository" "$forge/repository"
+
+for entry in \
+  "build/evals/pull-request-says-it-met-nothing acme/orders 71" \
+  "build/evals/live-mutation-stops-with-the-proposal acme/orders 72" \
+  "devkit/evals/add-skill-finishes-a-planned-change lyngon/devkit 71"; do
+  read -r case repository number <<<"$entry"
+  workspace=$(mktemp -d "$tmp/workspace.XXXXXX")
+  cd "$workspace"
+  bash "$plugins/$case/seed-workspace.sh" >/dev/null
+  forge=$workspace/.git/forge
+  git switch -q -c probe
+  git push -q origin probe
+  gh repo view
+  view="$code|$out"
+  gh pr create --title probe --body probe
+  check "the seed of ${case##*/} names $repository" \
+    "0|$repository|0|https://github.com/$repository/pull/$number" "$view|$code|$out"
+done
 
 if ((failures > 0)); then
   echo "test-eval-forge: $failures failure(s)" >&2

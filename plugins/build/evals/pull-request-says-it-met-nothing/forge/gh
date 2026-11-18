@@ -2,9 +2,11 @@
 """A stand-in for the GitHub CLI in an eval run, so that a run files issues and opens pull requests offline.
 
 It answers the commands that filing an issue and opening a pull request take, for the repository
-acme/orders, and keeps what it is given in the directory above its own, where the graders of a case
-read it:
+that the seed of the case names in the directory above its own, and keeps what it is given there,
+where the graders of a case read it:
 
+  repository        written by the seed: the owner and the name of the repository that the case
+                    stands in for, as acme/orders
   created.log       one line per issue or pull request in the order of creation, either
                     "issue #<n> <title>" or "pull #<n> <head branch> <title>"
   issues/<n>.md     the title of the issue as a heading, then its body
@@ -17,6 +19,7 @@ It reaches no network. A command that it does not answer fails with a message th
 """
 
 import argparse
+import functools
 import json
 import pathlib
 import shutil
@@ -25,8 +28,6 @@ import sys
 import typing as t
 
 FORGE: t.Final = pathlib.Path(__file__).resolve().parent.parent
-REPOSITORY: t.Final = "acme/orders"
-URL: t.Final = f"https://github.com/{REPOSITORY}"
 FIRST_NUMBER: t.Final = 71
 NOT_INTERACTIVE: t.Final = "must provide `--title` and `--body` (or `--fill`) when not running interactively"
 ANSWERED: t.Final = (
@@ -39,6 +40,15 @@ Item = dict[str, t.Any]
 
 class Failure(Exception):
     """The command cannot be done; the message is what gh would print."""
+
+
+@functools.cache
+def repository() -> str:
+    path = FORGE / "repository"
+    try:
+        return path.read_text().strip()
+    except FileNotFoundError as error:
+        raise Failure(f"{path} is missing: the seed of the case writes the repository there, as acme/orders") from error
 
 
 def load() -> dict[str, t.Any]:
@@ -89,7 +99,7 @@ def body_of(arguments: argparse.Namespace) -> str | None:
 
 
 def url_of(item: Item) -> str:
-    return f"{URL}/{'issues' if item['kind'] == 'issue' else 'pull'}/{item['number']}"
+    return f"https://github.com/{repository()}/{'issues' if item['kind'] == 'issue' else 'pull'}/{item['number']}"
 
 
 def as_json(item: Item, fields: str) -> dict[str, t.Any]:
@@ -188,7 +198,8 @@ def main(arguments: list[str]) -> int:
         if command == "auth status":
             print("github.com\n  Logged in to github.com account acme-bot (keyring)\n  - Active account: true")
         elif command == "repo view":
-            print(json.dumps({"nameWithOwner": REPOSITORY, "url": URL}) if options.json else REPOSITORY)
+            name = repository()
+            print(json.dumps({"nameWithOwner": name, "url": f"https://github.com/{name}"}) if options.json else name)
         elif command == "issue create":
             body = body_of(options)
             if options.title is None or body is None:

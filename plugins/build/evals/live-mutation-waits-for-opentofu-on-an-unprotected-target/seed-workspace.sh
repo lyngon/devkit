@@ -24,6 +24,7 @@ git commit -q -m "feat(infra): describe the staging resources of the orders serv
 mkdir -p "$forge/bin" "$forge/cloud"
 cp "$evals/pull-request-says-it-met-nothing/forge/gh" "$forge/bin/gh"
 chmod +x "$forge/bin/gh"
+echo acme/orders >"$forge/repository"
 ln -s "$(nix build --no-link --print-out-paths "$devenv_nixpkgs#opentofu")/bin/tofu" "$forge/bin/tofu"
 ln -s "$(nix build --no-link --print-out-paths "$devenv_nixpkgs#shfmt")/bin/shfmt" "$forge/bin/shfmt"
 "$forge/bin/tofu" -chdir=infra/staging init -input=false >/dev/null
