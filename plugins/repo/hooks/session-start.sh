@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# SessionStart and UserPromptSubmit hook of the repo plugin: its standard
-# output is added to the session context. A resumed session runs SessionStart
-# in the tree it was launched in and enters its worktree only after that, so
-# at a resume the lines about the working tree wait for the next
-# UserPromptSubmit, which runs in the tree the session works in.
+# A resumed session runs SessionStart in the tree it was launched in and
+# enters its worktree only after that, so at a resume the lines about the
+# working tree wait for the next UserPromptSubmit, which runs in the tree the
+# session works in.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -24,7 +23,6 @@ commits() {
 
 tell_about_the_tree() {
   local branch tracking upstream track behind
-  # The line as repo:init writes it; a comment or `= false` does not match.
   if grep -qsE '^[[:space:]]*lyngon\.structure\.enable[[:space:]]*=[[:space:]]*true[[:space:]]*;' "$root/devenv.nix"; then
     cat "$here/session-start-structure.txt"
   fi

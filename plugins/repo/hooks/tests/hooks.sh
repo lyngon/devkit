@@ -445,9 +445,6 @@ branches() {
   git -C "$1" for-each-ref --format='%(refname:lstrip=2)' refs/heads | tr '\n' ' '
 }
 
-# Runs session-start.sh as hooks.json registers it for an event, given as
-# SessionStart:<source> or UserPromptSubmit, in a directory, for the session
-# named in $session; variables after the event override the environment.
 run_session_event() {
   local dir=$1 event=${2%%:*} source=${2#*:} command fields
   shift 2
