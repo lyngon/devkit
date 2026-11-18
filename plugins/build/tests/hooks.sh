@@ -283,6 +283,12 @@ tofu_denied "build:live-mutation's tool under xargs -I, its subcommand replaced 
   "echo run | xargs -I{} $live_mutation {} staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
 tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash in a subagent" \
   "bash <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash -o pipefail in a subagent" \
+  "bash -o pipefail <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash --rcfile in a subagent" \
+  "bash --rcfile /dev/null <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a process substitution that bash runs in a subagent" \
+  "bash <(echo '$live_mutation run staging-logs 3f9a1c0d5e7b2a46')" "$reports" "$subagent"
 tofu_denied "an alias of build:live-mutation's tool, used to run, in a subagent" \
   "alias lm=$live_mutation; lm run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
 tofu_denied "an alias of a run of build:live-mutation's tool in a subagent" \
