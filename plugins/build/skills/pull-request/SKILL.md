@@ -74,6 +74,7 @@ ${CLAUDE_SKILL_DIR}/../live-mutation/scripts/live-mutation.py pending
 
 For each run, in the order listed, run the `record` command it prints and post every file that `record` names, in order, with `gh pr comment <number> --body-file <file>`.
 Then run the `posted` command it prints, with the URL of each comment.
+When `pending` also names a proposal that it cannot read, post the records it lists all the same, and name that proposal and its reason in the reply, since its run may still wait for a record.
 
 ## The work trace
 
