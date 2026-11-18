@@ -20,19 +20,21 @@ rendering.
 The OpenTofu form writes those commands for a saved plan of one root module, a
 directory relative to the root of the repository, and adds the check
 no-changes. It reads the plan's JSON into memory only, since that holds
-sensitive values in plain text, and keeps the address of each resource change
-that does more than create, read or update. A proposal of that form runs
-without a go-ahead when its plan has no such change, HEAD was on a branch when
-it was proposed, and a rule file under .claude/rules/, as it is at
-refs/remotes/origin/HEAD, lists the root module or a directory above it under
-unprotected-roots in its frontmatter. Every other proposal runs only on the
-owner's go-ahead.
+sensitive values in plain text. A proposal of that form runs without a go-ahead
+when no resource change of its plan does more than create, read or update, its
+configuration holds no provisioner, no TF_CLI_ARGS variable is set, the root
+module's workspace is default, HEAD was on a branch other than the default
+branch of origin, and a rule file under .claude/rules/, as unprotected_roots.py
+reads it at that default branch, lists the root module or a directory above it
+under unprotected-roots in its frontmatter. Every other proposal runs only on
+the owner's go-ahead.
 
 `run` refuses a proposal of another session, another digest, a second run,
-inputs that changed, a run without a go-ahead that the rule files do not allow,
-and a rendering that live state no longer gives. It derives and renders again
-before it runs, because OpenTofu refuses a saved plan whose state changed but
-not one whose live resources drifted. `record` writes the action record as
+inputs that changed, a go-ahead of no words, a run without a go-ahead that the
+proposal was shown to need or that the plan and the rule files read again do
+not allow, and a rendering that live state no longer gives. It derives and
+renders again before it runs, because OpenTofu refuses a saved plan whose state
+changed but not one whose live resources drifted. `record` writes the action record as
 Markdown comments, and refuses one in which a check never failed. `posted`
 logs the URLs of those comments once they are posted, and `pending` lists the
 runs of the current branch, in every session of this working tree, whose
@@ -76,6 +78,10 @@ PLAN = '"$LIVE_MUTATION_INPUTS/plan"'
 DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
+JUDGED = (
+    "Run it without one only when you judge that the apply can be undone and that the plan reaches only the target"
+    " that the rule names:"
+)
 URL = re.compile(r"https://\S+")
 SHOWN_WAITING = (
     "The proposal was shown as waiting for the owner's go-ahead, and such a proposal never runs without one."
@@ -690,7 +696,7 @@ def route_lines(name: str, digest: str, route: Route) -> list[str]:
         ]
     return [
         f"The run needs no go-ahead: {exempted(route)}",
-        "Run it without one only when you judge that the apply can be undone:",
+        JUDGED,
         "",
         "```sh",
         f"{TOOL} run {name} {digest}",
