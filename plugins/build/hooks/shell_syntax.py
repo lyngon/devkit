@@ -17,11 +17,16 @@ class ParserMissingError(Exception):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Word:
-    """A word of a shell command: its literal start, up to the first expansion, whether that is all, and its text."""
+    """A word of a shell command: its literal start, up to the first expansion, whether that is all, and its text.
+
+    A word in double quotes and the body of a here-document, which the shell expands without splitting, also have
+    their text unexpanded: without the backslashes that only quote, and with each expansion as written.
+    """
 
     start: str
     complete: bool = True
     text: str = dataclasses.field(default="", kw_only=True)
+    unexpanded: str | None = dataclasses.field(default=None, kw_only=True)
 
     @property
     def value(self) -> str | None:
@@ -34,10 +39,15 @@ UNSEEN = Word("", complete=False)
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Call:
-    """A simple command: its words, the first its name, and its text in the command."""
+    """A simple command: its words, the first its name, its text in the command, and its standard input.
+
+    Its standard input is the text of a here-document or a here-string, as a word, the simple command that writes to
+    it through a pipe, or None for anything else: a file, a compound command, or the input of the whole command.
+    """
 
     words: tuple[Word, ...]
     text: str
+    standard_input: "Word | Call | None" = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -50,6 +60,12 @@ class Redirection:
 
 
 SIMPLE_EXPANSION = frozenset({"Type", "Pos", "End", "Dollar", "Rbrace", "Short", "Param"})
+
+DOUBLE_QUOTED = re.compile(r'"((?:[^"\\]|\\.)*)"', re.DOTALL)
+
+QUOTES = re.compile(r"[\\'\"]")
+
+ESCAPED_IN_A_HERE_DOCUMENT = re.compile(r"\\(?:([\\`$])|\n)")
 
 
 def objects(value: object) -> list[dict[str, object]]:
@@ -87,6 +103,8 @@ def expanded(part: dict[str, object], variables: ct.Mapping[str, str]) -> str | 
 def word(node: dict[str, object], source: bytes, variables: ct.Mapping[str, str]) -> Word:
     """Return the word that a Word node of the syntax tree stands for, with the variables of variables expanded."""
     text = source[offset(node, "Pos") : offset(node, "End")].decode()
+    quoted = DOUBLE_QUOTED.fullmatch(text)
+    unexpanded = None if quoted is None else re.sub(r"\\([\\\"`$])", r"\1", quoted.group(1))
     start = ""
     for part in objects(node.get("Parts")):
         match string_field(part, "Type"):
@@ -99,13 +117,39 @@ def word(node: dict[str, object], source: bytes, variables: ct.Mapping[str, str]
                     value = string_field(inner, "Value") if string_field(inner, "Type") == "Lit" else None
                     value = expanded(inner, variables) if value is None else value
                     if value is None:
-                        return Word(start, complete=False, text=text)
+                        return Word(start, complete=False, text=text, unexpanded=unexpanded)
                     start += value
             case _ if (value := expanded(part, variables)) is not None:
                 start += value
             case _:
-                return Word(start, complete=False, text=text)
-    return Word(start, text=text)
+                return Word(start, complete=False, text=text, unexpanded=unexpanded)
+    return Word(start, text=text, unexpanded=unexpanded)
+
+
+def here_document(redirect: dict[str, object], source: bytes, variables: ct.Mapping[str, str]) -> Word:
+    """Return the body of the here-document that a Redirect node of the syntax tree opens, as a word.
+
+    The shell expands nothing in the body when any of the word that ends it is quoted. Otherwise it expands the body as
+    a word in double quotes, except that a backslash before a double quote stays.
+    """
+    bodies = objects(redirect.get("Hdoc"))
+    parts = objects(bodies[0].get("Parts")) if bodies else []
+    ending = objects(redirect.get("Word"))[0]
+    if QUOTES.search(source[offset(ending, "Pos") : offset(ending, "End")].decode()):
+        body = "".join(string_field(part, "Value") for part in parts)
+        return Word(body, unexpanded=body)
+    start, complete, unexpanded = "", True, ""
+    for part in parts:
+        if string_field(part, "Type") == "Lit":
+            text = value = ESCAPED_IN_A_HERE_DOCUMENT.sub(r"\1", string_field(part, "Value"))
+        else:
+            text, value = source[offset(part, "Pos") : offset(part, "End")].decode(), expanded(part, variables)
+        unexpanded += text
+        if complete and value is not None:
+            start += value
+        else:
+            complete = False
+    return Word(start, complete=complete, unexpanded=unexpanded)
 
 
 def nodes_in_order(tree: object) -> ct.Iterator[dict[str, object]]:
@@ -159,21 +203,78 @@ def calls_and_redirections(
             break
     if parsed is None or parsed.returncode != 0:
         return None
-    source = command.encode()
-    nodes = list(nodes_in_order(t.cast("object", json.loads(parsed.stdout))))
-    variables = literal_variables(nodes, source) if resolve_variables else {}
+    tree = SyntaxTree(
+        command.encode(), t.cast("object", json.loads(parsed.stdout)), resolve_variables=resolve_variables
+    )
     found: list[Call | Redirection] = []
-    for node in nodes:
-        if string_field(node, "Type") == "CallExpr":
-            words = tuple(word(argument, source, variables) for argument in objects(node.get("Args")))
-            found.append(Call(words, source[offset(node, "Pos") : offset(node, "End")].decode()))
+    for node in tree.nodes:
+        call = tree.simple_command(node)
+        if call is not None:
+            found.append(call)
         for redirect in objects(node.get("Redirs")):
             target = objects(redirect.get("Word"))
             if target:
-                operator = source[offset(redirect, "OpPos") : offset(target[0], "Pos")].decode().strip()
-                span = source[offset(redirect, "Pos") : offset(redirect, "End")].decode()
-                found.append(Redirection(operator, word(target[0], source, variables), span))
+                span = tree.source[offset(redirect, "Pos") : offset(redirect, "End")].decode()
+                found.append(Redirection(tree.operator(redirect), word(target[0], tree.source, tree.variables), span))
     return found
+
+
+@t.final
+class SyntaxTree:
+    """The syntax tree of a command that shfmt parsed: its nodes in order, and what each simple command reads."""
+
+    def __init__(self, source: bytes, tree: object, *, resolve_variables: bool) -> None:
+        self.source: bytes = source
+        self.nodes: list[dict[str, object]] = list(nodes_in_order(tree))
+        self.variables: ct.Mapping[str, str] = literal_variables(self.nodes, source) if resolve_variables else {}
+        self.writers: dict[int, dict[str, object]] = {
+            id(objects(node.get("Y"))[0]): objects(node.get("X"))[0] for node in self.nodes if self.pipes(node)
+        }
+
+    def pipes(self, node: dict[str, object]) -> bool:
+        """Return whether a node is a pipe, | or |&, from the output of its statement X to the input of its Y."""
+        position = offset(node, "OpPos")
+        return (
+            string_field(node, "Type") == "BinaryCmd"
+            and self.source.startswith(b"|", position)
+            and not self.source.startswith(b"||", position)
+        )
+
+    def operator(self, redirect: dict[str, object]) -> str:
+        """Return the operator of a Redirect node, such as > or <<<, without the number of a file descriptor."""
+        target = objects(redirect.get("Word"))
+        return self.source[offset(redirect, "OpPos") : offset(target[0], "Pos")].decode().strip() if target else ""
+
+    def simple_command(self, statement: dict[str, object]) -> Call | None:
+        """Return the simple command of a Stmt node, with its standard input, or None for any other node."""
+        commands = objects(statement.get("Cmd"))
+        if not commands or string_field(commands[0], "Type") != "CallExpr":
+            return None
+        words = tuple(word(argument, self.source, self.variables) for argument in objects(commands[0].get("Args")))
+        text = self.source[offset(commands[0], "Pos") : offset(commands[0], "End")].decode()
+        return Call(words, text, self.standard_input(statement))
+
+    def standard_input(self, statement: dict[str, object]) -> Word | Call | None:
+        """Return the standard input of the simple command of a Stmt node, as Call.standard_input describes it.
+
+        The last redirection of file descriptor 0 decides it, and without one, the pipe from the statement before it.
+        """
+        redirects = [redirect for redirect in objects(statement.get("Redirs")) if self.redirects_input(redirect)]
+        if not redirects:
+            writer = self.writers.get(id(statement))
+            return None if writer is None else self.simple_command(writer)
+        match self.operator(redirects[-1]):
+            case "<<<":
+                return word(objects(redirects[-1].get("Word"))[0], self.source, self.variables)
+            case "<<" | "<<-":
+                return here_document(redirects[-1], self.source, self.variables)
+            case _:
+                return None
+
+    def redirects_input(self, redirect: dict[str, object]) -> bool:
+        """Return whether a Redirect node redirects standard input, file descriptor 0."""
+        numbers = objects(redirect.get("N"))
+        return string_field(numbers[0], "Value") == "0" if numbers else self.operator(redirect).startswith("<")
 
 
 def command_name(value: str | None) -> str | None:
