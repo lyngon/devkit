@@ -540,6 +540,10 @@ A command of a run finds the tools of the shell that started the run, so start a
 The hook of the `devkit` plugin hands that PATH over when the session starts.
 Without the hook a command has only the PATH that its shell starts with, on NixOS the system's, because the sandbox hides the file through which a session hands its PATH to its commands (measured on Claude Code 2.1.283).
 With it a command finds `git`, `python3`, `ruff` and the commands of the baseline, and nothing that the devenv shell lacks.
+In a case that resumes a recorded session, Claude Code gives the hook an environment file in the directory of a new session, while the commands read the directory of the session that the run resumes (measured on Claude Code 2.1.322 and 2.1.325).
+So the hook writes its file into the directory of the session that its input names, and the case `resumed-shell-command-finds-a-devenv-tool` fails when it does not.
+Only a session in print mode that resumes the path of a history file, as the harness does, misplaces the file.
+One that resumes a session ID, and an interactive session that resumes an ID or a path, give the hook the file of the resumed session (measured on Claude Code 2.1.325).
 An agent that misses a tool may run one it finds in the Nix store, which no lock file of this repository pins, so a tool that a case needs goes into `packages` in `devenv.nix`.
 A case that does not load the `devkit` plugin, as a case of `writing`, runs without the hook.
 No other variable of the devenv shell reaches a run, `LYNGON_MISTAKES_MAX_AGE_DAYS` included, and the harness passes a variable of a case on only when its name starts with `EVAL_`.
