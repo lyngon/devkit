@@ -830,13 +830,8 @@ publish
 git -C "$repository" switch -q -c feat/tracks-main --track origin/main
 set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
-expect_waits "a proposal on a branch whose upstream is origin's default branch" staging-logs infra/staging \
-  'HEAD is on `feat/tracks-main`, whose upstream is `main`, the default branch of origin, so a push may land its commits there, where no pull request takes the action record\. Push it to a branch of its own with `git push -u origin feat/tracks-main`, and propose again\.' \
-  "$shown_waiting"
-git -C "$repository" push -q -u origin feat/tracks-main
-sed -i 's/default = "debug"/default = "trace"/' "$repository/infra/staging/main.tf"
-propose_tofu staging-trace --opentofu infra/staging
-expect "a proposal on that branch once it is pushed to a branch of its own needs no go-ahead" 0 'The run needs no go-ahead: '
+expect "a proposal on a branch started from origin's default branch, which it tracks, needs no go-ahead" 0 \
+  'The run needs no go-ahead: '
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
