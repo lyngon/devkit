@@ -537,7 +537,7 @@ class CommandReader:
             return source[index + 1 : end], True, end + 1
         if source.startswith("$'", index):
             end = unescaped(source, index + 2, "'")
-            return source[index + 2 : end], True, end + 1
+            return ANSI_C_ESCAPE.sub(ansi_c_character, source[index + 2 : end]), True, end + 1
         return self.double_quoted(index + (2 if source[index] == "$" else 1))
 
     def double_quoted(self, index: int) -> tuple[str, bool, int]:
