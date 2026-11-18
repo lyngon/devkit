@@ -76,7 +76,8 @@ Verified on 2026-11-14 in headless sessions (`claude -p`) in a scratch repositor
 ### The tools of the plugins' hooks
 
 Claude Code runs every hook with the environment of the session's process, and the environment that `hooks/export-environment.sh` gives Bash commands never reaches a hook.
-A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3`, `pygmentize` and `shfmt` by default, so it needs them on the PATH the session started with.
+A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3`, `pygmentize`, `shfmt` and `git` by default, so it needs them on the PATH the session started with.
+The commands that a script runs for the repository, such as the `tofu` of a live mutation, come from the repository's shell.
 Without `python3`, no Python hook of any plugin runs, and Claude Code treats each failed start as a non-blocking error and runs the call as if the hook did not exist.
 The `build` plugin's guard on OpenTofu commands that write is one of those hooks.
 Without `pygmentize`, the `build` plugin's guard on the comment auditor refuses the auditor every edit inside a repository, since it cannot tell comments from code.
