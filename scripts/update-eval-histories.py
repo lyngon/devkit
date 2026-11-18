@@ -89,11 +89,11 @@ class Event:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Finding:
-    """A line of a history that is behind, with what the program did or would do about it."""
+    """A line of a history that is behind: how, and what the update does to it, or None for a new recording."""
 
     line: int
     message: str
-    fixable: bool
+    action: t.Literal["rewritten", "deleted"] | None
 
 
 def table(value: object, where: str) -> dict[str, object]:
@@ -428,10 +428,9 @@ def reconcile(
         for index in stale:
             kept = hung_on(records, records[index])
             reason = ", and records hang off this one" if kept else ""
-            findings.append(
-                Finding(index + 1, f"{label} prints nothing at head that this record holds{reason}", fixable=not kept)
-            )
-        return findings, {finding.line - 1 for finding in findings if finding.fixable}
+            message = f"{label} prints nothing at head that this record holds{reason}"
+            findings.append(Finding(index + 1, message, None if kept else "deleted"))
+        return findings, {finding.line - 1 for finding in findings if finding.action == "deleted"}
     if len(stale) == len(unheld):
         findings = []
         for index, number in zip(stale, unheld, strict=True):
@@ -439,11 +438,13 @@ def reconcile(
             fixed = rewrite(records[index], output)
             kind = table(records[index].get("attachment"), "a hook record").get("type")
             reason = "" if fixed else f", which the program cannot write into a record of type {kind}"
-            findings.append(Finding(index + 1, f"{label} {describe(output)} at head{reason}", fixable=fixed))
+            findings.append(
+                Finding(index + 1, f"{label} {describe(output)} at head{reason}", "rewritten" if fixed else None)
+            )
         return findings, set()
     line = (stale or indices)[0] + 1
     message = f"{label}: {len(stale)} records are behind, and {len(unheld)} hooks print at head what no record holds"
-    return [Finding(line, message, fixable=False)], set()
+    return [Finding(line, message, None)], set()
 
 
 def dumps(record: dict[str, object]) -> str:
@@ -513,11 +514,11 @@ def main() -> None:
                 for finding in findings:
                     if check:
                         print(f"{shown}:{finding.line}: behind: {finding.message}", file=sys.stderr)
-                    elif finding.fixable:
-                        print(f"{shown}:{finding.line}: updated: {finding.message}")
+                    elif finding.action is not None:
+                        print(f"{shown}:{finding.line}: {finding.action}: {finding.message}")
                     else:
                         print(f"{shown}:{finding.line}: record the session again: {finding.message}", file=sys.stderr)
-                failed |= bool(findings) if check else any(not finding.fixable for finding in findings)
+                failed |= bool(findings) if check else any(finding.action is None for finding in findings)
                 if findings and not check:
                     _ = history.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
     except HistoryError as error:
