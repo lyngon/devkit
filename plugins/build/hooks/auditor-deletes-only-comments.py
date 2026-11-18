@@ -39,6 +39,8 @@ COMMENTS = frozenset(
     }
 )
 
+SHEBANG = "Token.Comment.Hashbang"
+
 UNKNOWN_LANGUAGE = "text"
 
 SPACE = re.compile(r"(\s+)")
@@ -109,12 +111,12 @@ def tokens(language: str, text: str) -> list[tuple[str, str]]:
 
 
 def pieces(lexed: list[tuple[str, str]]) -> list[tuple[t.Literal["code", "space", "comment"], str]]:
-    """Return the pieces of a text: its code, its space and its comments, a text token split at its spaces."""
+    """Return the pieces of a text: its code, its space and its comments, text and a shebang split at their spaces."""
     split: list[tuple[t.Literal["code", "space", "comment"], str]] = []
     for kind, value in lexed:
         if kind in COMMENTS:
             split.append(("comment", value))
-        elif kind == "Token.Text" or kind.startswith("Token.Text."):
+        elif kind in {"Token.Text", SHEBANG} or kind.startswith("Token.Text."):
             split.extend(("space" if run.isspace() else "code", run) for run in SPACE.split(value) if run)
         else:
             split.append(("code", value))
