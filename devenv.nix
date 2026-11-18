@@ -58,6 +58,31 @@ let
     ];
     text = ''exec "${config.devenv.root}/scripts/compare-evals.py" "$@"'';
   };
+  toolsOfAReplayedHook = config.lyngon.scriptTools ++ [
+    pkgs.bash
+    pkgs.coreutils
+    pkgs.findutils
+    pkgs.git
+    pkgs.gnugrep
+    pkgs.gnused
+  ];
+  updateEvalHistories = pkgs.writeShellApplication {
+    name = "update-eval-histories";
+    runtimeInputs = toolsOfAReplayedHook ++ [ pkgs.yq-go ];
+    text = ''exec "${config.devenv.root}/scripts/update-eval-histories.py" "$@"'';
+  };
+  testUpdateEvalHistories = pkgs.writeShellApplication {
+    name = "test-update-eval-histories";
+    runtimeInputs = [
+      pkgs.bash
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.jq
+      pkgs.python3
+      pkgs.yq-go
+    ];
+    text = ''exec "${config.devenv.root}/scripts/tests/update-eval-histories.sh" "$@"'';
+  };
   testValidateMarketplace = pkgs.writeShellApplication {
     name = "test-validate-marketplace";
     runtimeInputs = [
@@ -419,6 +444,7 @@ in
     renderPluginList
     validateShippedText
     compareEvals
+    updateEvalHistories
     pkgs.jq
     # For the eval case of build:correction, whose run proves a lint rule on
     # the Python files it seeds. A command of a run finds what this shell has
@@ -504,6 +530,8 @@ in
     declared_tools_only ${lib.getExe testValidateMarketplace}
     declared_tools_only ${lib.getExe testValidatorsCheckTheCommit} ${lib.getExe config.git-hooks.package} "${config.devenv.root}/${config.git-hooks.configPath}"
     declared_tools_only ${lib.getExe testCompareEvals}
+    declared_tools_only ${lib.getExe updateEvalHistories} --check "${config.devenv.root}"
+    declared_tools_only ${lib.getExe testUpdateEvalHistories}
     declared_tools_only ${lib.getExe testValidateDocuments}
     declared_tools_only ${lib.getExe testDocumentsHookWiring}
     declared_tools_only ${lib.getExe testCheckPullRequest} "$(command -v check-pull-request)"
