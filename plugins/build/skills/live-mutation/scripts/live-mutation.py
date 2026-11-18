@@ -21,13 +21,14 @@ The OpenTofu form writes those commands for a saved plan of one root module, a
 directory relative to the root of the repository, and adds the check
 no-changes. It reads the plan's JSON into memory only, since that holds
 sensitive values in plain text. A proposal of that form runs without a go-ahead
-when no resource change of its plan does more than create, read or update, its
-configuration holds no provisioner, no TF_CLI_ARGS variable and no TF_DATA_DIR
-is set, the root module's workspace is default, HEAD was on a branch other than
-the default branch of origin whose upstream is not that branch, and a rule file
-under .claude/rules/, as unprotected_roots.py reads it at that default branch,
-lists the root module or a directory above it under unprotected-roots in its
-frontmatter. Every other proposal runs only on the owner's go-ahead.
+when no resource change of its plan does more than create, read or update or
+imports, its configuration holds no provisioner, no TF_CLI_ARGS variable and no
+TF_DATA_DIR is set, the root module's workspace is default, HEAD was on a
+branch other than the default branch of origin whose upstream is not that
+branch, and a rule file under .claude/rules/, as unprotected_roots.py reads it
+at that default branch, lists the root module or a directory above it under
+unprotected-roots in its frontmatter. Every other proposal runs only on the
+owner's go-ahead.
 
 `run` refuses a proposal of another session, another digest, a second run,
 inputs that changed, a go-ahead of no words, a run without a go-ahead that the
@@ -566,24 +567,32 @@ def plan_of(text: str) -> dict[str, object]:
     return plan
 
 
-def blocking_changes(plan: ct.Mapping[str, object]) -> tuple[str, ...]:
-    """Return the address of each resource change of a plan whose actions go beyond DELETES_NOTHING.
+def resource_changes(plan: ct.Mapping[str, object]) -> list[tuple[str, dict[str, object]]]:
+    """Return the address and the change of each resource change of a plan, the change empty where it is no object.
 
-    A resource change that the tool cannot read counts as one, and so does one with no action, since either only
-    makes the run wait. Raises RefusalError for a plan that holds no list of resource changes.
+    Raises RefusalError for a plan that holds no list of resource changes.
     """
     changes = plan.get("resource_changes", [])
     if not isinstance(changes, list):
         raise RefusalError("plan-unreadable: the plan's JSON holds no list of resource changes")
-    blocking: list[str] = []
+    found: list[tuple[str, dict[str, object]]] = []
     for number, item in enumerate(t.cast("list[object]", changes), 1):
-        change = json_object(item) or {}
-        address = change.get("address")
-        actions = (json_object(change.get("change")) or {}).get("actions")
-        listed = t.cast("list[object]", actions) if isinstance(actions, list) else []
-        if not listed or not all(isinstance(action, str) and action in DELETES_NOTHING for action in listed):
-            blocking.append(address if isinstance(address, str) else f"resource change {number}")
-    return tuple(blocking)
+        resource = json_object(item) or {}
+        address = resource.get("address")
+        change = json_object(resource.get("change")) or {}
+        found.append((address if isinstance(address, str) else f"resource change {number}", change))
+    return found
+
+
+def deletes_nothing(change: ct.Mapping[str, object]) -> bool:
+    """Return whether a change lists actions and each is in DELETES_NOTHING.
+
+    A change with no action, or with actions that the tool cannot read, counts as one that deletes, since that only
+    makes the run wait.
+    """
+    actions = change.get("actions")
+    listed = t.cast("list[object]", actions) if isinstance(actions, list) else []
+    return bool(listed) and all(isinstance(action, str) and action in DELETES_NOTHING for action in listed)
 
 
 def provisioned(module: object, prefix: str = "") -> list[str]:
@@ -736,10 +745,16 @@ def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
         raise RefusalError(f"plan-unreadable: `{command}` exited {result.returncode}: {said(result)}")
     plan = plan_of(result.stdout.decode(errors="replace"))
     reasons: list[str] = []
-    blocking = blocking_changes(plan)
+    changes = resource_changes(plan)
+    blocking = [address for address, change in changes if not deletes_nothing(change)]
     if blocking:
         listed = ", ".join(f"`{address}`" for address in blocking)
         reasons.append(f"The plan does more than create, read or update these resources: {listed}.")
+    imported = [address for address, change in changes if "importing" in change]
+    if imported:
+        listed = ", ".join(f"`{address}`" for address in imported)
+        adopts = f"The plan imports these resources, and so adopts objects that the state of `{form.root}` never held"
+        reasons.append(f"{adopts}: {listed}.")
     provisioners = provisioned((json_object(plan.get("configuration")) or {}).get("root_module"))
     if provisioners:
         listed = ", ".join(f"`{address}`" for address in provisioners)

@@ -1,6 +1,6 @@
 # An OpenTofu apply skips the go-ahead only when the tool finds it may
 
-An OpenTofu command that writes runs without a go-ahead only as the apply of a saved plan that the tool of `build:live-mutation` proposed in its OpenTofu form, and only when the tool finds that a rule file, as it is on the default branch of origin, lists the plan's root module or a directory above it under `unprotected-roots:` in its frontmatter, and that no resource change of the frozen plan deletes or replaces anything.
+An OpenTofu command that writes runs without a go-ahead only as the apply of a saved plan that the tool of `build:live-mutation` proposed in its OpenTofu form, and only when the tool finds that a rule file, as it is on the default branch of origin, lists the plan's root module or a directory above it under `unprotected-roots:` in its frontmatter, and that no resource change of the frozen plan deletes, replaces or imports anything.
 The agent still judges what a plan cannot show, such as an in-place upgrade with no way back, and whether the plan reaches only the target that the rule file names, since a provider, a backend or a `TF_VAR_` variable can point elsewhere.
 It asks whenever it is in doubt, and never runs without a go-ahead where the tool refuses.
 The lead runs it, and a subagent stops and reports it to the lead, as for every OpenTofu write.
