@@ -291,9 +291,10 @@ def call_denial(call: shell_syntax.Call) -> str | None:
 
 
 def denial(command: str) -> str | None:
-    """Return why the hook denies a shell command, or None to let it run."""
-    if NAMES_TOFU.search(command) is None:
-        return None
+    """Return why the hook denies a command that names tofu, or a script that one hands a shell, or None to let it run.
+
+    A script is read whether or not it names tofu itself, since the command around it does.
+    """
     try:
         parts = shell_syntax.calls_and_redirections(command, DIALECTS, resolve_variables=True)
     except shell_syntax.ParserMissingError:
@@ -442,7 +443,10 @@ def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
     command = json_object(hook_input.get("tool_input"), "its tool_input").get("command")
     if not isinstance(command, str):
         return None
-    reason = SUBAGENT if "agent_id" in hook_input and calls_the_tool(command) else denial(command)
+    if "agent_id" in hook_input and calls_the_tool(command):
+        reason = SUBAGENT
+    else:
+        reason = None if NAMES_TOFU.search(command) is None else denial(command)
     if reason is None:
         return None
     return {
