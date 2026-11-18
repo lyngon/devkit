@@ -21,10 +21,10 @@ The OpenTofu form writes those commands for a saved plan of one root module, a
 directory relative to the root of the repository, and adds the check
 no-changes. It reads the plan's JSON into memory only, since that holds
 sensitive values in plain text. A proposal of that form runs without a go-ahead
-when no resource change of its plan does more than create, read or update or
-imports, its configuration holds no provisioner, no TF_CLI_ARGS variable and no
-TF_DATA_DIR is set, the root module's workspace is default, HEAD was on a
-branch other than the default branch of origin whose upstream is not that
+when no resource change of its plan does more than create, read or update and
+none imports, its configuration holds no provisioner, no TF_CLI_ARGS variable
+and no TF_DATA_DIR is set, the root module's workspace is default, HEAD was on
+a branch other than the default branch of origin whose upstream is not that
 branch, and a rule file under .claude/rules/, as unprotected_roots.py reads it
 at that default branch, lists the root module or a directory above it under
 unprotected-roots in its frontmatter. Every other proposal runs only on the
