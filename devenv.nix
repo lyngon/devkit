@@ -308,6 +308,8 @@ let
       pkgs.git
       pkgs.gnused
       pkgs.jq
+      pkgs.python3
+      pkgs.util-linux
     ];
     text = ''exec "${config.devenv.root}/plugins/repo/hooks/tests/one-session-per-tree.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };

@@ -3,7 +3,9 @@
 
 PreToolUse, on the tools that change a working tree: denies the call while a live session that started before this
 one works in the call's tree, and says how this session moves on. SessionStart: says so when Claude Code's registry
-of live sessions holds no entry for this session, since every call then runs unchecked.
+of live sessions holds no entry for this session, since every call then runs unchecked; otherwise, at startup only,
+names each earlier session in this session's tree and how to end it, on screen and to the model. A resumed session
+runs SessionStart in the tree it was launched in, before it enters its worktree, so it gets no such names.
 """
 
 import dataclasses
@@ -14,7 +16,11 @@ import sys
 import time
 import typing as t
 
+STAT_STATE = 3
+
 STAT_PPID = 4
+
+STAT_TERMINAL = 7
 
 STAT_STARTTIME = 22
 
@@ -37,6 +43,8 @@ class Session:
     entrypoint: str
     status: str
     status_since: float | None
+    stopped: bool
+    terminal: int | None
 
     @property
     def order(self) -> tuple[int, int]:
@@ -49,17 +57,18 @@ def registry() -> pathlib.Path:
     return pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR") or pathlib.Path.home() / ".claude") / "sessions"
 
 
-def stat_field(pid: int, number: int) -> int | None:
-    """Return the numeric field of /proc/<pid>/stat that proc(5) numbers so, or None when no process has the pid.
+def stat(pid: int) -> list[str] | None:
+    """Return the fields of /proc/<pid>/stat at the numbers proc(5) gives them, or None when no process has the pid.
 
-    The second field, the command name in parentheses, may hold spaces and parentheses itself, so the count goes on
-    after the last closing parenthesis, with the third field.
+    The second field, the command name in parentheses, may hold spaces and parentheses itself, so the fields after it
+    are counted from the last closing parenthesis.
     """
     try:
-        stat = pathlib.Path(f"/proc/{pid}/stat").read_text()
+        content = pathlib.Path(f"/proc/{pid}/stat").read_text()
     except OSError:
         return None
-    return int(stat.rpartition(")")[2].split()[number - 3])
+    head, _, tail = content.rpartition(")")
+    return ["", *head.split(" (", 1), *tail.split()]
 
 
 def text(entry: dict[str, object], key: str) -> str:
@@ -82,7 +91,10 @@ def session(path: pathlib.Path) -> Session | None:
         return None
     entry = t.cast("dict[str, object]", value)
     pid, process_start, since = entry.get("pid"), str(entry.get("procStart")), entry.get("statusUpdatedAt")
-    if not isinstance(pid, int) or not process_start.isdigit() or stat_field(pid, STAT_STARTTIME) != int(process_start):
+    if not isinstance(pid, int):
+        return None
+    fields = stat(pid)
+    if fields is None or fields[STAT_STARTTIME] != process_start:
         return None
     return Session(
         pid=pid,
@@ -91,6 +103,8 @@ def session(path: pathlib.Path) -> Session | None:
         entrypoint=text(entry, "entrypoint"),
         status=text(entry, "status"),
         status_since=since / 1000 if isinstance(since, int | float) else None,
+        stopped=fields[STAT_STATE] == "T",
+        terminal=int(fields[STAT_TERMINAL]) or None,
     )
 
 
@@ -105,7 +119,8 @@ def own_session() -> Session | None:
         found = session(registry() / f"{pid}.json")
         if found is not None and found.pid == pid:
             return found
-        pid = stat_field(pid, STAT_PPID) or 0
+        fields = stat(pid)
+        pid = int(fields[STAT_PPID]) if fields else 0
     return None
 
 
@@ -157,63 +172,143 @@ def enumeration(items: list[str]) -> str:
     return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
 
 
+def terminal_path(device: int | None) -> str | None:
+    """Return the path of the terminal with a device number, as field 7 of /proc/<pid>/stat gives it.
+
+    None without a terminal and for a number that no terminal under /dev has.
+    """
+    if device is None:
+        return None
+    for path in (*pathlib.Path("/dev/pts").glob("*"), *pathlib.Path("/dev").glob("tty*")):
+        try:
+            if path.stat().st_rdev == device:
+                return str(path)
+        except OSError:
+            continue
+    return None
+
+
 def describe(other: Session, now: float) -> str:
-    """Return how a refusal names a session: its name, then what kind of session it is and what it is doing."""
-    details = [ENTRYPOINTS.get(other.entrypoint, f"entrypoint {other.entrypoint}")] if other.entrypoint else []
-    if other.status == "idle" and other.status_since is not None:
+    """Return how the hook names a session: its name, pid, kind and terminal, then what it is doing."""
+    kind = ENTRYPOINTS.get(other.entrypoint, f"entrypoint {other.entrypoint}") if other.entrypoint else "a session"
+    terminal = terminal_path(other.terminal)
+    details = [f"pid {other.pid}", f"{kind} on {terminal}" if terminal else kind]
+    if other.stopped:
+        details.append("stopped")
+    elif other.status == "idle" and other.status_since is not None:
         details.append(f"idle for {duration(now - other.status_since)}")
     elif other.status:
         details.append(other.status)
-    return f'"{other.name}" ({", ".join(details)})' if details else f'"{other.name}"'
+    return f'"{other.name}" ({", ".join(details)})'
+
+
+def ending(other: Session, own: Session) -> str:
+    """Return how the operator ends a session in the state it is in."""
+    name = f'"{other.name}"'
+    if not other.stopped:
+        return f"kill {other.pid} ends {name}."
+    if other.terminal is None:
+        return f"{name} is stopped, so a plain kill leaves it stopped, and kill -KILL {other.pid} ends it."
+    here = other.terminal == own.terminal
+    where = "this terminal" if here else terminal_path(other.terminal) or "another terminal"
+    job = f"{name} is stopped, a job of the shell that started it on {where}, so a plain kill leaves it stopped:"
+    if here:
+        return f"{job} end this session with /exit, then run fg in that shell and end {name} with /exit."
+    return f"{job} run fg in that shell and end it with /exit."
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class Wording:
+    """The words that the hook's messages take for one earlier session, or for several."""
+
+    sessions: str
+    work: str
+    ended: str
+    it: str
+
+
+ONE = Wording(sessions="session", work="works", ended="that session has ended", it="it has")
+
+SEVERAL = Wording(sessions="sessions", work="work", ended="those sessions have ended", it="they have")
+
+
+def earlier_in(tree: pathlib.Path, own: Session) -> list[Session]:
+    """Return the live sessions that started before this one and work in its working tree, from the earliest."""
+    return [other for other in live_sessions() if other.order < own.order and process_tree(other.pid) == tree]
+
+
+def held(earlier: list[Session], wording: Wording, tree: pathlib.Path, head: str | None, now: float) -> str:
+    """Return the line that names the earlier sessions in a working tree, and the line that says what follows."""
+    checked = f" which has {head} checked out," if head else ""
+    return (
+        f"The Claude Code {wording.sessions} {enumeration([describe(other, now) for other in earlier])} {wording.work}"
+        f" in this working tree, {tree},{checked} and started before this session.\n"
+        "Two sessions in one working tree change its HEAD, its index and its files under each other,"
+        " so the repo plugin refuses this session's edits and shell commands here"
+        f" until this session has moved to a worktree of its own or {wording.ended}."
+    )
 
 
 def denial(own: Session, tree: pathlib.Path, now: float) -> str | None:
     """Return why this session may not change its working tree, or None when no earlier live session works there."""
-    earlier = [other for other in live_sessions() if other.order < own.order and process_tree(other.pid) == tree]
+    earlier = earlier_in(tree, own)
     if not earlier:
         return None
-    if len(earlier) == 1:
-        sessions, work, ended, it = "session", "works", "that session has ended", "it has"
-    else:
-        sessions, work, ended, it = "sessions", "work", "those sessions have ended", "they have"
+    wording = ONE if len(earlier) == 1 else SEVERAL
     names = enumeration(['"' + other.name + '"' for other in earlier])
     head = checked_out(tree)
-    checked = f" which has {head} checked out," if head else ""
-    who = (
-        f"The Claude Code {sessions} {enumeration([describe(other, now) for other in earlier])} {work}"
-        f" in this working tree, {tree},{checked} and started before this session."
-    )
-    why = (
-        "Two sessions in one working tree change its HEAD, its index and its files under each other,"
-        " so the repo plugin refuses this session's edits and shell commands here"
-        f" until this session has moved to a worktree of its own or {ended}."
+    allowed = (
         " Every other tool still works, Read, EnterWorktree and ExitWorktree among them."
         " The standing instructions at the start of this session ask for this move,"
         " so it counts as the operator asking for each call below."
     )
     stay = (
         f"- If your task continues the work on {head or 'what is checked out there'},"
-        f" ask the operator to close the {sessions} {names}, and carry on here once {it} ended."
+        f" ask the operator to close the {wording.sessions} {names}, and carry on here once {wording.it} ended."
     )
     move = (
         "- Otherwise, call EnterWorktree without a name, so that it creates a new worktree under a name it generates,"
         " since a name in use would enter that worktree, and carry on there."
         " If EnterWorktree answers that this session is in a worktree session already,"
-        f" call ExitWorktree with action keep first, never remove, because the other {sessions} {work} in it."
+        " call ExitWorktree with action keep first, never remove,"
+        f" because the other {wording.sessions} {wording.work} in it."
     )
-    return f"{who}\n{why}\n{stay}\n{move}"
+    return f"{held(earlier, wording, tree, head, now)}{allowed}\n{stay}\n{move}"
+
+
+def warning(own: Session, tree: pathlib.Path, now: float) -> dict[str, object] | None:
+    """Return the SessionStart output that names the earlier sessions in this session's tree and how to end each.
+
+    The CLI shows the systemMessage on screen before the first prompt and never passes it to the model. VS Code shows
+    none, so the additionalContext asks the model to pass it on. None when no earlier live session works in the tree.
+    """
+    earlier = earlier_in(tree, own)
+    if not earlier:
+        return None
+    wording = ONE if len(earlier) == 1 else SEVERAL
+    endings = " ".join(ending(other, own) for other in earlier)
+    message = f"{held(earlier, wording, tree, checked_out(tree), now)}\n{endings}"
+    context = f"{message}\nTell the operator in your first reply."
+    return {
+        "systemMessage": message,
+        "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context},
+    }
 
 
 def main() -> None:
     """Read the hook input on stdin and print the hook's output, if any."""
-    hook_input = t.cast("object", json.load(sys.stdin))
-    event = t.cast("dict[str, object]", hook_input).get("hook_event_name") if isinstance(hook_input, dict) else None
+    loaded = t.cast("object", json.load(sys.stdin))
+    hook_input = t.cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
     own = own_session()
-    if event == "SessionStart":
+    tree = tree_of(pathlib.Path.cwd())
+    if hook_input.get("hook_event_name") == "SessionStart":
         if own is None:
             print(UNREGISTERED.format(registry=registry()))
+        elif hook_input.get("source") == "startup" and tree is not None:
+            output = warning(own, tree, time.time())
+            if output is not None:
+                json.dump(output, sys.stdout)
         return
-    tree = tree_of(pathlib.Path.cwd())
     reason = None if own is None or tree is None else denial(own, tree, time.time())
     if reason is not None:
         output = {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}
