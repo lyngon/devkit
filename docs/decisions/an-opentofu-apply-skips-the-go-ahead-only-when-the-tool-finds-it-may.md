@@ -8,7 +8,7 @@ Such a run owes the `no-changes` check that the OpenTofu form adds and no other,
 [A go-ahead is an answer or a merge, never a permission prompt](a-go-ahead-is-an-answer-or-a-merge-never-a-permission-prompt.md) names the weak point, whether the agent sees the target as protected and the mutation as irreversible, and for an OpenTofu plan the tool can read both.
 
 The tool guards against a wrong judgment and an accident, such as a check that writes the frozen plan or a ref that was never fetched.
-It does not guard against an agent that sets out to rewrite the tool's files under `tmp/`, its environment or its PATH, since a check that runs in the agent's own session cannot stop that.
+It does not guard against an agent that sets out to rewrite the tool's files under `tmp/`, its environment, its PATH or the repository's own `.git`, such as its config with a `url.<base>.insteadOf` or its refs, since a check that runs in the agent's own session cannot stop that.
 
 ## Considered options
 
