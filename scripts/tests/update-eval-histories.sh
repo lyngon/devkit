@@ -104,7 +104,8 @@ SessionStart:startup hook success: Read /recorded/devkit/plugins/one/notes.md fi
 check "the record of the hook that prints nothing is gone, and the others stay" \
   test "$(jq -sr 'map(.uuid) | join(" ")' "$file")" == "a b c e"
 run --check "$root"
-check "the check passes on the updated history" test "$code" -eq 0 -a -z "$out"
+check "the check passes on the updated history" \
+  test "$code:$out" == "0:update-eval-histories: ok, each history records what its hooks print at head (1 checked)"
 
 root=$(new_checkout)
 file=$(history "$root" d)

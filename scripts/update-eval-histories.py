@@ -284,25 +284,30 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Replayer:
-    """Runs hooks as Claude Code does, in a scratch directory, and writes paths in their output as recorded."""
+    """Runs hooks as Claude Code does, each in a new directory, and writes paths in their output as recorded."""
 
     root: pathlib.Path
     scratch: pathlib.Path
 
     def run(self, hook: Hook, event: Event) -> Output:
-        """Run a hook on an event's input and return what it printed, with the paths that the recording replaced."""
-        workdir = self.scratch / "cwd"
-        workdir.mkdir(exist_ok=True)
+        """Run a hook on an event's input and return what it printed, with the paths that the recording replaced.
+
+        Each run gets a new working directory, home and plugin data, so that what one hook leaves there changes
+        nothing that another prints.
+        """
+        own = pathlib.Path(tempfile.mkdtemp(dir=self.scratch))
+        workdir = own / "cwd"
+        workdir.mkdir()
         environment = {
             "PATH": os.environ.get("PATH", ""),
-            "HOME": str(self.scratch / "home"),
-            "GIT_CEILING_DIRECTORIES": str(self.scratch),
+            "HOME": str(own / "home"),
+            "GIT_CEILING_DIRECTORIES": str(own),
             "CLAUDE_PROJECT_DIR": str(workdir),
             "CLAUDE_PLUGIN_ROOT": str(hook.plugin),
-            "CLAUDE_PLUGIN_DATA": str(self.scratch / "data" / hook.plugin.name),
+            "CLAUDE_PLUGIN_DATA": str(own / "data"),
         }
         if event.name == "SessionStart":
-            environment["CLAUDE_ENV_FILE"] = str(self.scratch / "env-file.sh")
+            environment["CLAUDE_ENV_FILE"] = str(own / "env-file.sh")
         result = subprocess.run(
             ["bash", "-c", hook.command],
             input=json.dumps(event.hook_input, separators=(",", ":")),
@@ -506,9 +511,10 @@ def main() -> None:
         root = (given_root or toplevel()).resolve()
         hooks = registered_hooks(root)
         failed = False
+        found = histories(root)
         with tempfile.TemporaryDirectory() as scratch:
             replayer = Replayer(root, pathlib.Path(scratch).resolve())
-            for history in histories(root):
+            for history in found:
                 lines, findings = update(history, hooks, replayer)
                 shown = history.relative_to(root)
                 for finding in findings:
@@ -527,6 +533,8 @@ def main() -> None:
         sys.exit("update-eval-histories: a history records what its hooks no longer print; run update-eval-histories")
     if failed:
         sys.exit(1)
+    if check:
+        print(f"update-eval-histories: ok, each history records what its hooks print at head ({len(found)} checked)")
 
 
 if __name__ == "__main__":
