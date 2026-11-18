@@ -208,6 +208,29 @@ expect "another session may write the record of a run, naming the session" 0 'tm
 mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply"
 expect "a name that already ran cannot be proposed again" 1 '^live-mutation\.py: already-ran: proposal set-value ran at '
 
+new_repository old new
+propose_value_change
+mutation session-one run set-value "$digest" --go-ahead "Go ahead with set-value."
+mutation session-two record set-value --session session-one
+expect "a record of another session with a check that never failed is refused, with a demonstration that names the session" 1 \
+  "^live-mutation\.py: check-never-failed: the check present never failed, so it is no evidence; run [^ ]*/live-mutation\.py demonstrate set-value present '<cmd>' --session session-one where its property does not hold"
+mutation session-two demonstrate set-value present 'test -f absent'
+expect "a demonstration of a proposal of another session that names no session is refused" 1 \
+  '^live-mutation\.py: not-found: session session-two holds no proposal set-value'
+mutation session-two demonstrate set-value present 'test -f absent' --session 'a b'
+expect "demonstrate refuses a session that is no session ID" 1 "^live-mutation\.py: bad-session: 'a b' is no session ID"
+mutation session-two demonstrate set-value present 'test -f absent' --session session-one
+expect "another session may demonstrate a check of a run, naming the session" 0 'The demonstration of present fails \(1\)'
+mutation session-two record set-value --session session-one
+expect "another session writes the record once it demonstrated the check" 0 'tmp/live-mutation/session-one/set-value/record-1\.md'
+record=$(contents "$repository/tmp/live-mutation/session-one/set-value/record-1.md")
+pattern='\| `present` \| passes \| passes \| fails \(1\) \|.*demonstration present, after the run: fails \(1\)'
+if [[ "$record" =~ $pattern ]]; then
+  pass "the record shows the demonstration of another session, after the run"
+else
+  fail "the record shows the demonstration of another session, after the run" "got:"$'\n'"$record"
+fi
+
 new_repository new new
 mkdir -p "$repository/tmp/live-mutation"
 cp -R "$devkit/plugins/build/tests/live-mutation/released-session" "$repository/tmp/live-mutation/"
