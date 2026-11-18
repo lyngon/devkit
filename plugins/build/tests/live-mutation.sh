@@ -781,6 +781,31 @@ expect_waits "a proposal on origin's default branch" staging-logs infra/staging 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
+git -C "$repository" switch -q main
+git -C "$repository" tag main
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "a proposal on origin's default branch beside a tag of the same name" staging-logs infra/staging \
+  'HEAD is on `main`, the default branch of origin, so no pull request will take the action record\.' \
+  "$shown_waiting"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+git -C "$repository" switch -q -c feat/tracks-main --track origin/main
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "a proposal on a branch whose upstream is origin's default branch" staging-logs infra/staging \
+  'HEAD is on `feat/tracks-main`, whose upstream is `main`, the default branch of origin, so a push of it may land there and no pull request take the action record\. Push it to a branch of its own with `git push -u origin feat/tracks-main`, and propose again\.' \
+  "$shown_waiting"
+git -C "$repository" push -q -u origin feat/tracks-main
+sed -i 's/default = "debug"/default = "trace"/' "$repository/infra/staging/main.tf"
+propose_tofu staging-trace --opentofu infra/staging
+expect "a proposal on that branch once it is pushed to a branch of its own needs no go-ahead" 0 'The run needs no go-ahead: '
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
 tofu_in infra/staging workspace new production >/dev/null
 tofu_in infra/staging apply -input=false -auto-approve >/dev/null
 tofu_in infra/staging workspace select default >/dev/null
