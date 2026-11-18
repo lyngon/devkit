@@ -556,8 +556,9 @@ Its scaffold script copies the stand-in into the working directory, and the vari
 env: { EVAL_PREPEND_TO_PATH: ".git/forge/bin" }
 ```
 
-The cases of `build:pull-request` and `build:live-mutation` and the case `add-skill-finishes-a-planned-change` run `forge/gh` of the case `pull-request-says-it-met-nothing` this way.
+The cases of `build:live-mutation`, those of `build:pull-request` but `pull-request-body`, and the case `add-skill-finishes-a-planned-change` run `forge/gh` of the case `pull-request-says-it-met-nothing` this way.
 It answers the commands that filing an issue and opening a pull request take, for the repository that the scaffold script writes into `.git/forge/repository`, such as `acme/orders`, and records both under `.git/forge`, where the graders read them.
+The scaffold script of `pull-request-body` seeds the working directory as that case does and then puts a `gh` of its own in its place, one that is not signed in, so that the forge has no tool the run can use.
 Without a stand-in, a command of a run finds whichever `gh` the PATH holds.
 
 The sandbox of a run binds `.git/config` read-only and a read-only device at `.git/config.lock` (read from the mounts of a live run on Claude Code 2.1.321).
