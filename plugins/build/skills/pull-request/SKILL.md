@@ -65,7 +65,7 @@ The body carries no line that names the tool or the agent that wrote it, since i
 
 ## Action records
 
-A live mutation that ran from the branch before the pull request existed leaves its action record waiting for it.
+The action record of a live mutation that ran from the branch can still wait to be posted, as the record of a run without a go-ahead does while the branch has no pull request.
 Once the pull request is open, list those runs with the tool of `build:live-mutation`:
 
 ```sh
