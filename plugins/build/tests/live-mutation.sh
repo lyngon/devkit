@@ -342,7 +342,7 @@ declared=$(git -C "$repository" rev-parse refs/remotes/origin/HEAD)
 set_level infra/staging
 propose_tofu staging-logs --opentofu ./infra/staging/
 expect "an update-only plan of a root module declared on origin/HEAD needs no go-ahead" 0 \
-  'tofu -chdir=infra/staging apply -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the owner's words>'"
+  'tofu -chdir=infra/staging apply -no-color -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the owner's words>'"
 tofu_mutation session-one run staging-logs "$digest"
 expect "a run without a go-ahead applies the plan and checks it again" 0 'The run passes.*- `no-changes` passes'
 level=$(tofu_in infra/staging output -raw level || true)
@@ -371,6 +371,14 @@ if [[ "$record" =~ $pattern && "$record" != *owner* ]]; then
   pass "the record names the rule file, says that no go-ahead was asked, and names no owner"
 else
   fail "the record names the rule file, says that no go-ahead was asked, and names no owner" "got:"$'\n'"$record"
+fi
+escaped=0
+escapes=$(grep -rl --binary-files=text --exclude-dir=inputs $'\e' "$repository/$proposals/staging-logs") || escaped=$?
+if ((escaped == 1)) && [[ "$record" == *"Apply complete!"* ]]; then
+  pass "the record holds the output of the apply, and no output of the proposal holds an ANSI escape"
+else
+  fail "the record holds the output of the apply, and no output of the proposal holds an ANSI escape" \
+    "grep exited $escaped and found one in:"$'\n'"$escapes"
 fi
 
 sleep 1
@@ -430,7 +438,7 @@ rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
 propose_tofu staging-destroy --opentofu infra/staging --destroy
 expect "a destroy plans and checks with -destroy" 0 \
-  'terraform_data\.logging will be destroyed.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -input=false -destroy -detailed-exitcode`'
+  'terraform_data\.logging will be destroyed.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -destroy -detailed-exitcode`'
 expect_waits "a destroy plan" staging-destroy infra/staging \
   'The plan does more than create, read or update these resources: `terraform_data\.credentials`, `terraform_data\.logging`, `terraform_data\.spare`\.'
 

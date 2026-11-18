@@ -158,10 +158,10 @@ class OpenTofu:
             raise RefusalError(f"reserved-check: the OpenTofu form adds the check {NO_CHANGES}; name yours otherwise")
         destroy = " -destroy" if self.destroy else ""
         return Commands(
-            derive=self.tofu(f"plan -input=false{destroy} -out={PLAN}"),
+            derive=self.tofu(f"plan -no-color -input=false{destroy} -out={PLAN}"),
             show=self.tofu(f"show -no-color {PLAN}"),
-            run=self.tofu(f"apply -input=false {PLAN}"),
-            checks={NO_CHANGES: self.tofu(f"plan -input=false{destroy} -detailed-exitcode"), **checks},
+            run=self.tofu(f"apply -no-color -input=false {PLAN}"),
+            checks={NO_CHANGES: self.tofu(f"plan -no-color -input=false{destroy} -detailed-exitcode"), **checks},
         )
 
     def plan_json(self) -> str:
