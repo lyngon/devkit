@@ -58,6 +58,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   The reason names the first line of code that changed and tells the auditor to mark that code `MUST KILL` instead.
   Pygments takes each triple-quoted Python string that starts a line for a docstring, so the hook lets the auditor delete one that is not.
   It lexes an HTML comment in Markdown as text, so the hook refuses the auditor the deletion of one.
+  It lexes a shebang as a comment, and the hook keeps it as code that ends at its line break, so the auditor may delete the comment right under a shebang and may not change the shebang.
   It fails closed: it refuses an edit that it cannot check, of a notebook, of a file that is not UTF-8 or whose name Pygments knows no language of, and every edit when `pygmentize` is not on its PATH, and the reason tells the auditor to leave those comments and report them skipped.
   Of the auditor's shell commands it refuses each write into a repository that `hooks/shell_writes.py` names, the same writes that `hooks/lead-writes-no-code.py` refuses the lead, and lets any other program run.
   `tests/hooks.sh` runs it with a PATH of the baseline's `lyngon.scriptTools` and nothing else, and once with `python3` and no `pygmentize`.
