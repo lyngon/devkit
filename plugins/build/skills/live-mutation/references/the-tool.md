@@ -74,7 +74,7 @@ It needs no go-ahead only when none of these holds, and otherwise it waits and t
 - `TF_DATA_DIR` is set in the tool's environment, since it picks a backend and a state that `-chdir` does not.
 - `tofu -chdir=<root module> workspace show`, run in the tool's environment, fails or names a workspace other than `default`, as `TF_WORKSPACE` or a selected workspace does.
 - HEAD is detached, so the action record has no branch to wait on.
-- HEAD is on the default branch of origin, or on a branch whose upstream is that branch, so a push may land its commits where no pull request takes the action record.
+- HEAD is on the default branch of origin, so no pull request will take the action record.
 - The tool cannot read the default branch of origin, a rule file there names `unprotected-roots` in a form that the tool does not read, or no rule file there lists the root module or a directory above it, as [The declaration](#the-declaration) says.
 
 When it needs no go-ahead, the output names the rule file and gives the command that runs without one, to run only when you judge that the apply can be undone and that the plan reaches only the target that the rule names.

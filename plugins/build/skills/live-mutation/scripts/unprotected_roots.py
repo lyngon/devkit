@@ -161,13 +161,6 @@ def branch_of(root: pathlib.Path) -> str | None:
     return None if result.returncode == 1 else printed(result).strip().removeprefix(BRANCHES)
 
 
-def upstream_of(root: pathlib.Path, branch: str) -> tuple[str, str]:
-    """Return the remote that a branch tracks and the branch it tracks there, both empty when it tracks none."""
-    tracked = "--format=%(upstream:remotename)%00%(upstream:remoteref)"
-    remote, _, ref = printed(git(root, "for-each-ref", tracked, f"{BRANCHES}{branch}")).rstrip("\n").partition("\0")
-    return remote, ref.removeprefix(BRANCHES)
-
-
 def origin_default(root: pathlib.Path) -> tuple[str, str]:
     """Return the branch that origin's HEAD names, and its commit, as origin says now.
 

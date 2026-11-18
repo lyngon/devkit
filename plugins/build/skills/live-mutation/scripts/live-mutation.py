@@ -24,11 +24,10 @@ sensitive values in plain text. A proposal of that form runs without a go-ahead
 when no resource change of its plan does more than create, read or update and
 none imports, its configuration holds no provisioner, no TF_CLI_ARGS variable
 and no TF_DATA_DIR is set, the root module's workspace is default, HEAD was on
-a branch other than the default branch of origin whose upstream is not that
-branch, and a rule file under .claude/rules/, as unprotected_roots.py reads it
-at that default branch, lists the root module or a directory above it under
-unprotected-roots in its frontmatter. Every other proposal runs only on the
-owner's go-ahead.
+a branch other than the default branch of origin, and a rule file under
+.claude/rules/, as unprotected_roots.py reads it at that default branch, lists
+the root module or a directory above it under unprotected-roots in its
+frontmatter. Every other proposal runs only on the owner's go-ahead.
 
 `run` refuses a proposal of another session, another digest, a second run,
 inputs that changed, a go-ahead of no words, a run without a go-ahead that the
@@ -641,19 +640,11 @@ def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None) -
     except unprotected_roots.UndeclaredError as error:
         return GoAheadNeeded((*reasons, str(error)))
     commit = declaration.commit
-    upstream = None if branch is None else unprotected_roots.upstream_of(root, branch)
     if branch == declaration.branch:
         on_default = (
             f"HEAD is on `{branch}`, the default branch of origin, so no pull request will take the action record."
         )
         reasons.append(on_default)
-    elif upstream == (unprotected_roots.ORIGIN, declaration.branch):
-        tracks_default = (
-            f"HEAD is on `{branch}`, whose upstream is `{declaration.branch}`, the default branch of origin,"
-            " so a push may land its commits there, where no pull request takes the action record."
-            f" Push it to a branch of its own with `git push -u origin {branch}`, and propose again."
-        )
-        reasons.append(tracks_default)
     reasons.extend(
         f"`{path}` at `{commit}` names `{KEY}` in a form the tool does not read, since {why}."
         for path, why in declaration.unreadable
