@@ -51,7 +51,7 @@ ln -s "$(nix build --no-link --print-out-paths "$devenv_nixpkgs#opentofu")/bin/t
 ln -s "$(nix build --no-link --print-out-paths "$devenv_nixpkgs#shfmt")/bin/shfmt" "$forge/bin/shfmt"
 "$forge/bin/tofu" -chdir=infra/staging init -input=false >/dev/null
 "$forge/bin/tofu" -chdir=infra/staging apply -input=false -auto-approve >/dev/null
-git init -q --bare "$forge/origin.git"
+git init -q --bare -b main "$forge/origin.git"
 git remote add origin "$PWD/$forge/origin.git"
 git push -q origin main
 git remote set-head origin main

@@ -1,8 +1,14 @@
 # ruff: noqa: INP001  # a module beside the script that imports it, which no package holds
-"""The root modules that the rule files at the default branch of origin declare unprotected, read with git."""
+"""The root modules that the rule files at the default branch of origin declare unprotected, read with git.
+
+The default branch is the one that origin's HEAD names when the tool asks origin, and the tool reads it only when
+refs/remotes/origin/HEAD names the same branch at the same commit, so a local ref that the agent set, or one not
+fetched since origin changed, never decides.
+"""
 
 import collections.abc as ct
 import dataclasses
+import os
 import pathlib
 import re
 import shlex
@@ -10,6 +16,11 @@ import subprocess
 import typing as t
 
 DEFAULT_BRANCH = "refs/remotes/origin/HEAD"
+REMOTE_BRANCHES = "refs/remotes/origin/"
+SYMBOLIC = "ref: refs/heads/"
+ORIGIN_HEAD = ("ls-remote", "--symref", "origin", "HEAD")
+ORIGIN_SECONDS = 60
+FETCH = "Run `git fetch origin` and `git remote set-head origin --auto`, and propose again."
 RULES = ".claude/rules/"
 UNPROTECTED_ROOTS = "unprotected-roots"
 REGULAR_FILES = frozenset({"100644", "100755"})
@@ -25,17 +36,27 @@ class UnreadableError(Exception):
     """A rule file names unprotected-roots in a form the tool does not read. The message says why, as a clause."""
 
 
+class UndeclaredError(Exception):
+    """The tool cannot tell which commit is the default branch of origin. The message says why and what to do."""
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class Declaration:
-    """What the rule files declare at a commit of the default branch.
+    """What the rule files declare at the commit of the default branch of origin.
 
     `roots` holds each directory listed under unprotected-roots with the rule file that lists it, and `unreadable`
     each rule file that names unprotected-roots in a form the tool does not read, with why.
     """
 
+    branch: str
     commit: str
     roots: tuple[tuple[str, str], ...]
     unreadable: tuple[tuple[str, str], ...]
+
+    def covering(self, root_module: str) -> tuple[str, str] | None:
+        """Return the rule file and the directory that cover a root module, at it or above it, or None."""
+        module = pathlib.PurePosixPath(root_module)
+        return next(((path, directory) for path, directory in self.roots if module.is_relative_to(directory)), None)
 
 
 def plain_directory(text: str) -> str:
@@ -130,12 +151,65 @@ def branch_of(root: pathlib.Path) -> str | None:
     return None if result.returncode == 1 else printed(result).strip()
 
 
-def declaration_of(root: pathlib.Path) -> Declaration | None:
-    """Read the rule files as they are at the default branch of origin. Returns None when that ref is missing."""
+def origin_default(root: pathlib.Path) -> tuple[str, str]:
+    """Return the branch that origin's HEAD names, and its commit, as origin says now.
+
+    Raises UndeclaredError when origin cannot be reached or its HEAD names no branch.
+    """
+    command = ["git", *ORIGIN_HEAD]
+    unreachable = f"origin cannot be reached, so the tool cannot read its default branch: `{shlex.join(command)}`"
+    fetch_later = "Fetch origin once it can be reached, and propose again."
+    try:
+        result = subprocess.run(
+            command,
+            cwd=root,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=ORIGIN_SECONDS,
+            check=False,
+        )
+    except FileNotFoundError:
+        raise GitError("git-missing: the tool runs git, which lyngon.scriptTools puts on the PATH") from None
+    except subprocess.TimeoutExpired:
+        raise UndeclaredError(f"{unreachable} ran longer than {ORIGIN_SECONDS} seconds. {fetch_later}") from None
+    if result.returncode != 0:
+        said = " ".join(result.stderr.decode(errors="replace").split())
+        raise UndeclaredError(f"{unreachable} exited {result.returncode}: {said} {fetch_later}")
+    printed_lines = result.stdout.decode(errors="replace").splitlines()
+    heads = [line.removesuffix("\tHEAD") for line in printed_lines if line.endswith("\tHEAD")]
+    named = [head.removeprefix(SYMBOLIC) for head in heads if head.startswith(SYMBOLIC)]
+    commits = [head for head in heads if not head.startswith("ref: ")]
+    if len(named) != 1 or len(commits) != 1:
+        raise UndeclaredError("origin's HEAD names no branch, so the tool cannot read its default branch.")
+    return named[0], commits[0]
+
+
+def fetched_default(root: pathlib.Path) -> tuple[str | None, str | None]:
+    """Return the branch that refs/remotes/origin/HEAD names and its commit, each None when it names none."""
+    named = git(root, "symbolic-ref", "--quiet", DEFAULT_BRANCH)
     found = git(root, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{DEFAULT_BRANCH}^{{commit}}")
-    if found.returncode == 1:
-        return None
-    commit = printed(found).strip()
+    branch = printed(named).strip().removeprefix(REMOTE_BRANCHES) if named.returncode == 0 else None
+    return branch, printed(found).strip() if found.returncode == 0 else None
+
+
+def declaration_of(root: pathlib.Path) -> Declaration:
+    """Read the rule files at the default branch of origin.
+
+    Raises UndeclaredError when origin cannot be reached, when its HEAD names no branch, and when
+    refs/remotes/origin/HEAD names another branch or another commit than origin's HEAD does. Raises GitError when git
+    is missing or fails.
+    """
+    branch, commit = origin_default(root)
+    fetched_branch, fetched_commit = fetched_default(root)
+    if (fetched_branch, fetched_commit) != (branch, commit):
+        if fetched_commit is None:
+            fetched = f"`{DEFAULT_BRANCH}` is missing"
+        elif fetched_branch is None:
+            fetched = f"`{DEFAULT_BRANCH}` names `{fetched_commit}` and no branch"
+        else:
+            fetched = f"`{DEFAULT_BRANCH}` names `{fetched_branch}` at `{fetched_commit}`"
+        raise UndeclaredError(f"{fetched}, while origin's default branch is `{branch}` at `{commit}`. {FETCH}")
     roots: list[tuple[str, str]] = []
     unreadable: list[tuple[str, str]] = []
     for entry in filter(None, printed(git(root, "ls-tree", "-z", commit, "--", RULES)).split("\0")):
@@ -148,4 +222,4 @@ def declaration_of(root: pathlib.Path) -> Declaration | None:
             roots.extend((path, directory) for directory in declared_roots(text))
         except UnreadableError as error:
             unreadable.append((path, str(error)))
-    return Declaration(commit=commit, roots=tuple(roots), unreadable=tuple(unreadable))
+    return Declaration(branch=branch, commit=commit, roots=tuple(roots), unreadable=tuple(unreadable))
