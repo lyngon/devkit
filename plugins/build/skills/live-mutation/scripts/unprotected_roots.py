@@ -20,6 +20,7 @@ REMOTE_BRANCHES = "refs/remotes/origin/"
 BRANCHES = "refs/heads/"
 SYMBOLIC = f"ref: {BRANCHES}"
 ORIGIN = "origin"
+ORIGIN_URL = f"remote.{ORIGIN}.url"
 ORIGIN_HEAD = ("ls-remote", "--symref", ORIGIN, "HEAD")
 ORIGIN_SECONDS = 60
 FETCH = "Run `git fetch origin` and `git remote set-head origin --auto`, and propose again."
@@ -132,9 +133,12 @@ def declared_roots(text: str) -> tuple[str, ...]:
 
 
 def git(root: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
-    """Run git from the root of the repository and capture its output. Raises GitError when git is missing."""
+    """Run git from the root of the repository and capture its output. Raises GitError when git is missing.
+
+    git ignores the replacement objects under refs/replace/, so that it reads each commit as origin holds it.
+    """
     try:
-        return subprocess.run(["git", *arguments], cwd=root, capture_output=True, check=False)
+        return subprocess.run(["git", "--no-replace-objects", *arguments], cwd=root, capture_output=True, check=False)
     except FileNotFoundError:
         raise GitError(GIT_MISSING) from None
 
@@ -167,8 +171,15 @@ def upstream_of(root: pathlib.Path, branch: str) -> tuple[str, str]:
 def origin_default(root: pathlib.Path) -> tuple[str, str]:
     """Return the branch that origin's HEAD names, and its commit, as origin says now.
 
-    Raises UndeclaredError when origin cannot be reached or its HEAD names no branch.
+    Raises UndeclaredError when no remote is named origin, when origin cannot be reached or its HEAD names no branch.
     """
+    url = git(root, "config", "--get", ORIGIN_URL)
+    if url.returncode == 1 or not printed(url).strip():
+        message = (
+            f"No remote is named `{ORIGIN}`, since `git config --get {ORIGIN_URL}` prints nothing,"
+            " so the tool cannot read its default branch."
+        )
+        raise UndeclaredError(message)
     command = ["git", *ORIGIN_HEAD]
     unreachable = f"origin cannot be reached, so the tool cannot read its default branch: `{shlex.join(command)}`"
     fetch_later = "Fetch origin once it can be reached, and propose again."

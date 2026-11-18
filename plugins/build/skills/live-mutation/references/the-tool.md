@@ -3,7 +3,7 @@
 `scripts/live-mutation.py` of this skill keeps one directory per proposal, `tmp/live-mutation/<session>/<name>/` at the root of the repository, where `<session>` is the session that proposed it.
 Run it from the root of the repository, in the conversation that shows the proposal.
 It refuses to work outside a Claude Code session.
-It guards against a wrong judgment and an accident, and not against an agent that sets out to rewrite its files, its environment or its PATH.
+It guards against a wrong judgment and an accident, and not against an agent that sets out to rewrite its files, its environment, its PATH or the repository's own `.git`.
 
 Each command is one line of sh, run from the root of the repository.
 `$LIVE_MUTATION_INPUTS` names the directory of the frozen inputs: the derive command writes them there, and the show and run commands read them from there.
@@ -107,8 +107,8 @@ unprotected-roots:
 ---
 ```
 
-- The tool reads the `.md` files directly under `.claude/rules/` at the default branch of origin, with git. It asks origin which branch and commit that is, with `git ls-remote --symref origin HEAD`, and reads the files at `refs/remotes/origin/HEAD` only when that ref names the same branch at the same commit. A rule file that only your branch or the working tree holds counts for nothing.
-- When origin cannot be reached, when its HEAD names no branch, or when `refs/remotes/origin/HEAD` is missing or names another branch or commit, no root module counts as unprotected, and the reason says what differed. Fetch origin, run `git remote set-head origin --auto` and propose again.
+- The tool reads the `.md` files directly under `.claude/rules/` at the default branch of origin, with git, which ignores the replacement objects of `git replace`. It asks origin which branch and commit that is, with `git ls-remote --symref origin HEAD`, and reads the files at `refs/remotes/origin/HEAD` only when that ref names the same branch at the same commit. A rule file that only your branch or the working tree holds counts for nothing.
+- When no remote is named `origin`, when origin cannot be reached, when its HEAD names no branch, or when `refs/remotes/origin/HEAD` is missing or names another branch or commit, no root module counts as unprotected, and the reason says what differed. Fetch origin, run `git remote set-head origin --auto` and propose again.
 - A directory covers every root module at it or below it, matched on whole path components, so `environments/staging` covers `environments/staging/eu` and not `environments/staging-old`.
 - The key stands once, on a line `unprotected-roots:` alone, and a block list follows it with one item per directory. An item is a plain relative directory of letters, digits, `_`, `.`, `-` and `/`, with no `..` and no glob. No comment stands between the key and the next key, at any indent.
 - A rule file that names `unprotected-roots` in any other form makes every proposal of the OpenTofu form wait, and the reason names the file. A rule file without the key counts for nothing.
