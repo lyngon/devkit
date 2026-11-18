@@ -70,11 +70,13 @@ def frontmatter(text: str) -> list[str]:
 def block_list(lines: ct.Sequence[str]) -> tuple[str, ...]:
     """Return the items of the block list that the lines open with, up to the next key.
 
-    Raises UnreadableError for any line before that key that is no item, for no item at all, and for items
-    indented differently.
+    Raises UnreadableError for any line before that key that is no item, for no item at all, for items indented
+    differently, and for a comment at any indent, since items may follow it that YAML still counts.
     """
     items: list[tuple[int, str]] = []
     for line in lines:
+        if line.lstrip().startswith("#"):
+            raise UnreadableError(f"`{line.strip()}` under it is a comment")
         if line and not line.startswith((" ", "-")):
             break
         if not line.strip():
