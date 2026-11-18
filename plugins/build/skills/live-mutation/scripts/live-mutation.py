@@ -906,9 +906,9 @@ def sensitive_shown(paths: ct.Iterable[pathlib.Path], outcome_of_it: str) -> Ref
     message = (
         f"sensitive-value-shown: a command printed a value that the plan marks sensitive, so {outcome_of_it};"
         f" the tool hid it in {listed}. OpenTofu prints such a value where it loses the mark, as in the output of a"
-        " terraform_data resource whose input holds one. Keep the value out of such an attribute and out of what"
-        " a check prints, and propose again, or stop and tell the owner. Never propose it in the generic form,"
-        " which hides nothing."
+        " terraform_data resource whose input holds one. When a check of yours printed it, fix the check and"
+        " propose again. Otherwise stop and tell the owner, and never propose it in the generic form, which hides"
+        " nothing."
     )
     return RefusalError(message)
 

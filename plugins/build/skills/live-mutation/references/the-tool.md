@@ -100,7 +100,7 @@ Beyond those of the generic form, its refusals:
 - `bad-root`: the root module is absolute, holds `..`, passes through a symlink or names no directory. Name the directory itself, relative to the root of the repository.
 - `reserved-check`: a check you give is named `no-changes`, which the form adds itself. Name it otherwise.
 - `plan-unreadable`: `tofu show -json` failed, or printed no JSON with a list of resource changes and a configuration of modules that the tool reads.
-- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. Keep the value out of an attribute that loses its mark and out of what a check prints, and propose again, or stop and tell the owner. Never propose it in the generic form, which would show the value.
+- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. When a check of yours printed it, fix the check and propose again. Otherwise stop and tell the owner, and never propose it in the generic form, which would show the value.
 - `nothing-to-apply`: the plan changes nothing, since `no-changes` passes, so the check could never fail.
 
 ### The declaration
