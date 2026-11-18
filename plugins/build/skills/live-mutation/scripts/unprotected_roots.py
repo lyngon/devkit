@@ -21,6 +21,7 @@ SYMBOLIC = "ref: refs/heads/"
 ORIGIN_HEAD = ("ls-remote", "--symref", "origin", "HEAD")
 ORIGIN_SECONDS = 60
 FETCH = "Run `git fetch origin` and `git remote set-head origin --auto`, and propose again."
+GIT_MISSING = "git-missing: the tool runs git, which lyngon.scriptTools puts on the PATH"
 RULES = ".claude/rules/"
 UNPROTECTED_ROOTS = "unprotected-roots"
 REGULAR_FILES = frozenset({"100644", "100755"})
@@ -133,7 +134,7 @@ def git(root: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[byte
     try:
         return subprocess.run(["git", *arguments], cwd=root, capture_output=True, check=False)
     except FileNotFoundError:
-        raise GitError("git-missing: the tool runs git, which lyngon.scriptTools puts on the PATH") from None
+        raise GitError(GIT_MISSING) from None
 
 
 def printed(result: subprocess.CompletedProcess[bytes]) -> str:
@@ -170,7 +171,7 @@ def origin_default(root: pathlib.Path) -> tuple[str, str]:
             check=False,
         )
     except FileNotFoundError:
-        raise GitError("git-missing: the tool runs git, which lyngon.scriptTools puts on the PATH") from None
+        raise GitError(GIT_MISSING) from None
     except subprocess.TimeoutExpired:
         raise UndeclaredError(f"{unreachable} ran longer than {ORIGIN_SECONDS} seconds. {fetch_later}") from None
     if result.returncode != 0:
