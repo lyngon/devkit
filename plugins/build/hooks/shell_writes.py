@@ -160,8 +160,7 @@ def temporary_directory() -> dict[str, str]:
     That is the TMPDIR that Claude Code runs the hook with, or under its sandbox a directory inside it, where the
     sandbox tells the model to put temporary files (measured on Claude Code 2.1.325). The hook judges a path under
     $TMPDIR by its own TMPDIR, since the two directories lie alike in a repository's tmp/, in its change or outside
-    every repository. A value that bash would split or glob where it stands unquoted, and one that is no absolute
-    path, are left unknown.
+    every repository.
     """
     value = os.environ.get("TMPDIR", "")
     return {"TMPDIR": value} if NEITHER_SPLIT_NOR_GLOBBED_ABSOLUTE_PATH.fullmatch(value) else {}

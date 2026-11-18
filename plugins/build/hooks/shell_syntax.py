@@ -483,11 +483,7 @@ class CommandReader:
 
 
 def named_only_in_plain_expansions(command: str, variables: ct.Mapping[str, str]) -> dict[str, str]:
-    """Return the variables of variables that a command names only where it expands them plainly, as $NAME or ${NAME}.
-
-    A command that names a variable anywhere else may assign it, as NAME=x, export, read or a loop do, or expand it
-    with an operator, as ${NAME:-x} does, so its value as the command starts says nothing of what such a word holds.
-    """
+    """Return the variables of variables that a command names only as $NAME or ${NAME}."""
     return {
         name: value
         for name, value in variables.items()

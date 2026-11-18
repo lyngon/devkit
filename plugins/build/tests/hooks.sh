@@ -30,10 +30,8 @@ run_hook() {
   err=$(<"$tmp/stderr")
 }
 
-# The variables of Claude Code's environment, such as TMPDIR, that a tool hook gets beside its PATH.
 hook_environment=()
 
-# with_tmpdir <directory> <command...>: run the command with hooks that get that TMPDIR.
 with_tmpdir() {
   hook_environment=(TMPDIR="$1")
   "${@:2}"
@@ -426,8 +424,15 @@ with_tmpdir "$repository/src" lead_command_refused "a revert through a scratch p
   "$revert_through_a_scratch_patch" "> \"\$TMPDIR/docstring.patch\""
 lead_command_refused "a revert through a scratch patch under \$TMPDIR, which the hook's environment leaves unset" \
   "$revert_through_a_scratch_patch" "> \"\$TMPDIR/docstring.patch\""
-with_tmpdir "$outside_any_repository" lead_command_refused "a write under a \$TMPDIR that the command assigns" \
-  "TMPDIR=src/orders; echo 'BULK = 9' > \"\$TMPDIR/pricing.py\"" "> \"\$TMPDIR/pricing.py\""
+for assignment in "TMPDIR=src/orders;" "export TMPDIR=src/orders;" "read -r TMPDIR <<<src/orders;" \
+  "for TMPDIR in src/orders; do" ": \"\${TMPDIR::=src/orders}\";"; do
+  done_word=""
+  [[ $assignment != for* ]] || done_word="; done"
+  with_tmpdir "$outside_any_repository" lead_command_refused "a write under a \$TMPDIR that \`$assignment\` assigns" \
+    "$assignment echo 'BULK = 9' > \"\$TMPDIR/pricing.py\"$done_word" "> \"\$TMPDIR/pricing.py\""
+done
+with_tmpdir "$outside_any_repository/a b" lead_command_refused "cp to an unquoted \$TMPDIR that bash splits at a space" \
+  "cp tmp/pricing.py \$TMPDIR/src/orders/pricing.py" "cp tmp/pricing.py \$TMPDIR/src/orders/pricing.py"
 with_tmpdir "$outside_any_repository" lead_command_refused "cp to a path that leaves \$TMPDIR for the change" \
   "cp tmp/pricing.py \"\$TMPDIR/../orders/src/orders/pricing.py\"" "cp tmp/pricing.py \"\$TMPDIR/../orders/src/orders/pricing.py\""
 with_tmpdir "$repository/tmp" lead_command_refused "a write under \$TMPDIR:h, the directory above it in zsh" \
