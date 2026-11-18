@@ -84,12 +84,12 @@ URL = re.compile(r"https://\S+")
 SHOWN_WAITING = (
     "The proposal was shown as waiting for the owner's go-ahead, and such a proposal never runs without one."
 )
-RELEASED_PROPOSAL: ct.Mapping[str, object] = {
+FIELDS_AN_OLDER_PROPOSAL_LACKS: ct.Mapping[str, object] = {
     "form": None,
     "route": {"kind": "go-ahead-needed", "reasons": [GENERIC]},
     "branch": None,
 }
-RELEASED_LOG_LINE: ct.Mapping[str, object] = {"rule_file": "", "commit": "", "directory": "", "urls": []}
+FIELDS_AN_OLDER_LOG_LINE_LACKS: ct.Mapping[str, object] = {"rule_file": "", "commit": "", "directory": "", "urls": []}
 
 
 class RefusalError(Exception):
@@ -390,7 +390,7 @@ def load(place: Place) -> Proposal:
 
     Raises RefusalError for a proposal whose digest is not the one that its commands, inputs and rendering give.
     """
-    fields = {**RELEASED_PROPOSAL, **fields_of(place.proposal.read_text(encoding="utf-8"))}
+    fields = {**FIELDS_AN_OLDER_PROPOSAL_LACKS, **fields_of(place.proposal.read_text(encoding="utf-8"))}
     branch = fields["branch"]
     if branch is not None and not isinstance(branch, str):
         raise RefusalError("corrupt: branch is neither null nor a string")
@@ -435,7 +435,7 @@ def read_log(place: Place) -> list[Entry]:
         return []
     entries: list[Entry] = []
     for line in place.log.read_text(encoding="utf-8").splitlines():
-        fields = {**RELEASED_LOG_LINE, **fields_of(line)}
+        fields = {**FIELDS_AN_OLDER_LOG_LINE_LACKS, **fields_of(line)}
         status = fields.get("status")
         if not isinstance(status, int):
             raise RefusalError(f"corrupt: a line of {place.log} has no status")
