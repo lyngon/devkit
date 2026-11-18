@@ -42,7 +42,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   A simple command runs its first word, and when that word is a wrapper such as `env`, `timeout`, `nix shell --command` or `python3`, or a variable hides it, the hook takes any later word for a program too.
   It also reads what `bash -c` and `eval` run and the value of an alias.
   The subcommand is the first word after the script's path that is not `--`, and the call counts when a variable or a substitution hides that word, when `xargs` runs the script, and when a shell reads its commands from a heredoc, a here-string or a pipe in a command that names the script.
-  So `ruff check`, `cp` or `grep` of the script runs, and so does a shell that runs a script file.
+  So `ruff check`, `cp` or `grep` of the script runs, and so does a shell that runs a script file whose path holds no variable or substitution.
   It fails closed.
   It denies a command that names tofu and that it cannot read, and says why, when `shfmt` is not on its PATH, when the command parses neither as bash nor as zsh, and when a variable or a substitution decides the program, the subcommand or a flag that would make it write.
   It never sees a program that runs tofu as a process of its own, such as a script file, `make`, a devenv task or the script of `live-mutation`, which runs every command of a proposal that way.

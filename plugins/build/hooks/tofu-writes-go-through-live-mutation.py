@@ -64,6 +64,8 @@ ADDS_WORDS_FROM_ITS_INPUT = "xargs"
 
 SHELL_FLAGS_WITH_AN_ARGUMENT = frozenset("oO")
 
+SHELL_LONG_OPTIONS_WITH_AN_ARGUMENT = frozenset({"--init-file", "--rcfile"})
+
 WORDS_OF_A_USE = ' "$@"'
 
 WRITES_ALWAYS = frozenset(
@@ -305,21 +307,25 @@ def calls_live(arguments: ct.Sequence[shell_syntax.Word]) -> bool:
 
 
 def reads_standard_input(arguments: ct.Sequence[shell_syntax.Word]) -> bool:
-    """Return whether a shell run with these arguments, and with no -c among them, reads commands from standard input.
+    """Return whether a shell run with these arguments and without -c may read commands from standard input.
 
-    It does with -s, and when no operand follows its options, since the first operand names the file it runs.
+    It does with -s, and when no operand follows its options, since the first operand names the file it runs. An
+    operand that an expansion hides may name standard input, as a process substitution does.
     """
     remaining = iter(arguments)
     for argument in remaining:
         value = argument.value
+        if value is None:
+            return True
         if value in {"-", "--"}:
-            return next(remaining, None) is None
-        if value is None or not value.startswith(("-", "+")):
+            operand = next(remaining, None)
+            return operand is None or operand.value is None
+        if not value.startswith(("-", "+")):
             return False
         letters = "" if value.startswith("--") else value[1:]
         if "s" in letters:
             return True
-        if SHELL_FLAGS_WITH_AN_ARGUMENT & set(letters):
+        if value in SHELL_LONG_OPTIONS_WITH_AN_ARGUMENT or SHELL_FLAGS_WITH_AN_ARGUMENT & set(letters):
             _ = next(remaining, None)
     return True
 
