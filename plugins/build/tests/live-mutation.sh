@@ -107,6 +107,17 @@ else
 fi
 
 new_repository old new
+mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply" \
+  --check 'rewrites=printf "other\n" >"$LIVE_MUTATION_INPUTS/plan"; false'
+expect "a check that rewrites an input while the proposal is made is refused" 1 \
+  '^live-mutation\.py: inputs-changed: plan changed while the checks ran'
+if [[ ! -e "$repository/tmp/live-mutation/session-one/set-value/proposal.json" ]]; then
+  pass "a check that rewrites an input leaves no proposal"
+else
+  fail "a check that rewrites an input leaves no proposal" "it saved proposal.json"
+fi
+
+new_repository old new
 mutation session-one propose set-value --derive 'exit 3' --show "$show" --run "$apply"
 expect "a derive command that fails is no proposal" 1 '^live-mutation\.py: derive-failed: derive exited 3'
 
@@ -128,8 +139,12 @@ expect_live "a refused run of the generic form changes nothing live" old
 new_repository old new
 propose_value_change
 mutation session-one run set-value 0000000000000000 --go-ahead "yes"
-expect "a go-ahead for another digest is refused" 1 "^live-mutation\.py: digest-mismatch: the go-ahead names 0000000000000000, and proposal set-value is at $digest"
+expect "a go-ahead for another digest is refused" 1 "^live-mutation\.py: digest-mismatch: the run names 0000000000000000, and proposal set-value is at $digest"
 expect_live "a refused digest changes nothing live" old
+
+mutation session-one run set-value "$digest" --go-ahead " "
+expect "a go-ahead without words is refused" 1 '^live-mutation\.py: empty-go-ahead: '
+expect_live "a go-ahead without words changes nothing live" old
 
 mutation session-two run set-value "$digest" --go-ahead "yes, the one from yesterday"
 expect "a proposal shown in another conversation is refused, naming that session" 1 \
@@ -345,6 +360,15 @@ propose_tofu() {
   digest=$(sed -n 's/^Proposal `[a-z0-9-]*` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
 }
 
+edit_proposal() {
+  env -i PATH="$script_tools" python3 -c '
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+proposal = json.loads(path.read_text())
+exec(sys.argv[2])
+path.write_text(json.dumps(proposal))' "$repository/$proposals/$1/proposal.json" "$2"
+}
+
 rest_of_line="[^"$'\n'"]*"
 
 expect_waits() {
@@ -428,7 +452,8 @@ sleep 1
 set_level infra/staging-old
 propose_tofu old-logs --opentofu infra/staging-old
 expect_waits "a root module beside a declared directory with the same prefix" old-logs infra/staging-old \
-  'No rule file under `\.claude/rules/` at `'"$declared"'` lists `infra/staging-old` or a directory above it under `unprotected-roots:`\.'
+  'No rule file under `\.claude/rules/` at `'"$declared"'` lists `infra/staging-old` or a directory above it under `unprotected-roots:`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 mutation session-two pending
 expect "pending lists the unposted runs of the branch from every session, in the order they ran" 0 \
@@ -468,7 +493,8 @@ git -C "$repository" push -q -u origin feat/staging-logs
 set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
 expect_waits "a declaration committed and pushed on the agent's branch only" staging-logs infra/staging \
-  'No rule file under `\.claude/rules/` at `[0-9a-f]{40}` lists `infra/staging` or a directory above it under `unprotected-roots:`\.'
+  'No rule file under `\.claude/rules/` at `[0-9a-f]{40}` lists `infra/staging` or a directory above it under `unprotected-roots:`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra"
@@ -483,7 +509,8 @@ git -C "$repository" checkout -q -- infra/staging/main.tf
 sed -i 's/"first"/"second"/' "$repository/infra/staging/main.tf"
 propose_tofu staging-replace --opentofu infra/staging
 expect_waits "a plan that replaces" staging-replace infra/staging \
-  'The plan does more than create, read or update these resources: `terraform_data\.logging`\.'
+  'The plan does more than create, read or update these resources: `terraform_data\.logging`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -491,7 +518,8 @@ publish
 sed -i '/"spare"/d' "$repository/infra/staging/main.tf"
 propose_tofu staging-delete --opentofu infra/staging
 expect_waits "a plan that deletes" staging-delete infra/staging \
-  'The plan does more than create, read or update these resources: `terraform_data\.spare`\.'
+  'The plan does more than create, read or update these resources: `terraform_data\.spare`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -500,7 +528,8 @@ sed -i '/"spare"/d' "$repository/infra/staging/main.tf"
 printf '%s\n' 'removed {' '  from = terraform_data.spare' '  lifecycle {' '    destroy = false' '  }' '}' >>"$repository/infra/staging/main.tf"
 propose_tofu staging-forget --opentofu infra/staging
 expect_waits "a plan that forgets, which deletes nothing" staging-forget infra/staging \
-  'The plan does more than create, read or update these resources: `terraform_data\.spare`\.'
+  'The plan does more than create, read or update these resources: `terraform_data\.spare`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -509,7 +538,8 @@ propose_tofu staging-destroy --opentofu infra/staging --destroy
 expect "a destroy plans and checks with -destroy" 0 \
   'terraform_data\.logging will be destroyed.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -destroy -detailed-exitcode`'
 expect_waits "a destroy plan" staging-destroy infra/staging \
-  'The plan does more than create, read or update these resources: `terraform_data\.credentials`, `terraform_data\.logging`, `terraform_data\.spare`\.'
+  'The plan does more than create, read or update these resources: `terraform_data\.credentials`, `terraform_data\.logging`, `terraform_data\.spare`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -521,7 +551,8 @@ propose_tofu staging-by-hand \
   --run 'tofu -chdir=infra/staging apply -input=false "$LIVE_MUTATION_INPUTS/plan"' \
   --check 'no-changes=tofu -chdir=infra/staging plan -input=false -detailed-exitcode'
 expect_waits "a proposal of the generic form" staging-by-hand infra/staging \
-  'The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead\.'
+  'The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -532,7 +563,7 @@ expect "a proposal made while origin/HEAD declared its root module needs no go-a
 state=$(state_of infra/staging)
 tofu_mutation session-one run staging-logs 0000000000000000
 expect "a run without a go-ahead for another digest is refused" 1 \
-  "^live-mutation\.py: digest-mismatch: [^"$'\n'"]*0000000000000000, and proposal staging-logs is at $digest"
+  "^live-mutation\.py: digest-mismatch: the run names 0000000000000000, and proposal staging-logs is at $digest"
 plan=$repository/$proposals/staging-logs/inputs/plan
 cp "$plan" "$tmp/plan"
 printf 'tampered\n' >"$plan"
@@ -580,7 +611,8 @@ if [[ "$output" != *plain.md* ]]; then
 else
   fail "a rule file without unprotected-roots counts for nothing" "the proposal names it:"$'\n'"$output"
 fi
-expect_waits "frontmatter that is no list of directories" staging-logs infra/staging "${broken[@]}"
+expect_waits "frontmatter that is no list of directories" staging-logs infra/staging "${broken[@]}" \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
@@ -609,7 +641,8 @@ git -C "$repository" switch -q --detach
 set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
 expect_waits "a detached HEAD at the proposal" staging-logs infra/staging \
-  'HEAD was detached at the proposal, so its action record has no branch to wait on\.'
+  'HEAD was detached at the proposal, so its action record has no branch to wait on\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 mutation session-one pending
 expect "pending refuses a detached HEAD" 1 '^live-mutation\.py: detached-head: '
 
@@ -623,6 +656,75 @@ if [[ ! -e "$repository/$proposals/staging-logs/proposal.json" ]]; then
 else
   fail "a plan that changes nothing is no proposal" "it saved $proposals/staging-logs/proposal.json"
 fi
+
+expect_state() {
+  local label=$1 root=$2 wanted=$3
+  if [[ "$(state_of "$root")" == "$wanted" ]]; then
+    pass "$label"
+  else
+    fail "$label" "the state of $root changed"
+  fi
+}
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+set_level infra/staging
+state=$(state_of infra/staging)
+propose_tofu staging-swap --opentofu infra/staging \
+  --check 'fresh=tofu -chdir=infra/staging plan -no-color -input=false -destroy -out="$LIVE_MUTATION_INPUTS/plan" >/dev/null; false'
+expect "a check that writes a destroy plan over the frozen one while the proposal is made is refused" 1 \
+  '^live-mutation\.py: inputs-changed: plan changed while the checks ran'
+if [[ ! -e "$repository/$proposals/staging-swap/proposal.json" ]]; then
+  pass "a check that rewrites the frozen plan leaves no proposal"
+else
+  fail "a check that rewrites the frozen plan leaves no proposal" "it saved $proposals/staging-swap/proposal.json"
+fi
+
+printf 'protected\n' >"$repository/production"
+propose_tofu wipe --derive 'printf p >"$LIVE_MUTATION_INPUTS/plan"' --show 'printf "wipe production\n"' \
+  --run 'printf "destroyed\n" >production'
+edit_proposal wipe 'proposal["form"] = {"kind": "opentofu", "root": "infra/staging", "destroy": False, "checks": {}}'
+tofu_mutation session-one run wipe "$digest"
+expect "a proposal of the generic form edited to the OpenTofu form is refused" 1 \
+  '^live-mutation\.py: corrupt: the digest of proposal wipe is not the one its commands, inputs and rendering give$'
+if [[ "$(contents "$repository/production")" == protected ]]; then
+  pass "a proposal edited to the OpenTofu form runs nothing"
+else
+  fail "a proposal edited to the OpenTofu form runs nothing" "production holds $(contents "$repository/production")"
+fi
+
+propose_tofu staging-logs --opentofu infra/staging
+expect "an update-only plan needs no go-ahead before its inputs are swapped" 0 'The run needs no go-ahead: '
+tofu_in infra/staging plan -input=false -destroy -out="$tmp/destroy.plan" >/dev/null
+cp "$tmp/destroy.plan" "$repository/$proposals/staging-logs/inputs/plan"
+swapped=$(sha256sum "$tmp/destroy.plan")
+edit_proposal staging-logs 'proposal["inputs"]["plan"] = "'"${swapped%% *}"'"'
+tofu_mutation session-one run staging-logs "$digest"
+expect "a destroy plan copied over the frozen one, with its hash in the proposal, is refused" 1 \
+  '^live-mutation\.py: corrupt: the digest of proposal staging-logs is not the one its commands, inputs and rendering give$'
+expect_state "a destroy plan copied over the frozen one changes no state" infra/staging "$state"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+declared=$(git -C "$repository" rev-parse refs/remotes/origin/HEAD)
+sed -i 's/"first"/"second"/' "$repository/infra/staging/main.tf"
+propose_tofu staging-replace --opentofu infra/staging
+edit_proposal staging-replace 'proposal["blocking"] = []; proposal["route"] = {"kind": "no-go-ahead-needed", "rule_file": ".claude/rules/sandbox.md", "commit": "'"$declared"'", "directory": "infra/staging"}'
+expect_waits "a plan that replaces, whose saved route was edited to need no go-ahead" staging-replace infra/staging \
+  'The plan does more than create, read or update these resources: `terraform_data\.logging`\.'
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+git -C "$repository" remote set-head origin --delete
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect "a proposal made while origin/HEAD is missing waits" 0 'The run waits for the owner.s go-ahead:'
+git -C "$repository" remote set-head origin main
+expect_waits "a proposal shown as waiting, run after origin/HEAD appears" staging-logs infra/staging \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 if ((failures > 0)); then
   echo "test-live-mutation: $failures failure(s)" >&2
