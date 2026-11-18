@@ -966,10 +966,8 @@ expect "a destroy of a terraform_data resource whose input holds a sensitive val
   '^live-mutation\.py: sensitive-value-shown: '
 expect_secrets_kept "a destroy stopped by its rendering"
 
-new_tofu_repository
-rule sandbox.md "unprotected-roots:" "  - infra/staging"
-publish
-cat >"$repository/infra/staging/copy.tf" <<'EOF'
+copy_the_secrets_to_an_output() {
+  cat >"$repository/infra/staging/copy.tf" <<'EOF'
 variable "key" {
   type      = string
   sensitive = true
@@ -979,7 +977,7 @@ variable "key" {
 variable "quoted" {
   type      = string
   sensitive = true
-  default   = "a \"quoted\" value of the test"
+  default   = "a \"quoted\" value\u0001 of the test"
 }
 
 resource "terraform_data" "copy" {
@@ -990,7 +988,13 @@ output "copy" {
   value = terraform_data.copy.output
 }
 EOF
-secrets=("$token" key-line-of-the-test '"quoted" value of the test' '\"quoted\" value of the test')
+}
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+copy_the_secrets_to_an_output
+secrets=("$token" key-line-of-the-test $'"quoted" value\x01 of the test' '\"quoted\" value\x01 of the test')
 propose_tofu staging-copy --opentofu infra/staging
 expect "a plan that creates a terraform_data resource from sensitive inputs shows no sensitive value" 0 \
   'The run needs no go-ahead: '
@@ -1008,6 +1012,51 @@ else
   fail "the record shows the output of the apply with each sensitive value hidden, a heredoc and a quoted string included" \
     "got:"$'\n'"$record"
 fi
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+copy_the_secrets_to_an_output
+stand_in=$tmp/outlives-the-tool
+mkdir -p "$stand_in"
+cat >"$stand_in/tofu" <<EOF
+#!/bin/sh
+case " \$* " in
+*" apply "*)
+  "$opentofu/tofu" "\$@" || exit
+  : >"$repository/printed"
+  while [ ! -e "$repository/go-on" ]; do $(command -v sleep) 0.1; done
+  echo "printed after the tool ended"
+  : >"$repository/finished"
+  ;;
+*) exec "$opentofu/tofu" "\$@" ;;
+esac
+EOF
+chmod +x "$stand_in/tofu"
+call_tool "$script_tools:$stand_in" session-one propose staging-copy --opentofu infra/staging
+digest=$(sed -n 's/^Proposal `staging-copy` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+(cd "$repository" && exec env -i PATH="$script_tools:$stand_in" CLAUDE_CODE_SESSION_ID=session-one "$script" run staging-copy "$digest" >/dev/null 2>&1) &
+run_pid=$!
+for _ in $(seq 600); do
+  [[ -e "$repository/printed" ]] && break
+  sleep 0.1
+done
+kill -KILL "$run_pid" 2>/dev/null || true
+wait "$run_pid" || true
+: >"$repository/go-on"
+for _ in $(seq 600); do
+  [[ -e "$repository/finished" ]] && break
+  sleep 0.1
+done
+output="the tool was killed during the run"
+if [[ -e "$repository/finished" ]]; then
+  pass "a run whose tool is killed after the apply printed keeps its command running to the end"
+else
+  fail "a run whose tool is killed after the apply printed keeps its command running to the end" "the command never finished"
+fi
+secrets=("$token" key-line-of-the-test)
+expect_secrets_kept "a run whose tool is killed after the apply printed sensitive values"
+secrets=("$token")
 
 new_tofu_repository
 carry_the_token_in_logging

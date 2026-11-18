@@ -79,6 +79,19 @@ TOOL = pathlib.Path(__file__).resolve()
 NO_CHANGES = "no-changes"
 PLAN = '"$LIVE_MUTATION_INPUTS/plan"'
 HIDDEN = "(sensitive value hidden by live-mutation.py)"
+GO_ESCAPES = {
+    "\a": r"\a",
+    "\b": r"\b",
+    "\f": r"\f",
+    "\n": r"\n",
+    "\r": r"\r",
+    "\t": r"\t",
+    "\v": r"\v",
+    "\\": r"\\",
+    '"': r"\"",
+}
+GO_HEX_ESCAPED = frozenset(chr(code) for code in [*range(0x20), 0x7F])
+BASIC_PLANE = range(0x10000)
 DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
@@ -485,10 +498,7 @@ def environment_of(inputs: pathlib.Path) -> dict[str, str]:
 def execute(command: str, root: pathlib.Path, inputs: pathlib.Path, *, apart: bool = False) -> tuple[int, str, str]:
     """Run a line of sh from the root with LIVE_MUTATION_INPUTS set, and return its exit status and what it printed.
 
-    The command prints into files that have no name, beside its inputs, so that
-    nothing it prints reaches a file that anyone reads before the tool hides the
-    sensitive values in it, and so that it keeps printing when the tool ends
-    first. Standard error follows standard output, or comes back apart. A Ctrl-C
+    Standard error follows standard output, or comes back apart. A Ctrl-C
     reaches the command through the process group it shares with this tool, so
     the tool only waits for it, and never kills it or interrupts it again:
     OpenTofu stops an apply cleanly on a first SIGINT and at once on a second,
@@ -514,13 +524,31 @@ def execute(command: str, root: pathlib.Path, inputs: pathlib.Path, *, apart: bo
 def forms_of(secret: str) -> set[str]:
     """Return the patterns that find a sensitive string in what tofu prints, or none for a blank one.
 
-    tofu prints a string as it is or quoted with JSON's escapes, and one that spans lines as a heredoc that indents
+    tofu prints a string as it is or quoted, and one that spans lines as a heredoc that indents
     each line.
     """
     lines = [line.strip() for line in secret.splitlines() if line.strip()]
     if not lines:
         return set()
-    return {r"\s*".join(map(re.escape, lines)), re.escape(json.dumps(secret, ensure_ascii=False)[1:-1])}
+    return {r"\s*".join(map(re.escape, lines)), re.escape(quoted(secret))}
+
+
+def quoted(text: str) -> str:
+    """Return a string as tofu prints it between quotes, escaped as Go's strconv.Quote escapes it."""
+    escaped: list[str] = []
+    for char in text:
+        code = ord(char)
+        if char in GO_ESCAPES:
+            escaped.append(GO_ESCAPES[char])
+        elif char.isprintable():
+            escaped.append(char)
+        elif char in GO_HEX_ESCAPED:
+            escaped.append(f"\\x{code:02x}")
+        elif code in BASIC_PLANE:
+            escaped.append(f"\\u{code:04x}")
+        else:
+            escaped.append(f"\\U{code:08x}")
+    return "".join(escaped)
 
 
 def hide(text: str, secrets: Secrets) -> tuple[str, int]:
@@ -606,11 +634,10 @@ def plan_of(text: str) -> dict[str, object]:
 
 
 def resource_changes(
-    plan: ct.Mapping[str, object], key: str = "resource_changes"
+    plan: ct.Mapping[str, object], key: t.Literal["resource_changes", "resource_drift"] = "resource_changes"
 ) -> list[tuple[str, dict[str, object]]]:
     """Return the address and the change of each resource change of a plan, the change empty where it is no object.
 
-    The key resource_changes holds the changes the plan makes, and resource_drift those made outside OpenTofu.
     Raises RefusalError for a plan that holds no list of resource changes under the key.
     """
     changes = plan.get(key, [])
@@ -667,14 +694,14 @@ def exempted(route: NoGoAheadNeeded) -> str:
     )
 
 
-def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None, plan: ct.Mapping[str, object]) -> Route:
-    """Return whether a proposal may run without a go-ahead, from its frozen plan's JSON and the rule files.
+def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None) -> Route:
+    """Return whether a proposal may run without a go-ahead, from its frozen plan and the rule files at origin/HEAD.
 
-    Reads the rule files at origin/HEAD only for the OpenTofu form, since a proposal of the generic form always waits.
+    Reads the plan and the rule files only for the OpenTofu form, since a proposal of the generic form always waits.
     """
     if isinstance(form, Generic):
         return GoAheadNeeded((GENERIC,))
-    reasons = [*plan_reasons(plan, form), *reach_reasons(root, place, form)]
+    reasons = [*plan_reasons(root, place, form), *reach_reasons(root, place, form)]
     if branch is None:
         reasons.append("HEAD was detached at the proposal, so its action record has no branch to wait on.")
     try:
@@ -770,15 +797,11 @@ def said(result: subprocess.CompletedProcess[bytes]) -> str:
     return " ".join(result.stderr.decode(errors="replace").split())
 
 
-def read_plan(root: pathlib.Path, inputs: pathlib.Path, form: Form) -> dict[str, object]:
+def read_plan(root: pathlib.Path, inputs: pathlib.Path, form: OpenTofu) -> dict[str, object]:
     """Return the JSON of the plan among the inputs of the OpenTofu form, which it keeps in memory only.
 
-    The JSON holds sensitive values in plain text. The generic form holds no plan that the tool reads, so it reads as
-    an empty one, which marks nothing sensitive. Raises RefusalError (plan-unreadable) when tofu show -json fails or
-    prints no JSON object.
+    Raises RefusalError (plan-unreadable) when tofu show -json fails or prints no JSON object.
     """
-    if isinstance(form, Generic):
-        return {}
     command = form.plan_json()
     result = captured(root, inputs, command)
     if result.returncode != 0:
@@ -799,10 +822,7 @@ def strings(value: object) -> ct.Iterator[str]:
 
 
 def marked(value: object, mask: object) -> ct.Iterator[str]:
-    """Yield each string of a value of the plan's JSON that its sensitivity mask marks.
-
-    A mask is true for a value that is sensitive as a whole, and otherwise mirrors the value's objects and lists.
-    """
+    """Yield each string of a value of the plan's JSON that its sensitivity mask marks."""
     if mask is True:
         yield from strings(value)
     elif isinstance(mask, dict) and isinstance(value, dict):
@@ -817,9 +837,7 @@ def marked(value: object, mask: object) -> ct.Iterator[str]:
 def secrets_of(plan: ct.Mapping[str, object]) -> Secrets:
     """Return each string that a plan marks sensitive.
 
-    It reads the root variables declared sensitive, and the values under a mark, before and after, of the resource
-    changes, the changes made outside OpenTofu and the output changes. Raises RefusalError (plan-unreadable) for a plan
-    whose resource changes are no list.
+    Raises RefusalError (plan-unreadable) for a plan whose resource changes are no list.
     """
     configuration = json_object((json_object(plan.get("configuration")) or {}).get("root_module")) or {}
     declared = json_object(configuration.get("variables")) or {}
@@ -845,8 +863,17 @@ def secrets_of(plan: ct.Mapping[str, object]) -> Secrets:
     return frozenset(found)
 
 
-def plan_reasons(plan: ct.Mapping[str, object], form: OpenTofu) -> list[str]:
-    """Return why the frozen plan makes a run wait."""
+def secrets_in(root: pathlib.Path, inputs: pathlib.Path, form: Form) -> Secrets:
+    """Return each value that the plan among the inputs marks sensitive, and none for the generic form.
+
+    The tool cannot read what the inputs of the generic form mark sensitive.
+    """
+    return frozenset() if isinstance(form, Generic) else secrets_of(read_plan(root, inputs, form))
+
+
+def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
+    """Return why the frozen plan makes a run wait, read from its JSON in memory and never written anywhere."""
+    plan = read_plan(root, place.inputs, form)
     reasons: list[str] = []
     changes = resource_changes(plan)
     blocking = [address for address, change in changes if not deletes_nothing(change)]
@@ -913,21 +940,18 @@ def sensitive_shown(paths: ct.Iterable[pathlib.Path], outcome_of_it: str) -> Ref
     return RefusalError(message)
 
 
-def derive_and_show(
-    root: pathlib.Path, place: Place, form: Form
-) -> tuple[dict[str, object], Secrets, list[pathlib.Path]]:
+def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secrets, list[pathlib.Path]]:
     """Derive the inputs of a proposal and render them, and log both with each sensitive value of the plan hidden.
 
-    Returns the plan's JSON, its sensitive values and the files where the tool hid one. Raises RefusalError
-    (derive-failed or show-failed) when either command fails.
+    Returns the plan's sensitive values and the files where the tool hid one. Raises RefusalError (derive-failed or
+    show-failed) when either command fails.
     """
     commands = form.commands
     output = output_name(place, Kind.DERIVE)
     started = now()
     status, printed, _ = execute(commands.derive, root, place.inputs)
     derived = Entry(Kind.DERIVE, started, now(), status, commands.derive, output)
-    plan = read_plan(root, place.inputs, form) if status == 0 else {}
-    secrets = secrets_of(plan)
+    secrets = secrets_in(root, place.inputs, form) if status == 0 else frozenset[str]()
     hidden = [place.outputs / output] if logged(place, derived, printed, secrets) else []
     if status != 0:
         raise RefusalError(f"derive-failed: derive exited {status}; see {place.outputs / output}")
@@ -939,7 +963,7 @@ def derive_and_show(
     hidden += [place.outputs / output] if logged(place, shown_line, errors, secrets) else []
     if status != 0:
         raise RefusalError(f"show-failed: show exited {status}; see {place.outputs / output}")
-    return plan, secrets, hidden
+    return secrets, hidden
 
 
 def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
@@ -962,7 +986,7 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
         shutil.rmtree(place.directory)
     place.outputs.mkdir(parents=True)
     place.inputs.mkdir()
-    plan, secrets, hidden = derive_and_show(root, place, form)
+    secrets, hidden = derive_and_show(root, place, form)
     rendered = place.rendering.read_bytes()
     inputs = digests_of(place.inputs)
     results = checked(root, place, Kind.CHECK, commands.checks, secrets)
@@ -978,7 +1002,7 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
             " so the check could never fail"
         )
         raise RefusalError(message)
-    route = route_of(root, place, form, branch, plan)
+    route = route_of(root, place, form, branch)
     rendering = rendered.decode(encoding="utf-8", errors="replace")
     rendering_digest = hashlib.sha256(rendered).hexdigest()
     digest = digest_of(commands, inputs, rendering_digest)
@@ -1042,7 +1066,7 @@ def demonstrate(root: pathlib.Path, session: str, name: str, check: str, command
     form = load(place).form
     if check not in form.commands.checks:
         raise RefusalError(f"no-such-check: proposal {name} has no check {check}")
-    secrets = secrets_of(read_plan(root, place.inputs, form))
+    secrets = secrets_in(root, place.inputs, form)
     [(entry, _)] = checked(root, place, Kind.DEMONSTRATION, {check: command}, secrets)
     if entry.status == 0:
         return 1, f"The demonstration of {check} passed, so it shows nothing; see {place.outputs / entry.output}\n"
@@ -1065,7 +1089,7 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: S
     status, printed, _ = execute(commands.derive, root, inputs)
     rendering = errors = ""
     if status == 0:
-        secrets |= secrets_of(read_plan(root, inputs, proposal.form))
+        secrets |= secrets_in(root, inputs, proposal.form)
         status, rendering, errors = execute(commands.show, root, inputs, apart=True)
     log, again = place.drift / "derive-and-show.txt", place.drift / "rendering.txt"
     hidden = [path for path, text in ((log, printed + errors), (again, rendering)) if keep(path, text, secrets)]
@@ -1086,15 +1110,13 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: S
     return secrets
 
 
-def exemption_of(
-    root: pathlib.Path, place: Place, proposal: Proposal, plan: ct.Mapping[str, object]
-) -> NoGoAheadNeeded:
-    """Return what lets a proposal run without a go-ahead, read again from its frozen plan's JSON and the rule files.
+def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAheadNeeded:
+    """Return what lets a proposal run without a go-ahead, read again from its frozen plan and the rule files.
 
     Raises RefusalError (needs-go-ahead) with each reason when the route read now needs a go-ahead, or the proposal
     was shown with a route that needs one.
     """
-    route = route_of(root, place, proposal.form, proposal.branch, plan)
+    route = route_of(root, place, proposal.form, proposal.branch)
     shown_waiting = isinstance(proposal.route, GoAheadNeeded)
     if isinstance(route, NoGoAheadNeeded) and not shown_waiting:
         return route
@@ -1136,9 +1158,9 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
     changed = changed_inputs(proposal.inputs, digests_of(place.inputs))
     if changed:
         raise RefusalError(f"inputs-changed: {changed} changed since the proposal; propose again")
-    plan = read_plan(root, place.inputs, proposal.form)
-    allowed_by = words if words is not None else exemption_of(root, place, proposal, plan)
-    secrets = drift_check(root, place, proposal, secrets_of(plan), approved=isinstance(allowed_by, str))
+    secrets = secrets_in(root, place.inputs, proposal.form)
+    allowed_by = words if words is not None else exemption_of(root, place, proposal)
+    secrets = drift_check(root, place, proposal, secrets, approved=isinstance(allowed_by, str))
     output = output_name(place, Kind.RUN)
     if isinstance(allowed_by, str):
         allowed = Entry(Kind.GO_AHEAD, now(), now(), 0, output=output, words=allowed_by)
