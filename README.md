@@ -375,8 +375,12 @@ Entering the environment of the base commit made a comparison of one case that c
 A base from before `44142a0` took about 27 seconds, because its shell runs every git hook over its checkout when it starts, and the fixers among them could change that checkout before the run.
 An environment that is not in the store yet is downloaded or built on its first comparison, which these measurements do not cover.
 The clone is a repository of its own, so the git hook shims that entering an environment writes go with it, and the hooks of the working tree's repository stay as they were.
-The comparison opens with the two commits and the gated tools that both runs asked the harness to grant.
-A grader that expects that something did not happen is no proof when the tool that would do it is not among them, whether the case lists the tool or not.
+The comparison opens with the two commits, the version of Claude Code that both runs started, and the gated tools that both runs asked the harness to grant.
+Both runs start the file that `claude` on the PATH leads to when `compare-evals` starts, with its symbolic links resolved.
+A switch of the profile during a comparison changes neither run.
+The version is what that file prints for `--version`, in a line such as `claude: 2.1.325 (Claude Code)`.
+When `--version` fails or prints nothing, `compare-evals` ends before any run.
+A grader that expects that something did not happen is no proof when the tool that would do it is not among the granted tools, whether the case lists the tool or not.
 The harness refuses an entry of `--allow-tools` that it cannot grant, and the runs go on without the tool.
 The comparison then repeats the harness's line below the table, with its commit (measured on Claude Code 2.1.283):
 
