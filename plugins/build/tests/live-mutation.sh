@@ -781,6 +781,31 @@ expect_waits "an origin that cannot be reached" staging-logs infra/staging \
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
+git -C "$repository" remote remove origin
+git clone -q --bare "$origin" "$repository/origin"
+git -C "$repository" update-ref refs/remotes/origin/main main
+git -C "$repository" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "no remote named origin, beside a repository in the directory origin" staging-logs infra/staging \
+  'No remote is named `origin`, since `git config --get remote.origin.url` prints nothing, so the tool cannot read its default branch\.' \
+  "$shown_waiting"
+
+new_tofu_repository
+publish
+rule mine.md "unprotected-roots:" "  - infra/staging"
+git -C "$repository" add -A
+git -C "$repository" commit -q -m "docs(rules): call staging unprotected"
+git -C "$repository" replace refs/remotes/origin/main HEAD
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect_waits "origin's commit replaced by one of the agent's branch, which holds a rule" staging-logs infra/staging \
+  'No rule file under `\.claude/rules/` at `'"$(git -C "$origin" rev-parse main)"'` lists `infra/staging` or a directory above it under `unprotected-roots:`\.' \
+  "$shown_waiting"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
 git -C "$repository" switch -q main
 set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
