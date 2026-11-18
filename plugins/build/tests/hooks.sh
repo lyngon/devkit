@@ -230,8 +230,33 @@ tofu_runs "a proposal in the OpenTofu form of a root module under a directory na
 tofu_runs "a proposal in the OpenTofu form of a root module named tofu" \
   "$live_mutation propose staging-logs --opentofu infra/tofu --check 'reachable=curl -fsS https://staging.example.com'"
 
+subagent='{"agent_id": "a1", "agent_type": "general-purpose"}'
 tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
-  "$(writes "tofu -chdir=$organization apply organization.tfplan")" '{"agent_id": "a1", "agent_type": "general-purpose"}'
+  "$(writes "tofu -chdir=$organization apply organization.tfplan")" "$subagent"
+
+reports="$(denied "A subagent never proposes, demonstrates or runs a live mutation with the tool of build:live-mutation, since only the lead can ask the owner for a go-ahead and only the lead has the standing instructions. Stop, and report to your lead the live mutation that your work needs.")"
+tofu_denied "a proposal of build:live-mutation's tool in a subagent" \
+  "$live_mutation propose staging-logs --opentofu infra/staging" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool without a go-ahead in a subagent" \
+  "$live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool on a go-ahead in a subagent" \
+  "$live_mutation run import-organization 3f9a1c0d --go-ahead 'yes, run import-organization'" "$reports" "$subagent"
+tofu_denied "a demonstration of build:live-mutation's tool in a subagent" \
+  "$live_mutation demonstrate staging-logs reachable 'curl -fsS https://other.example.com'" "$reports" "$subagent"
+tofu_denied "a generic proposal of build:live-mutation's tool, by its quoted path, in a subagent" \
+  "\"$live_mutation\" propose set-value --derive 'true' --show 'true' --run 'true'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under python3 in a subagent" \
+  "python3 $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in bash -c in a subagent" \
+  "bash -c '$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool by a path in a variable in a subagent" \
+  "\"\$CLAUDE_SKILL_DIR/scripts/live-mutation.py\" run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a subcommand of build:live-mutation's tool in a variable in a subagent" \
+  "$live_mutation \"\$subcommand\" staging-logs" "$reports" "$subagent"
+tofu_runs "pending of build:live-mutation's tool in a subagent" "$live_mutation pending" "$subagent"
+tofu_runs "record of build:live-mutation's tool in a subagent" \
+  "$live_mutation record staging-logs --session 20261110-0900-4000-8000-000000000150" "$subagent"
+tofu_runs "a search of build:live-mutation's tool in a subagent" "grep -n 'def run' $live_mutation" "$subagent"
 
 tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
