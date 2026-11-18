@@ -603,6 +603,7 @@ class RateCache:
 EOF
 cat >"$fetch" <<'EOF'
 #!/usr/bin/env bash
+# Print the rates of the pairs given.
 pairs=$#  # the number of pairs
 cat <<'END'
 # a line that cat prints
@@ -710,6 +711,13 @@ audit_refused "Write of a new file" "$(changes_code Write "$repository/rates/lim
 
 run_auditor_hook Edit "$(edit "$fetch" 'pairs=$#  # the number of pairs' 'pairs=$#')"
 audit_runs "the auditor's Edit that deletes a shell comment after \$#"
+
+run_auditor_hook Edit "$(edit "$fetch" "# Print the rates of the pairs given.
+" '')"
+audit_runs "the auditor's Edit that deletes the comment right under the shebang"
+
+run_auditor_hook Edit "$(edit "$fetch" '#!/usr/bin/env bash' '#!/usr/bin/env sh')"
+audit_refused "Edit of the shebang" "$(changes_code Edit "$fetch" "it changes the code \`#!/usr/bin/env bash\` to \`#!/usr/bin/env sh\`")"
 
 run_auditor_hook Edit "$(edit "$fetch" "# a line that cat prints
 " '')"
