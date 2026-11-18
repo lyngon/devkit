@@ -65,7 +65,6 @@ class Line:
 
     @t.override
     def __str__(self) -> str:
-        """Return the line as code, its indentation left out."""
         return "".join((" " if token.spaced else "") + token.text for token in self.tokens)
 
 

@@ -480,8 +480,6 @@ run_stop_hook "\`\`\`text
 After the block $em_dash a dash in prose."
 check "a dash in prose after a closed fence: sent back" json_equals "$out" "$(sent_back "After the block $em_dash a dash in prose.")"
 
-# --- auditor-deletes-only-comments.py ----------------------------------------
-
 auditor_matcher=$(jq -r '.hooks.PreToolUse[] | select(.hooks[].command | contains("/hooks/auditor-deletes-only-comments.py")) | .matcher' "$root/hooks/hooks.json")
 check "the auditor's hook matches the tools that write files" equals "$auditor_matcher" "Edit|Write|NotebookEdit|Bash"
 
@@ -531,7 +529,6 @@ printf '{"nodes": {}}\n' >"$repository/devenv.lock"
 printf '# \xff\nx = 1\n' >"$repository/rates/latin1.py"
 cache_text=$(<"$cache")
 
-# The Edit of rates/cache.py that the auditor made in issue 135, and the same Edit without the dead branch.
 dead_branch_with_its_excuse='        if entry is None:
             return None
         # put() only ever stores a tuple, so this never happens, but it is
@@ -635,6 +632,32 @@ END\`")"
 
 run_auditor_hook Edit "$(edit "$module" "/* the provider's API */ " '')"
 audit_runs "the auditor's Edit that deletes a Nix block comment before code"
+
+client=$repository/rates/client.ts
+settings=$repository/rates/settings.yaml
+readme=$repository/rates/README.md
+printf '%s\n' 'const url = "https://rates.example.com//v1"; // the provider' 'const slashes = /\/\//;' >"$client"
+printf '%s\n' 'ttl: 600 # seconds' 'run: |' '  echo fetched # a line of the script' >"$settings"
+printf '%s\n' '# Rates' '' '<!-- a note -->' 'Fetches rates.' >"$readme"
+
+run_auditor_hook Edit "$(edit "$client" '; // the provider' ';')"
+audit_runs "the auditor's Edit that deletes a TypeScript comment after a string that holds //"
+
+run_auditor_hook Edit "$(edit "$client" '/\/\//' '/\//')"
+audit_refused "Edit of a regular expression that holds //" \
+  "$(changes_code Edit "$client" "it changes the code \`const slashes = /\\/\\//;\` to \`const slashes = /\\//;\`")"
+
+run_auditor_hook Edit "$(edit "$settings" 'ttl: 600 # seconds' 'ttl: 600')"
+audit_runs "the auditor's Edit that deletes a YAML comment"
+
+run_auditor_hook Edit "$(edit "$settings" ' # a line of the script' '')"
+audit_refused "Edit of a block scalar, whose # is no YAML comment" \
+  "$(changes_code Edit "$settings" "it changes the code \`echo fetched # a line of the script\` to \`echo fetched\`")"
+
+run_auditor_hook Edit "$(edit "$readme" '<!-- a note -->
+' '')"
+audit_refused "Edit that deletes an HTML comment from Markdown, which Pygments lexes as text" \
+  "$(changes_code Edit "$readme" "it removes the code \`<!-- a note -->\`")"
 
 run_auditor_hook Edit "$(edit "$repository/devenv.lock" '{}' '{"x": 1}')"
 audit_refused "Edit of a file that Pygments knows no language of" \
