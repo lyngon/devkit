@@ -549,17 +549,24 @@ def root_module(root: pathlib.Path, text: str) -> str:
     return str(path)
 
 
-def blocking_changes(plan: str) -> tuple[str, ...]:
-    """Return the address of each resource change of a plan's JSON whose actions go beyond DELETES_NOTHING.
-
-    A resource change that the tool cannot read counts as one, and so does one with no action, since either only
-    makes the run wait. Raises RefusalError for JSON that holds no list of resource changes.
-    """
+def plan_of(text: str) -> dict[str, object]:
+    """Parse a plan's JSON. Raises RefusalError for text that holds no JSON object."""
     try:
-        fields = json_object(t.cast("object", json.loads(plan)))
+        plan = json_object(t.cast("object", json.loads(text)))
     except json.JSONDecodeError as error:
         raise RefusalError(f"plan-unreadable: tofu show -json printed no JSON ({error})") from None
-    changes = None if fields is None else fields.get("resource_changes", [])
+    if plan is None:
+        raise RefusalError("plan-unreadable: tofu show -json printed no JSON object")
+    return plan
+
+
+def blocking_changes(plan: ct.Mapping[str, object]) -> tuple[str, ...]:
+    """Return the address of each resource change of a plan whose actions go beyond DELETES_NOTHING.
+
+    A resource change that the tool cannot read counts as one, and so does one with no action, since either only
+    makes the run wait. Raises RefusalError for a plan that holds no list of resource changes.
+    """
+    changes = plan.get("resource_changes", [])
     if not isinstance(changes, list):
         raise RefusalError("plan-unreadable: the plan's JSON holds no list of resource changes")
     blocking: list[str] = []
@@ -571,6 +578,29 @@ def blocking_changes(plan: str) -> tuple[str, ...]:
         if not listed or not all(isinstance(action, str) and action in DELETES_NOTHING for action in listed):
             blocking.append(address if isinstance(address, str) else f"resource change {number}")
     return tuple(blocking)
+
+
+def provisioned(module: object, prefix: str = "") -> list[str]:
+    """Return the address of each resource that holds a provisioner, in a module and in the modules it calls.
+
+    A resource that the tool cannot read counts as one. Raises RefusalError for a module whose configuration holds no
+    list of resources or no object of module calls.
+    """
+    fields = json_object(module)
+    resources = None if fields is None else fields.get("resources", [])
+    calls = None if fields is None else json_object(fields.get("module_calls", {}))
+    if not isinstance(resources, list) or calls is None:
+        where = prefix.removesuffix(".") or "the root module"
+        raise RefusalError(f"plan-unreadable: the plan's JSON holds no configuration of {where} that the tool reads")
+    found: list[str] = []
+    for number, item in enumerate(t.cast("list[object]", resources), 1):
+        resource = json_object(item)
+        address = None if resource is None else resource.get("address")
+        if resource is None or "provisioners" in resource:
+            found.append(f"{prefix}{address}" if isinstance(address, str) else f"{prefix}resource {number}")
+    for name, call in calls.items():
+        found.extend(provisioned((json_object(call) or {}).get("module"), f"{prefix}module.{name}."))
+    return found
 
 
 def exempted(route: NoGoAheadNeeded) -> str:
@@ -588,11 +618,7 @@ def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None) -
     """
     if isinstance(form, Generic):
         return GoAheadNeeded((GENERIC,))
-    blocking = plan_blocking(root, place, form)
-    reasons: list[str] = []
-    if blocking:
-        listed = ", ".join(f"`{address}`" for address in blocking)
-        reasons.append(f"The plan does more than create, read or update these resources: {listed}.")
+    reasons = [*plan_reasons(root, place, form), *reach_reasons(root, place, form)]
     if branch is None:
         reasons.append("HEAD was detached at the proposal, so its action record has no branch to wait on.")
     try:
@@ -676,16 +702,63 @@ def route_lines(name: str, digest: str, route: Route) -> list[str]:
     ]
 
 
-def plan_blocking(root: pathlib.Path, place: Place, form: OpenTofu) -> tuple[str, ...]:
-    """Return the blocking changes of the frozen plan, read from its JSON in memory and never written anywhere."""
-    command = form.plan_json()
-    result = subprocess.run(
+def captured(root: pathlib.Path, place: Place, command: str) -> subprocess.CompletedProcess[bytes]:
+    """Run a line of sh as the commands of a proposal run, and keep what it prints in memory only."""
+    return subprocess.run(
         [SHELL, "-c", command], cwd=root, env=environment_of(place.inputs), capture_output=True, check=False
     )
+
+
+def said(result: subprocess.CompletedProcess[bytes]) -> str:
+    """Return what a command printed on standard error, on one line."""
+    return " ".join(result.stderr.decode(errors="replace").split())
+
+
+def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
+    """Return why the frozen plan makes a run wait, read from its JSON in memory and never written anywhere."""
+    command = form.plan_json()
+    result = captured(root, place, command)
     if result.returncode != 0:
-        said = result.stderr.decode(errors="replace").strip()
-        raise RefusalError(f"plan-unreadable: `{command}` exited {result.returncode}: {said}")
-    return blocking_changes(result.stdout.decode(errors="replace"))
+        raise RefusalError(f"plan-unreadable: `{command}` exited {result.returncode}: {said(result)}")
+    plan = plan_of(result.stdout.decode(errors="replace"))
+    reasons: list[str] = []
+    blocking = blocking_changes(plan)
+    if blocking:
+        listed = ", ".join(f"`{address}`" for address in blocking)
+        reasons.append(f"The plan does more than create, read or update these resources: {listed}.")
+    provisioners = provisioned((json_object(plan.get("configuration")) or {}).get("root_module"))
+    if provisioners:
+        listed = ", ".join(f"`{address}`" for address in provisioners)
+        reasons.append(
+            f"A provisioner runs code that the plan does not show, and the configuration holds one in {listed}."
+        )
+    return reasons
+
+
+def reach_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
+    """Return why the tool's environment makes the apply reach more than the plan of the declared directory shows.
+
+    A TF_CLI_ARGS variable passes arguments that the form does not write, and a workspace other than default reaches
+    a state that the rule file does not name.
+    """
+    reasons = [
+        f"`{name}` is set, so tofu runs with arguments that the OpenTofu form does not write."
+        for name in sorted(os.environ)
+        if name == "TF_CLI_ARGS" or name.startswith("TF_CLI_ARGS_")
+    ]
+    command = form.tofu("workspace show")
+    result = captured(root, place, command)
+    workspace = result.stdout.decode(errors="replace").strip()
+    if result.returncode != 0:
+        unknown = f"`{command}` exited {result.returncode}: {said(result)}"
+        reasons.append(f"{unknown}, so the tool cannot tell which workspace the apply reaches.")
+    elif workspace != "default":
+        other = (
+            f"The workspace of `{form.root}` is `{workspace}`, and only its `default` workspace runs without a"
+            " go-ahead, since a rule file declares a directory and not a workspace."
+        )
+        reasons.append(other)
+    return reasons
 
 
 def changed_inputs(before: ct.Mapping[str, str], after: ct.Mapping[str, str]) -> str:

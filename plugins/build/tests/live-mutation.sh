@@ -810,7 +810,7 @@ new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
 mkdir -p "$repository/modules/notify"
-printf '%s\n' 'resource "terraform_data" "notify" {' '  provisioner "local-exec" {' '    command = "touch provisioned"' '  }' '}' \
+printf '%s\n' 'resource "terraform_data" "notify" {' '  provisioner "local-exec" {' '    command = "printf ran >provisioned"' '  }' '}' \
   >"$repository/modules/notify/main.tf"
 printf '%s\n' 'module "notify" {' '  source = "../../modules/notify"' '}' >"$repository/infra/staging/notify.tf"
 tofu_in infra/staging init -input=false >/dev/null
