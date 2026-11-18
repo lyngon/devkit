@@ -1,15 +1,53 @@
 #!/usr/bin/env bash
-# SessionStart hook of the repo plugin: its standard output is added to the
-# session context.
+# A resumed session runs SessionStart in the tree it was launched in and
+# enters its worktree only after that, so at a resume the lines about the
+# working tree wait for the next UserPromptSubmit, which runs in the tree the
+# session works in.
 set -euo pipefail
 
-here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-root=${CLAUDE_PROJECT_DIR:-$PWD}
-
-# The line as repo:init writes it; a comment or `= false` does not match.
-if grep -qsE '^[[:space:]]*lyngon\.structure\.enable[[:space:]]*=[[:space:]]*true[[:space:]]*;' "$root/devenv.nix"; then
-  cat "$here/session-start-structure.txt"
+input=$(cat)
+event="" source=""
+[[ ! $input =~ \"hook_event_name\":\"([A-Za-z]+)\" ]] || event=${BASH_REMATCH[1]}
+[[ ! $input =~ \"source\":\"([a-z]+)\" ]] || source=${BASH_REMATCH[1]}
+if [[ ! $input =~ \"session_id\":\"([A-Za-z0-9_-]+)\" ]]; then
+  echo "repo plugin: the hook input names no session" >&2
+  exit 1
 fi
+untold=$CLAUDE_PLUGIN_DATA/resumed-without-tree-lines/${BASH_REMATCH[1]}
+if [[ $event == UserPromptSubmit ]] && ! rm "$untold" 2>/dev/null; then
+  exit 0
+fi
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$PWD
+
+commits() {
+  if (($1 == 1)); then echo "1 commit"; else echo "$1 commits"; fi
+}
+
+tell_about_the_tree() {
+  local branch tracking upstream track behind
+  if grep -qsE '^[[:space:]]*lyngon\.structure\.enable[[:space:]]*=[[:space:]]*true[[:space:]]*;' "$root/devenv.nix"; then
+    cat "$here/session-start-structure.txt"
+  fi
+
+  branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=
+  if [[ -n "$branch" ]]; then
+    tracking=$(git -C "$root" for-each-ref --format='%(upstream:short) %(upstream:track,nobracket)' "refs/heads/$branch")
+    upstream=${tracking%% *}
+    track=${tracking#* }
+    if [[ "$track" == gone ]]; then
+      echo "The current branch, $branch, tracks $upstream, which no longer exists, as when a pull request merges and GitHub deletes its branch. Before you work on $branch again, check whether its pull request merged. Start new work on a new branch from ${default:-the default branch of origin}."
+    elif [[ "$track" =~ behind\ ([0-9]+) ]]; then
+      echo "The current branch is $(commits "${BASH_REMATCH[1]}") behind its upstream; fast-forward before starting: \`git pull --ff-only\`."
+    fi
+  fi
+
+  if [[ -n "$default" && "$local_default" != "$branch" ]] &&
+    behind=$(git -C "$root" rev-list --count "refs/heads/$local_default..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
+    echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."
+  fi
+}
 
 add_line_atomically() {
   local file=$1 line=$2 content="" temporary
@@ -28,42 +66,37 @@ ignore_session_worktrees() {
   mkdir -p "${exclude%/*}"
   add_line_atomically "$exclude" /.claude/worktrees/
 }
-ignore_session_worktrees
-
-commits() {
-  if (($1 == 1)); then echo "1 commit"; else echo "$1 commits"; fi
-}
 
 fetch_seconds=10
-if git -C "$root" remote get-url origin >/dev/null 2>&1; then
-  code=0
+
+fetch_origin() {
+  local code=0 error reason
+  git -C "$root" remote get-url origin >/dev/null 2>&1 || return 0
   error=$(GIT_TERMINAL_PROMPT=0 timeout "$fetch_seconds" git -C "$root" fetch --quiet --prune origin 2>&1) || code=$?
-  if ((code != 0)); then
-    reason=${error%%$'\n'*}
-    if ((code == 124)); then reason="no answer within $fetch_seconds s"; fi
-    echo "Could not fetch origin at session start ($reason), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again. If that fetch fails too, say so."
-  fi
+  ((code != 0)) || return 0
+  reason=${error%%$'\n'*}
+  if ((code == 124)); then reason="no answer within $fetch_seconds s"; fi
+  echo "Could not fetch origin at session start ($reason), so what this session knows of origin dates from the last fetch. Before you start a branch, fetch again. If that fetch fails too, say so."
+}
+
+if [[ $event != UserPromptSubmit ]]; then
+  ignore_session_worktrees
+  fetch_origin
 fi
 
-branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=
 default=$(git -C "$root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) || default=
 local_default=${default#origin/}
 
-if [[ -n "$branch" ]]; then
-  tracking=$(git -C "$root" for-each-ref --format='%(upstream:short) %(upstream:track,nobracket)' "refs/heads/$branch")
-  upstream=${tracking%% *}
-  track=${tracking#* }
-  if [[ "$track" == gone ]]; then
-    echo "The current branch, $branch, tracks $upstream, which no longer exists, as when a pull request merges and GitHub deletes its branch. Before you work on $branch again, check whether its pull request merged. Start new work on a new branch from ${default:-the default branch of origin}."
-  elif [[ "$track" =~ behind\ ([0-9]+) ]]; then
-    echo "The current branch is $(commits "${BASH_REMATCH[1]}") behind its upstream; fast-forward before starting: \`git pull --ff-only\`."
-  fi
+if [[ $source == resume ]]; then
+  mkdir -p "${untold%/*}"
+  find "${untold%/*}" -type f -mtime +7 -delete
+  : >"$untold"
+else
+  rm -f "$untold"
+  tell_about_the_tree
 fi
 
-if [[ -n "$default" && "$local_default" != "$branch" ]] &&
-  behind=$(git -C "$root" rev-list --count "refs/heads/$local_default..refs/remotes/$default" 2>/dev/null) && ((behind > 0)); then
-  echo "The local $local_default is $(commits "$behind") behind $default. Start every new branch from $default, not from $local_default."
-fi
+[[ $event == SessionStart ]] || exit 0
 
 sweep_seconds=5
 
