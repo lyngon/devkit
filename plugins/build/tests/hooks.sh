@@ -99,7 +99,7 @@ check "copy: exits 0" equals "$code" 0
 check "copy: the last line names the copy's file of the mode" equals "${out##*$'\n'}" "If the operator started this session with /build:auto and its text is no longer in your context, read $copy/skills/auto/SKILL.md before you continue."
 check "copy: the rest of the text is unchanged" equals "${out%$'\n'*}" "${text%$'\n'*}"
 
-route="An OpenTofu command that writes runs only through build:live-mutation: the lead invokes that skill, proposes the command with the skill's tool and runs it there on the owner's go-ahead, and a subagent stops and reports the command to its lead."
+route="An OpenTofu command that writes runs only through build:live-mutation. The lead invokes that skill and proposes the command with the skill's tool, which runs the apply of a saved plan on an unprotected root module without a go-ahead when it finds that it may, and every other write on the owner's go-ahead. A subagent stops and reports the command to its lead."
 
 denied() {
   jq -n --arg reason "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
@@ -222,9 +222,98 @@ tofu_runs "a proposal of build:live-mutation's tool" "$live_mutation propose imp
   --check 'no-changes=tofu -chdir=$organization plan -input=false -detailed-exitcode'"
 tofu_runs "a run of build:live-mutation's tool" \
   "$live_mutation run import-organization 3f9a1c0d --go-ahead 'yes, run import-organization'"
+tofu_runs "a proposal of build:live-mutation's tool in its OpenTofu form" \
+  "$live_mutation propose staging-logs --opentofu infra/staging"
+tofu_runs "a run of build:live-mutation's tool without a go-ahead" "$live_mutation run staging-logs 3f9a1c0d5e7b2a46"
+tofu_runs "a proposal in the OpenTofu form of a root module under a directory named tofu" \
+  "$live_mutation propose staging-logs --opentofu infra/tofu/staging --destroy"
+tofu_runs "a proposal in the OpenTofu form of a root module named tofu" \
+  "$live_mutation propose staging-logs --opentofu infra/tofu --check 'reachable=curl -fsS https://staging.example.com'"
 
+subagent='{"agent_id": "a1", "agent_type": "general-purpose"}'
 tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
-  "$(writes "tofu -chdir=$organization apply organization.tfplan")" '{"agent_id": "a1", "agent_type": "general-purpose"}'
+  "$(writes "tofu -chdir=$organization apply organization.tfplan")" "$subagent"
+
+reports="$(denied "A subagent never proposes, demonstrates or runs a live mutation with the tool of build:live-mutation, since only the lead can ask the owner for a go-ahead and only the lead has the standing instructions. Stop, and report to your lead the live mutation that your work needs.")"
+tofu_denied "a proposal of build:live-mutation's tool in a subagent" \
+  "$live_mutation propose staging-logs --opentofu infra/staging" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool without a go-ahead in a subagent" \
+  "$live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool on a go-ahead in a subagent" \
+  "$live_mutation run import-organization 3f9a1c0d --go-ahead 'yes, run import-organization'" "$reports" "$subagent"
+tofu_denied "a demonstration of build:live-mutation's tool in a subagent" \
+  "$live_mutation demonstrate staging-logs reachable 'curl -fsS https://other.example.com'" "$reports" "$subagent"
+tofu_denied "a generic proposal of build:live-mutation's tool, by its quoted path, in a subagent" \
+  "\"$live_mutation\" propose set-value --derive 'true' --show 'true' --run 'true'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under python3 in a subagent" \
+  "python3 $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in bash -c in a subagent" \
+  "bash -c '$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool by a path in a variable in a subagent" \
+  "\"\$CLAUDE_SKILL_DIR/scripts/live-mutation.py\" run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a subcommand of build:live-mutation's tool in a variable in a subagent" \
+  "$live_mutation \"\$subcommand\" staging-logs" "$reports" "$subagent"
+tofu_runs "pending of build:live-mutation's tool in a subagent" "$live_mutation pending" "$subagent"
+tofu_runs "record of build:live-mutation's tool in a subagent" \
+  "$live_mutation record staging-logs --session 20261110-0900-4000-8000-000000000150" "$subagent"
+tofu_runs "a search of build:live-mutation's tool in a subagent" "grep -n 'def run' $live_mutation" "$subagent"
+tofu_runs "a read of build:live-mutation's tool in a subagent" "cat $live_mutation" "$subagent"
+tofu_runs "a diff of build:live-mutation's tool in a subagent" "git diff main -- $live_mutation" "$subagent"
+tofu_denied "a run of build:live-mutation's tool after -- in a subagent" \
+  "$live_mutation -- run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_runs "pending of build:live-mutation's tool after -- in a subagent" "$live_mutation -- pending" "$subagent"
+tofu_denied "build:live-mutation's tool under xargs, its subcommand on standard input, in a subagent" \
+  "echo 'run staging-logs 3f9a1c0d5e7b2a46' | xargs $live_mutation" "$reports" "$subagent"
+tofu_denied "build:live-mutation's tool under xargs, its subcommand in a here-string, in a subagent" \
+  "xargs $live_mutation <<<'run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a heredoc fed to bash in a subagent" "bash <<'SH'
+$live_mutation run staging-logs 3f9a1c0d5e7b2a46
+SH" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool piped as text into sh in a subagent" \
+  "echo '$live_mutation run staging-logs 3f9a1c0d5e7b2a46' | sh" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under env in a subagent" \
+  "env CLAUDE_CODE_SESSION_ID=s2 $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under timeout in a subagent" \
+  "timeout 600 $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under nix shell --command in a subagent" \
+  "nix shell nixpkgs#opentofu --command $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool under a program in a variable in a subagent" \
+  "\"\$PYTHON\" $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "build:live-mutation's tool under xargs -I, its subcommand replaced from standard input, in a subagent" \
+  "echo run | xargs -I{} $live_mutation {} staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash in a subagent" \
+  "bash <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash -o pipefail in a subagent" \
+  "bash -o pipefail <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash --rcfile in a subagent" \
+  "bash --rcfile /dev/null <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
+tofu_denied "a run of build:live-mutation's tool in a process substitution that bash runs in a subagent" \
+  "bash <(echo '$live_mutation run staging-logs 3f9a1c0d5e7b2a46')" "$reports" "$subagent"
+tofu_denied "an alias of build:live-mutation's tool, used to run, in a subagent" \
+  "alias lm=$live_mutation; lm run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_denied "an alias of a run of build:live-mutation's tool in a subagent" \
+  "alias lm='$live_mutation run'; lm staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_runs "a lint of build:live-mutation's tool by ruff in a subagent" "ruff check $live_mutation" "$subagent"
+tofu_runs "a type check of build:live-mutation's tool by basedpyright in a subagent" \
+  "basedpyright $live_mutation" "$subagent"
+tofu_runs "a compile of build:live-mutation's tool by python3 -m py_compile in a subagent" \
+  "python3 -m py_compile $live_mutation" "$subagent"
+tofu_runs "a copy of build:live-mutation's tool to a path in a variable in a subagent" \
+  "cp $live_mutation \"\$scratch/live-mutation.py\"" "$subagent"
+tofu_runs "a search for run in build:live-mutation's tool in a subagent" "grep -n run $live_mutation" "$subagent"
+tofu_runs "a script file run by bash, then a search of build:live-mutation's tool, in a subagent" \
+  "bash plugins/build/tests/live-mutation.sh && grep -n run $live_mutation" "$subagent"
+tofu_runs "build:live-mutation's tool under xargs, by the lead" \
+  "echo 'run staging-logs 3f9a1c0d5e7b2a46' | xargs $live_mutation"
+tofu_runs "a run of build:live-mutation's tool in a heredoc fed to bash, by the lead" "bash <<'SH'
+$live_mutation run staging-logs 3f9a1c0d5e7b2a46
+SH"
+tofu_runs "a run of build:live-mutation's tool in a here-string fed to bash, by the lead" \
+  "bash <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'"
+tofu_runs "a run of build:live-mutation's tool under timeout, by the lead" \
+  "timeout 600 $live_mutation run staging-logs 3f9a1c0d5e7b2a46"
+tofu_runs "an alias of build:live-mutation's tool, used to run, by the lead" \
+  "alias lm=$live_mutation; lm run staging-logs 3f9a1c0d5e7b2a46"
 
 tofu_denied "plan without shfmt on the PATH" "tofu -chdir=$organization plan" \
   "$(unread "shfmt, which parses it, is not on the PATH that Claude Code gives its hooks" "Ask the operator to start Claude Code from the repository's devenv shell, whose lyngon.scriptTools provide shfmt.")" \
@@ -562,6 +651,7 @@ class RateCache:
 EOF
 cat >"$fetch" <<'EOF'
 #!/usr/bin/env bash
+# Print the rates of the pairs given.
 pairs=$#  # the number of pairs
 cat <<'END'
 # a line that cat prints
@@ -669,6 +759,13 @@ audit_refused "Write of a new file" "$(changes_code Write "$repository/rates/lim
 
 run_auditor_hook Edit "$(edit "$fetch" 'pairs=$#  # the number of pairs' 'pairs=$#')"
 audit_runs "the auditor's Edit that deletes a shell comment after \$#"
+
+run_auditor_hook Edit "$(edit "$fetch" "# Print the rates of the pairs given.
+" '')"
+audit_runs "the auditor's Edit that deletes the comment right under the shebang"
+
+run_auditor_hook Edit "$(edit "$fetch" '#!/usr/bin/env bash' '#!/usr/bin/env sh')"
+audit_refused "Edit of the shebang" "$(changes_code Edit "$fetch" "it changes the code \`#!/usr/bin/env bash\` to \`#!/usr/bin/env sh\`")"
 
 run_auditor_hook Edit "$(edit "$fetch" "# a line that cat prints
 " '')"

@@ -12,7 +12,7 @@ Repository setup and package creation for Lyngon.
 
 ## Hooks
 
-- `SessionStart` (`hooks/session-start.sh`): in a repository whose root `devenv.nix` sets `lyngon.structure.enable = true`, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`, that an app holds main, wiring and config and no logic, and that a file under `generated/` or `vendor/` is never edited by hand.
+- `SessionStart` and `UserPromptSubmit` (`hooks/session-start.sh`): at session start, in a working tree whose root `devenv.nix` sets `lyngon.structure.enable = true`, prints `hooks/session-start-structure.txt`, which says to create every package with `/repo:add-package`, that an app holds main, wiring and config and no logic, and that a file under `generated/` or `vendor/` is never edited by hand.
   It then fetches `origin` with pruning, for at most 10 s, and adds a line for each of these cases:
 
   - The fetch failed or got no answer in time. The line gives git's reason, and the lines after it count what the last fetch saw.
@@ -31,6 +31,15 @@ Repository setup and package creation for Lyngon.
   When no ignore rule covers `.claude/worktrees/`, where Claude Code creates a session's worktrees, it adds `/.claude/worktrees/` to `info/exclude` in the clone's common git directory, which every worktree of the clone reads and git does not track.
   A repository set up before `/repo:init` wrote that line into `.gitignore` has no such rule.
   The lines about which devkit skills to invoke come from the `conventions` plugin's hook.
+
+  The structure text and the lines about the current branch and the local default branch describe the working tree the hook runs in, not `CLAUDE_PROJECT_DIR`, which stays at the tree the session was launched in after `EnterWorktree`.
+  A resumed session runs `SessionStart` in the tree it was launched in and enters its worktree only after that, so a resume fetches and deletes branches but holds those lines back.
+  The session's next `UserPromptSubmit`, which runs in the tree the session works in, prints them, and later prompts print nothing.
+  A `/compact` submits no prompt, so when a resumed session compacts first, the compaction's `SessionStart` prints them instead.
+  The hook records a resumed session under `$CLAUDE_PLUGIN_DATA/resumed-without-tree-lines/` until its first prompt, and a resume forgets every session resumed more than a week ago that never got one.
+  Headless sessions on Claude Code 2.1.325 (the Nix package) and 2.1.326 (the binary of the VS Code extension) showed this on 2026-11-18.
+  In a `--worktree` session resumed from its launch tree, `SessionStart` ran in the launch tree, and `UserPromptSubmit` ran in the worktree once every `SessionStart` hook had ended.
+  A compaction after `EnterWorktree` or after such a resume ran `SessionStart` in the worktree, with `CLAUDE_PROJECT_DIR` at the launch tree.
 
 ### The devenv environment in a session
 
@@ -67,7 +76,8 @@ Verified on 2026-11-14 in headless sessions (`claude -p`) in a scratch repositor
 ### The tools of the plugins' hooks
 
 Claude Code runs every hook with the environment of the session's process, and the environment that `hooks/export-environment.sh` gives Bash commands never reaches a hook.
-A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3`, `pygmentize` and `shfmt` by default, so it needs them on the PATH the session started with.
+A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3`, `pygmentize`, `shfmt` and `git` by default, so it needs them on the PATH the session started with.
+The commands that a script runs for the repository, such as the `tofu` of a live mutation, come from the repository's shell.
 Without `python3`, no Python hook of any plugin runs, and Claude Code treats each failed start as a non-blocking error and runs the call as if the hook did not exist.
 The `build` plugin's guard on OpenTofu commands that write is one of those hooks.
 Without `pygmentize`, the `build` plugin's guard on the comment auditor refuses the auditor every edit inside a repository, since it cannot tell comments from code.
