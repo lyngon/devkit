@@ -480,6 +480,208 @@ run_stop_hook "\`\`\`text
 After the block $em_dash a dash in prose."
 check "a dash in prose after a closed fence: sent back" json_equals "$out" "$(sent_back "After the block $em_dash a dash in prose.")"
 
+# --- auditor-deletes-only-comments.py ----------------------------------------
+
+auditor_matcher=$(jq -r '.hooks.PreToolUse[] | select(.hooks[].command | contains("/hooks/auditor-deletes-only-comments.py")) | .matcher' "$root/hooks/hooks.json")
+check "the auditor's hook matches the tools that write files" equals "$auditor_matcher" "Edit|Write|NotebookEdit|Bash"
+
+auditor='{"agent_id": "a2", "agent_type": "build:comment-auditor"}'
+cache=$repository/rates/cache.py
+fetch=$repository/rates/fetch.sh
+module=$repository/rates/default.nix
+mkdir -p "$repository/rates"
+cat >"$cache" <<'EOF'
+"""Keep each rate that the provider returned for ten minutes."""
+
+import time
+
+TTL_SECONDS = 600  # ten minutes
+LIMITS = "https://rates.example.com/docs/errors#rate-limits"
+
+
+class RateCache:
+    def get(self, base: str, quote: str) -> float | None:
+        """Return the cached rate of the pair, or None when it is missing or stale."""
+        entry = self._entries.get((base, quote))
+        if entry is None:
+            return None
+        # put() only ever stores a tuple, so this never happens, but it is
+        # kept just in case an entry of another shape ever gets in.
+        if not isinstance(entry, tuple):
+            return None
+        fetched_at, rate = entry
+        if time.monotonic() - fetched_at > TTL_SECONDS:
+            return None
+        return rate
+EOF
+cat >"$fetch" <<'EOF'
+#!/usr/bin/env bash
+pairs=$#  # the number of pairs
+cat <<'END'
+# a line that cat prints
+END
+EOF
+cat >"$module" <<'EOF'
+{ pairs }:
+{
+  /* the provider's API */ url = "https://rates.example.com/v1#latest";
+}
+EOF
+printf '{"nodes": {}}\n' >"$repository/devenv.lock"
+printf '# \xff\nx = 1\n' >"$repository/rates/latin1.py"
+cache_text=$(<"$cache")
+
+# The Edit of rates/cache.py that the auditor made in issue 135, and the same Edit without the dead branch.
+dead_branch_with_its_excuse='        if entry is None:
+            return None
+        # put() only ever stores a tuple, so this never happens, but it is
+        # kept just in case an entry of another shape ever gets in.
+        if not isinstance(entry, tuple):
+            return None
+        fetched_at, rate = entry'
+dead_branch_deleted='        if entry is None:
+            return None
+        fetched_at, rate = entry'
+dead_branch_alone='        if entry is None:
+            return None
+        if not isinstance(entry, tuple):
+            return None
+        fetched_at, rate = entry'
+
+edit() {
+  jq -n --arg path "$1" --arg old "$2" --arg new "$3" '{file_path: $path, old_string: $old, new_string: $new}'
+}
+
+run_auditor_hook() {
+  local tool=$1 tool_input=$2 agent=${3:-$auditor} path=${4:-$script_tools}
+  run_tool_hook "$root" "$tool" "$tool_input" "$(jq -c --arg cwd "$repository" '. + {cwd: $cwd}' <<<"$agent")" "$path"
+}
+
+audit_refused() {
+  local label=$1 reason=$2
+  check "the auditor's $label: exits 0" equals "$code" 0
+  check "the auditor's $label: refused" json_equals "$out" "$(denied "$reason")"
+}
+
+audit_runs() {
+  local label=$1
+  check "$label: exits 0" equals "$code" 0
+  check "$label: prints nothing, so it runs" equals "$out$err" ""
+}
+
+changes_code() {
+  echo "build:comment-auditor deletes comments and changes no code, and this $1 changes the code of $2: $3. Make the edit again with only comments deleted, and leave the code as it is, also code that never runs. Where a deleted comment covered for that code, mark the code MUST KILL in your report."
+}
+
+unchecked() {
+  echo "build:comment-auditor deletes comments and changes no code, and this hook cannot check an edit of $1, since $2. Leave its comments as they are, and report them skipped."
+}
+
+through_the_shell() {
+  echo "build:comment-auditor deletes comments and changes no code. It deletes comments with Edit, whose edits this hook checks, and writes through the shell into no repository, so it may not write through \`$1\`. This hook counts a file that a path with a variable or a substitution names as one inside a repository."
+}
+
+run_auditor_hook Edit "$(edit "$cache" "$dead_branch_with_its_excuse" "$dead_branch_deleted")"
+audit_refused "Edit that deletes a dead branch with the comment that excused it, as in issue 135" \
+  "$(changes_code Edit "$cache" "it removes the code \`if not isinstance(entry, tuple):\`")"
+
+run_auditor_hook Edit "$(edit "$cache" "$dead_branch_with_its_excuse" "$dead_branch_alone")"
+audit_runs "the auditor's Edit that deletes only that comment"
+
+run_auditor_hook Edit "$(edit "$cache" "$dead_branch_with_its_excuse" "$dead_branch_deleted")" \
+  '{"agent_id": "a3", "agent_type": "build:implementer"}'
+audit_runs "a delegate's Edit that deletes the dead branch"
+
+run_auditor_hook Edit "$(edit "$cache" "$dead_branch_with_its_excuse" "$dead_branch_deleted")" '{}'
+audit_runs "the lead's Edit that deletes the dead branch"
+
+run_auditor_hook Edit "$(edit "$cache" '        """Return the cached rate of the pair, or None when it is missing or stale."""
+' '')"
+audit_runs "the auditor's Edit that deletes a docstring"
+
+run_auditor_hook Edit "$(edit "$cache" 'TTL_SECONDS = 600  # ten minutes' 'TTL_SECONDS = 600')"
+audit_runs "the auditor's Edit that deletes a comment at the end of a line"
+
+run_auditor_hook Edit "$(edit "$cache" 'errors#rate-limits"' 'errors"')"
+audit_refused "Edit of a string that holds a #" \
+  "$(changes_code Edit "$cache" "it changes the code \`LIMITS = \"https://rates.example.com/docs/errors#rate-limits\"\` to \`LIMITS = \"https://rates.example.com/docs/errors\"\`")"
+
+run_auditor_hook Edit "$(edit "$cache" '            return None
+        fetched_at' '        return None
+        fetched_at')"
+audit_refused "Edit that indents a line less" \
+  "$(changes_code Edit "$cache" "it changes the indentation of the code \`return None\`")"
+
+run_auditor_hook Write "$(jq -n --arg path "$cache" --arg content "${cache_text/"$dead_branch_with_its_excuse"/"$dead_branch_alone"}" '{file_path: $path, content: $content}')"
+audit_runs "the auditor's Write of the file without that comment"
+
+run_auditor_hook Write "$(jq -n --arg path "$cache" --arg content "${cache_text/"$dead_branch_with_its_excuse"/"$dead_branch_deleted"}" '{file_path: $path, content: $content}')"
+audit_refused "Write of the file without the dead branch" \
+  "$(changes_code Write "$cache" "it removes the code \`if not isinstance(entry, tuple):\`")"
+
+run_auditor_hook Write "$(jq -n --arg path "$repository/rates/limits.py" '{file_path: $path, content: "LIMIT = 10\n"}')"
+audit_refused "Write of a new file" "$(changes_code Write "$repository/rates/limits.py" "it adds the code \`LIMIT = 10\`")"
+
+run_auditor_hook Edit "$(edit "$fetch" 'pairs=$#  # the number of pairs' 'pairs=$#')"
+audit_runs "the auditor's Edit that deletes a shell comment after \$#"
+
+run_auditor_hook Edit "$(edit "$fetch" "# a line that cat prints
+" '')"
+audit_refused "Edit of a line of a here-document that starts with #" \
+  "$(changes_code Edit "$fetch" "it changes the code \`cat <<'END'
+# a line that cat prints
+END\` to \`cat <<'END'
+END\`")"
+
+run_auditor_hook Edit "$(edit "$module" "/* the provider's API */ " '')"
+audit_runs "the auditor's Edit that deletes a Nix block comment before code"
+
+run_auditor_hook Edit "$(edit "$repository/devenv.lock" '{}' '{"x": 1}')"
+audit_refused "Edit of a file that Pygments knows no language of" \
+  "$(unchecked "$repository/devenv.lock" "Pygments knows no language by its file name")"
+
+run_auditor_hook Edit "$(edit "$repository/rates/latin1.py" 'x = 1' 'x = 2')"
+audit_refused "Edit of a file that is not UTF-8" "$(unchecked "$repository/rates/latin1.py" "it is not UTF-8 text")"
+
+run_auditor_hook NotebookEdit '{"notebook_path": "'"$repository/analysis.ipynb"'", "new_source": "x = 1"}'
+audit_refused "NotebookEdit" "$(unchecked "$repository/analysis.ipynb" "it is a notebook")"
+
+run_auditor_hook Edit "$(edit "$cache" "$dead_branch_with_its_excuse" "$dead_branch_alone")" "$auditor" "$python_only"
+audit_refused "Edit without pygmentize on the PATH" \
+  "$(unchecked "$cache" "pygmentize, which tells comments from code, is not on the PATH that Claude Code gives its hooks")"
+
+run_auditor_hook Edit "$(edit "$cache" '# no such comment' '')"
+audit_refused "Edit whose old_string is not in the file" \
+  "build:comment-auditor deletes comments and changes no code, and this hook cannot apply this Edit to $cache to check it, since its old_string is not in the file as many times as the Edit needs. Read the file, and give old_string as it stands there."
+
+run_auditor_hook Edit "$(edit "$outside_any_repository/notes.py" 'x = 1' 'x = 2')"
+audit_runs "the auditor's Edit outside any repository"
+
+auditor_command() {
+  run_auditor_hook Bash "$(jq -n --arg command "$1" '{command: $command, description: "Run it"}')"
+}
+
+auditor_command "sed -i '/^ *#/d' rates/cache.py"
+audit_refused "sed -i" "$(through_the_shell "sed -i '/^ *#/d' rates/cache.py")"
+
+auditor_command "cat > rates/cache.py <<'EOF'
+x = 1
+EOF"
+audit_refused "heredoc into a file" "$(through_the_shell "> rates/cache.py")"
+
+auditor_command "for f in rates/*.py; do perl -ni -e 'print unless /^\s*#/' \"\$f\"; done"
+audit_refused "perl -i on a path in a variable" "$(through_the_shell "perl -ni -e 'print unless /^\s*#/' \"\$f\"")"
+
+auditor_command "echo 'it is > rates/cache.py"
+audit_refused "command that the hook cannot read" \
+  "build:comment-auditor deletes comments and changes no code. It deletes comments with Edit, whose edits this hook checks, and writes through the shell into no repository, and this hook cannot read this command, since a ' is not closed, so it cannot tell what it writes. Write the command without that construct."
+
+auditor_command "git log --oneline -5 -- rates/cache.py && git blame -L 15,18 rates/cache.py && grep -n '#' rates/*.py"
+audit_runs "the auditor's reads through git and grep"
+
+auditor_command "echo x > $outside_any_repository/notes.md"
+audit_runs "the auditor's write outside any repository"
+
 if ((failures > 0)); then
   echo "test-build-hooks: $failures failure(s)" >&2
   exit 1
