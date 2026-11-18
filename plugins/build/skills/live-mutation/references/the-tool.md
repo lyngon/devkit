@@ -117,11 +117,12 @@ unprotected-roots:
 ## demonstrate
 
 ```sh
-live-mutation.py demonstrate <name> <check> '<cmd>'
+live-mutation.py demonstrate <name> <check> '<cmd>' [--session <id>]
 ```
 
 It runs a variant of a check's command against a state where the property does not hold, and logs it, so that the record shows the check can fail.
-It refuses `not-in-this-conversation` for a proposal of another session, and `no-such-check` for a check that the proposal does not have.
+With `--session`, it logs the demonstration in the proposal of that session, as for a run whose session ended before it wrote the record.
+It refuses `bad-session` and `not-found` as `record` does, and `no-such-check` for a check that the proposal does not have.
 
 ## run
 
@@ -171,7 +172,7 @@ Its refusals:
 - `bad-session`: `--session` names no session ID. Name the session that `pending` lists.
 - `not-found`: the session holds no proposal of that name.
 - `not-run`: the proposal has not run.
-- `check-never-failed`: a check has no failing run. Give it a demonstration.
+- `check-never-failed`: a check has no failing run. Give it a demonstration. The refusal prints the `demonstrate` command for it, with `--session`.
 
 ## posted
 
@@ -198,3 +199,4 @@ It refuses `detached-head` when HEAD is on no branch.
 
 When a session ended before it posted the record of its run, the proposal stays in its session's directory, and `pending` lists the run.
 The next session writes that record with `--session <the session>`, posts it, runs `posted` with the same `--session`, and proposes again from live state.
+A demonstration that the record lacks takes the same `--session`.
