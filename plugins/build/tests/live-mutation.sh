@@ -536,6 +536,16 @@ expect_waits "a plan that forgets, which deletes nothing" staging-forget infra/s
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
+printf '%s\n' 'import {' '  to = terraform_data.adopted' '  id = "an-object-of-another-root-module"' '}' \
+  'resource "terraform_data" "adopted" {' '  input = "changed-by-staging"' '}' >"$repository/infra/staging/adopted.tf"
+propose_tofu staging-adopt --opentofu infra/staging
+expect_waits "a plan that imports and updates" staging-adopt infra/staging \
+  'The plan imports these resources, and so adopts objects that the state of `infra/staging` never held: `terraform_data\.adopted`\.' \
+  'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
 propose_tofu staging-destroy --opentofu infra/staging --destroy
 expect "a destroy plans and checks with -destroy" 0 \
   'terraform_data\.logging will be destroyed.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -destroy -detailed-exitcode`'
