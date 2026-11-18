@@ -14,9 +14,13 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 failures=0
 declare -A pid=()
 
+declare -A terminal=()
+
 kill_session() {
   kill -9 "${pid[$1]}" 2>/dev/null || true
-  wait "${pid[$1]}" 2>/dev/null || true
+  while [[ -e /proc/${pid[$1]} ]]; do
+    sleep 0.01
+  done
 }
 
 stop_sessions() {
@@ -25,7 +29,14 @@ stop_sessions() {
     kill_session "$name"
   done
 }
-trap 'stop_sessions; rm -rf "$tmp"' EXIT
+
+close_terminals() {
+  local name
+  for name in "${!terminal[@]}"; do
+    kill -9 "${terminal[$name]}" 2>/dev/null || true
+  done
+}
+trap 'stop_sessions; close_terminals; rm -rf "$tmp"' EXIT
 
 config=$tmp/config
 registry=$config/sessions
@@ -50,6 +61,51 @@ while read -r command <&3; do
 done
 EOF
 export SCRIPT_TOOLS=$script_tools TEST_HOME=$tmp TEST_CONFIG=$config PLUGIN_ROOT=$plugin_root
+export SESSION_SCRIPT=$session_script
+
+# A terminal starts each session in the directory a request names, as a shell
+# starts a job, so that the sessions it starts share its controlling terminal.
+terminal_script=$tmp/terminal.sh
+cat >"$terminal_script" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+tty >"$1/name" || true
+exec 3<>"$1/requests"
+while read -r directory files <&3; do
+  cd "$directory"
+  bash "$SESSION_SCRIPT" "$files" &
+  echo "$!" >"$1/started"
+done
+EOF
+
+# Runs a command on a new pseudo-terminal, which becomes its controlling
+# terminal, as a terminal emulator runs a shell.
+on_a_new_terminal='
+import os, pty, sys
+pid, master = pty.fork()
+if pid == 0:
+    os.execvp(sys.argv[1], sys.argv[1:])
+try:
+    while os.read(master, 4096):
+        pass
+except OSError:
+    pass
+os.waitpid(pid, 0)
+'
+
+open_terminal() {
+  local files=$tmp/terminals/$1
+  mkdir -p "$files"
+  mkfifo "$files/requests" "$files/started"
+  if [[ $1 == none ]]; then
+    setsid bash "$terminal_script" "$files" &
+  else
+    python3 -c "$on_a_new_terminal" bash "$terminal_script" "$files" &
+  fi
+  terminal[$1]=$!
+}
+open_terminal none
+open_terminal pty
 
 hook_command() {
   jq -r --arg event "$1" --arg tool "${2-}" '.hooks[$event][]
@@ -82,19 +138,32 @@ wait_out_a_10_ms_clock_tick_of_the_start_time() {
 }
 
 start_session() {
-  local files=$tmp/sessions/$1
+  local files=$tmp/sessions/$1 on=$tmp/terminals/${5:-none}
   wait_out_a_10_ms_clock_tick_of_the_start_time
   mkdir -p "$files"
   mkfifo "$files/requests" "$files/done"
-  (cd "$2" && exec bash "$session_script" "$files") &
-  pid[$1]=$!
+  echo "$2 $files" >"$on/requests"
+  pid[$1]=$(<"$on/started")
   register "$1" "$3" "$4"
+}
+
+# Stops a session as Ctrl+Z stops a job, and waits until its process is in
+# state T, field 3 of /proc/<pid>/stat.
+stop_session() {
+  local stat
+  kill -STOP "${pid[$1]}"
+  stat=$(<"/proc/${pid[$1]}/stat")
+  until [[ ${stat##*") "} == T* ]]; do
+    sleep 0.01
+    stat=$(<"/proc/${pid[$1]}/stat")
+  done
 }
 
 run_hook() {
   local files=$tmp/sessions/$1
-  jq -n --arg event "$2" --arg tool "${3-}" '{session_id: "id", hook_event_name: $event}
-    + if $event == "PreToolUse" then {tool_name: $tool, tool_input: {command: "git status"}} else {source: "startup"} end' \
+  jq -n --arg event "$2" --arg detail "${3-}" '{session_id: "id", hook_event_name: $event}
+    + if $event == "PreToolUse" then {tool_name: $detail, tool_input: {command: "git status"}}
+      else {source: (if $detail == "" then "startup" else $detail end)} end' \
     >"$files/input"
   hook_command "$2" "${3-}" >"$files/requests"
   code=$(<"$files/done") out=$(<"$files/out") err=$(<"$files/err")
@@ -133,7 +202,18 @@ verdict() {
   if [[ $(decision | head -n 1) == "PreToolUse deny" ]]; then echo refused; else echo allowed; fi
 }
 
-why="Two sessions in one working tree change its HEAD, its index and its files under each other, so the repo plugin refuses this session's edits and shell commands here until this session has moved to a worktree of its own or that session has ended. Every other tool still works, Read, EnterWorktree and ExitWorktree among them. The standing instructions at the start of this session ask for this move, so it counts as the operator asking for each call below."
+on_screen() {
+  jq -r '.systemMessage' <<<"$out"
+}
+
+# Whether the model gets what the screen shows, and the request to pass it on.
+model_asked_to_tell() {
+  jq -r '.hookSpecificOutput.hookEventName == "SessionStart"
+    and .hookSpecificOutput.additionalContext == .systemMessage + "\nTell the operator in your first reply."' <<<"$out"
+}
+
+refused="Two sessions in one working tree change its HEAD, its index and its files under each other, so the repo plugin refuses this session's edits and shell commands here until this session has moved to a worktree of its own or that session has ended."
+why="$refused Every other tool still works, Read, EnterWorktree and ExitWorktree among them. The standing instructions at the start of this session ask for this move, so it counts as the operator asking for each call below."
 
 check "hooks.json runs the check before Edit, Write, NotebookEdit, Bash and Monitor, and at session start" \
   equals "$(for tool in Edit Write NotebookEdit Bash Monitor Read EnterWorktree ExitWorktree Agent; do echo "$tool $(hook_command PreToolUse "$tool" | wc -l)"; done | tr '\n' ' ')$(hook_command SessionStart | wc -l)" \
@@ -145,7 +225,7 @@ start_session later "$main" cli busy
 run_hook later PreToolUse Bash
 check "the main checkout, the later session: refused, with the earlier session, the tree, its branch and a move by EnterWorktree" \
   equals "$code|$err|$(decision)" "0||PreToolUse deny
-The Claude Code session \"earlier\" (a VS Code session, idle for 2 h 5 min) works in this working tree, $main, which has the branch main checked out, and started before this session.
+The Claude Code session \"earlier\" (pid ${pid[earlier]}, a VS Code session, idle for 2 h 5 min) works in this working tree, $main, which has the branch main checked out, and started before this session.
 $why
 - If your task continues the work on the branch main, ask the operator to close the session \"earlier\", and carry on here once it has ended.
 - Otherwise, call EnterWorktree without a name, so that it creates a new worktree under a name it generates, since a name in use would enter that worktree, and carry on there. If EnterWorktree answers that this session is in a worktree session already, call ExitWorktree with action keep first, never remove, because the other session works in it."
@@ -162,7 +242,7 @@ check "a linked worktree inside the main checkout, the earlier session there: al
 run_hook second PreToolUse Write
 check "a linked worktree, the later session: refused, with the worktree and its branch" \
   equals "$code|$err|$(decision | sed -n '1,2p;4p')" "0||PreToolUse deny
-The Claude Code session \"first\" (a headless session, busy) works in this working tree, $shared, which has the branch worktree-shared checked out, and started before this session.
+The Claude Code session \"first\" (pid ${pid[first]}, a headless session, busy) works in this working tree, $shared, which has the branch worktree-shared checked out, and started before this session.
 - If your task continues the work on the branch worktree-shared, ask the operator to close the session \"first\", and carry on here once it has ended."
 
 next_case
@@ -172,9 +252,52 @@ start_session three "$main" cli busy
 run_hook three PreToolUse Monitor
 check "two earlier sessions in the tree, one of them in a directory below its root: both named" \
   equals "$(decision | sed -n '2p;4,5p')" \
-  "The Claude Code sessions \"one\" (a CLI session, idle for 2 h 5 min) and \"two\" (a VS Code session, busy) work in this working tree, $main, which has the branch main checked out, and started before this session.
+  "The Claude Code sessions \"one\" (pid ${pid[one]}, a CLI session, idle for 2 h 5 min) and \"two\" (pid ${pid[two]}, a VS Code session, busy) work in this working tree, $main, which has the branch main checked out, and started before this session.
 - If your task continues the work on the branch main, ask the operator to close the sessions \"one\" and \"two\", and carry on here once they have ended.
 - Otherwise, call EnterWorktree without a name, so that it creates a new worktree under a name it generates, since a name in use would enter that worktree, and carry on there. If EnterWorktree answers that this session is in a worktree session already, call ExitWorktree with action keep first, never remove, because the other sessions work in it."
+
+next_case
+start_session earlier "$main" cli idle
+start_session later "$main" cli busy
+stop_session earlier
+run_hook later PreToolUse Bash
+check "an earlier session stopped as a job, its entry still idle: the refusal calls it stopped" \
+  equals "$(decision | sed -n 2p)" "The Claude Code session \"earlier\" (pid ${pid[earlier]}, a CLI session, stopped) works in this working tree, $main, which has the branch main checked out, and started before this session."
+run_hook later SessionStart
+check "the same at session start, without a terminal: on screen, kill -KILL ends it" \
+  equals "$code|$err|$(on_screen)" "0||The Claude Code session \"earlier\" (pid ${pid[earlier]}, a CLI session, stopped) works in this working tree, $main, which has the branch main checked out, and started before this session.
+$refused
+\"earlier\" is stopped, so a plain kill leaves it stopped, and kill -KILL ${pid[earlier]} ends it."
+run_hook later SessionStart resume
+check "the same at a resume, which starts in the tree it was launched in: nothing said" equals "$code|$out|$err" "0||"
+
+next_case
+start_session earlier "$shared" claude-vscode idle
+start_session later "$shared" cli busy
+run_hook later SessionStart
+check "session start beside an earlier session that runs: on screen and to the model, kill ends it" \
+  equals "$code|$err|$(on_screen)|$(model_asked_to_tell)" "0||The Claude Code session \"earlier\" (pid ${pid[earlier]}, a VS Code session, idle for 2 h 5 min) works in this working tree, $shared, which has the branch worktree-shared checked out, and started before this session.
+$refused
+kill ${pid[earlier]} ends \"earlier\".|true"
+
+terminal_name=$(<"$tmp/terminals/pty/name")
+
+next_case
+start_session earlier "$main" cli idle pty
+start_session later "$main" cli busy pty
+stop_session earlier
+run_hook later SessionStart
+check "session start beside a stopped job of a shell on this terminal: fg there once this session has ended" \
+  equals "$(on_screen | sed -n '1p;3p')" "The Claude Code session \"earlier\" (pid ${pid[earlier]}, a CLI session on $terminal_name, stopped) works in this working tree, $main, which has the branch main checked out, and started before this session.
+\"earlier\" is stopped, a job of the shell that started it on this terminal, so a plain kill leaves it stopped: end this session with /exit, then run fg in that shell and end \"earlier\" with /exit."
+
+next_case
+start_session earlier "$main" cli idle pty
+start_session later "$main" cli busy
+stop_session earlier
+run_hook later SessionStart
+check "session start beside a stopped job of a shell on another terminal: fg there" \
+  equals "$(on_screen | sed -n 3p)" "\"earlier\" is stopped, a job of the shell that started it on $terminal_name, so a plain kill leaves it stopped: run fg in that shell and end it with /exit."
 
 next_case
 start_session killed "$main" cli busy
@@ -202,8 +325,8 @@ start_session later "$main" cli busy
 echo '{"pid": "not a number"' >"$registry/1.json"
 run_hook later PreToolUse Bash
 before=$(verdict)
-run_hook later SessionStart
-check "its own entry there, beside an unreadable one: refused, and nothing said at session start" \
+run_hook earlier SessionStart
+check "its own entry there, beside an unreadable one: refused, and nothing said at the earlier one's session start" \
   equals "$before|$code|$out|$err" "refused|0||"
 rm "$registry/${pid[later]}.json"
 run_hook later PreToolUse Bash
