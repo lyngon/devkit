@@ -87,7 +87,7 @@ The baseline's hooks are: nixfmt, shellcheck, markdownlint (one sentence per lin
 No hook checks a commit message: a pull request lands as one commit with its title and its body as the message, and the baseline's command `check-pull-request` checks those two, in the devenv shell and in the pull request workflow.
 The options `lyngon.pullRequest.body.targetLines` and `lyngon.pullRequest.body.headroomLines` set how long a body may be, 40 and 20 content lines by default.
 The option `lyngon.mistakes.maxAgeDays` sets how long a file of the mistake ledger, `docs/mistakes/`, is kept, 365 days by default.
-The option `lyngon.scriptTools` lists the tools that the scripts and hooks of the plugins run, Python and shfmt by default, and the baseline adds them to the shell.
+The option `lyngon.scriptTools` lists the tools that the scripts and hooks of the plugins run, Python, Pygments and shfmt by default, and the baseline adds them to the shell.
 The option `lyngon.mcp.enable` writes `.mcp.json` with the devenv MCP server; it is off by default, because each Claude Code session then starts a server of its own.
 The option `lyngon.fullCheck.showOutput`, on by default, makes a passing [full check](#verification) print the result of each git hook, the output of each task that runs before `devenv:enterTest`, and the output of `enterTest`, also in an agent session.
 Otherwise devenv hides what passes.
@@ -496,7 +496,7 @@ Never add a service because the stack suggests one.
 
 - **direnv**: `direnv allow` once; `.envrc` does the rest.
 - **devenv hook**: `eval "$(devenv hook zsh)"` (or `bash`, `fish`; `devenv hook fish | source`) in the user's shell configuration, then `devenv allow` in the repository. Subshell-based, deactivates on leaving the directory.
-- **VS Code**: open the repository with `code .` from a shell where the devenv environment is loaded. A window starts with the environment of the `code` command that opened it, and the Claude Code extension reads the PATH of every session in the window once, from that environment, so the tools of the plugins' hooks come from there. The `mkhl.direnv` extension brings later changes of `.envrc` into the editor and its terminals, but not into that PATH. The `repo` plugin's hooks export the current environment into each agent's Bash commands and refresh it when the devenv files change, and say at session start when the hooks' PATH lacks `python3` or `shfmt`.
+- **VS Code**: open the repository with `code .` from a shell where the devenv environment is loaded. A window starts with the environment of the `code` command that opened it, and the Claude Code extension reads the PATH of every session in the window once, from that environment, so the tools of the plugins' hooks come from there. The `mkhl.direnv` extension brings later changes of `.envrc` into the editor and its terminals, but not into that PATH. The `repo` plugin's hooks export the current environment into each agent's Bash commands and refresh it when the devenv files change, and say at session start when the hooks' PATH lacks `python3`, `shfmt` or `pygmentize`.
 - **AI agents**: devenv detects Claude Code and switches to quiet, non-TUI output on its own. Set `DEVENV_NO_AI_AGENT=1` to disable that.
 
 ## Verification

@@ -67,12 +67,13 @@ Verified on 2026-11-14 in headless sessions (`claude -p`) in a scratch repositor
 ### The tools of the plugins' hooks
 
 Claude Code runs every hook with the environment of the session's process, and the environment that `hooks/export-environment.sh` gives Bash commands never reaches a hook.
-A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3` and `shfmt` by default, so it needs them on the PATH the session started with.
+A hook that a plugin ships runs only the tools of the baseline option `lyngon.scriptTools`, `python3`, `pygmentize` and `shfmt` by default, so it needs them on the PATH the session started with.
 Without `python3`, no Python hook of any plugin runs, and Claude Code treats each failed start as a non-blocking error and runs the call as if the hook did not exist.
 The `build` plugin's guard on OpenTofu commands that write is one of those hooks.
+Without `pygmentize`, the `build` plugin's guard on the comment auditor refuses the auditor every edit inside a repository, since it cannot tell comments from code.
 
 `hooks/script-tools-on-hook-path.sh` is a `SessionStart` hook that runs on bash alone, so it still runs when those tools are missing.
-In a session that starts in a working tree with both `.git` and a `devenv.nix`, at or above the launch directory, it looks for `python3` and `shfmt` on its PATH.
+In a session that starts in a working tree with both `.git` and a `devenv.nix`, at or above the launch directory, it looks for `python3`, `shfmt` and `pygmentize` on its PATH.
 When one is missing, it names it, says what goes without it and how to start a session that has it.
 It gives that text twice:
 
