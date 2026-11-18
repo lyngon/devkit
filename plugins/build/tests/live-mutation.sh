@@ -365,16 +365,6 @@ else
 fi
 tofu_mutation session-one run staging-logs "$digest"
 expect "a second run without a go-ahead is refused" 1 '^live-mutation\.py: already-ran: proposal staging-logs ran without a go-ahead at '
-plan_json=$(tofu_in infra/staging show -json "$repository/$proposals/staging-logs/inputs/plan" || true)
-searched=0
-holders=$(grep -rl --binary-files=text "$token" "$repository/tmp/live-mutation") || searched=$?
-unexpected=$(sed '\#/staging-logs/\(drift/\)\{0,1\}inputs/plan$#d' <<<"$holders")
-if ((searched <= 1)) && [[ "$plan_json" == *"$token"* && -z "$unexpected" ]]; then
-  pass "the plan's JSON holds the sensitive value, and no file of the proposal does but its saved plans"
-else
-  fail "the plan's JSON holds the sensitive value, and no file of the proposal does but its saved plans" \
-    "grep exited $searched and found it in:"$'\n'"$unexpected"
-fi
 tofu_mutation session-one record staging-logs
 expect "the record of a run without a go-ahead is written" 0 'session-one/staging-logs/record-1\.md'
 record=$(contents "$repository/$proposals/staging-logs/record-1.md")
@@ -383,6 +373,16 @@ if [[ "$record" =~ $pattern && "$record" != *owner* ]]; then
   pass "the record names the rule file, says that no go-ahead was asked, and names no owner"
 else
   fail "the record names the rule file, says that no go-ahead was asked, and names no owner" "got:"$'\n'"$record"
+fi
+plan_json=$(tofu_in infra/staging show -json "$repository/$proposals/staging-logs/inputs/plan" || true)
+searched=0
+holders=$(grep -rl --binary-files=text "$token" "$repository/tmp/live-mutation") || searched=$?
+unexpected=$(sed '\#/staging-logs/\(drift/\)\{0,1\}inputs/plan$#d' <<<"$holders")
+if ((searched <= 1)) && [[ "$plan_json" == *"$token"* && -z "$unexpected" ]]; then
+  pass "the plan's JSON holds the sensitive value, and no file of the proposal, its record included, does but its saved plans"
+else
+  fail "the plan's JSON holds the sensitive value, and no file of the proposal, its record included, does but its saved plans" \
+    "grep exited $searched and found it in:"$'\n'"$unexpected"
 fi
 escaped=0
 escapes=$(grep -rl --binary-files=text --exclude-dir=inputs $'\e' "$repository/$proposals/staging-logs") || escaped=$?
