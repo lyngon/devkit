@@ -116,6 +116,12 @@ check "a command the stand-in does not answer fails and says so" \
   "1|gh api repos/acme/orders: this forge answers only auth status, repo view, issue create, issue list, issue view, issue comment, pr create, pr edit, pr view, pr list, pr comment, pr checks" \
   "$code|$err"
 
+mv "$forge/repository" "$tmp/repository"
+gh pr view 71
+check "a command that names the repository fails when the seed named none" \
+  "1|$forge/repository is missing: the seed of the case writes the repository there, as acme/orders" "$code|$err"
+mv "$tmp/repository" "$forge/repository"
+
 # Each seed that copies the stand-in, in an empty directory of its own, makes
 # it name the repository that its case stands in for.
 for entry in \

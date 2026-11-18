@@ -39,6 +39,7 @@ cp "$case_dir/forge/devenv" "$forge/bin/devenv"
 cp "$case_dir/forge/no-eval-runs" "$forge/bin/claude"
 cp "$case_dir/forge/no-eval-runs" "$forge/bin/compare-evals"
 chmod +x "$forge/bin/"*
+echo lyngon/devkit >"$forge/repository"
 git init -q --bare "$forge/origin.git"
 git remote add origin "$PWD/$forge/origin.git"
 git push -q origin main

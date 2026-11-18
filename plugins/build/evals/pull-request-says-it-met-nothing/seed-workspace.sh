@@ -30,6 +30,7 @@ git commit -q -m "feat(pricing): reject a negative quantity"
 mkdir -p "$forge/bin"
 cp "$case_dir/forge/gh" "$forge/bin/gh"
 chmod +x "$forge/bin/gh"
+echo acme/orders >"$forge/repository"
 git init -q --bare "$forge/origin.git"
 git remote add origin "$PWD/$forge/origin.git"
 git push -q origin main
