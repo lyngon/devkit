@@ -43,7 +43,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
 - `PreToolUse` on `Edit`, `Write`, `NotebookEdit` and `Bash`, named in the frontmatter of `auto`: `hooks/lead-writes-no-code.py` refuses the lead a write of a file inside a repository, outside `tmp/`, `docs/plans/` and `docs/mistakes/`, and names the `build:implementer` delegate that writes it instead.
   Claude Code registers a hook of a skill's frontmatter when the skill starts, and runs it in that session's lead from then on, after a compaction too, and never in a subagent, whose hook input holds an `agent_id` (measured on Claude Code 2.1.283 and 2.1.299).
   A session without the mode never runs the hook, and neither does a session resumed in a new process, which drops it.
-  The hook reads a shell command in Python alone, with `may_run` of `hooks/shell_syntax.py`, so it decides the same whatever the PATH that Claude Code gives its hooks holds.
+  The hook reads a shell command in Python alone, with `may_run` of `hooks/shell_syntax.py` and `hooks/shell_writes.py`, so it decides the same whatever the PATH that Claude Code gives its hooks holds.
   It refuses the writes it can name before the command runs: a redirection with `>`, `>>`, `>|`, `&>`, `&>>` or `<>`, or with `>&` to any word but a number or `-`, as in `>&run.log`, and the files that `sed -i`, `perl -i`, `tee`, `cp`, `mv`, `rm` and `touch` write, also inside a substitution, backquotes or a loop and when `find` or `xargs` runs one of them.
   It takes every word of a simple command for a possible command name, so it also refuses such a writer after a keyword or behind a program that starts it, as in `sudo rm`, and `git rm` and `git mv` of a file of the change.
   A path that holds a variable or a substitution, and the files that `find` or `xargs` hands over, count as files of the change.
@@ -51,6 +51,15 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   It refuses a command that it cannot read, and its reason names the construct, such as a quote that is not closed, a here-document without its end line, a case statement inside parentheses, or a quote inside `${...}` or an arithmetic expression.
   Any other program may write too, such as an interpreter, git, a formatter, `ln`, `patch` or `find -delete`, or a writer that `bash -c` or `eval` starts, and the hook lets it run, since it cannot tell its write from a read; there the mode's text holds the rule.
   `tests/hooks.sh` runs it with `python3` alone on the PATH.
+- `PreToolUse` on `Edit`, `Write`, `NotebookEdit` and `Bash`: `hooks/auditor-deletes-only-comments.py` refuses the agent `build:comment-auditor` an edit inside a repository that changes code, so the code that a deleted comment covered for stays for `clean-comments` to fix, also when it never runs.
+  It acts on the calls whose hook input names that agent as `agent_type`, which Claude Code sets in a subagent's calls and leaves out of the lead's (measured on Claude Code 2.1.322).
+  It lexes the file before and after the call with `pygmentize`, leaves out the comments and the docstrings, and refuses the call when the code that remains differs in a token, in the space between two tokens or in the indentation of a line.
+  A comment may go with the space around it, and a blank line with it.
+  The reason names the first line of code that changed and tells the auditor to mark that code `MUST KILL` instead.
+  Pygments takes each triple-quoted Python string that starts a line for a docstring, so the hook lets the auditor delete one that is not.
+  It fails closed: it refuses an edit that it cannot check, of a notebook, of a file that is not UTF-8 or whose name Pygments knows no language of, and every edit when `pygmentize` is not on its PATH, and the reason tells the auditor to leave those comments and report them skipped.
+  Of the auditor's shell commands it refuses each write into a repository that `hooks/shell_writes.py` names, the same writes that `hooks/lead-writes-no-code.py` refuses the lead, and lets any other program run.
+  `tests/hooks.sh` runs it with a PATH of the baseline's `lyngon.scriptTools` and nothing else, and once with `python3` and no `pygmentize`.
 - `Stop`, named in the frontmatter of `auto`: `hooks/reply-has-no-dash.py` sends a reply of the lead back once when its prose holds an em dash or an en dash, which the mode's rules for the reply forbid, and quotes the lines that hold one. Code, fenced or inline, is left out, since the mode asks for some output verbatim. Claude Code gives the hook the reply as `last_assistant_message`, and the reply written after the block ends the turn whatever it holds, so a dash the lead cannot remove ends no session in a loop (measured on Claude Code 2.1.283 and 2.1.299). It runs where the hook on writes runs, and `tests/hooks.sh` runs it with a PATH of the baseline's `lyngon.scriptTools` and nothing else.
 
 ## The mistake ledger
