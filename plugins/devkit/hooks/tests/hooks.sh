@@ -11,28 +11,38 @@ failures=0
 
 # --- Fixture helpers ---------------------------------------------------------
 
-# The PATH of the session: the one tool the hook needs, behind two directories
+# The PATH of the session: the tools the hook needs, behind two directories
 # whose names a careless export would split or cut short.
 tools=$tmp/tools
 mkdir -p "$tools" "$tmp/with space" "$tmp/it's"
 ln -s "$(command -v bash)" "$tools/bash"
+ln -s "$(command -v mkdir)" "$tools/mkdir"
 session_path="$tmp/with space:$tmp/it's:$tools"
 
+# The input of a session that started fresh, as Claude Code writes it, and the
+# directory that holds the environment files of each session.
+hook_input='{"session_id":"fresh-session","transcript_path":"/projects/fresh-session.jsonl","cwd":"/cwd","hook_event_name":"SessionStart","source":"startup"}'
+sessions=$tmp/config/session-env
+
 # run_hook [VAR=value]...: run the hook as a session does, with the PATH of
-# the session and the given variables in its environment. Sets out, err, code.
+# the session and the given variables in its environment, and $hook_input on
+# its stdin. Claude Code makes the directory of the environment file that it
+# gives a hook, here that of a session named fresh-session or new-session.
+# Sets out, err, code.
 run_hook() {
   code=0
-  rm -f "$tmp/env-file.sh"
+  rm -rf "$tmp/env-file.sh" "$sessions"
+  mkdir -p "$sessions/fresh-session" "$sessions/new-session"
   out=$(env -i PATH="$session_path" HOME="$tmp" _=/usr/bin/env "$@" \
-    "$hooks/export-environment-to-eval-run.sh" 2>"$tmp/stderr") || code=$?
+    "$hooks/export-environment-to-eval-run.sh" <<<"$hook_input" 2>"$tmp/stderr") || code=$?
   err=$(<"$tmp/stderr")
 }
 
-# after_env_file <shell> <variable>: the value of the variable in a command
-# whose shell started with another PATH and then ran the environment file, or
-# "unset".
+# after_env_file <shell> <variable> [<file>]: the value of the variable in a
+# command whose shell started with another PATH and then ran the environment
+# file, $tmp/env-file.sh by default, or "unset".
 after_env_file() {
-  env -i PATH=/replaced/by/the/shell "$(command -v "$1")" -c "source '$tmp/env-file.sh' && printf %s \"\${$2-unset}\""
+  env -i PATH=/replaced/by/the/shell "$(command -v "$1")" -c "source '${3:-$tmp/env-file.sh}' && printf %s \"\${$2-unset}\""
 }
 
 # --- Assertions --------------------------------------------------------------
@@ -104,6 +114,27 @@ for outside in "/usr/local/bin" "../bin" "bin/../../bin"; do
     equals "$code|$out|$err" "0||devkit plugin: left out EVAL_PREPEND_TO_PATH, because $outside is no directory inside the project
 devkit plugin: exported the PATH of the session to the shell commands of this eval run"
 done
+
+run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$sessions/fresh-session/sessionstart-hook-2.sh"
+check "eval run: a command in zsh that runs the files of its session gets the PATH of the session" \
+  equals "$(after_env_file zsh PATH "$sessions/fresh-session/sessionstart-hook-2.sh")" "$session_path"
+
+# What Claude Code gives the hook of a run that resumes a history file, as a
+# case with context.history_file does: the input names the session that the
+# run resumes, and the environment file lies in the directory of another one.
+hook_input='{"session_id":"recorded-session","transcript_path":"/projects/recorded-session.jsonl","cwd":"/cwd","hook_event_name":"SessionStart","source":"resume"}'
+run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$sessions/new-session/sessionstart-hook-2.sh" \
+  CLAUDE_PROJECT_DIR="$tmp/with space" EVAL_PREPEND_TO_PATH=".git/forge/bin"
+check "resumed eval run: a command in zsh that runs the files of the resumed session gets the PATH of the session" \
+  equals "$(after_env_file zsh PATH "$sessions/recorded-session/sessionstart-hook-2.sh")" "$tmp/with space/.git/forge/bin:$session_path"
+check "resumed eval run: a command in bash that runs the files of the resumed session gets the PATH of the session" \
+  equals "$(after_env_file bash PATH "$sessions/recorded-session/sessionstart-hook-2.sh")" "$tmp/with space/.git/forge/bin:$session_path"
+check "resumed eval run: exits 0, adds nothing to the context and says what it did" \
+  equals "$code|$out|$err" "0||devkit plugin: exported the PATH of the session to the shell commands of this eval run"
+
+run_hook CLAUDE_CODE_EVAL_CONFINED=1 CLAUDE_ENV_FILE="$tmp/env-file.sh"
+check "resumed eval run: an environment file outside a session-env directory stays where Claude Code put it" \
+  equals "$(after_env_file zsh PATH)" "$session_path"
 
 run_hook CLAUDE_ENV_FILE="$tmp/env-file.sh" EVAL_EXPORT_LIMIT_IN_DAYS=365
 check "outside an eval run: writes no environment file" \
