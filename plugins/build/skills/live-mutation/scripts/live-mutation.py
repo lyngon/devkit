@@ -6,6 +6,8 @@
     live-mutation.py demonstrate <name> <check> <cmd>
     live-mutation.py run <name> <digest> [--go-ahead <the owner's words>]
     live-mutation.py record <name> [--session <id>]
+    live-mutation.py posted <name> <url>... [--session <id>]
+    live-mutation.py pending
 
 A proposal is the directory tmp/live-mutation/<session>/<name>/ at the root of
 the repository, where <session> is CLAUDE_CODE_SESSION_ID. Each command is one
@@ -31,7 +33,10 @@ inputs that changed, a run without a go-ahead that the rule files do not allow,
 and a rendering that live state no longer gives. It derives and renders again
 before it runs, because OpenTofu refuses a saved plan whose state changed but
 not one whose live resources drifted. `record` writes the action record as
-Markdown comments, and refuses one in which a check never failed.
+Markdown comments, and refuses one in which a check never failed. `posted`
+logs the URLs of those comments once they are posted, and `pending` lists the
+runs of the current branch, in every session of this working tree, whose
+record has no such line yet.
 """
 
 import argparse
@@ -73,6 +78,7 @@ LIST_ITEM = re.compile(r"( *)- (\S+)")
 PLAIN_COMPONENT = re.compile(r"[A-Za-z0-9_.-]+")
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
+URL = re.compile(r"https://\S+")
 
 
 class RefusalError(Exception):
@@ -94,6 +100,7 @@ class Kind(enum.StrEnum):
     GO_AHEAD = "go-ahead"
     NO_GO_AHEAD = "no-go-ahead"
     RUN = "run"
+    POSTED = "posted"
 
 
 USES_UP = frozenset({Kind.GO_AHEAD, Kind.NO_GO_AHEAD})
@@ -101,10 +108,10 @@ USES_UP = frozenset({Kind.GO_AHEAD, Kind.NO_GO_AHEAD})
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Entry:
-    """One line of the log: a command the tool ran, or what allowed the run that used the proposal up.
+    """One line of the log: a command the tool ran, what allowed the run, or where its action record was posted.
 
     A go-ahead line holds the owner's words. A no-go-ahead line holds the rule file, the commit it was read at and
-    the directory it lists. Both name the output of the run.
+    the directory it lists. Both name the output of the run. A posted line holds the URLs of the comments.
     """
 
     kind: Kind
@@ -118,6 +125,7 @@ class Entry:
     rule_file: str = ""
     commit: str = ""
     directory: str = ""
+    urls: tuple[str, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -224,6 +232,16 @@ class Place:
     outputs: pathlib.Path
     log: pathlib.Path
     drift: pathlib.Path
+
+
+@dataclasses.dataclass(frozen=True, slots=True, order=True)
+class Waiting:
+    """A run whose action record is not posted, ordered by when it ran."""
+
+    ran: str
+    session: str
+    name: str
+    gated: bool
 
 
 def place_at(directory: pathlib.Path) -> Place:
@@ -427,6 +445,7 @@ def read_log(place: Place) -> list[Entry]:
                 rule_file=text_of(fields, "rule_file"),
                 commit=text_of(fields, "commit"),
                 directory=text_of(fields, "directory"),
+                urls=strings_of(fields, "urls"),
             )
         )
     return entries
@@ -1063,6 +1082,63 @@ def record(root: pathlib.Path, session: str, name: str) -> list[pathlib.Path]:
     return written
 
 
+def posted(root: pathlib.Path, session: str, name: str, urls: ct.Sequence[str]) -> str:
+    """Log the URLs of the comments that hold the action record of a run, which takes it off the pending list."""
+    place = place_of(root, session, name)
+    if not place.proposal.exists():
+        raise RefusalError(f"not-found: session {session} holds no proposal {name}")
+    if consumed(read_log(place)) is None:
+        raise RefusalError(f"not-run: proposal {name} has not run, so it has no action record to post")
+    wrong = [url for url in urls if not URL.fullmatch(url)]
+    if wrong:
+        raise RefusalError(f"bad-url: {', '.join(wrong)} is no https URL of a comment")
+    append(place, Entry(Kind.POSTED, now(), now(), 0, urls=tuple(urls)))
+    return f"The action record of {name} is posted at {', '.join(urls)}.\n"
+
+
+def pending(root: pathlib.Path) -> tuple[int, str]:
+    """List the runs of the current branch whose action record is not posted, in every session, in the order they ran.
+
+    Returns 1 when a proposal could not be read, since its run may be among them. Raises RefusalError when HEAD is
+    detached.
+    """
+    branch = branch_of(root)
+    if branch is None:
+        raise RefusalError("detached-head: HEAD is detached, so there is no branch whose runs pending could list")
+    waiting: list[Waiting] = []
+    unreadable: list[str] = []
+    for path in sorted(sessions_root(root).glob("*/*/proposal.json")):
+        place = place_at(path.parent)
+        try:
+            proposal, entries = load(place), read_log(place)
+        except (RefusalError, ValueError) as error:
+            unreadable.append(f"- {path.relative_to(root)}: {error}")
+            continue
+        used = consumed(entries)
+        if proposal.branch == branch and used is not None and all(entry.kind is not Kind.POSTED for entry in entries):
+            waiting.append(Waiting(used.started, path.parent.parent.name, proposal.name, used.kind is Kind.GO_AHEAD))
+    lines: list[str] = []
+    if waiting:
+        lines += [f"The runs of branch `{branch}` whose action record is not posted, in the order they ran:", ""]
+    else:
+        lines.append(f"No run of branch `{branch}` waits for its action record to be posted.")
+    for unposted in sorted(waiting):
+        how = "on a go-ahead" if unposted.gated else "without a go-ahead"
+        lines += [
+            f"- `{unposted.name}` of session `{unposted.session}`, run {how} at {unposted.ran}.",
+            "  Write its record, post each file it names in order, and note the URLs:",
+            "",
+            "  ```sh",
+            f"  {TOOL} record {unposted.name} --session {unposted.session}",
+            f"  {TOOL} posted {unposted.name} <url>... --session {unposted.session}",
+            "  ```",
+            "",
+        ]
+    if unreadable:
+        lines += ["", "These proposals could not be read, so whether their record waits is unknown:", "", *unreadable]
+    return (1 if unreadable else 0), "\n".join(lines).rstrip("\n") + "\n"
+
+
 def check_pair(text: str) -> tuple[str, str]:
     """Parse a --check value, <check>=<cmd>. Raises argparse.ArgumentTypeError for one without a name."""
     check, separator, command = text.partition("=")
@@ -1096,6 +1172,11 @@ def parser() -> argparse.ArgumentParser:
     recording = commands.add_parser("record", help="write the action record of a run")
     _ = recording.add_argument("name")
     _ = recording.add_argument("--session", help="the session that ran it, when not this one")
+    posting = commands.add_parser("posted", help="note the URLs of the comments that hold the action record of a run")
+    _ = posting.add_argument("name")
+    _ = posting.add_argument("urls", nargs="+", metavar="URL")
+    _ = posting.add_argument("--session", help="the session that ran it, when not this one")
+    _ = commands.add_parser("pending", help="list the runs of this branch whose action record is not posted")
     return parsing
 
 
@@ -1118,29 +1199,38 @@ def proposed(
     return Commands(derive, show, executes, checks), None
 
 
+def session_named(parsed: argparse.Namespace, environ: ct.Mapping[str, str]) -> str:
+    """Return the session that --session names, or this one."""
+    given = t.cast("str | None", parsed.session)
+    return given if given is not None and SESSION.fullmatch(given) else session_of(environ)
+
+
 def main(arguments: ct.Sequence[str], environ: ct.Mapping[str, str]) -> int:
     """Run the command that the arguments name. Returns the exit status."""
     parsing = parser()
     parsed = parsing.parse_args(arguments)
     command = t.cast("str", parsed.command)
-    name = t.cast("str", parsed.name)
     root = repository_root(pathlib.Path.cwd())
     status = 0
     try:
         match command:
             case "propose":
                 commands, form = proposed(parsing, parsed, root)
-                text = propose(root, session_of(environ), name, commands, form)
+                text = propose(root, session_of(environ), t.cast("str", parsed.name), commands, form)
             case "demonstrate":
-                check, cmd = t.cast("str", parsed.check), t.cast("str", parsed.cmd)
+                name, check, cmd = (t.cast("str", getattr(parsed, field)) for field in ("name", "check", "cmd"))
                 status, text = demonstrate(root, session_of(environ), name, check, cmd)
             case "run":
-                digest, words = t.cast("str", parsed.digest), t.cast("str | None", parsed.go_ahead)
-                status, text = run(root, session_of(environ), name, digest, words)
+                name, digest = t.cast("str", parsed.name), t.cast("str", parsed.digest)
+                status, text = run(root, session_of(environ), name, digest, t.cast("str | None", parsed.go_ahead))
             case "record":
-                given = t.cast("str | None", parsed.session)
-                session = given if given is not None and SESSION.fullmatch(given) else session_of(environ)
-                text = "".join(f"{path}\n" for path in record(root, session, name))
+                paths = record(root, session_named(parsed, environ), t.cast("str", parsed.name))
+                text = "".join(f"{path}\n" for path in paths)
+            case "posted":
+                urls = t.cast("list[str]", parsed.urls)
+                text = posted(root, session_named(parsed, environ), t.cast("str", parsed.name), urls)
+            case "pending":
+                status, text = pending(root)
             case _:
                 parsing.error(f"no such command: {command}")
     except RefusalError as refusal:
