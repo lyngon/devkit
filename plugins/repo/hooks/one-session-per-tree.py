@@ -2,10 +2,10 @@
 """Hook of the repo plugin: two live Claude Code sessions never work in one working tree.
 
 PreToolUse, on the tools that change a working tree: denies the call while a live session that started before this
-one works in the call's tree, and says how this session moves on. SessionStart at startup: names each such earlier
-session and how to end it, on screen and to the model. A resumed session gets no such warning, because its
-SessionStart runs in the tree it was launched in, before it enters its worktree. SessionStart: says so when Claude
-Code's registry of live sessions holds no entry for this session, since every call then runs unchecked.
+one works in the call's tree, and says how this session moves on. SessionStart: says so when Claude Code's registry
+of live sessions holds no entry for this session, since every call then runs unchecked; otherwise, at startup only,
+names each earlier session in this session's tree and how to end it, on screen and to the model. A resumed session
+runs SessionStart in the tree it was launched in, before it enters its worktree, so it gets no such names.
 """
 
 import dataclasses
@@ -204,7 +204,7 @@ def describe(other: Session, now: float) -> str:
 
 
 def ending(other: Session, own: Session) -> str:
-    """Return how the operator ends a session in the state it is in, from this session's terminal or another one."""
+    """Return how the operator ends a session in the state it is in: a stopped job only through fg in its shell."""
     name = f'"{other.name}"'
     if not other.stopped:
         return f"kill {other.pid} ends {name}."
@@ -298,14 +298,14 @@ def warning(own: Session, tree: pathlib.Path, now: float) -> dict[str, object] |
 
 def main() -> None:
     """Read the hook input on stdin and print the hook's output, if any."""
-    hook_input = t.cast("object", json.load(sys.stdin))
-    fields = t.cast("dict[str, object]", hook_input) if isinstance(hook_input, dict) else {}
+    loaded = t.cast("object", json.load(sys.stdin))
+    hook_input = t.cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
     own = own_session()
     tree = tree_of(pathlib.Path.cwd())
-    if fields.get("hook_event_name") == "SessionStart":
+    if hook_input.get("hook_event_name") == "SessionStart":
         if own is None:
             print(UNREGISTERED.format(registry=registry()))
-        elif fields.get("source") == "startup" and tree is not None:
+        elif hook_input.get("source") == "startup" and tree is not None:
             output = warning(own, tree, time.time())
             if output is not None:
                 json.dump(output, sys.stdout)

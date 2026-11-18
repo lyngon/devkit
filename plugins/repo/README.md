@@ -128,11 +128,19 @@ The decision and the options it rejected are in `docs/decisions/a-session-moves-
   Claude Code starts a hook as a child of the session's process.
 - Of two sessions, the earlier is the one with the smaller `procStart`, then the smaller pid.
   A resumed session runs in a new process, so it is the later one.
-- The refusal names each earlier session in the tree, with its name, whether it runs in the CLI, headless or in VS Code, and whether it is busy or how long it has been idle.
+- The refusal names each earlier session in the tree, with its name, its pid, whether it runs in the CLI, headless or in VS Code, its terminal, and whether it is stopped, busy or how long it has been idle.
+  The terminal is the device that field 7 of `/proc/<pid>/stat` numbers, found under `/dev/pts/` or as `/dev/tty*`.
+  Whether a session is stopped, as after Ctrl+Z, comes from its process, state `T` in field 3, because a stopped session's registry file keeps the status it had before.
   It names the tree and what is checked out there, and says that the standing instructions ask for the move, which a paragraph of the `build` plugin's standing instructions does, since the descriptions of `EnterWorktree` and `ExitWorktree` tell the model to call them only when asked.
   When the task continues the work on that branch, the session asks the operator to close the other session.
   Otherwise it calls `EnterWorktree` without a name, so that Claude Code generates one, since a name in use enters that worktree and a session refused the shell cannot list the names in use.
   When `EnterWorktree` answers that the session is in a worktree session already, as it does after `--worktree` and after a resume into a worktree, the session first calls `ExitWorktree` with action `keep`, which leaves the worktree, and the other session's lock on it, in place.
+- At `SessionStart` of a new session, when earlier sessions work in its tree, the hook names them as the refusal does, says that it refuses this session's edits and shell commands there, and says how to end each one.
+  The CLI shows the `systemMessage` on screen before the first prompt, and VS Code does not, so the same text goes to the model as `additionalContext` with a request to tell the operator.
+  A plain `kill` leaves a stopped process stopped with the signal pending, and after `kill -CONT` a stopped session of the CLI handled the signal and stopped again (2.1.321, issue 167), so the way out of a stopped job is `fg` in the shell that started it, then `/exit`.
+  When that shell is on this session's terminal, the operator ends this session first.
+  A stopped session without a terminal ends with `kill -KILL`, and a session that runs ends with `kill`.
+  A resumed session gets no such lines, because it runs `SessionStart` in the tree it was launched in and enters its worktree only after that (issue 158).
 - At `SessionStart`, when the registry holds no file for this session, the hook says so in one line that names the registry's directory.
   The check then lets every call run, as `docs/decisions/the-session-check-fails-open-when-the-registry-is-unreadable.md` of the devkit decides.
 
@@ -150,6 +158,13 @@ Verified on 2026-11-15 on Claude Code 2.1.321 (the Nix package) and 2.1.323 (the
 - With a name of its own, `EnterWorktree` entered a leftover worktree of the same name in 5 of 6 runs, so the refusal asks for no name.
 - The check took 59 to 168 ms before a call, median 72 ms over 85 calls, about 19 ms of it the start of `python3` and about 15 ms the import of `dataclasses`.
 - A copy of the registry entry of a live VS Code session on 2.1.325 gave the refusal that names it as a VS Code session idle for 17 h 26 min.
+
+Verified on 2026-11-18 on Claude Code 2.1.322 (the Nix package), in interactive sessions started from zsh on pseudo-terminals, in a scratch configuration with no login, so that no session reached the model (issue 167):
+
+- Of two `claude --worktree held` started from one shell, the first suspended with Ctrl+Z, the second showed before its first prompt that the first, a CLI session on its terminal, was stopped, and how to end it.
+- `/exit` in the second session, `fg` and `/exit` with "Keep worktree" in the first left no process, no registry file and no worktree lock.
+- `kill` of a session that ran on another terminal ended it and removed its registry file, and left its worktree lock, which named the dead pid.
+- `kill` of a stopped session on another terminal left it stopped, and `kill -KILL` ended it, leaving its registry file and its worktree lock.
 
 ## Install
 
