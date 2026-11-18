@@ -564,11 +564,13 @@ rule broken-absolute.md "unprotected-roots:" "  - /infra/staging"
 rule broken-empty.md "unprotected-roots:" "paths:" '  - "**/*.tf"'
 rule broken-nested.md "unprotected-roots:" "  - path: infra/staging"
 rule broken-indent.md "unprotected-roots:" "  - infra/staging" "    - infra/production"
+rule broken-comment.md "unprotected-roots:" "  - infra/staging" "# - infra/production" "  - infra/sandbox"
+rule broken-indented-comment.md "unprotected-roots:" "  - infra/staging" "  # - infra/production" "  - infra/sandbox"
 publish
 set_level infra/staging
 propose_tofu staging-logs --opentofu infra/staging
 broken=()
-for file in absolute climbs empty flow glob indent nested scalar; do
+for file in absolute climbs comment empty flow glob indent indented-comment nested scalar; do
   broken+=('`\.claude/rules/broken-'"$file"'\.md` at `[0-9a-f]{40}` names `unprotected-roots:` in a form the tool does not read, since '"$rest_of_line")
   expect "frontmatter of broken-$file.md that is no list of plain directories makes the proposal wait" 0 \
     'The run waits for the owner.s go-ahead:.*- `\.claude/rules/broken-'"$file"'\.md` at `[0-9a-f]{40}` names `unprotected-roots:` in a form the tool does not read'
@@ -579,6 +581,26 @@ else
   fail "a rule file without unprotected-roots counts for nothing" "the proposal names it:"$'\n'"$output"
 fi
 expect_waits "frontmatter that is no list of directories" staging-logs infra/staging "${broken[@]}"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+set_level infra/staging
+emptied=$tmp/emptied-actions
+mkdir -p "$emptied"
+cat >"$emptied/tofu" <<EOF
+#!/bin/sh
+case " \$* " in
+*" show -json "*)
+  "$opentofu/tofu" "\$@" | python3 -c 'import json, sys; plan = json.load(sys.stdin); [change["change"].update(actions=[]) for change in plan["resource_changes"]]; json.dump(plan, sys.stdout)'
+  ;;
+*) exec "$opentofu/tofu" "\$@" ;;
+esac
+EOF
+chmod +x "$emptied/tofu"
+call_tool "$script_tools:$emptied" session-one propose staging-logs --opentofu infra/staging
+expect "a resource change whose list of actions is empty makes the proposal wait" 0 \
+  'The run waits for the owner.s go-ahead:'$'\n\n''- The plan does more than create, read or update these resources: `terraform_data\.credentials`, `terraform_data\.logging`, `terraform_data\.spare`\.'$'\n\n''On a go-ahead'
 
 new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
