@@ -210,10 +210,7 @@ def tofu_command(arguments: ct.Sequence[shell_syntax.Word]) -> tuple[str | None,
 
 
 def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: str) -> str | None:
-    """Return why the hook denies an OpenTofu run with these arguments, or None when it only reads.
-
-    The origin says where a hidden argument comes from.
-    """
+    """Return why the hook denies an OpenTofu run with these arguments, or None when it only reads."""
     command, rest = tofu_command(arguments)
     if command is None:
         return hidden(part, f"its subcommand {origin}")
@@ -354,7 +351,7 @@ def tool_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: str) 
     """Return why the hook denies a run of the tool of build:live-mutation with these arguments, or None to let it run.
 
     It denies a run that may propose or demonstrate when any of its arguments is hidden, or when the hook denies a
-    command that the arguments give the tool to run at once. The origin says where a hidden argument comes from.
+    command that the arguments give the tool to run at once.
     """
     if not runs_one_of(arguments, RUN_AT_ONCE):
         return None
@@ -423,10 +420,7 @@ def long_option_replacement(option: str) -> str | None:
 
 
 def short_options_replacement(options: str, remaining: ct.Iterator[shell_syntax.Word]) -> str | None:
-    """Return the string that a word of short options of xargs names for its input to replace, or None.
-
-    An option's argument is the rest of the word, or for -I without one, the next of the remaining words.
-    """
+    """Return the string that a word of short options of xargs names for its input to replace, or None."""
     for at, letter in enumerate(options[1:], start=1):
         rest = options[at + 1 :]
         if letter == "I":
@@ -440,10 +434,7 @@ def short_options_replacement(options: str, remaining: ct.Iterator[shell_syntax.
 
 
 def xargs_replacement(options: ct.Sequence[shell_syntax.Word]) -> str | None:
-    """Return the string that xargs with these options puts its input in place of, or None when it adds its input.
-
-    The string is "", which every word holds, when an expansion hides an option or the argument of -I.
-    """
+    """Return the string that xargs with these options puts its input in place of, or None when it adds its input."""
     replacement = None
     remaining = iter(options)
     for option in remaining:
@@ -471,8 +462,8 @@ def put_in_place(word: shell_syntax.Word, replacement: str) -> shell_syntax.Word
 def readings(words: ct.Sequence[shell_syntax.Word], position: int) -> list[tuple[ct.Sequence[shell_syntax.Word], str]]:
     """Return the arguments that the program at a position of a simple command may run with, each with their origin.
 
-    The origin says where a hidden argument comes from. Behind xargs, the program also runs with the words of its
-    input: after its own arguments, or in place of the string that -I, -i or --replace names.
+    Behind xargs, the program also runs with the words of its input: after its own arguments, or in place of the
+    string that -I, -i or --replace names.
     """
     arguments = words[position + 1 :]
     found: list[tuple[ct.Sequence[shell_syntax.Word], str]] = [(arguments, EXPANDED)]
