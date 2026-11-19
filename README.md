@@ -360,17 +360,19 @@ A case proves a change only when it scores the same in every run, so write it to
 - When a judge's three votes agree and the score still moves between runs, the replies differ. Read a failing reply before changing the rubric.
 - When the three votes of one run disagree, the rubric leaves the judge room. To find the clause, have the judge vote on that reply again, in a scratch case whose prompt asks the agent to repeat the reply word for word and whose graders are the clauses of the rubric, one each. Count only the runs whose `evidence` in the result is that reply, since the agent drops a line now and then.
 
-Run the suite at a base commit and in the working tree, and print the score of each case at both:
+Run the suite at a base commit and on the working tree, and print the score of each case at both:
 
 ```sh
 compare-evals origin/main --allow-tools Write
 ```
 
-`compare-evals` checks the base commit out into a temporary clone, runs the command above in both places, the scripts that seed a working directory included, and removes what it created.
+`compare-evals` checks the base commit and a commit of the working tree out into temporary clones, runs the command above in each, the scripts that seed a working directory included, and removes what it created.
 Each run is granted the `shared/` of its own checkout.
-The working tree counts as head, uncommitted changes included.
+The working tree counts as head, with its uncommitted changes and its untracked files, and without the files that git ignores.
+The harness runs every case that it finds under its checkout, in a directory that git ignores too, such as a copy of the cases under `tmp/` (measured on Claude Code 2.1.325).
+The commit of the working tree is made before either run, so an edit made while the suite runs reaches neither.
 Each run gets the commands of its own commit's environment, such as `check-pull-request`.
-The run at the base commit starts with `devenv shell` in its clone, and the run in the working tree keeps the devenv shell that `compare-evals` was started from, which must be the working tree's.
+The run at the base commit starts with `devenv shell` in its clone, and the run of the working tree keeps the devenv shell that `compare-evals` was started from, which must be the working tree's.
 The base run leaves out the entries of the PATH that lie in the Nix store, so a command that only the working tree has is not found there.
 Entering the environment of the base commit made a comparison of one case that costs nothing take about 21 seconds where it took about 6, with that environment in the Nix store already (three runs each, measured on 2026-10-14).
 A base from before `44142a0` took about 27 seconds, because its shell runs every git hook over its checkout when it starts, and the fixers among them could change that checkout before the run.
@@ -400,14 +402,14 @@ the eval run at head was cut short (interrupted): the table may lack cases
 ```
 
 An interrupt at the terminal gives no such line, because it ends `compare-evals` too and no comparison is printed.
-When the run in the working tree writes no result that `compare-evals` can read after the run at the base commit gave one, the table holds the column of the base run, which was paid for.
+When the run of the working tree writes no result that `compare-evals` can read after the run at the base commit gave one, the table holds the column of the base run, which was paid for.
 Below it, what the other run said about its suite is followed by the reason it gave no result, and `compare-evals` ends with status 1, since there is no comparison:
 
 ```text
 the eval run at head wrote no result (claude exited with status 1)
 ```
 
-When the run at the base commit writes no result, `compare-evals` ends before the run in the working tree starts.
+When the run at the base commit writes no result, `compare-evals` ends before the run of the working tree starts.
 The harness leaves a case whose file it failed to load out of its result, and names the case and the error on stderr, by the path of its directory or of its `case.yaml` where it has one.
 The comparison repeats that line below the table, with its commit and the path from the root (measured on Claude Code 2.1.283):
 

@@ -576,8 +576,10 @@ check "two commits: what a run prints on stdout reaches stderr" contains "$err" 
 CASE  SCORE PASS% RUNS COST  NOTES
 "
 check "two commits: one run at each commit" equals "$(wc -l <<<"$calls")" 2
-check "two commits: the head run is in the working tree" equals "$(directory_of_call "$(call_at head)")" "$repo"
+check "two commits: the head run is outside the working tree" lacks "$(directory_of_call "$(call_at head)")" "$repo"
 check "two commits: the base run is outside the working tree" lacks "$(directory_of_call "$(call_at base)")" "$repo"
+check "two commits: the runs are in two checkouts" \
+  lacks "$(directory_of_call "$(call_at head)")" "$(directory_of_call "$(call_at base)")"
 check "two commits: the head run is the suite of the checkout, unpublished, without a baseline arm" \
   contains "$(call_at head)" "plugin eval . "
 for flag in "--no-publish" "--ablation none" "--trust-plugin" "--scaffold"; do
@@ -589,8 +591,9 @@ check "two commits: no filter unless asked" lacks "$calls" "--case"
 # read through a link only where it may read the file that the link leads to
 # (measured on Claude Code 2.1.283). So each run is granted the shared
 # documents of its own checkout, and no tool unless asked.
-check "two commits: the head run is granted the shared documents of the working tree alone" \
-  equals "$(grant_of "$(call_at head)")" "$(shared_of "$(cd "$repo" && pwd -P)")"
+call=$(call_at head)
+check "two commits: the head run is granted the shared documents of its own checkout alone" \
+  equals "$(grant_of "$call")" "$(shared_of "$(directory_of_call "$call")")"
 call=$(call_at base)
 check "two commits: the base run is granted the shared documents of its own checkout alone" \
   equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
@@ -614,8 +617,9 @@ case "
 # place of the first would leave a run without a tool that the operator named.
 repo=$(two_commits)
 compare "$repo" main~1 --allow-tools Write --case 'red-*' --allow-tools 'Bash(git:*)' Edit
+call=$(call_at head)
 check "a second list of tools: the head run gets both lists, then its shared documents, as one" \
-  equals "$(grant_of "$(call_at head)")" "Write Bash(git:*) Edit $(shared_of "$(cd "$repo" && pwd -P)")"
+  equals "$(grant_of "$call")" "Write Bash(git:*) Edit $(shared_of "$(directory_of_call "$call")")"
 call=$(call_at base)
 check "a second list of tools: the base run gets both lists, then its shared documents, as one" \
   equals "$(grant_of "$call")" "Write Bash(git:*) Edit $(shared_of "${call%%$'\t'*}")"
@@ -658,22 +662,30 @@ check "uncommitted changes: the working tree is as it was" equals "$(git -C "$re
 
 # The harness runs each case that it finds under its checkout, in a directory
 # that git ignores too (measured on Claude Code 2.1.325, issue 224). Here the
-# working tree holds a copy of its cases in tmp/, which git ignores, and a case
-# that is not committed yet.
+# working tree holds a copy of its cases in tmp/, which git ignores, a case in
+# tmp/ that is added all the same, and a case that is not committed yet, one
+# part of it staged.
 repo=$(two_commits)
 echo /tmp/ >>"$repo/.git/info/exclude"
-mkdir "$repo/tmp"
-cp -R "$repo/plugins" "$repo/tmp/"
-mkdir -p "$repo/plugins/three/evals/not-committed-yet"
+mkdir -p "$repo/tmp/copy" "$repo/tmp/added" "$repo/plugins/three/evals/not-committed-yet"
+cp -R "$repo/plugins" "$repo/tmp/copy/"
+echo "A case of the fixture." >"$repo/tmp/added/prompt.md"
+git -C "$repo" add --force tmp/added/prompt.md
 echo "A case of the fixture." >"$repo/plugins/three/evals/not-committed-yet/prompt.md"
+git -C "$repo" add plugins/three/evals/not-committed-yet/prompt.md
+echo "A workspace of the case." >"$repo/plugins/three/evals/not-committed-yet/notes.md"
 compare "$repo" main~1
 check "an ignored copy of the cases: exits 0" equals "$code" 0
-check "an ignored copy of the cases: the head run finds no case in it" lacks "$(cases_at head)" "tmp/"
+check "an ignored copy of the cases: the head run finds no case in it" lacks "$(cases_at head)" "tmp/copy/"
+check "an ignored copy of the cases: the head run finds the case added from an ignored directory" \
+  contains "$(cases_at head)" "tmp/added/prompt.md"
 check "an ignored copy of the cases: the head run finds the case that is not committed yet" \
   contains "$(cases_at head)" "plugins/three/evals/not-committed-yet/prompt.md"
-check "an ignored copy of the cases: the working tree is as it was" \
-  equals "$(git -C "$repo" status --porcelain --ignored)" "?? plugins/three/
-!! tmp/"
+check "an ignored copy of the cases: the working tree and its index are as they were" \
+  equals "$(git -C "$repo" status --porcelain --ignored)" "A  plugins/three/evals/not-committed-yet/prompt.md
+A  tmp/added/prompt.md
+?? plugins/three/evals/not-committed-yet/notes.md
+!! tmp/copy/"
 
 # A run has no gated tool that it does not grant, whatever the case lists, and
 # the harness says so about a case that lists one. A grader that expects that
@@ -1532,7 +1544,7 @@ check "a harness that prints no version: says so" equals "$err" \
   "compare-evals: cannot read the version of Claude Code from $(cd "$tmp/silent" && pwd -P)/claude: --version printed nothing"
 path=$with_claude
 
-# The run in the working tree keeps the environment that the program starts
+# The run of the working tree keeps the environment that the program starts
 # from, so that has to be the devenv shell of the working tree.
 shell_root=$tmp/empty
 compare "$repo" main~1

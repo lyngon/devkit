@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Run the eval suite at a base commit and in the working tree, and print each case's score at both.
+"""Run the eval suite at a base commit and on the working tree, and print each case's score at both.
 
 The base commit is checked out into a clone in a temporary directory, which
-borrows the objects of this repository. Both runs are `claude plugin eval .`
+borrows the objects of this repository, and so is a commit of the working
+tree: its tracked files as they are, and the untracked ones that git does not
+ignore. The harness runs every case that it finds under its checkout, in a
+directory that git ignores too, and the base commit holds none of those
+(measured on Claude Code 2.1.325). The commit of the working tree is made
+before either run, so an edit made while the suite runs reaches neither. Both
+runs are `claude plugin eval .`
 from the root of their checkout: a model call on the account of whoever runs
 this, with the report kept off claude.ai, no baseline arm, and a grant to
 read the shared documents of that checkout. Both runs start the same file
 of Claude Code, and the comparison names its version. The run at the base
 commit starts with `devenv shell`, so it gets the commands of that commit's
-environment, and the run in the working tree keeps the devenv shell that
+environment, and the run of the working tree keeps the devenv shell that
 this program starts from. A case that seeds its working directory does so
 with a script of its own, which runs as whoever runs this, at both commits.
-The clone and everything a run writes go in a directory of their own in
+The clones and everything a run writes go in a directory of their own in
 XDG_RUNTIME_DIR, and are removed again. Before the first run it refuses an
 XDG_RUNTIME_DIR that names no directory, and one under which the sandbox of
 a run would have no room for its sockets, which would fail every shell
@@ -24,7 +30,7 @@ case, a run of a case in which every shell command failed, one in which a
 shell command failed on a read-only file system, a case that the commit has
 and its suite gave no result for, a case file that a suite failed to load, a
 grant that the harness refused, and a suite that the harness cut short. When
-the run in the working tree gives no result after the run at the base commit
+the run of the working tree gives no result after the run at the base commit
 gave one, it prints the table of the base run, which was paid for, and exits
 1, since there is no comparison.
 """
@@ -57,6 +63,14 @@ longer, which leaves 50 (read from its binary, not measured).
 """
 
 READ_ONLY_FILE_SYSTEM: str = os.strerror(errno.EROFS).lower()
+
+WORKING_TREE_COMMITTER: dict[str, str] = {
+    "GIT_AUTHOR_NAME": "compare-evals",
+    "GIT_AUTHOR_EMAIL": "compare-evals@localhost",
+    "GIT_COMMITTER_NAME": "compare-evals",
+    "GIT_COMMITTER_EMAIL": "compare-evals@localhost",
+}
+"""Who makes the commit of the working tree, which no ref names, so that git needs no identity of the operator's."""
 
 
 class CompareError(Exception):
@@ -159,7 +173,7 @@ class Comparison:
     """What the program prints.
 
     That is the lines of the comparison on stdout, and the reason there is
-    none on stderr. When the run in the working tree gave no result after the
+    none on stderr. When the run of the working tree gave no result after the
     run at the base commit gave one, the lines hold the table of the base run,
     which was paid for, and below it what the other run said and the reason.
     """
@@ -216,7 +230,7 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
         # The base comes first: the list of tools takes every word that follows it.
         usage="%(prog)s base [-h] [--case GLOB] [--runs N] [--model MODEL] [--allow-tools TOOL [TOOL ...]]",
         description=(
-            "Run the eval suite at a base commit and in the working tree, "
+            "Run the eval suite at a base commit and on the working tree, "
             "and print each case's score at both. Every run is a model call on your account, "
             "and a case that seeds its working directory runs its script as you, at both commits."
         ),
@@ -253,9 +267,13 @@ def parse_arguments(arguments: ct.Sequence[str]) -> Options:
     return Options(base=base, granted=tuple(allow_tools), eval_options=tuple(eval_options))
 
 
-def git(directory: pathlib.Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+def git(
+    directory: pathlib.Path, *arguments: str, environment: ct.Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """Run git in a directory and hand back its exit status and output, without raising."""
-    return subprocess.run(["git", "-C", str(directory), *arguments], capture_output=True, text=True, check=False)
+    return subprocess.run(
+        ["git", "-C", str(directory), *arguments], env=environment, capture_output=True, text=True, check=False
+    )
 
 
 def commit_of(root: pathlib.Path, revision: str) -> str | None:
@@ -283,6 +301,40 @@ def commit_has_case(root: pathlib.Path, commit: str, directory: str) -> bool:
 def working_tree_has_case(root: pathlib.Path, directory: str) -> bool:
     """Whether the working tree holds a case in the directory; it counts as head with its uncommitted changes."""
     return (root / directory / "prompt.md").is_file()
+
+
+def working_tree_commit(root: pathlib.Path, scratch: pathlib.Path) -> str:
+    """Return a commit that holds the working tree as git sees it, and that no ref names.
+
+    That is the tracked files as they are now, and the untracked ones that git
+    does not ignore. The commit is built in an index of its own, which starts
+    as a copy of the working tree's, so that the working tree's index stays as
+    it was and a tracked file that an ignore rule matches stays in. Raises
+    CompareError when git cannot build it.
+    """
+    index = scratch / "index"
+    _ = shutil.copyfile(git(root, "rev-parse", "--path-format=absolute", "--git-path", "index").stdout.strip(), index)
+    environment = {**os.environ, "GIT_INDEX_FILE": str(index), **WORKING_TREE_COMMITTER}
+    added = git(root, "add", "--all", environment=environment)
+    tree = git(root, "write-tree", environment=environment) if added.returncode == 0 else added
+    made = (
+        git(
+            root,
+            "commit-tree",
+            "--no-gpg-sign",
+            "-p",
+            "HEAD",
+            "-m",
+            "the working tree",
+            tree.stdout.strip(),
+            environment=environment,
+        )
+        if tree.returncode == 0
+        else tree
+    )
+    if made.returncode != 0:
+        raise CompareError(f"cannot commit the working tree: {made.stderr.strip()}")
+    return made.stdout.strip()
 
 
 def clone_of(root: pathlib.Path, commit: str, path: pathlib.Path) -> pathlib.Path:
@@ -781,7 +833,7 @@ def harness_version(harness: str) -> str:
 
 
 def launchers() -> tuple[str, Launcher, Launcher]:
-    """Return the version of the harness, and how the run at the base commit and the run in the working tree start it.
+    """Return the version of the harness, and how the run at the base commit and the run of the working tree start it.
 
     Both runs start the same file, the one that `claude` on the PATH leads
     to now, without symbolic links. The base run enters the environment of
@@ -801,11 +853,11 @@ def launchers() -> tuple[str, Launcher, Launcher]:
 
 
 def compare(options: Options) -> Comparison:
-    """Run the suite at the base commit and in the working tree, and return what to print.
+    """Run the suite at the base commit and on the working tree, and return what to print.
 
     The run at the base commit enters that commit's environment, and the run
-    in the working tree keeps the one this program starts in, which must be
-    the devenv shell of the working tree. When the run in the working tree
+    of the working tree keeps the one this program starts in, which must be
+    the devenv shell of the working tree. When the run of the working tree
     writes no result that this program can read after the base run gave one,
     the comparison holds the table of the base run, which was paid for, and
     below it what the other run said and the reason.
@@ -813,8 +865,9 @@ def compare(options: Options) -> Comparison:
     Raises CompareError outside a git repository, outside the devenv shell of
     the working tree, for a base that names no commit, without `claude` or
     `devenv` on the PATH, when the harness gives no version, for an
-    XDG_RUNTIME_DIR that names no directory or is too long, when the base run writes no readable result, which
-    spares the cost of the run in the working tree, and when no case ran at
+    XDG_RUNTIME_DIR that names no directory or is too long, when git cannot
+    commit the working tree, when the base run writes no readable result, which
+    spares the cost of the run of the working tree, and when no case ran at
     either commit, each with what the runs said about their suites. Raises it
     too when the head result names a case that the working tree does not
     hold. The cases are looked up by the paths that the results give, so such
@@ -839,13 +892,14 @@ def compare(options: Options) -> Comparison:
     with tempfile.TemporaryDirectory(prefix="compare-evals-", dir=runtime_directory(os.environ)) as directory:
         scratch = pathlib.Path(directory)
         check_room_for_sandbox(scratch)
-        checkout = clone_of(root, base_commit, scratch / "checkout")
+        at_head_checkout = clone_of(root, working_tree_commit(root, scratch), scratch / "head")
+        at_base_checkout = clone_of(root, base_commit, scratch / "base")
         try:
-            base = run_suite(checkout, "base", scratch, at_base, options)
+            base = run_suite(at_base_checkout, "base", scratch, at_base, options)
         except RunError as error:
             raise CompareError("\n".join([str(error), *about_suite("base", error.said)])) from error
         try:
-            head = run_suite(root, "head", scratch, at_head, options)
+            head = run_suite(at_head_checkout, "head", scratch, at_head, options)
         except RunError as error:
             base_said = about_suite("base", base.said, base.cut_short_reason)
             if not base.cases:
