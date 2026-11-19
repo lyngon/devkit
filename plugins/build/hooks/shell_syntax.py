@@ -67,6 +67,37 @@ QUOTES = re.compile(r"[\\'\"]")
 
 ESCAPED_IN_A_HERE_DOCUMENT = re.compile(r"\\(?:([\\`$])|\n)")
 
+BACKSLASH_IN_DOUBLE_QUOTES = re.compile(r"\\(?:([\\\"`$])|\n)")
+
+ANSI_C_ESCAPE = re.compile(
+    r"""\\(?:
+        (?P<octal>[0-7]{1,3}) | x(?P<byte>[0-9A-Fa-f]{1,2})
+        | u(?P<short>[0-9A-Fa-f]{1,4}) | U(?P<long>[0-9A-Fa-f]{1,8})
+        | c(?P<control>.) | (?P<other>.)
+    )""",
+    re.DOTALL | re.VERBOSE,
+)
+
+ANSI_C_CHARACTERS = {
+    "a": "\a",
+    "b": "\b",
+    "e": "\x1b",
+    "E": "\x1b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+    "v": "\v",
+    "\\": "\\",
+    "'": "'",
+    '"': '"',
+    "?": "?",
+}
+
+LAST_CODE_POINT = 0x10FFFF
+
+SURROGATES = range(0xD800, 0xE000)
+
 
 def objects(value: object) -> list[dict[str, object]]:
     """Return the JSON objects that a value of the syntax tree holds: itself, or the items of a list."""
@@ -100,21 +131,38 @@ def expanded(part: dict[str, object], variables: ct.Mapping[str, str]) -> str | 
     return variables.get(name_of(part))
 
 
+def ansi_c_character(escape: re.Match[str]) -> str:
+    """Return what bash makes of an escape inside $'...': a character, or the escape itself where bash keeps it."""
+    octal, byte, short, long, control, other = escape.group("octal", "byte", "short", "long", "control", "other")
+    if octal is not None:
+        return chr(int(octal, 8) & 0xFF)
+    digits = byte or short or long
+    if digits is not None:
+        code = int(digits, 16)
+        return escape.group() if code > LAST_CODE_POINT or code in SURROGATES else chr(code)
+    if control is not None:
+        return "\x7f" if control == "?" else chr(ord(control) & 0x1F)
+    return ANSI_C_CHARACTERS.get(other, escape.group())
+
+
 def word(node: dict[str, object], source: bytes, variables: ct.Mapping[str, str]) -> Word:
     """Return the word that a Word node of the syntax tree stands for, with the variables of variables expanded."""
     text = source[offset(node, "Pos") : offset(node, "End")].decode()
     quoted = DOUBLE_QUOTED.fullmatch(text)
-    unexpanded = None if quoted is None else re.sub(r"\\([\\\"`$])", r"\1", quoted.group(1))
+    unexpanded = None if quoted is None else BACKSLASH_IN_DOUBLE_QUOTES.sub(r"\1", quoted.group(1))
     start = ""
     for part in objects(node.get("Parts")):
         match string_field(part, "Type"):
             case "Lit":
                 start += re.sub(r"\\(.)", r"\1", string_field(part, "Value"), flags=re.DOTALL)
+            case "SglQuoted" if part.get("Dollar"):
+                start += ANSI_C_ESCAPE.sub(ansi_c_character, string_field(part, "Value"))
             case "SglQuoted":
                 start += string_field(part, "Value")
             case "DblQuoted":
                 for inner in objects(part.get("Parts")):
-                    value = string_field(inner, "Value") if string_field(inner, "Type") == "Lit" else None
+                    is_literal = string_field(inner, "Type") == "Lit"
+                    value = BACKSLASH_IN_DOUBLE_QUOTES.sub(r"\1", string_field(inner, "Value")) if is_literal else None
                     value = expanded(inner, variables) if value is None else value
                     if value is None:
                         return Word(start, complete=False, text=text, unexpanded=unexpanded)
@@ -489,7 +537,7 @@ class CommandReader:
             return source[index + 1 : end], True, end + 1
         if source.startswith("$'", index):
             end = unescaped(source, index + 2, "'")
-            return source[index + 2 : end], True, end + 1
+            return ANSI_C_ESCAPE.sub(ansi_c_character, source[index + 2 : end]), True, end + 1
         return self.double_quoted(index + (2 if source[index] == "$" else 1))
 
     def double_quoted(self, index: int) -> tuple[str, bool, int]:

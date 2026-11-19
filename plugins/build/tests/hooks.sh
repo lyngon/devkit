@@ -209,6 +209,14 @@ tofu_runs "init by the path of tofu in a variable" \
   "T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; cd \"\$S/org\" && \$T init -backend=false -input=false"
 tofu_runs "a program in a variable, and tofu apply in its arguments" \
   "T=plugins/build/skills/work-trace/scripts/trace.py && \$T append tmp/work-trace/x.tsv build 'ran tofu apply' 'ok'"
+tofu_denied "apply in bash -c, quoted inside its double quotes" 'bash -c "tofu \"apply\" -auto-approve"' \
+  "$(writes 'tofu "apply" -auto-approve')"
+tofu_runs "plan in bash -c, quoted inside its double quotes" 'bash -c "tofu \"plan\" -input=false"'
+tofu_denied "apply on the second line of an ANSI-C quoted bash -c" "bash -c \$'tofu plan\\ntofu apply -auto-approve'" \
+  "$(writes "tofu apply -auto-approve")"
+tofu_runs "plan on both lines of an ANSI-C quoted bash -c" "bash -c \$'tofu plan\\ntofu plan -input=false'"
+tofu_runs "plan with a lone surrogate, which no text can encode, in an ANSI-C quoted bash -c" \
+  "bash -c \$'tofu plan -input=false \\uD800'"
 tofu_runs "plan in bash -c, in double quotes with a variable" \
   "for r in organization policies; do d=infra/foundation/management/\$r; devenv shell -- bash -c \"tofu -chdir=\$d init -input=false && tofu -chdir=\$d plan -input=false\"; done"
 tofu_runs "nix eval, which is no eval" "nix eval --raw \"\$NP#legacyPackages.x86_64-linux.opentofu.version\""
@@ -496,6 +504,9 @@ lead_command_refused "rm with its file on the next line" "rm -f \\
   tests/test_pricing.py"
 lead_command_refused "rm of a file named ';'" "rm ';' README.md" "rm ';' README.md"
 lead_command_refused "a redirection after a word that holds #" "nix run nixpkgs#hello > README.md" "> README.md"
+lead_command_refused "an append through a .. that escapes in \$'...' spell" \
+  "echo x >> \$'$outside_any_repository/\\x2e\\x2e/orders/README.md'" \
+  ">> \$'$outside_any_repository/\\x2e\\x2e/orders/README.md'"
 lead_command_refused "sed -i in a zsh loop, which does not parse as bash" \
   "for f in \${=files}; do sed -i 's/a/b/' \"\$f\"; done" "sed -i 's/a/b/' \"\$f\""
 
