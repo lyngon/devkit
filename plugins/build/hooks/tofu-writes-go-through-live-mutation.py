@@ -332,10 +332,11 @@ def run_at_once(arguments: list[str]) -> list[str]:
 
 
 def tool_denial(call: shell_syntax.Call) -> str | None:
-    """Return why the hook denies a call of the tool of build:live-mutation that runs at once a command it denies.
+    """Return why the hook denies a call of the tool of build:live-mutation, or None to let it run.
 
-    It reads the arguments as the tool's own parser does, and denies a call that may propose or demonstrate when an
-    expansion hides any of them, since one could add a --check.
+    The hook reads the call's arguments with the tool's own parser, and denies the call when it denies a command that
+    the tool runs at once. It denies a call that may propose or demonstrate when an expansion hides any of its
+    arguments, since a hidden one could add a --check.
     """
     words = call.words
     for position in program_positions(words):
