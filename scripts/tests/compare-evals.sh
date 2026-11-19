@@ -52,8 +52,13 @@ mkdir "$tmp/bin" "$tmp/devenv" "$tmp/tools" "$tmp/empty" "$tmp/store"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $* == --version ]]; then
+  echo "2.1.325 (Claude Code)"
+  exit 0
+fi
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
 printf '%s\t%s\n' "$PWD" "$(check-pull-request 2>/dev/null || echo none)" >>"$FAKE_BUILD_LOG"
+[[ -z ${FAKE_PROFILE_LINK:-} ]] || ln -sfn "$FAKE_PROFILE_UPDATE" "$FAKE_PROFILE_LINK"
 json="" output=evals/results/stub filter="" keep=""
 while (($# > 0)); do
   case "$1" in
@@ -179,7 +184,7 @@ chmod +x "$tmp/devenv/devenv"
 # The program and the stubs run with these tools and no others, so that no
 # test can reach the real Claude Code or devenv, whatever the PATH of the shell
 # that runs it.
-for tool in bash chmod cp env git jq mkdir mktemp python3 rm sleep; do
+for tool in bash chmod cp env git jq ln mkdir mktemp python3 rm sleep; do
   ln -s "$(command -v "$tool")" "$tmp/tools/$tool"
 done
 with_claude=$tmp/bin:$tmp/devenv:$tmp/tools
@@ -528,8 +533,9 @@ runtime=$tmp/scratch
 repo=$(two_commits)
 compare "$repo" main~1
 check "two commits: exits 0" equals "$code" 0
-check "two commits: prints each case with its score and runs at base and at head, then the graders that failed" equals "$out" "base: $(sha "$repo" main~1) (main~1)
+check "two commits: prints the commits, the version that the harness printed, then each case with its score and runs at base and at head, then the graders that failed" equals "$out" "base: $(sha "$repo" main~1) (main~1)
 head: $(sha "$repo" main)
+claude: 2.1.325 (Claude Code)
 granted tools: none
 
 case                               base           head
@@ -580,7 +586,8 @@ for option in "--case red-*" "--allow-tools Write Bash(git:*)" "--runs 1" "--mod
   check "options: the base run gets $option" contains "$(calls_outside "$repo")" "$option"
 done
 check "options: a commit given by its hash is named once" contains "$out" "base: $(sha "$repo" main~1)"$'\n'
-check "options: the tools that both runs were granted follow the commits" contains "$out" "head: $(sha "$repo" main)
+check "options: the tools that both runs were granted follow the commits and the version of the harness" contains "$out" "head: $(sha "$repo" main)
+claude: 2.1.325 (Claude Code)
 granted tools: Write, Bash(git:*)
 
 case "
@@ -741,6 +748,7 @@ compare "$repo" without-the-case --case 'new-*'
 check "no case at the base commit, and a file that fails to load there: exits 0" equals "$code" 0
 check "no case at the base commit, and a file that fails to load there: the case has a dash there, and the file is named" equals "$out" "base: $(sha "$repo" without-the-case) (without-the-case)
 head: $(sha "$repo" main)
+claude: 2.1.325 (Claude Code)
 granted tools: none
 
 case                           base  head
@@ -924,6 +932,7 @@ compare "$repo" base
 check "a suite cut short: exits 0" equals "$code" 0
 check "a suite cut short: a line below the table names the commit and the harness's reason, and a case that the run did not reach is told from one that the commit does not have" equals "$out" "base: $(sha "$repo" base) (base)
 head: $(sha "$repo" main)
+claude: 2.1.325 (Claude Code)
 granted tools: none
 
 case                               base           head
@@ -979,6 +988,7 @@ compare "$repo" base
 check "case files that failed to load: exits 0" equals "$code" 0
 check "case files that failed to load: each line of the harness follows the table with its commit and the case from the root, and a case that the commit has is told from one that it does not have" equals "$out" "base: $(sha "$repo" base) (base)
 head: $(sha "$repo" main)
+claude: 2.1.325 (Claude Code)
 granted tools: none
 
 case                               base           head
@@ -1075,6 +1085,7 @@ check "no result at head: exits 1" equals "$code" 1
 check "no result at head: says which run and how it ended" contains "$err" "compare-evals: the eval run at head wrote no result (claude exited with status 1)"
 check "no result at head: prints what each case scored at the base commit, which was paid for, and what the head run said" equals "$out" "base: $(sha "$repo" base) (base)
 head: $(sha "$repo" main)
+claude: 2.1.325 (Claude Code)
 granted tools: none
 
 case                               base
@@ -1430,6 +1441,58 @@ compare "$repo" main~1
 check "devenv is not on the PATH: exits 1" equals "$code" 1
 check "devenv is not on the PATH: says so" contains "$err" "compare-evals: devenv is not on the PATH"
 check "devenv is not on the PATH: runs nothing" equals "$calls" ""
+path=$with_claude
+
+mkdir "$tmp/profile" "$tmp/switched"
+ln -s "$tmp/bin/claude" "$tmp/profile/claude"
+cat >"$tmp/switched/claude" <<'EOF'
+#!/usr/bin/env bash
+if [[ $* == --version ]]; then
+  echo "2.1.322 (Claude Code)"
+  exit 0
+fi
+printf '%s\tthe claude of the switched profile\n' "$PWD" >>"$FAKE_CLAUDE_LOG"
+exit 1
+EOF
+chmod +x "$tmp/switched/claude"
+path=$tmp/profile:$tmp/devenv:$tmp/tools
+repo=$(two_commits)
+export FAKE_PROFILE_LINK=$tmp/profile/claude FAKE_PROFILE_UPDATE=$tmp/switched/claude
+compare "$repo" main~1
+unset FAKE_PROFILE_LINK FAKE_PROFILE_UPDATE
+check "a profile switched while the suite runs: the link leads to the other harness afterwards" \
+  equals "$(readlink "$tmp/profile/claude")" "$tmp/switched/claude"
+check "a profile switched while the suite runs: exits 0" equals "$code" 0
+check "a profile switched while the suite runs: neither run starts the other harness" \
+  lacks "$calls" "the claude of the switched profile"
+check "a profile switched while the suite runs: the header names the version of the harness that both runs started" \
+  contains "$out" $'\nclaude: 2.1.325 (Claude Code)\n'
+path=$with_claude
+
+mkdir "$tmp/failing" "$tmp/silent"
+cat >"$tmp/failing/claude" <<EOF
+#!/usr/bin/env bash
+[[ \$* != --version ]] || exec "$tmp/failing/node" "\$@"
+exec "$tmp/bin/claude" "\$@"
+EOF
+cat >"$tmp/silent/claude" <<EOF
+#!/usr/bin/env bash
+[[ \$* != --version ]] || exit 0
+exec "$tmp/bin/claude" "\$@"
+EOF
+chmod +x "$tmp/failing/claude" "$tmp/silent/claude"
+failing=$(cd "$tmp/failing" && pwd -P)/claude
+path=$tmp/failing:$with_claude
+compare "$repo" main~1
+check "a harness whose --version fails: exits 1 before any run" equals "$code $calls" "1 "
+check "a harness whose --version fails: prints no table" equals "$out" ""
+check "a harness whose --version fails: says so, with what it said" equals "$err" \
+  "compare-evals: cannot read the version of Claude Code from $failing: --version exited with status 127: $failing: line 2: $tmp/failing/node: No such file or directory"
+path=$tmp/silent:$with_claude
+compare "$repo" main~1
+check "a harness that prints no version: exits 1 before any run" equals "$code $calls" "1 "
+check "a harness that prints no version: says so" equals "$err" \
+  "compare-evals: cannot read the version of Claude Code from $(cd "$tmp/silent" && pwd -P)/claude: --version printed nothing"
 path=$with_claude
 
 # The run in the working tree keeps the environment that the program starts
