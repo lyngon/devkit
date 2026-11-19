@@ -313,7 +313,7 @@ def tool_parser() -> argparse.ArgumentParser:
     return t.cast("ct.Callable[[], argparse.ArgumentParser]", module["parser"])()
 
 
-def run_at_once(arguments: list[str]) -> list[str]:
+def commands_given_at_once(arguments: list[str]) -> list[str]:
     """Return the commands that these arguments give the tool to run at once."""
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
@@ -346,7 +346,7 @@ def tool_denial(call: shell_syntax.Call) -> str | None:
         if None in values:
             reason = hidden(call.text, f"an argument of {TOOL} {EXPANDED}")
         else:
-            commands = run_at_once(t.cast("list[str]", values))
+            commands = commands_given_at_once(t.cast("list[str]", values))
             reason = next((found for command in commands if (found := denial(command)) is not None), None)
         if reason is not None:
             return f"{AT_ONCE} {reason}"
