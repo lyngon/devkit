@@ -567,13 +567,14 @@ expect_waits "a plan that imports and updates" staging-adopt infra/staging \
   'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
+sed -i '/^resource "terraform_data" "credentials" {$/,/^}$/d' "$repository/infra/staging/main.tf"
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
 propose_tofu staging-destroy --opentofu infra/staging --destroy
-expect "a destroy plans and checks with -destroy" 0 \
+expect "a destroy of resources that hold no sensitive value plans and checks with -destroy" 0 \
   'terraform_data\.logging will be destroyed.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -destroy -detailed-exitcode`'
 expect_waits "a destroy plan" staging-destroy infra/staging \
-  'The plan does more than create, read or update these resources: `terraform_data\.credentials`, `terraform_data\.logging`, `terraform_data\.spare`\.' \
+  'The plan does more than create, read or update these resources: `terraform_data\.logging`, `terraform_data\.spare`\.' \
   'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
 new_tofu_repository
@@ -910,6 +911,167 @@ expect_waits "a local-exec provisioner in the root module and in a module that a
   infra/staging \
   'A provisioner runs code that the plan does not show, and the configuration holds one in `terraform_data\.announce`, `module\.notify\.terraform_data\.notify`\.' \
   "$shown_waiting"
+
+hidden='(sensitive value hidden by live-mutation.py)'
+secrets=("$token")
+
+expect_secrets_kept() {
+  local label=$1 secret searched holders unexpected="" printed=""
+  for secret in "${secrets[@]}"; do
+    searched=0
+    holders=$(grep -rlF --binary-files=text -e "$secret" "$repository/tmp/live-mutation") || searched=$?
+    if ((searched > 1)); then
+      unexpected+="grep exited $searched"$'\n'
+    fi
+    unexpected+=$(sed '\#/inputs/plan$#d' <<<"$holders")
+    if [[ "$output" == *"$secret"* ]]; then
+      printed+="$secret"$'\n'
+    fi
+  done
+  if [[ -z "$unexpected" && -z "$printed" ]]; then
+    pass "$label: neither the tool's output nor a file of the proposal but its saved plans holds a sensitive value"
+  else
+    fail "$label: neither the tool's output nor a file of the proposal but its saved plans holds a sensitive value" \
+      "found in:"$'\n'"$unexpected"$'\n'"printed:"$'\n'"$printed"
+  fi
+}
+
+carry_the_token_in_logging() {
+  sed -i 's/^  input            = var\.level$/  input            = { level = var.level, token = var.token }/' \
+    "$repository/infra/staging/main.tf"
+}
+
+new_tofu_repository
+carry_the_token_in_logging
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+set_level infra/staging
+propose_tofu staging-logs --opentofu infra/staging
+expect "a rendering that shows the sensitive input of a terraform_data resource as its output stops the proposal" 1 \
+  '^live-mutation\.py: sensitive-value-shown: '
+expect_secrets_kept "a proposal stopped by its rendering"
+rendering=$(contents "$repository/$proposals/staging-logs/rendering.txt")
+if [[ "$rendering" == *"- token = \"$hidden\""* && ! -e "$repository/$proposals/staging-logs/proposal.json" ]]; then
+  pass "a proposal stopped by its rendering is no proposal, and its rendering shows where the tool hid the value"
+else
+  fail "a proposal stopped by its rendering is no proposal, and its rendering shows where the tool hid the value" \
+    "the rendering:"$'\n'"$rendering"
+fi
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+propose_tofu staging-destroy --opentofu infra/staging --destroy
+expect "a destroy of a terraform_data resource whose input holds a sensitive value stops the proposal" 1 \
+  '^live-mutation\.py: sensitive-value-shown: '
+expect_secrets_kept "a destroy stopped by its rendering"
+
+copy_the_secrets_to_an_output() {
+  cat >"$repository/infra/staging/copy.tf" <<'EOF'
+variable "key" {
+  type      = string
+  sensitive = true
+  default   = "-----BEGIN KEY-----\n  key-line-of-the-test\n-----END KEY-----\n"
+}
+
+variable "quoted" {
+  type      = string
+  sensitive = true
+  default   = "a \"quoted\" value\u0001 of the test"
+}
+
+resource "terraform_data" "copy" {
+  input = { token = var.token, key = var.key, quoted = var.quoted }
+}
+
+output "copy" {
+  value = terraform_data.copy.output
+}
+EOF
+}
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+copy_the_secrets_to_an_output
+secrets=("$token" key-line-of-the-test $'"quoted" value\x01 of the test' '\"quoted\" value\x01 of the test')
+propose_tofu staging-copy --opentofu infra/staging
+expect "a plan that creates a terraform_data resource from sensitive inputs shows no sensitive value" 0 \
+  'The run needs no go-ahead: '
+tofu_mutation session-one run staging-copy "$digest"
+expect "the apply prints the output of that resource, and the tool hides each sensitive value in it" 0 \
+  "The run passes.*\"token\" = \"\\(sensitive value hidden by live-mutation\\.py\\)\""
+tofu_mutation session-one record staging-copy
+expect "the record of a run whose apply printed sensitive values is written" 0 'session-one/staging-copy/record-1\.md'
+expect_secrets_kept "a run whose apply printed sensitive values, on one line, quoted and across lines"
+secrets=("$token")
+record=$(contents "$repository/$proposals/staging-copy/record-1.md")
+if [[ "$record" == *"\"key\" = <<-EOT"$'\n'"  $hidden"$'\n'* && "$record" == *"\"quoted\" = \"$hidden\""* ]]; then
+  pass "the record shows the output of the apply with each sensitive value hidden, a heredoc and a quoted string included"
+else
+  fail "the record shows the output of the apply with each sensitive value hidden, a heredoc and a quoted string included" \
+    "got:"$'\n'"$record"
+fi
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+copy_the_secrets_to_an_output
+stand_in=$tmp/outlives-the-tool
+mkdir -p "$stand_in"
+cat >"$stand_in/tofu" <<EOF
+#!/bin/sh
+case " \$* " in
+*" apply "*)
+  "$opentofu/tofu" "\$@" || exit
+  : >"$repository/printed"
+  while [ ! -e "$repository/go-on" ]; do $(command -v sleep) 0.1; done
+  echo "printed after the tool ended"
+  : >"$repository/finished"
+  ;;
+*) exec "$opentofu/tofu" "\$@" ;;
+esac
+EOF
+chmod +x "$stand_in/tofu"
+call_tool "$script_tools:$stand_in" session-one propose staging-copy --opentofu infra/staging
+digest=$(sed -n 's/^Proposal `staging-copy` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+(cd "$repository" && exec env -i PATH="$script_tools:$stand_in" CLAUDE_CODE_SESSION_ID=session-one "$script" run staging-copy "$digest" >/dev/null 2>&1) &
+run_pid=$!
+for _ in $(seq 600); do
+  [[ -e "$repository/printed" ]] && break
+  sleep 0.1
+done
+kill -KILL "$run_pid" 2>/dev/null || true
+wait "$run_pid" || true
+: >"$repository/go-on"
+for _ in $(seq 600); do
+  [[ -e "$repository/finished" ]] && break
+  sleep 0.1
+done
+output="the tool was killed during the run"
+if [[ -e "$repository/finished" ]]; then
+  pass "a run whose tool is killed after the apply printed keeps its command running to the end"
+else
+  fail "a run whose tool is killed after the apply printed keeps its command running to the end" "the command never finished"
+fi
+secrets=("$token" key-line-of-the-test)
+expect_secrets_kept "a run whose tool is killed after the apply printed sensitive values"
+secrets=("$token")
+
+new_tofu_repository
+carry_the_token_in_logging
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+sed -i 's/input = "spare"/input = "spare-two"/' "$repository/infra/staging/main.tf"
+propose_tofu staging-spare --opentofu infra/staging
+expect "a plan that leaves the terraform_data resource with the sensitive input alone shows no sensitive value" 0 \
+  'The run needs no go-ahead: '
+set_level infra/staging
+state=$(state_of infra/staging)
+tofu_mutation session-one run staging-spare "$digest"
+expect "a rendering derived again that shows a sensitive value stops the run" 1 '^live-mutation\.py: sensitive-value-shown: '
+expect_secrets_kept "a run stopped by the rendering derived again"
+expect_state "a run stopped by the rendering derived again changes no state" infra/staging "$state"
 
 if ((failures > 0)); then
   echo "test-live-mutation: $failures failure(s)" >&2

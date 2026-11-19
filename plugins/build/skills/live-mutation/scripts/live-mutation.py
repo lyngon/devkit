@@ -20,7 +20,10 @@ rendering.
 The OpenTofu form writes those commands for a saved plan of one root module, a
 directory relative to the root of the repository, and adds the check
 no-changes. It reads the plan's JSON into memory only, since that holds
-sensitive values in plain text. A proposal of that form runs without a go-ahead
+sensitive values in plain text. tofu prints such a value where it loses the
+mark, so the tool hides each value that the plan marks sensitive in all that a
+command prints before it writes it, and a proposal or a run that would show one
+stops before the run. A proposal of that form runs without a go-ahead
 when no resource change of its plan does more than create, read or update and
 none imports, its configuration holds no provisioner, no TF_CLI_ARGS variable
 and no TF_DATA_DIR is set, the root module's workspace is default, HEAD was on
@@ -32,7 +35,8 @@ frontmatter. Every other proposal runs only on the owner's go-ahead.
 `run` refuses a proposal of another session, another digest, a second run,
 inputs that changed, a go-ahead of no words, a run without a go-ahead that the
 proposal was shown to need or that the plan and the rule files read again do
-not allow, and a rendering that live state no longer gives. It derives and
+not allow, and a rendering that live state no longer gives or that shows a
+sensitive value. It derives and
 renders again before it runs, because OpenTofu refuses a saved plan whose state
 changed but not one whose live resources drifted. `record` writes the action record as
 Markdown comments, and refuses one in which a check never failed. `posted`
@@ -56,6 +60,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import typing as t
 
 import unprotected_roots
@@ -73,6 +78,20 @@ TOOL = pathlib.Path(__file__).resolve()
 
 NO_CHANGES = "no-changes"
 PLAN = '"$LIVE_MUTATION_INPUTS/plan"'
+HIDDEN = "(sensitive value hidden by live-mutation.py)"
+GO_ESCAPES = {
+    "\a": r"\a",
+    "\b": r"\b",
+    "\f": r"\f",
+    "\n": r"\n",
+    "\r": r"\r",
+    "\t": r"\t",
+    "\v": r"\v",
+    "\\": r"\\",
+    '"': r"\"",
+}
+GO_HEX_ESCAPED = frozenset(chr(code) for code in [*range(0x20), 0x7F])
+BASIC_PLANE = range(0x10000)
 DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
 GO_AHEAD_WORDS = "'<the owner's words>'"
@@ -202,6 +221,7 @@ class GoAheadNeeded:
 
 type Form = Generic | OpenTofu
 type Route = NoGoAheadNeeded | GoAheadNeeded
+type Secrets = frozenset[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -475,35 +495,101 @@ def environment_of(inputs: pathlib.Path) -> dict[str, str]:
     return {**os.environ, "LIVE_MUTATION_INPUTS": str(inputs)}
 
 
-def execute(command: str, root: pathlib.Path, inputs: pathlib.Path, out: pathlib.Path, err: pathlib.Path | None) -> int:
-    """Run a line of sh from the root with LIVE_MUTATION_INPUTS set, and return its exit status.
+def execute(command: str, root: pathlib.Path, inputs: pathlib.Path, *, apart: bool = False) -> tuple[int, str, str]:
+    """Run a line of sh from the root with LIVE_MUTATION_INPUTS set, and return its exit status and what it printed.
 
-    Standard error goes to err, or after standard output into out when err is
-    None. A Ctrl-C reaches the command through the process group it shares with
-    this tool, so the tool only waits for it, and never kills it or interrupts
-    it again: OpenTofu stops an apply cleanly on a first SIGINT and at once on
-    a second, and a kill can leave its state locked and half written.
+    Standard error follows standard output, or comes back apart. A Ctrl-C
+    reaches the command through the process group it shares with this tool, so
+    the tool only waits for it, and never kills it or interrupts it again:
+    OpenTofu stops an apply cleanly on a first SIGINT and at once on a second,
+    and a kill can leave its state locked and half written.
     """
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("wb") as stdout, (err or out).open("ab") as errors:
-        stderr = subprocess.STDOUT if err is None else errors
+    with tempfile.TemporaryFile(dir=inputs.parent) as out, tempfile.TemporaryFile(dir=inputs.parent) as err:
         process = subprocess.Popen(
-            [SHELL, "-c", command], cwd=root, env=environment_of(inputs), stdout=stdout, stderr=stderr
+            [SHELL, "-c", command],
+            cwd=root,
+            env=environment_of(inputs),
+            stdout=out,
+            stderr=err if apart else subprocess.STDOUT,
         )
         try:
-            return process.wait()
+            status = process.wait()
         except KeyboardInterrupt:
-            return process.wait()
+            status = process.wait()
+        _ = out.seek(0)
+        _ = err.seek(0)
+        return status, out.read().decode(errors="replace"), err.read().decode(errors="replace")
 
 
-def step(root: pathlib.Path, place: Place, kind: Kind, command: str, check: str = "") -> Entry:
-    """Run one command of a proposal against its inputs, log it, and return its line of the log."""
-    output = output_name(place, kind, check)
-    started = now()
-    status = execute(command, root, place.inputs, place.outputs / output, None)
-    entry = Entry(kind=kind, started=started, ended=now(), status=status, command=command, output=output, check=check)
+def forms_of(secret: str) -> set[str]:
+    """Return the patterns that find a sensitive string in what tofu prints, or none for a blank one.
+
+    tofu prints a string as it is or quoted, and one that spans lines as a heredoc that indents
+    each line.
+    """
+    lines = [line.strip() for line in secret.splitlines() if line.strip()]
+    if not lines:
+        return set()
+    return {r"\s*".join(map(re.escape, lines)), re.escape(quoted(secret))}
+
+
+def quoted(text: str) -> str:
+    """Return a string as tofu prints it between quotes, escaped as Go's strconv.Quote escapes it."""
+    escaped: list[str] = []
+    for char in text:
+        code = ord(char)
+        if char in GO_ESCAPES:
+            escaped.append(GO_ESCAPES[char])
+        elif char.isprintable():
+            escaped.append(char)
+        elif char in GO_HEX_ESCAPED:
+            escaped.append(f"\\x{code:02x}")
+        elif code in BASIC_PLANE:
+            escaped.append(f"\\u{code:04x}")
+        else:
+            escaped.append(f"\\U{code:08x}")
+    return "".join(escaped)
+
+
+def hide(text: str, secrets: Secrets) -> tuple[str, int]:
+    """Return the text with each sensitive value in it replaced by HIDDEN, and how many the tool replaced."""
+    forms = sorted({form for secret in secrets for form in forms_of(secret)}, key=len, reverse=True)
+    return re.subn("|".join(forms), HIDDEN, text) if forms else (text, 0)
+
+
+def keep(path: pathlib.Path, text: str, secrets: Secrets) -> bool:
+    """Write a text with each sensitive value in it hidden. Returns whether the tool hid one."""
+    hidden, count = hide(text, secrets)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _ = path.write_text(hidden, encoding="utf-8")
+    return count > 0
+
+
+def logged(place: Place, entry: Entry, printed: str, secrets: Secrets) -> bool:
+    """Write what a command printed into the output that its line names, and log the line.
+
+    Returns whether the tool hid a sensitive value in it.
+    """
+    shown = keep(place.outputs / entry.output, printed, secrets)
     append(place, entry)
-    return entry
+    return shown
+
+
+def checked(
+    root: pathlib.Path, place: Place, kind: Kind, checks: ct.Mapping[str, str], secrets: Secrets
+) -> list[tuple[Entry, bool]]:
+    """Run each check's command against the inputs of a proposal, in order, and log it as the kind given.
+
+    Returns each one's line of the log, and whether the tool hid a sensitive value in what it printed.
+    """
+    lines: list[tuple[Entry, bool]] = []
+    for check, command in checks.items():
+        output = output_name(place, kind, check)
+        started = now()
+        status, printed, _ = execute(command, root, place.inputs)
+        entry = Entry(kind, started, now(), status, command, output, check)
+        lines.append((entry, logged(place, entry, printed, secrets)))
+    return lines
 
 
 def digests_of(directory: pathlib.Path) -> dict[str, str]:
@@ -516,21 +602,6 @@ def digest_of(commands: Commands, inputs: ct.Mapping[str, str], rendering: str) 
     """Return the digest that a go-ahead names."""
     covered = {**dataclasses.asdict(commands), "inputs": dict(inputs), "rendering": rendering}
     return hashlib.sha256(json.dumps(covered, sort_keys=True).encode()).hexdigest()[:DIGEST_LENGTH]
-
-
-def derive_and_show(root: pathlib.Path, directory: pathlib.Path, commands: Commands) -> tuple[int, str]:
-    """Derive inputs into the directory and render them. Returns the first status that is not 0, and the rendering."""
-    if directory.exists():
-        shutil.rmtree(directory)
-    inputs = directory / "inputs"
-    inputs.mkdir(parents=True)
-    log = directory / "derive-and-show.txt"
-    status = execute(commands.derive, root, inputs, log, None)
-    if status != 0:
-        return status, ""
-    rendering = directory / "rendering.txt"
-    status = execute(commands.show, root, inputs, rendering, log)
-    return status, rendering.read_text(encoding="utf-8", errors="replace")
 
 
 def root_module(root: pathlib.Path, text: str) -> str:
@@ -562,14 +633,16 @@ def plan_of(text: str) -> dict[str, object]:
     return plan
 
 
-def resource_changes(plan: ct.Mapping[str, object]) -> list[tuple[str, dict[str, object]]]:
+def resource_changes(
+    plan: ct.Mapping[str, object], key: t.Literal["resource_changes", "resource_drift"] = "resource_changes"
+) -> list[tuple[str, dict[str, object]]]:
     """Return the address and the change of each resource change of a plan, the change empty where it is no object.
 
-    Raises RefusalError for a plan that holds no list of resource changes.
+    Raises RefusalError for a plan that holds no list of resource changes under the key.
     """
-    changes = plan.get("resource_changes", [])
+    changes = plan.get(key, [])
     if not isinstance(changes, list):
-        raise RefusalError("plan-unreadable: the plan's JSON holds no list of resource changes")
+        raise RefusalError(f"plan-unreadable: the plan's JSON holds no list of resource changes under {key}")
     found: list[tuple[str, dict[str, object]]] = []
     for number, item in enumerate(t.cast("list[object]", changes), 1):
         resource = json_object(item) or {}
@@ -712,10 +785,10 @@ def route_lines(name: str, digest: str, route: Route) -> list[str]:
     ]
 
 
-def captured(root: pathlib.Path, place: Place, command: str) -> subprocess.CompletedProcess[bytes]:
-    """Run a line of sh as the commands of a proposal run, and keep what it prints in memory only."""
+def captured(root: pathlib.Path, inputs: pathlib.Path, command: str) -> subprocess.CompletedProcess[bytes]:
+    """Run a line of sh as the commands of a proposal run against the inputs, and keep what it prints in memory only."""
     return subprocess.run(
-        [SHELL, "-c", command], cwd=root, env=environment_of(place.inputs), capture_output=True, check=False
+        [SHELL, "-c", command], cwd=root, env=environment_of(inputs), capture_output=True, check=False
     )
 
 
@@ -724,13 +797,83 @@ def said(result: subprocess.CompletedProcess[bytes]) -> str:
     return " ".join(result.stderr.decode(errors="replace").split())
 
 
-def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
-    """Return why the frozen plan makes a run wait, read from its JSON in memory and never written anywhere."""
+def read_plan(root: pathlib.Path, inputs: pathlib.Path, form: OpenTofu) -> dict[str, object]:
+    """Return the JSON of the plan among the inputs of the OpenTofu form, which it keeps in memory only.
+
+    Raises RefusalError (plan-unreadable) when tofu show -json fails or prints no JSON object.
+    """
     command = form.plan_json()
-    result = captured(root, place, command)
+    result = captured(root, inputs, command)
     if result.returncode != 0:
         raise RefusalError(f"plan-unreadable: `{command}` exited {result.returncode}: {said(result)}")
-    plan = plan_of(result.stdout.decode(errors="replace"))
+    return plan_of(result.stdout.decode(errors="replace"))
+
+
+def strings(value: object) -> ct.Iterator[str]:
+    """Yield each string in a value of the plan's JSON."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in t.cast("dict[str, object]", value).values():
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in t.cast("list[object]", value):
+            yield from strings(item)
+
+
+def marked(value: object, mask: object) -> ct.Iterator[str]:
+    """Yield each string of a value of the plan's JSON that its sensitivity mask marks."""
+    if mask is True:
+        yield from strings(value)
+    elif isinstance(mask, dict) and isinstance(value, dict):
+        values = t.cast("dict[str, object]", value)
+        for key, inner in t.cast("dict[str, object]", mask).items():
+            yield from marked(values.get(key), inner)
+    elif isinstance(mask, list) and isinstance(value, list):
+        for item, inner in zip(t.cast("list[object]", value), t.cast("list[object]", mask), strict=False):
+            yield from marked(item, inner)
+
+
+def secrets_of(plan: ct.Mapping[str, object]) -> Secrets:
+    """Return each string that a plan marks sensitive.
+
+    Raises RefusalError (plan-unreadable) for a plan whose resource changes are no list.
+    """
+    configuration = json_object((json_object(plan.get("configuration")) or {}).get("root_module")) or {}
+    declared = json_object(configuration.get("variables")) or {}
+    values = json_object(plan.get("variables")) or {}
+    found = {
+        secret
+        for name, variable in declared.items()
+        if (json_object(variable) or {}).get("sensitive") is True
+        for secret in strings((json_object(values.get(name)) or {}).get("value"))
+    }
+    outputs = json_object(plan.get("output_changes")) or {}
+    changes = [
+        *(change for _, change in resource_changes(plan)),
+        *(change for _, change in resource_changes(plan, "resource_drift")),
+        *(json_object(change) or {} for change in outputs.values()),
+    ]
+    found.update(
+        secret
+        for change in changes
+        for side in ("before", "after")
+        for secret in marked(change.get(side), change.get(f"{side}_sensitive"))
+    )
+    return frozenset(found)
+
+
+def secrets_in(root: pathlib.Path, inputs: pathlib.Path, form: Form) -> Secrets:
+    """Return each value that the plan among the inputs marks sensitive, and none for the generic form.
+
+    The tool cannot read what the inputs of the generic form mark sensitive.
+    """
+    return frozenset() if isinstance(form, Generic) else secrets_of(read_plan(root, inputs, form))
+
+
+def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
+    """Return why the frozen plan makes a run wait, read from its JSON in memory and never written anywhere."""
+    plan = read_plan(root, place.inputs, form)
     reasons: list[str] = []
     changes = resource_changes(plan)
     blocking = [address for address, change in changes if not deletes_nothing(change)]
@@ -765,7 +908,7 @@ def reach_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]
     if "TF_DATA_DIR" in os.environ:
         reasons.append("`TF_DATA_DIR` is set, so tofu reads a backend and a state that `-chdir` does not choose.")
     command = form.tofu("workspace show")
-    result = captured(root, place, command)
+    result = captured(root, place.inputs, command)
     workspace = result.stdout.decode(errors="replace").strip()
     if result.returncode != 0:
         unknown = f"`{command}` exited {result.returncode}: {said(result)}"
@@ -784,11 +927,51 @@ def changed_inputs(before: ct.Mapping[str, str], after: ct.Mapping[str, str]) ->
     return ", ".join(sorted(path for path in {*before, *after} if before.get(path) != after.get(path)))
 
 
+def sensitive_shown(paths: ct.Iterable[pathlib.Path], outcome_of_it: str) -> RefusalError:
+    """Return the refusal of a proposal or a run that printed a sensitive value, naming the files where it is hidden."""
+    listed = ", ".join(str(path) for path in paths)
+    message = (
+        f"sensitive-value-shown: a command printed a value that the plan marks sensitive, so {outcome_of_it};"
+        f" the tool hid it in {listed}. OpenTofu prints such a value where it loses the mark, as in the output of a"
+        " terraform_data resource whose input holds one. When a check of yours printed it, fix the check and"
+        " propose again. Otherwise stop and tell the owner, and never propose it in the generic form, which hides"
+        " nothing."
+    )
+    return RefusalError(message)
+
+
+def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secrets, list[pathlib.Path]]:
+    """Derive the inputs of a proposal and render them, and log both with each sensitive value of the plan hidden.
+
+    Returns the plan's sensitive values and the files where the tool hid one. Raises RefusalError (derive-failed or
+    show-failed) when either command fails.
+    """
+    commands = form.commands
+    output = output_name(place, Kind.DERIVE)
+    started = now()
+    status, printed, _ = execute(commands.derive, root, place.inputs)
+    derived = Entry(Kind.DERIVE, started, now(), status, commands.derive, output)
+    secrets = secrets_in(root, place.inputs, form) if status == 0 else frozenset[str]()
+    hidden = [place.outputs / output] if logged(place, derived, printed, secrets) else []
+    if status != 0:
+        raise RefusalError(f"derive-failed: derive exited {status}; see {place.outputs / output}")
+    output = output_name(place, Kind.SHOW)
+    started = now()
+    status, rendering, errors = execute(commands.show, root, place.inputs, apart=True)
+    hidden += [place.rendering] if keep(place.rendering, rendering, secrets) else []
+    shown_line = Entry(Kind.SHOW, started, now(), status, commands.show, output)
+    hidden += [place.outputs / output] if logged(place, shown_line, errors, secrets) else []
+    if status != 0:
+        raise RefusalError(f"show-failed: show exited {status}; see {place.outputs / output}")
+    return secrets, hidden
+
+
 def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
     """Derive, render and check a proposal of this session, and return the text that shows it to the owner.
 
     Raises RefusalError (inputs-changed) when a check changes an input, so that the route, the digest and the run all
-    read the inputs that the derive command wrote.
+    read the inputs that the derive command wrote, and (sensitive-value-shown) when a command printed a value that
+    the plan marks sensitive.
     """
     commands = form.commands
     place = place_of(root, session, name)
@@ -803,22 +986,17 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
         shutil.rmtree(place.directory)
     place.outputs.mkdir(parents=True)
     place.inputs.mkdir()
-    derived = step(root, place, Kind.DERIVE, commands.derive)
-    if derived.status != 0:
-        raise RefusalError(f"derive-failed: derive exited {derived.status}; see {place.outputs / derived.output}")
-    started = now()
-    output = output_name(place, Kind.SHOW)
-    status = execute(commands.show, root, place.inputs, place.rendering, place.outputs / output)
-    append(place, Entry(Kind.SHOW, started, now(), status, commands.show, output))
-    if status != 0:
-        raise RefusalError(f"show-failed: show exited {status}; see {place.outputs / output}")
+    secrets, hidden = derive_and_show(root, place, form)
     rendered = place.rendering.read_bytes()
     inputs = digests_of(place.inputs)
-    checked = [step(root, place, Kind.CHECK, command, check) for check, command in commands.checks.items()]
+    results = checked(root, place, Kind.CHECK, commands.checks, secrets)
+    hidden += [place.outputs / entry.output for entry, hid in results if hid]
     changed = changed_inputs(inputs, digests_of(place.inputs))
     if changed:
         raise RefusalError(f"inputs-changed: {changed} changed while the checks ran; a check only reads, so fix it")
-    if isinstance(form, OpenTofu) and any(entry.check == NO_CHANGES and entry.status == 0 for entry in checked):
+    if hidden:
+        raise sensitive_shown(hidden, "there is no proposal")
+    if isinstance(form, OpenTofu) and any(entry.check == NO_CHANGES and entry.status == 0 for entry, _ in results):
         message = (
             f"nothing-to-apply: the plan of {form.root} changes nothing, since its check {NO_CHANGES} passes,"
             " so the check could never fail"
@@ -830,7 +1008,7 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
     digest = digest_of(commands, inputs, rendering_digest)
     proposal = Proposal(name, session, now(), form, inputs, rendering_digest, digest, route, branch)
     save(place, proposal)
-    checks = [f"- `{entry.check}` {outcome(entry.status)}: `{entry.command}`" for entry in checked] or ["- none"]
+    checks = [f"- `{entry.check}` {outcome(entry.status)}: `{entry.command}`" for entry, _ in results] or ["- none"]
     lines = [
         f"Proposal `{name}` at digest `{digest}`, shown in session `{session}`.",
         "",
@@ -885,21 +1063,37 @@ def held(root: pathlib.Path, session: str, name: str) -> Place:
 def demonstrate(root: pathlib.Path, session: str, name: str, check: str, command: str) -> tuple[int, str]:
     """Run a check's command against a state where its property does not hold, and log it in the session's proposal."""
     place = held(root, session, name)
-    if check not in load(place).form.commands.checks:
+    form = load(place).form
+    if check not in form.commands.checks:
         raise RefusalError(f"no-such-check: proposal {name} has no check {check}")
-    entry = step(root, place, Kind.DEMONSTRATION, command, check)
+    secrets = secrets_in(root, place.inputs, form)
+    [(entry, _)] = checked(root, place, Kind.DEMONSTRATION, {check: command}, secrets)
     if entry.status == 0:
         return 1, f"The demonstration of {check} passed, so it shows nothing; see {place.outputs / entry.output}\n"
     return 0, f"The demonstration of {check} {outcome(entry.status)}, as a check must where its property fails.\n"
 
 
-def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, *, approved: bool) -> None:
-    """Derive and render again from live state, and log it. Raises RefusalError unless it gives the same rendering.
+def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: Secrets, *, approved: bool) -> Secrets:
+    """Derive and render again from live state into the directory drift, and log it.
 
-    The rendering is the one the owner approved on a go-ahead, and the proposed one without.
+    The rendering is the one the owner approved on a go-ahead, and the proposed one without. Returns the given
+    sensitive values with those of the plan derived again. Raises RefusalError unless deriving again gives the same
+    rendering and prints no sensitive value.
     """
     started = now()
-    status, rendering = derive_and_show(root, place.drift, proposal.form.commands)
+    if place.drift.exists():
+        shutil.rmtree(place.drift)
+    inputs = place.drift / "inputs"
+    inputs.mkdir(parents=True)
+    commands = proposal.form.commands
+    status, printed, _ = execute(commands.derive, root, inputs)
+    rendering = errors = ""
+    if status == 0:
+        secrets |= secrets_in(root, inputs, proposal.form)
+        status, rendering, errors = execute(commands.show, root, inputs, apart=True)
+    log, again = place.drift / "derive-and-show.txt", place.drift / "rendering.txt"
+    hidden = [path for path, text in ((log, printed + errors), (again, rendering)) if keep(path, text, secrets)]
+    rendering = again.read_text(encoding="utf-8")
     shown = place.rendering.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     label = "approved" if approved else "proposed"
     diff = "".join(difflib.unified_diff(shown, rendering.splitlines(keepends=True), label, "live now"))
@@ -908,9 +1102,12 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, *, approve
     append(place, Entry(Kind.DRIFT, started, now(), status or int(bool(diff)), "derive and show again", output))
     if status != 0:
         raise RefusalError(f"drift-check-failed: deriving again exited {status}; see {place.drift}")
+    if hidden:
+        raise sensitive_shown(hidden, "nothing ran")
     if diff:
         what = "the rendering the owner approved" if approved else "the rendering of the proposal"
         raise RefusalError(f"drifted: live state no longer gives {what}\n{diff}")
+    return secrets
 
 
 def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAheadNeeded:
@@ -961,8 +1158,9 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
     changed = changed_inputs(proposal.inputs, digests_of(place.inputs))
     if changed:
         raise RefusalError(f"inputs-changed: {changed} changed since the proposal; propose again")
+    secrets = secrets_in(root, place.inputs, proposal.form)
     allowed_by = words if words is not None else exemption_of(root, place, proposal)
-    drift_check(root, place, proposal, approved=isinstance(allowed_by, str))
+    secrets = drift_check(root, place, proposal, secrets, approved=isinstance(allowed_by, str))
     output = output_name(place, Kind.RUN)
     if isinstance(allowed_by, str):
         allowed = Entry(Kind.GO_AHEAD, now(), now(), 0, output=output, words=allowed_by)
@@ -981,9 +1179,9 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
     started = now()
     path = place.outputs / output
     commands = proposal.form.commands
-    status = execute(commands.run, root, place.inputs, path, None)
-    append(place, Entry(Kind.RUN, started, now(), status, commands.run, output))
-    after = [step(root, place, Kind.CHECK, command, check) for check, command in commands.checks.items()]
+    status, printed, _ = execute(commands.run, root, place.inputs)
+    _ = logged(place, Entry(Kind.RUN, started, now(), status, commands.run, output), printed, secrets)
+    after = [entry for entry, _ in checked(root, place, Kind.CHECK, commands.checks, secrets)]
     lines = [
         f"The run {outcome(status)}; its whole output is in {path}. Its last lines:",
         "",
