@@ -412,12 +412,14 @@ compare() {
   cases=$(<"$FAKE_CASES_LOG")
 }
 
-run_line() {
-  if [[ $1 == base ]]; then echo 1; else echo 2; fi
+line_of_run() {
+  local lines
+  mapfile -t lines <<<"$2"
+  if [[ $1 == base ]]; then echo "${lines[0]-}"; else echo "${lines[1]-}"; fi
 }
 
 call_at() {
-  sed -n "$(run_line "$1")p" <<<"$calls"
+  line_of_run "$1" "$calls"
 }
 
 directory_of_call() {
@@ -442,11 +444,11 @@ shared_of() {
 }
 
 build_at() {
-  sed -n "$(run_line "$1")p" <<<"$builds" | cut -f 2
+  line_of_run "$1" "$builds" | cut -f 2
 }
 
 cases_at() {
-  sed -n "$(run_line "$1")p" <<<"$cases" | cut -f 2
+  line_of_run "$1" "$cases" | cut -f 2
 }
 
 # hooks <repo>: the git hooks of the repository, each with its content.
