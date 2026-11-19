@@ -47,10 +47,10 @@ failures=0
 # stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
 # The stub also writes to the file that FAKE_BUILD_LOG names what the command
 # check-pull-request that it finds says, or `none`, which tells the build of
-# the environment that it runs in, and to the file that FAKE_CASES_LOG names
-# each prompt.md under the directory that it runs in. The real command finds
-# a case at each of them, in a directory that git ignores and in a dot
-# directory too (measured on Claude Code 2.1.325).
+# the environment that it runs in.
+# The real command finds a case at each prompt.md under the directory that it
+# runs in, in a directory that git ignores (issue 224) and in a dot directory
+# too (measured on Claude Code 2.1.325).
 mkdir "$tmp/bin" "$tmp/devenv" "$tmp/tools" "$tmp/empty" "$tmp/store"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
@@ -412,9 +412,6 @@ compare() {
   cases=$(<"$FAKE_CASES_LOG")
 }
 
-# call_at <side>: the stub's call by the run at base or at head. The base run
-# comes first, and the head run, which follows only a base run that gave a
-# result, comes second.
 run_line() {
   if [[ $1 == base ]]; then echo 1; else echo 2; fi
 }
@@ -423,7 +420,6 @@ call_at() {
   sed -n "$(run_line "$1")p" <<<"$calls"
 }
 
-# directory_of_call <call>: the directory that one call of the stub ran in.
 directory_of_call() {
   echo "${1%%$'\t'*}"
 }
@@ -445,12 +441,10 @@ shared_of() {
   echo "Read(/$1/shared/**)"
 }
 
-# build_at <side>: the build that the run at base or at head found.
 build_at() {
   sed -n "$(run_line "$1")p" <<<"$builds" | cut -f 2
 }
 
-# cases_at <side>: each prompt.md that the run at base or at head could find.
 cases_at() {
   sed -n "$(run_line "$1")p" <<<"$cases" | cut -f 2
 }
@@ -660,11 +654,6 @@ check "uncommitted changes: the working tree is as it was" equals "$(git -C "$re
 ?? draft.md
 ?? plugins/one/evals/stays-green/workspace/"
 
-# The harness runs each case that it finds under its checkout, in a directory
-# that git ignores too (measured on Claude Code 2.1.325, issue 224). Here the
-# working tree holds a copy of its cases in tmp/, which git ignores, a case in
-# tmp/ that is added all the same, and a case that is not committed yet, one
-# part of it staged.
 repo=$(two_commits)
 echo /tmp/ >>"$repo/.git/info/exclude"
 mkdir -p "$repo/tmp/copy" "$repo/tmp/added" "$repo/plugins/three/evals/not-committed-yet"
@@ -1544,8 +1533,6 @@ check "a harness that prints no version: says so" equals "$err" \
   "compare-evals: cannot read the version of Claude Code from $(cd "$tmp/silent" && pwd -P)/claude: --version printed nothing"
 path=$with_claude
 
-# The run of the working tree keeps the environment that the program starts
-# from, so that has to be the devenv shell of the working tree.
 shell_root=$tmp/empty
 compare "$repo" main~1
 check "the devenv shell of another directory: exits 1" equals "$code" 1

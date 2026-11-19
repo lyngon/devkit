@@ -4,11 +4,8 @@
 The base commit is checked out into a clone in a temporary directory, which
 borrows the objects of this repository, and so is a commit of the working
 tree: its tracked files as they are, and the untracked ones that git does not
-ignore. The harness runs every case that it finds under its checkout, in a
-directory that git ignores too, and the base commit holds none of those
-(measured on Claude Code 2.1.325). The commit of the working tree is made
-before either run, so an edit made while the suite runs reaches neither. Both
-runs are `claude plugin eval .`
+ignore. The commit of the working tree is made before either run, so an edit
+made while the suite runs reaches neither. Both runs are `claude plugin eval .`
 from the root of their checkout: a model call on the account of whoever runs
 this, with the report kept off claude.ai, no baseline arm, and a grant to
 read the shared documents of that checkout. Both runs start the same file
@@ -70,7 +67,6 @@ WORKING_TREE_COMMITTER: dict[str, str] = {
     "GIT_COMMITTER_NAME": "compare-evals",
     "GIT_COMMITTER_EMAIL": "compare-evals@localhost",
 }
-"""Who makes the commit of the working tree, which no ref names, so that git needs no identity of the operator's."""
 
 
 class CompareError(Exception):
@@ -307,10 +303,7 @@ def working_tree_commit(root: pathlib.Path, scratch: pathlib.Path) -> str:
     """Return a commit that holds the working tree as git sees it, and that no ref names.
 
     That is the tracked files as they are now, and the untracked ones that git
-    does not ignore. The commit is built in an index of its own, which starts
-    as a copy of the working tree's, so that the working tree's index stays as
-    it was and a tracked file that an ignore rule matches stays in. Raises
-    CompareError when git cannot build it.
+    does not ignore. Raises CompareError when git cannot build it.
     """
     index = scratch / "index"
     _ = shutil.copyfile(git(root, "rev-parse", "--path-format=absolute", "--git-path", "index").stdout.strip(), index)
