@@ -209,6 +209,14 @@ tofu_runs "init by the path of tofu in a variable" \
   "T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; cd \"\$S/org\" && \$T init -backend=false -input=false"
 tofu_runs "a program in a variable, and tofu apply in its arguments" \
   "T=plugins/build/skills/work-trace/scripts/trace.py && \$T append tmp/work-trace/x.tsv build 'ran tofu apply' 'ok'"
+tofu_denied "apply in bash -c, quoted inside its double quotes" 'bash -c "tofu \"apply\" -auto-approve"' \
+  "$(writes 'tofu "apply" -auto-approve')"
+tofu_runs "plan in bash -c, quoted inside its double quotes" 'bash -c "tofu \"plan\" -input=false"'
+tofu_denied "apply on the second line of an ANSI-C quoted bash -c" "bash -c \$'tofu plan\\ntofu apply -auto-approve'" \
+  "$(writes "tofu apply -auto-approve")"
+tofu_runs "plan on both lines of an ANSI-C quoted bash -c" "bash -c \$'tofu plan\\ntofu plan -input=false'"
+tofu_runs "plan with a lone surrogate, which no text can encode, in an ANSI-C quoted bash -c" \
+  "bash -c \$'tofu plan -input=false \\uD800'"
 tofu_runs "plan in bash -c, in double quotes with a variable" \
   "for r in organization policies; do d=infra/foundation/management/\$r; devenv shell -- bash -c \"tofu -chdir=\$d init -input=false && tofu -chdir=\$d plan -input=false\"; done"
 tofu_runs "nix eval, which is no eval" "nix eval --raw \"\$NP#legacyPackages.x86_64-linux.opentofu.version\""
