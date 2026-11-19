@@ -292,7 +292,7 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Replayer:
-    """Runs hooks as Claude Code does in an eval run, each in a new directory, and writes their paths as recorded."""
+    """Runs hooks as in an eval run, each in a new directory, and writes the paths in their output as recorded."""
 
     root: pathlib.Path
     scratch: pathlib.Path
