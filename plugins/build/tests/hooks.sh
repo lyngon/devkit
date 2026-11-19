@@ -209,10 +209,64 @@ tofu_runs "init by the path of tofu in a variable" \
   "T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; cd \"\$S/org\" && \$T init -backend=false -input=false"
 tofu_runs "a program in a variable, and tofu apply in its arguments" \
   "T=plugins/build/skills/work-trace/scripts/trace.py && \$T append tmp/work-trace/x.tsv build 'ran tofu apply' 'ok'"
+tofu_denied "apply in bash -c, quoted inside its double quotes" 'bash -c "tofu \"apply\" -auto-approve"' \
+  "$(writes 'tofu "apply" -auto-approve')"
+tofu_runs "plan in bash -c, quoted inside its double quotes" 'bash -c "tofu \"plan\" -input=false"'
+tofu_denied "apply on the second line of an ANSI-C quoted bash -c" "bash -c \$'tofu plan\\ntofu apply -auto-approve'" \
+  "$(writes "tofu apply -auto-approve")"
+tofu_runs "plan on both lines of an ANSI-C quoted bash -c" "bash -c \$'tofu plan\\ntofu plan -input=false'"
+tofu_runs "plan with a lone surrogate, which no text can encode, in an ANSI-C quoted bash -c" \
+  "bash -c \$'tofu plan -input=false \\uD800'"
 tofu_runs "plan in bash -c, in double quotes with a variable" \
   "for r in organization policies; do d=infra/foundation/management/\$r; devenv shell -- bash -c \"tofu -chdir=\$d init -input=false && tofu -chdir=\$d plan -input=false\"; done"
 tofu_runs "nix eval, which is no eval" "nix eval --raw \"\$NP#legacyPackages.x86_64-linux.opentofu.version\""
 tofu_runs "zsh, which does not parse as bash" "for f in \${=files}; do tofu -chdir=\"\$f\" validate; done"
+
+for shell in sh bash; do
+  tofu_denied "apply in a heredoc fed to $shell" "$shell <<'SH'
+tofu -chdir=$organization apply organization.tfplan
+SH" "$(writes "tofu -chdir=$organization apply organization.tfplan")"
+  tofu_denied "apply in a here-string fed to $shell" "$shell <<<'tofu -chdir=$organization apply organization.tfplan'" \
+    "$(writes "tofu -chdir=$organization apply organization.tfplan")"
+  tofu_denied "apply piped as text into $shell" "echo 'tofu -chdir=$organization apply organization.tfplan' | $shell" \
+    "$(writes "tofu -chdir=$organization apply organization.tfplan")"
+  tofu_runs "plan in a heredoc fed to $shell" "$shell <<'SH'
+tofu -chdir=$organization plan
+SH"
+  tofu_runs "plan in a here-string fed to $shell" "$shell <<<'tofu -chdir=$organization plan'"
+  tofu_runs "plan piped as text into $shell" "echo 'tofu -chdir=$organization plan' | $shell"
+done
+tofu_denied "apply continued on a second line in a heredoc fed to bash" "bash <<'SH'
+tofu -chdir=$organization \\
+  apply organization.tfplan
+SH" "$(writes "tofu -chdir=$organization \\
+  apply organization.tfplan")"
+tofu_denied "apply in a variable that a heredoc fed to bash expands" "subcommand=apply; bash <<SH
+tofu -chdir=$organization \$subcommand organization.tfplan
+SH" "$(writes "tofu -chdir=$organization apply organization.tfplan")"
+tofu_runs "plan after a variable that a heredoc fed to bash expands" "bash <<SH
+cd \$dir && tofu -chdir=$organization plan
+SH"
+tofu_denied "a subcommand in a variable, in a here-string fed to bash" "bash <<<\"tofu \$subcommand\"" \
+  "$(hidden "tofu \$subcommand" "its subcommand comes from a variable or a substitution")"
+tofu_denied "apply piped into bash by echo -n" "echo -n 'tofu apply -auto-approve' | bash" \
+  "$(writes "tofu apply -auto-approve")"
+standard_input="reads commands from standard input, where the hook reads only a here-document, a here-string or an echo without a backslash"
+pass_them="Hand the shell its commands with -c, a here-document or a here-string."
+tofu_denied "apply after a line break that echo writes for a backslash, piped into sh" \
+  "echo 'tofu plan\\ntofu apply -auto-approve' | sh" "$(unread "\`sh\` $standard_input" "$pass_them")"
+tofu_denied "a script file piped into bash in a command that names tofu" "cat infra/tofu/apply.sh | bash" \
+  "$(unread "\`bash\` $standard_input" "$pass_them")"
+tofu_denied "apply that bash -c hands on to sh, in a script that names no tofu" \
+  "echo 'tofu apply -auto-approve' | bash -c 'cat | sh'" "$(unread "\`sh\` $standard_input" "$pass_them")"
+tofu_denied "apply in a heredoc fed to bash under devenv shell" "devenv shell -- bash <<'SH'
+tofu -chdir=$organization apply organization.tfplan
+SH" "$(writes "tofu -chdir=$organization apply organization.tfplan")"
+tofu_runs "apply in a heredoc fed to shfmt, whose dialect is bash" "shfmt -ln bash --to-json <<'SH'
+tofu -chdir=$organization apply organization.tfplan
+SH"
+tofu_runs "apply piped as text into shfmt, whose dialect is bash" \
+  "printf '%s' 'tofu -chdir=$organization apply organization.tfplan' | shfmt -ln bash --to-json"
 
 live_mutation=$root/skills/live-mutation/scripts/live-mutation.py
 tofu_runs "a proposal of build:live-mutation's tool" "$live_mutation propose import-organization \
@@ -450,6 +504,9 @@ lead_command_refused "rm with its file on the next line" "rm -f \\
   tests/test_pricing.py"
 lead_command_refused "rm of a file named ';'" "rm ';' README.md" "rm ';' README.md"
 lead_command_refused "a redirection after a word that holds #" "nix run nixpkgs#hello > README.md" "> README.md"
+lead_command_refused "an append through a .. that escapes in \$'...' spell" \
+  "echo x >> \$'$outside_any_repository/\\x2e\\x2e/orders/README.md'" \
+  ">> \$'$outside_any_repository/\\x2e\\x2e/orders/README.md'"
 lead_command_refused "sed -i in a zsh loop, which does not parse as bash" \
   "for f in \${=files}; do sed -i 's/a/b/' \"\$f\"; done" "sed -i 's/a/b/' \"\$f\""
 

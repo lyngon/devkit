@@ -102,11 +102,18 @@ SHELLS = frozenset({"bash", "dash", "ksh", "sh", "zsh"})
 
 SHELL_COMMAND_OPTION = re.compile(r"-[a-z]*c[a-z]*")
 
+ECHO_OPTIONS = re.compile(r"-[neE]+")
+
+READS_STANDARD_INPUT = (
+    "reads commands from standard input, where the hook reads only a here-document, a here-string"
+    " or an echo without a backslash"
+)
+
+HAND_IT_THE_COMMANDS = "Hand the shell its commands with -c, a here-document or a here-string."
+
 NAMES_TOFU = re.compile(r"(?<![a-z0-9.-])(?:open)?tofu(?![a-z0-9.-])", re.IGNORECASE)
 
 OPENTOFU_FLAKE = re.compile(r"[^#]*#(?:.*\.)?opentofu")
-
-DOUBLE_QUOTED = re.compile(r'"((?:[^"\\]|\\.)*)"', re.DOTALL)
 
 DIALECTS = ("bash", "zsh")
 
@@ -196,14 +203,8 @@ def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str) -> str | None
 
 
 def script(operand: shell_syntax.Word) -> str | None:
-    """Return the command that a shell runs from a word, or None when an expansion hides it.
-
-    A word in double quotes stands for the text inside them, where each expansion stays one for the hook to read.
-    """
-    if operand.value is not None:
-        return operand.value
-    quoted = DOUBLE_QUOTED.fullmatch(operand.text)
-    return None if quoted is None else re.sub(r"\\([\\\"`$])", r"\1", quoted.group(1))
+    """Return the command that a shell runs from a word, or None when an expansion hides it."""
+    return operand.unexpanded if operand.value is None else operand.value
 
 
 def command_option(arguments: ct.Sequence[shell_syntax.Word]) -> int | None:
@@ -225,31 +226,63 @@ def evaluated(arguments: ct.Sequence[shell_syntax.Word]) -> str | None:
     return None if None in scripts else " ".join(t.cast("list[str]", scripts))
 
 
-def shell_scripts(words: ct.Sequence[shell_syntax.Word]) -> list[str | None]:
-    """Return the commands that a call hands a shell to run, the operand of a shell's -c or what eval joins.
+def echoed(arguments: ct.Sequence[shell_syntax.Word]) -> str | None:
+    """Return the text that echo writes with these arguments, or None when an expansion hides it."""
+    return evaluated(list(itertools.dropwhile(lambda word: ECHO_OPTIONS.fullmatch(word.value or ""), arguments)))
 
-    A command is None when an expansion hides it.
+
+def handed(command: str | None, call: shell_syntax.Call) -> str | None:
+    """Return why the hook denies a command that a call hands a shell, or None to let it run."""
+    return hidden(call.text, f"the command it hands a shell {EXPANDED}") if command is None else denial(command)
+
+
+def input_denial(call: shell_syntax.Call) -> str | None:
+    """Return why the hook denies the commands that a shell of a call reads on standard input, or None to let them run.
+
+    It denies an echo with a backslash, which the echo of zsh may turn into a line break.
     """
+    source = call.standard_input
+    if isinstance(source, shell_syntax.Word):
+        return handed(script(source), call)
+    if (
+        isinstance(source, shell_syntax.Call)
+        and source.words
+        and shell_syntax.command_name(source.words[0].value) == "echo"
+    ):
+        command = echoed(source.words[1:])
+        if command is None or "\\" not in command:
+            return handed(command, call)
+    return unread(f"`{call.text}` {READS_STANDARD_INPUT}", HAND_IT_THE_COMMANDS)
+
+
+def shell_denial(call: shell_syntax.Call) -> str | None:
+    """Return why the hook denies a command that a call hands a shell to run, or None to let them all run."""
+    words = call.words
     if words and words[0].value == "eval":
-        return [evaluated(words[1:])]
-    found: list[str | None] = []
+        return handed(evaluated(words[1:]), call)
+    programs = program_positions(words)
     for index, word in enumerate(words):
-        operand = shell_command(words[index + 1 :]) if shell_syntax.command_name(word.value) in SHELLS else None
+        if shell_syntax.command_name(word.value) not in SHELLS:
+            continue
+        operand = shell_command(words[index + 1 :])
         if operand is not None:
-            found.append(script(operand))
-    return found
+            reason = handed(script(operand), call)
+        elif index in programs and reads_standard_input(words[index + 1 :]):
+            reason = input_denial(call)
+        else:
+            reason = None
+        if reason is not None:
+            return reason
+    return None
 
 
 def call_denial(call: shell_syntax.Call) -> str | None:
     """Return why the hook denies a simple command of a command that names tofu, or None to let it run."""
     if call.words and call.words[0].value is None:
         return hidden(call.text, f"its program {EXPANDED}")
-    for command in shell_scripts(call.words):
-        if command is None:
-            return hidden(call.text, f"the command it hands a shell {EXPANDED}")
-        reason = denial(command)
-        if reason is not None:
-            return reason
+    reason = shell_denial(call)
+    if reason is not None:
+        return reason
     for index, word in enumerate(call.words):
         reason = tofu_run(call.words[index + 1 :], call.text) if names_tofu(word) else None
         if reason is not None:
@@ -259,8 +292,6 @@ def call_denial(call: shell_syntax.Call) -> str | None:
 
 def denial(command: str) -> str | None:
     """Return why the hook denies a shell command, or None to let it run."""
-    if NAMES_TOFU.search(command) is None:
-        return None
     try:
         parts = shell_syntax.calls_and_redirections(command, DIALECTS, resolve_variables=True)
     except shell_syntax.ParserMissingError:
@@ -409,7 +440,10 @@ def answer(hook_input: dict[str, object]) -> dict[str, object] | None:
     command = json_object(hook_input.get("tool_input"), "its tool_input").get("command")
     if not isinstance(command, str):
         return None
-    reason = SUBAGENT if "agent_id" in hook_input and calls_the_tool(command) else denial(command)
+    if "agent_id" in hook_input and calls_the_tool(command):
+        reason = SUBAGENT
+    else:
+        reason = None if NAMES_TOFU.search(command) is None else denial(command)
     if reason is None:
         return None
     return {
