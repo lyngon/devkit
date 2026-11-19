@@ -257,6 +257,8 @@ tofu_denied "apply after a line break that echo writes for a backslash, piped in
   "echo 'tofu plan\\ntofu apply -auto-approve' | sh" "$(unread "\`sh\` $standard_input" "$pass_them")"
 tofu_denied "a script file piped into bash in a command that names tofu" "cat infra/tofu/apply.sh | bash" \
   "$(unread "\`bash\` $standard_input" "$pass_them")"
+tofu_denied "apply that bash -c hands on to sh, in a script that names no tofu" \
+  "echo 'tofu apply -auto-approve' | bash -c 'cat | sh'" "$(unread "\`sh\` $standard_input" "$pass_them")"
 tofu_denied "apply in a heredoc fed to bash under devenv shell" "devenv shell -- bash <<'SH'
 tofu -chdir=$organization apply organization.tfplan
 SH" "$(writes "tofu -chdir=$organization apply organization.tfplan")"
