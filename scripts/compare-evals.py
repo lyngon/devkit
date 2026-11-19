@@ -5,8 +5,9 @@ The base commit is checked out into a clone in a temporary directory, which
 borrows the objects of this repository. Both runs are `claude plugin eval .`
 from the root of their checkout: a model call on the account of whoever runs
 this, with the report kept off claude.ai, no baseline arm, and a grant to
-read the shared documents of that checkout. The run at the base commit
-starts with `devenv shell`, so it gets the commands of that commit's
+read the shared documents of that checkout. Both runs start the same file
+of Claude Code, and the comparison names its version. The run at the base
+commit starts with `devenv shell`, so it gets the commands of that commit's
 environment, and the run in the working tree keeps the devenv shell that
 this program starts from. A case that seeds its working directory does so
 with a script of its own, which runs as whoever runs this, at both commits.
@@ -763,22 +764,40 @@ def working_tree_root() -> pathlib.Path:
     return root
 
 
-def launchers() -> tuple[Launcher, Launcher]:
-    """Return how the run at the base commit and the run in the working tree start the harness.
+def harness_version(harness: str) -> str:
+    """Return what the harness at the path prints for `--version`, such as `2.1.325 (Claude Code)`.
 
-    Both runs start the same harness. The base run enters the environment of
+    Raises CompareError when it fails or prints nothing.
+    """
+    said = subprocess.run([harness, "--version"], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+    version = said.stdout.strip()
+    if said.returncode == 0 and version:
+        return version
+    cannot = f"cannot read the version of Claude Code from {harness}: --version"
+    if said.returncode == 0:
+        raise CompareError(f"{cannot} printed nothing")
+    stderr = said.stderr.strip()
+    raise CompareError(f"{cannot} exited with status {said.returncode}" + (f": {stderr}" if stderr else ""))
+
+
+def launchers() -> tuple[str, Launcher, Launcher]:
+    """Return the version of the harness, and how the run at the base commit and the run in the working tree start it.
+
+    Both runs start the same file, the one that `claude` on the PATH leads
+    to now, without symbolic links. The base run enters the environment of
     the base commit, and the head run keeps the one it was started from, the
     working tree's. Raises CompareError without `claude` or `devenv` on the
-    PATH.
+    PATH, and when the harness gives no version.
     """
     claude, devenv = shutil.which("claude"), shutil.which("devenv")
     if claude is None:
         raise CompareError("claude is not on the PATH")
     if devenv is None:
         raise CompareError("devenv is not on the PATH")
-    at_base = Launcher("devenv shell", (devenv, "shell", "--", claude), without_nix_shell(os.environ))
-    at_head = Launcher("claude", (claude,), os.environ)
-    return at_base, at_head
+    harness = str(pathlib.Path(claude).resolve())
+    at_base = Launcher("devenv shell", (devenv, "shell", "--", harness), without_nix_shell(os.environ))
+    at_head = Launcher("claude", (harness,), os.environ)
+    return harness_version(harness), at_base, at_head
 
 
 def compare(options: Options) -> Comparison:
@@ -793,8 +812,8 @@ def compare(options: Options) -> Comparison:
 
     Raises CompareError outside a git repository, outside the devenv shell of
     the working tree, for a base that names no commit, without `claude` or
-    `devenv` on the PATH, for an XDG_RUNTIME_DIR that names no directory or
-    is too long, when the base run writes no readable result, which
+    `devenv` on the PATH, when the harness gives no version, for an
+    XDG_RUNTIME_DIR that names no directory or is too long, when the base run writes no readable result, which
     spares the cost of the run in the working tree, and when no case ran at
     either commit, each with what the runs said about their suites. Raises it
     too when the head result names a case that the working tree does not
@@ -806,12 +825,13 @@ def compare(options: Options) -> Comparison:
     base_commit = commit_of(root, options.base)
     if base_commit is None:
         raise CompareError(f"'{options.base}' names no commit")
-    at_base, at_head = launchers()
+    version, at_base, at_head = launchers()
     head_commit = git(root, "rev-parse", "HEAD").stdout.strip()
     uncommitted = git(root, "status", "--porcelain").stdout.strip() != ""
     header = (
         f"base: {base_commit}" + ("" if options.base == base_commit else f" ({options.base})"),
         f"head: {head_commit}" + (" with uncommitted changes" if uncommitted else ""),
+        f"claude: {version}",
         f"granted tools: {', '.join(options.granted) or 'none'}",
         "",
     )
