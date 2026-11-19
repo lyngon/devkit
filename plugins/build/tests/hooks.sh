@@ -213,6 +213,14 @@ tofu_denied "a subcommand that xargs --replace puts in place of its own string" 
 tofu_denied "a subcommand that xargs -0I, its options in one word, puts in place" \
   "printf 'apply\0' | xargs -0ISUB tofu SUB -auto-approve" \
   "$(hidden "xargs -0ISUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs adds after -E, which takes the next word" "echo apply | xargs -E -I{} tofu" \
+  "$(hidden "xargs -E -I{} tofu" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs adds after --process-slot-var, which takes the next word" \
+  "echo apply | xargs --process-slot-var -I{} tofu" \
+  "$(hidden "xargs --process-slot-var -I{} tofu" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs -I puts in place after -e, which takes no next word" \
+  "echo apply | xargs -e -I{} tofu {} -auto-approve" \
+  "$(hidden "xargs -e -I{} tofu {} -auto-approve" "its subcommand comes from the input of xargs")"
 tofu_denied "init with flags that xargs adds" "echo -migrate-state | xargs tofu init" \
   "$(hidden "xargs tofu init" "an argument comes from the input of xargs and may be -force-copy or -migrate-state")"
 tofu_runs "fmt of the files that xargs adds" "find infra -name '*.tf' | xargs tofu fmt"
