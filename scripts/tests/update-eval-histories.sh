@@ -109,6 +109,33 @@ check "the update names that record and asks for a new recording" \
   says "plugins/one/evals/resumes/history.jsonl:4: needs a new recording: $unexpanded_plugin_root/hooks/quiet.sh on PreToolUse:Bash prints nothing at head that this record holds, and records hang off this one"
 check "the update keeps that record" test "$(jq -sr 'map(.uuid) | join(" ")' "$file")" == "a b c d e f"
 
+write_eval_run_hook() {
+  local checkout=$1 line=$2
+  cat >"$checkout/plugins/one/hooks/hooks.json" <<'EOF'
+{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/in-eval-run.sh"}]}]}}
+EOF
+  cat >"$checkout/plugins/one/hooks/in-eval-run.sh" <<EOF
+#!/usr/bin/env bash
+[[ -n \${CLAUDE_CODE_EVAL_CONFINED-} ]] || exit 0
+echo "$line" >&2
+EOF
+  chmod +x "$checkout/plugins/one/hooks/in-eval-run.sh"
+}
+
+root=$(new_checkout)
+write_eval_run_hook "$root" "one plugin: in an eval run"
+cat >"$root/plugins/one/evals/resumes/history.jsonl" <<'EOF'
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"","stdout":"","stderr":"one plugin: in an eval run\n","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/in-eval-run.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"/recorded/cwd"}
+{"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"/recorded/cwd"}
+EOF
+run --check "$root"
+check "the check passes a history recorded in an eval run, with the record of a hook that prints only there" \
+  test "$code:$out" == "0:update-eval-histories: ok, each history records what its hooks print at head (1 checked)"
+write_eval_run_hook "$root" "one plugin: in an eval run, again"
+run --check "$root"
+check "the check names that record when the hook prints another line in an eval run at head" \
+  says "plugins/one/evals/resumes/history.jsonl:1: behind: $unexpanded_plugin_root/hooks/in-eval-run.sh on SessionStart:startup exits 0 and prints \"one plugin: in an eval run, again\" at head"
+
 if ((failures > 0)); then
   echo "update-eval-histories tests: $failures failed" >&2
   exit 1
