@@ -306,7 +306,7 @@ def call_denial(call: shell_syntax.Call) -> str | None:
 
 
 def tool_parser() -> argparse.ArgumentParser:
-    """Return a parser of the command line of the tool of build:live-mutation, which the tool's own module builds."""
+    """Return the parser of the command line of the tool of build:live-mutation."""
     if str(TOOL_SCRIPTS) not in sys.path:
         sys.path.append(str(TOOL_SCRIPTS))
     module = vars(importlib.import_module(TOOL.removesuffix(".py")))
@@ -314,7 +314,7 @@ def tool_parser() -> argparse.ArgumentParser:
 
 
 def run_at_once(arguments: list[str]) -> list[str]:
-    """Return the commands that the tool, run with these arguments, runs at once: none where its parser refuses them."""
+    """Return the commands that these arguments give the tool to run at once."""
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             parsed = tool_parser().parse_args(arguments)
@@ -334,9 +334,8 @@ def run_at_once(arguments: list[str]) -> list[str]:
 def tool_denial(call: shell_syntax.Call) -> str | None:
     """Return why the hook denies a call of the tool of build:live-mutation, or None to let it run.
 
-    The hook reads the call's arguments with the tool's own parser, and denies the call when it denies a command that
-    the tool runs at once. It denies a call that may propose or demonstrate when an expansion hides any of its
-    arguments, since a hidden one could add a --check.
+    It denies a call that may propose or demonstrate when an expansion hides any of its arguments, or when the hook
+    denies a command that the call gives the tool to run at once.
     """
     words = call.words
     for position in program_positions(words):
