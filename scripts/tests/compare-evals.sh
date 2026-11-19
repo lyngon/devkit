@@ -676,7 +676,6 @@ A  tmp/added/prompt.md
 ?? plugins/three/evals/not-committed-yet/notes.md
 !! tmp/copy/"
 
-# Here git has no identity for the operator and may not guess one.
 repo=$(two_commits)
 echo "# Draft" >"$repo/draft.md"
 code=$(
