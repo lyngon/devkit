@@ -47,7 +47,10 @@ failures=0
 # stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
 # The stub also writes to the file that FAKE_BUILD_LOG names what the command
 # check-pull-request that it finds says, or `none`, which tells the build of
-# the environment that it runs in.
+# the environment that it runs in, and to the file that FAKE_CASES_LOG names
+# each prompt.md under the directory that it runs in. The real command finds
+# a case at each of them, in a directory that git ignores and in a dot
+# directory too (measured on Claude Code 2.1.325).
 mkdir "$tmp/bin" "$tmp/devenv" "$tmp/tools" "$tmp/empty" "$tmp/store"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
@@ -58,6 +61,10 @@ if [[ $* == --version ]]; then
 fi
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
 printf '%s\t%s\n' "$PWD" "$(check-pull-request 2>/dev/null || echo none)" >>"$FAKE_BUILD_LOG"
+shopt -s globstar dotglob nullglob
+prompts=(**/prompt.md)
+shopt -u globstar dotglob nullglob
+printf '%s\t%s\n' "$PWD" "${prompts[*]}" >>"$FAKE_CASES_LOG"
 [[ -z ${FAKE_PROFILE_LINK:-} ]] || ln -sfn "$FAKE_PROFILE_UPDATE" "$FAKE_PROFILE_LINK"
 json="" output=evals/results/stub filter="" keep=""
 while (($# > 0)); do
@@ -137,6 +144,7 @@ echo "Report: $output/report.html" >&2
 EOF
 chmod +x "$tmp/bin/claude"
 export FAKE_CLAUDE_LOG=$tmp/claude.log FAKE_CLAUDE_PID=$tmp/claude.pid FAKE_BUILD_LOG=$tmp/build.log
+export FAKE_CASES_LOG=$tmp/cases.log
 export FAKE_TASK_PID=$tmp/task.pid
 
 # The stub of devenv does what `devenv shell -- <command>` of devenv 2.4.0 was
@@ -394,12 +402,14 @@ compare() {
   remove "$tmp/scratch" && mkdir "$tmp/scratch"
   : >"$FAKE_CLAUDE_LOG"
   : >"$FAKE_BUILD_LOG"
+  : >"$FAKE_CASES_LOG"
   code=0
   out=$(cd "$repo" && XDG_RUNTIME_DIR=$runtime TMPDIR=$tmp/tmpdir NIX_STORE=$tmp/store DEVENV_ROOT=$root PATH=$path \
     "$program" "$@" 2>"$tmp/stderr" </dev/null) || code=$?
   err=$(<"$tmp/stderr")
   calls=$(<"$FAKE_CLAUDE_LOG")
   builds=$(<"$FAKE_BUILD_LOG")
+  cases=$(<"$FAKE_CASES_LOG")
 }
 
 # call_at <side>: the stub's call by the run at base or at head. The base run
@@ -438,6 +448,11 @@ shared_of() {
 # build_at <side>: the build that the run at base or at head found.
 build_at() {
   sed -n "$(run_line "$1")p" <<<"$builds" | cut -f 2
+}
+
+# cases_at <side>: each prompt.md that the run at base or at head could find.
+cases_at() {
+  sed -n "$(run_line "$1")p" <<<"$cases" | cut -f 2
 }
 
 # hooks <repo>: the git hooks of the repository, each with its content.
@@ -640,6 +655,25 @@ check "uncommitted changes: the working tree is as it was" equals "$(git -C "$re
  D plugins/one/evals/stays-green/prompt.md
 ?? draft.md
 ?? plugins/one/evals/stays-green/workspace/"
+
+# The harness runs each case that it finds under its checkout, in a directory
+# that git ignores too (measured on Claude Code 2.1.325, issue 224). Here the
+# working tree holds a copy of its cases in tmp/, which git ignores, and a case
+# that is not committed yet.
+repo=$(two_commits)
+echo /tmp/ >>"$repo/.git/info/exclude"
+mkdir "$repo/tmp"
+cp -R "$repo/plugins" "$repo/tmp/"
+mkdir -p "$repo/plugins/three/evals/not-committed-yet"
+echo "A case of the fixture." >"$repo/plugins/three/evals/not-committed-yet/prompt.md"
+compare "$repo" main~1
+check "an ignored copy of the cases: exits 0" equals "$code" 0
+check "an ignored copy of the cases: the head run finds no case in it" lacks "$(cases_at head)" "tmp/"
+check "an ignored copy of the cases: the head run finds the case that is not committed yet" \
+  contains "$(cases_at head)" "plugins/three/evals/not-committed-yet/prompt.md"
+check "an ignored copy of the cases: the working tree is as it was" \
+  equals "$(git -C "$repo" status --porcelain --ignored)" "?? plugins/three/
+!! tmp/"
 
 # A run has no gated tool that it does not grant, whatever the case lists, and
 # the harness says so about a case that lists one. A grader that expects that
