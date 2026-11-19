@@ -6,8 +6,9 @@ record of the transcript, an attachment of type hook_success, hook_non_blocking_
 what one hook command printed for one hook event. The program replays each such event: it runs every hook that a
 plugin of the checkout registers for the event with that command, in hooks/hooks.json or in the frontmatter of a
 skill or an agent, on the input that the transcript records, in an empty working directory and with the variables
-that Claude Code gives a hook. In what the hooks print it writes the checkout as /recorded/devkit and the working
-directory as the one the transcript records, as the recording did.
+that Claude Code gives a hook in an eval run, since a case resumes the transcript in one. In what the hooks print it
+writes the checkout as /recorded/devkit and the working directory as the one the transcript records, as the
+recording did.
 
 The records of a command in an event are current when they hold the outputs of those hooks one for one, leaving out
 a hook that prints nothing, since such a hook leaves no record. A record that is not current takes the output that no
@@ -291,7 +292,7 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Replayer:
-    """Runs hooks as Claude Code does, each in a new directory, and writes paths in their output as recorded."""
+    """Runs hooks as in an eval run, each in a new directory, and writes the paths in their output as recorded."""
 
     root: pathlib.Path
     scratch: pathlib.Path
@@ -308,6 +309,7 @@ class Replayer:
             "CLAUDE_PROJECT_DIR": str(workdir),
             "CLAUDE_PLUGIN_ROOT": str(hook.plugin),
             "CLAUDE_PLUGIN_DATA": str(own / "data"),
+            "CLAUDE_CODE_EVAL_CONFINED": "1",
         }
         if event.name == "SessionStart":
             environment["CLAUDE_ENV_FILE"] = str(own / "env-file.sh")
