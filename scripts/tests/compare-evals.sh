@@ -676,6 +676,17 @@ A  tmp/added/prompt.md
 ?? plugins/three/evals/not-committed-yet/notes.md
 !! tmp/copy/"
 
+# Here git has no identity for the operator and may not guess one.
+repo=$(two_commits)
+echo "# Draft" >"$repo/draft.md"
+code=$(
+  unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
+  export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.useConfigOnly GIT_CONFIG_VALUE_0=true
+  compare "$repo" main~1
+  echo "$code"
+)
+check "no identity of the operator's: exits 0" equals "$code" 0
+
 # A run has no gated tool that it does not grant, whatever the case lists, and
 # the harness says so about a case that lists one. A grader that expects that
 # something did not happen then passes whatever the skill does, so the full
