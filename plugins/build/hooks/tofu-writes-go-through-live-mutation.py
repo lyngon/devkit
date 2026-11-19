@@ -9,6 +9,7 @@ tool, nor the tool in a call whose subcommand the hook cannot read.
 import argparse
 import collections.abc as ct
 import contextlib
+import enum
 import importlib
 import io
 import itertools
@@ -81,7 +82,20 @@ XARGS_REPLACE = "--replace"
 
 XARGS_DEFAULT_REPLACEMENT = "{}"
 
-XARGS_LETTERS_WITH_AN_ARGUMENT = frozenset("adEeLlnPs")
+XARGS_SHORT_WITH_AN_ARGUMENT = frozenset("adEILnPs")
+
+XARGS_SHORT_WITH_AN_ATTACHED_ARGUMENT = frozenset("eil")
+
+XARGS_LONG_WITH_AN_ARGUMENT = (
+    "--arg-file",
+    "--delimiter",
+    "--max-args",
+    "--max-chars",
+    "--max-procs",
+    "--process-slot-var",
+)
+
+IN_EVERY_WORD = ""
 
 SHELL_FLAGS_WITH_AN_ARGUMENT = frozenset("oO")
 
@@ -138,9 +152,12 @@ OPENTOFU_FLAKE = re.compile(r"[^#]*#(?:.*\.)?opentofu")
 
 DIALECTS = ("bash", "zsh")
 
-EXPANDED = "comes from a variable or a substitution"
 
-FROM_XARGS = "comes from the input of xargs"
+class Origin(enum.StrEnum):
+    """Where a word that the hook cannot see comes from, as a denial says it."""
+
+    EXPANSION = "comes from a variable or a substitution"
+    XARGS_INPUT = "comes from the input of xargs"
 
 
 def writes(part: str) -> str:
@@ -209,7 +226,7 @@ def tofu_command(arguments: ct.Sequence[shell_syntax.Word]) -> tuple[str | None,
     return command, rest
 
 
-def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: str) -> str | None:
+def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: Origin) -> str | None:
     """Return why the hook denies an OpenTofu run with these arguments, or None when it only reads."""
     command, rest = tofu_command(arguments)
     if command is None:
@@ -256,7 +273,7 @@ def echoed(arguments: ct.Sequence[shell_syntax.Word]) -> str | None:
 
 def handed(command: str | None, call: shell_syntax.Call) -> str | None:
     """Return why the hook denies a command that a call hands a shell, or None to let it run."""
-    return hidden(call.text, f"the command it hands a shell {EXPANDED}") if command is None else denial(command)
+    return hidden(call.text, f"the command it hands a shell {Origin.EXPANSION}") if command is None else denial(command)
 
 
 def input_denial(call: shell_syntax.Call) -> str | None:
@@ -302,7 +319,7 @@ def shell_denial(call: shell_syntax.Call) -> str | None:
 def call_denial(call: shell_syntax.Call) -> str | None:
     """Return why the hook denies a simple command of a command that names tofu, or None to let it run."""
     if call.words and call.words[0].value is None:
-        return hidden(call.text, f"its program {EXPANDED}")
+        return hidden(call.text, f"its program {Origin.EXPANSION}")
     reason = shell_denial(call)
     if reason is not None:
         return reason
@@ -347,7 +364,7 @@ def commands_given_at_once(arguments: list[str]) -> list[str]:
             return []
 
 
-def tool_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: str) -> str | None:
+def tool_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: Origin) -> str | None:
     """Return why the hook denies a run of the tool of build:live-mutation with these arguments, or None to let it run.
 
     It denies a run that may propose or demonstrate when any of its arguments is hidden, or when the hook denies a
@@ -411,25 +428,27 @@ def xargs_options(words: ct.Sequence[shell_syntax.Word], position: int) -> ct.Se
     return words[runs[-1] + 1 : position] if runs else None
 
 
-def long_option_replacement(option: str) -> str | None:
+def long_option_replacement(option: str, remaining: ct.Iterator[shell_syntax.Word]) -> str | None:
     """Return the string that a long option of xargs names for its input to replace, or None when it names none."""
     name, equals, argument = option.partition("=")
-    if len(name) > len("--") and XARGS_REPLACE.startswith(name):
+    if XARGS_REPLACE.startswith(name):
         return argument if equals else XARGS_DEFAULT_REPLACEMENT
+    if not equals and any(long.startswith(name) for long in XARGS_LONG_WITH_AN_ARGUMENT):
+        _ = next(remaining, None)
     return None
 
 
 def short_options_replacement(options: str, remaining: ct.Iterator[shell_syntax.Word]) -> str | None:
     """Return the string that a word of short options of xargs names for its input to replace, or None."""
     for at, letter in enumerate(options[1:], start=1):
-        rest = options[at + 1 :]
-        if letter == "I":
-            given = rest or next(remaining, shell_syntax.UNSEEN).value
-            return "" if given is None else given
-        if letter == "i":
-            return rest or XARGS_DEFAULT_REPLACEMENT
-        if letter in XARGS_LETTERS_WITH_AN_ARGUMENT:
-            return None
+        attached = options[at + 1 :]
+        if letter in XARGS_SHORT_WITH_AN_ATTACHED_ARGUMENT:
+            return (attached or XARGS_DEFAULT_REPLACEMENT) if letter == "i" else None
+        if letter in XARGS_SHORT_WITH_AN_ARGUMENT:
+            argument = attached or next(remaining, shell_syntax.UNSEEN).value
+            if letter != "I":
+                return None
+            return IN_EVERY_WORD if argument is None else argument
     return None
 
 
@@ -440,11 +459,11 @@ def xargs_replacement(options: ct.Sequence[shell_syntax.Word]) -> str | None:
     for option in remaining:
         value = option.value
         if value is None:
-            return ""
+            return IN_EVERY_WORD
         if value == "--":
             break
         if value.startswith("--"):
-            named = long_option_replacement(value)
+            named = long_option_replacement(value, remaining)
         elif value.startswith("-"):
             named = short_options_replacement(value, remaining)
         else:
@@ -459,21 +478,23 @@ def put_in_place(word: shell_syntax.Word, replacement: str) -> shell_syntax.Word
     return word if at < 0 else shell_syntax.Word(word.start[:at], complete=False, text=word.text)
 
 
-def readings(words: ct.Sequence[shell_syntax.Word], position: int) -> list[tuple[ct.Sequence[shell_syntax.Word], str]]:
+def readings(
+    words: ct.Sequence[shell_syntax.Word], position: int
+) -> list[tuple[ct.Sequence[shell_syntax.Word], Origin]]:
     """Return the arguments that the program at a position of a simple command may run with, each with their origin.
 
     Behind xargs, the program also runs with the words of its input: after its own arguments, or in place of the
     string that -I, -i or --replace names.
     """
     arguments = words[position + 1 :]
-    found: list[tuple[ct.Sequence[shell_syntax.Word], str]] = [(arguments, EXPANDED)]
+    found: list[tuple[ct.Sequence[shell_syntax.Word], Origin]] = [(arguments, Origin.EXPANSION)]
     options = xargs_options(words, position)
     if options is not None:
         replacement = xargs_replacement(options)
         if replacement is None:
-            found.append(([*arguments, shell_syntax.UNSEEN], FROM_XARGS))
+            found.append(([*arguments, shell_syntax.UNSEEN], Origin.XARGS_INPUT))
         else:
-            found.append(([put_in_place(argument, replacement) for argument in arguments], FROM_XARGS))
+            found.append(([put_in_place(argument, replacement) for argument in arguments], Origin.XARGS_INPUT))
     return found
 
 
