@@ -334,6 +334,7 @@ A session resumed from that part alone goes on from the compaction (measured on 
 The output of a hook in a transcript is the text that the hook prints at head.
 `update-eval-histories` keeps it so.
 It runs each hook whose output a transcript holds again, on the input that the transcript shows the hook got, and writes what the hook prints now into the record, or deletes the record when the hook prints nothing.
+It runs the hooks as in an eval run, where the case resumes the transcript, so a transcript recorded in a run keeps the record of the `devkit` plugin's hook, which prints only there.
 `devenv test` fails a transcript that it would change, so run it after a change to a hook or to the text that one prints:
 
 ```sh
