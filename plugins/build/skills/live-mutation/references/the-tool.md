@@ -64,6 +64,12 @@ Two plans of one state differ byte for byte while `tofu show -no-color` renders 
 `no-changes` exits 2 before the apply and 0 after it, so its run before the apply is its failing run.
 
 The tool reads the plan's JSON from `tofu show -json` into memory and never writes it to a file, since it holds sensitive values in plain text.
+`tofu` prints a value that the plan marks sensitive where it loses the mark, as in the output of a `terraform_data` resource whose input holds one.
+So each command prints into a file that has no name, and before the tool writes what it printed, as the rendering or under `outputs/`, it replaces each such value with `(sensitive value hidden by live-mutation.py)`.
+It finds a value of a root variable declared sensitive, and a value under a mark of a resource change, of a change made outside OpenTofu or of an output change, printed as it is, quoted with escapes or as a heredoc.
+Before the run, a command that printed one stops the proposal or the run, and after it the tool only hides it.
+The generic form hides nothing, since the tool cannot read what its inputs mark sensitive.
+
 The proposal ends with its route.
 It needs no go-ahead only when none of these holds, and otherwise it waits and the output gives each that holds:
 
@@ -94,6 +100,7 @@ Beyond those of the generic form, its refusals:
 - `bad-root`: the root module is absolute, holds `..`, passes through a symlink or names no directory. Name the directory itself, relative to the root of the repository.
 - `reserved-check`: a check you give is named `no-changes`, which the form adds itself. Name it otherwise.
 - `plan-unreadable`: `tofu show -json` failed, or printed no JSON with a list of resource changes and a configuration of modules that the tool reads.
+- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. When a check of yours printed it, fix the check and propose again. Otherwise stop and tell the owner, and never propose it in the generic form, which would show the value.
 - `nothing-to-apply`: the plan changes nothing, since `no-changes` passes, so the check could never fail.
 
 ### The declaration
@@ -122,7 +129,8 @@ live-mutation.py demonstrate <name> <check> '<cmd>' [--session <id>]
 
 It runs a variant of a check's command against a state where the property does not hold, and logs it, so that the record shows the check can fail.
 With `--session`, it logs the demonstration in the proposal of that session, as for a run whose session ended before it wrote the record.
-It refuses `bad-session` and `not-found` as `record` does, and `no-such-check` for a check that the proposal does not have.
+It refuses `bad-session` and `not-found` as `record` does, `no-such-check` for a check that the proposal does not have, and `plan-unreadable` for a proposal of the OpenTofu form whose frozen plan `tofu show -json` cannot read.
+The tool hides a sensitive value in its output as for a check.
 
 ## run
 
@@ -148,14 +156,15 @@ It checks these in order, and each refusal changes nothing live:
 6. `digest-mismatch`: the digest is not the one the proposal has now, as after a second propose. Show the owner the proposal at its digest and ask again.
 7. `already-ran`: a proposal runs once, with a go-ahead or without one. Propose again from the new live state.
 8. `inputs-changed`: a frozen input changed after the proposal. Propose again.
-9. `plan-unreadable`, `git-missing` or `git-failed`, without `--go-ahead` only, while it reads the plan and the rule files again.
+9. `plan-unreadable`, for the OpenTofu form, while it reads the frozen plan again, and `git-missing` or `git-failed`, without `--go-ahead` only, while it reads the rule files again.
 10. `needs-go-ahead`, without `--go-ahead` only: the proposal runs only on the owner's go-ahead. The refusal gives each reason, and says so when the proposal was shown waiting. Show the owner the proposal and ask.
-11. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output.
-12. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
+11. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output. `plan-unreadable` here means that `tofu show -json` cannot read the plan derived again.
+12. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan or the plan derived again marks sensitive. Act as for the refusal of `propose`.
+13. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
 
 A run can take longer than a command in the foreground may, as a landing zone upgrade does.
 Start such a run in the background and wait for it to end.
-Its output grows in the file that the tool names, under `outputs/`.
+The tool writes the run's output, with each sensitive value hidden, to the file that it names under `outputs/` once the run ends.
 
 ## record
 

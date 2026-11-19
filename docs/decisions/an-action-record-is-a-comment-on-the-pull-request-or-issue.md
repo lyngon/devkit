@@ -2,6 +2,8 @@
 
 The action record of a live mutation is a comment on the pull request whose branch the mutation ran from, without one on the issue of its task, and without either on an issue opened for the mutation.
 It holds the rendering the owner read and the outputs, never a frozen input that may hold a secret, such as an OpenTofu saved plan, which holds sensitive values in plain text.
+Nor does it hold a value that the plan of the OpenTofu form marks sensitive, which `tofu` prints where it loses the mark.
+The tool hides each such value in what a command prints, and a proposal or a run that printed one stops before the run, since a rendering that lost a mark may also print the value in a form that the tool does not find.
 The record of a run without a go-ahead whose branch has no pull request yet waits for one, and `build:pull-request` posts it there, since it is proof of the work, as the work trace is, and a worktree that dies with it loses no go-ahead.
 
 ## Considered options
@@ -9,5 +11,6 @@ The record of a run without a go-ahead whose branch has no pull request yet wait
 - The record of a run without a go-ahead goes on the issue of the task, or on an issue opened for it, while the branch has no pull request. That puts a comment there for each Sandbox apply of a branch, most of them steps on the way, and none where a reviewer reads the change.
 - A committed file per live mutation, such as under `docs/actions/`, keeps history in the tree, which the principle `the-tree-is-current` forbids, and grows with every mutation.
 - The gitignored workspace the mutation ran from dies with the session or the worktree, which is where the evidence of the applies in [feat: bootstrap the state bucket and LyngonTofu](<https://github.com/lyngon/lyngon.com/pull/3>) was lost.
+- The tool hides a sensitive value in the rendering and the proposal goes on. The owner would then approve a rendering that OpenTofu did not print, and one in which the tool missed a form of the value.
 
-Enforced by: `plugins/build/tests/live-mutation.sh` for a record that holds no frozen input and for one that waits, which `pending` lists, and judgment
+Enforced by: `plugins/build/tests/live-mutation.sh` for a record that holds no frozen input, for one that holds no sensitive value of an OpenTofu plan and for one that waits, which `pending` lists, and judgment
