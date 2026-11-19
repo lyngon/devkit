@@ -80,6 +80,7 @@ A delegate that writes code is the `build:implementer` agent (`subagent_type: "b
 Its brief names the files, the data shape and its organizing structure, what must hold when it is done and the proof owed.
 It also names the path of this file, `${CLAUDE_SKILL_DIR}/SKILL.md`, which the delegate reads in full before any work.
 Give file pointers, not pasted context.
+Where you would ask for a comment, the brief names the reason the comment would carry, never its words, and the delegate decides whether a reshape, a check or a comment carries that reason.
 
 A skill this mode routes to starts its own subagents and picks their models; leave that to it.
 
