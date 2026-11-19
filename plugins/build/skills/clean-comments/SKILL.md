@@ -11,7 +11,8 @@ Act on accepted findings.
 
 Defer to the auditor's fresh perspective.
 Every comment that the scope keeps has passed an audit since its last edit.
-So once the auditor has run, neither you nor a delegate restores, rewrites or writes a comment, and a deleted comment comes back only through a rerun.
+So once the auditor has run, neither you nor a delegate restores, rewrites or writes a comment.
+When the auditor deleted a comment that an exception protects, reject its report, and the rerun that "Vet its report" asks for brings the comment back.
 
 The principles this skill names are files of `principles:index`.
 Read each one before you apply it.
