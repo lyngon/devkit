@@ -202,14 +202,16 @@ path=$with_claude
 
 # --- Fixture helpers ---------------------------------------------------------
 
-# run_of <error>: one run of a case, as the result file holds it.
+# run_of <score> <error>: one run of a case, as the result file holds it.
 run_of() {
-  jq -n --arg error "$1" '{score: 0, passed: false, error: (if $error == "" then null else $error end), graders: []}'
+  jq -n --argjson score "$1" --arg error "$2" \
+    '{score: $score, passed: ($score == 1), error: (if $error == "" then null else $error end), graders: []}'
 }
 
-# case_of <dir> <score> <runs> [<error>]: one case with that many runs.
+# case_of <dir> <score> <runs> [<error>]: one case with that many runs, each
+# with the score of the case.
 case_of() {
-  jq -n --arg dir "$1" --argjson score "$2" --argjson runs "$3" --argjson run "$(run_of "${4:-}")" \
+  jq -n --arg dir "$1" --argjson score "$2" --argjson runs "$3" --argjson run "$(run_of "$2" "${4:-}")" \
     '{name: ($dir | split("/") | last), dir: $dir, arms: {with: [range($runs) | $run]}, aggregates: {score: $score, passRate: $score}}'
 }
 
@@ -489,11 +491,48 @@ with_build() {
   chmod +x "$1/baseline/check-pull-request"
 }
 
+# files_under <directory>: every file below the directory, one path to a line,
+# in the order of the glob.
+files_under() {
+  local file
+  shopt -s globstar dotglob nullglob
+  for file in "$1"/**; do
+    [[ ! -f $file ]] || echo "$file"
+  done
+  shopt -u globstar dotglob nullglob
+}
+
+# traces_named_in <comparison>: each path at which the comparison says that it
+# keeps the trace of a run.
+traces_named_in() {
+  local line
+  while IFS= read -r line; do
+    [[ $line != *", and its trace is kept at "* ]] || echo "${line##*, and its trace is kept at }"
+  done <<<"$1"
+}
+
+# holds <file> <text>: the file is there and holds the text.
+holds() {
+  [[ -f $1 ]] || {
+    echo "  no file: $1"
+    return 1
+  }
+  equals "$(<"$1")" "$2"
+}
+
+# nothing_left <repo> [<comparison>]: nothing is left behind but the traces
+# that the comparison names, in the directory in XDG_RUNTIME_DIR that holds
+# them.
 nothing_left() {
-  local repo=$1
+  local repo=$1 named trace kept=()
+  named=$(traces_named_in "${2:-}")
+  while IFS= read -r trace; do
+    [[ -z $trace ]] || kept+=("$(cut -d / -f 1 <<<"${trace#"$tmp/scratch/"}")")
+  done <<<"$named"
   equals "$(git -C "$repo" worktree list | wc -l)" 1 &&
     equals "$(git -C "$repo" status --porcelain)" "" &&
-    equals "$(ls -A "$tmp/scratch")" "" &&
+    equals "$(ls -A "$tmp/scratch")" "$(printf '%s\n' "${kept[@]}" | uniq)" &&
+    equals "$(files_under "$tmp/scratch")" "$named" &&
     equals "$(ls -A "$tmp/tmpdir")" ""
 }
 
@@ -946,6 +985,30 @@ check "read-only shells: a run in which every shell command failed so counts as 
 check "read-only shells: the words of zsh count too" contains "$out" \
   "plugins/one/evals/red-then-green at head: a shell command could not write in 1 of 1 runs, the first saying: zsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af"
 check "read-only shells: every sandbox is removed" nothing_left "$repo"
+
+# The trace of a run that scored below 1.00 outlives the comparison, which
+# says where it is kept, so that a failure that a rerun does not repeat can be
+# read (issue 230). Here the second of two runs at head fails a grader, and the
+# one run of the case at the base commit scored 0.
+passed=$(trace_of "$(shell_call 1 false "On branch main")")
+failed=$(trace_of "$(shell_call 1 true "$not_a_repository")")
+repo=$(two_commits)
+result 0.5 "$(case_of plugins/one/evals/red-then-green 0.5 2 | with_grader writes-the-file pf |
+  with_traces "$passed" "$failed" | jq '.arms.with[0].score = 1 | .arms.with[1].score = 0')" >"$repo/canned-result.json"
+commit "$repo" "chore: a case whose second run fails a grader"
+compare "$repo" base
+check "a run below 1.00: exits 0" equals "$code" 0
+check "a run below 1.00: the comparison names where its trace is kept, below the graders of its case" contains "$out" "
+plugins/one/evals/red-then-green at head: grader writes-the-file failed in 1 of 2 runs
+plugins/one/evals/red-then-green at head: run 2 of 2 scored 0.00, and its trace is kept at $runtime/"
+check "a run below 1.00: its trace is still there after the comparison, as the run wrote it" \
+  holds "$(traces_named_in "$(grep -F "red-then-green at head: run 2 of 2 " <<<"$out")")" "$(jq -c '.[]' <<<"$failed")"
+check "a run below 1.00 at the base commit: its trace is kept too" \
+  contains "$out" "plugins/one/evals/red-then-green at base: run 1 of 1 scored 0.00, and its trace is kept at $runtime/"
+check "a run at 1.00: keeps no trace" lacks "$out" "run 1 of 2"
+check "a run below 1.00: nothing but the traces that the comparison names is left behind" nothing_left "$repo" "$out"
+check "a run below 1.00: the comparison names the trace of each run below 1.00 and no other" \
+  equals "$(traces_named_in "$out" | wc -l)" 2
 
 repo=$(two_commits)
 gone=$tmp/gone/out/trace.jsonl
