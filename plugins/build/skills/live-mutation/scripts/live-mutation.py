@@ -76,8 +76,8 @@ HOOKS = pathlib.Path(__file__).resolve().parents[3] / "hooks"
 if str(HOOKS) not in sys.path:
     sys.path.append(str(HOOKS))
 
-import opentofu_commands  # noqa: E402
-import shell_syntax  # noqa: E402
+import opentofu_commands  # noqa: E402  # beside the plugin's hooks, which read OpenTofu commands as the tool does
+import shell_syntax  # noqa: E402  # beside them too, the parser that opentofu_commands reads with
 
 KEY = f"{unprotected_roots.UNPROTECTED_ROOTS}:"
 
