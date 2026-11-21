@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """PreToolUse hook of the build plugin on Bash and Monitor: OpenTofu writes go through live-mutation.
 
-A subagent, whose hook input holds an agent_id, never calls propose, demonstrate or run of that skill's tool, nor
-the tool in a call whose subcommand the hook cannot read.
+No command in the shell is one, and neither is a command that the tool of that skill runs at once, before any
+go-ahead. A subagent, whose hook input holds an agent_id, never calls propose, demonstrate or run of that skill's
+tool, nor the tool in a call whose subcommand the hook cannot read.
 """
 
+import argparse
 import collections.abc as ct
+import contextlib
+import importlib
+import io
 import itertools
 import json
+import pathlib
 import re
 import sys
 import typing as t
@@ -30,11 +36,20 @@ SUBAGENT = (
 
 TOOL = "live-mutation.py"
 
+TOOL_SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "skills" / "live-mutation" / "scripts"
+
 NAMES_THE_TOOL = re.compile(r"live-mutation\.py")
 
 TOOL_AT_THE_END = re.compile(r"(?:^|/)live-mutation\.py[\"']?$")
 
 LIVE_SUBCOMMANDS = frozenset({"propose", "demonstrate", "run"})
+
+RUN_AT_ONCE = frozenset({"propose", "demonstrate"})
+
+AT_ONCE = (
+    f"{TOOL} runs the --derive, --show and --check commands of propose and the command of demonstrate at once,"
+    " with no go-ahead, so none of them may write: only a proposal's run does."
+)
 
 WRAPPERS = frozenset(
     {
@@ -287,6 +302,54 @@ def call_denial(call: shell_syntax.Call) -> str | None:
         reason = tofu_run(call.words[index + 1 :], call.text) if names_tofu(word) else None
         if reason is not None:
             return reason
+    return tool_denial(call)
+
+
+def tool_parser() -> argparse.ArgumentParser:
+    """Return the parser of the command line of the tool of build:live-mutation."""
+    if str(TOOL_SCRIPTS) not in sys.path:
+        sys.path.append(str(TOOL_SCRIPTS))
+    module = vars(importlib.import_module(TOOL.removesuffix(".py")))
+    return t.cast("ct.Callable[[], argparse.ArgumentParser]", module["parser"])()
+
+
+def commands_given_at_once(arguments: list[str]) -> list[str]:
+    """Return the commands that these arguments give the tool to run at once."""
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            parsed = tool_parser().parse_args(arguments)
+    except SystemExit:
+        return []
+    match t.cast("str", parsed.command):
+        case "propose":
+            given = [t.cast("str | None", parsed.derive), t.cast("str | None", parsed.show)]
+            checks = t.cast("list[tuple[str, str]]", parsed.check)
+            return [command for command in given if command is not None] + [command for _, command in checks]
+        case "demonstrate":
+            return [t.cast("str", parsed.cmd)]
+        case _:
+            return []
+
+
+def tool_denial(call: shell_syntax.Call) -> str | None:
+    """Return why the hook denies a call of the tool of build:live-mutation, or None to let it run.
+
+    It denies a call that may propose or demonstrate when an expansion hides any of its arguments, or when the hook
+    denies a command that the call gives the tool to run at once.
+    """
+    words = call.words
+    for position in program_positions(words):
+        arguments = words[position + 1 :]
+        if not names_the_tool(words[position]) or not runs_one_of(arguments, RUN_AT_ONCE):
+            continue
+        values = [argument.value for argument in arguments]
+        if None in values:
+            reason = hidden(call.text, f"an argument of {TOOL} {EXPANDED}")
+        else:
+            commands = commands_given_at_once(t.cast("list[str]", values))
+            reason = next((found for command in commands if (found := denial(command)) is not None), None)
+        if reason is not None:
+            return f"{AT_ONCE} {reason}"
     return None
 
 
@@ -328,13 +391,13 @@ def program_positions(words: ct.Sequence[shell_syntax.Word]) -> range:
     return range(1)
 
 
-def calls_live(arguments: ct.Sequence[shell_syntax.Word]) -> bool:
-    """Return whether the tool, run with these arguments, may propose, demonstrate or run.
+def runs_one_of(arguments: ct.Sequence[shell_syntax.Word], subcommands: frozenset[str]) -> bool:
+    """Return whether the tool, run with these arguments, may run one of the subcommands.
 
     Its subcommand is the first argument that is not --, and it counts when an expansion hides it.
     """
     subcommand = next((argument for argument in arguments if argument.value != "--"), None)
-    return subcommand is not None and (subcommand.value is None or subcommand.value in LIVE_SUBCOMMANDS)
+    return subcommand is not None and (subcommand.value is None or subcommand.value in subcommands)
 
 
 def reads_standard_input(arguments: ct.Sequence[shell_syntax.Word]) -> bool:
@@ -387,7 +450,7 @@ def alias_calls_the_tool(argument: shell_syntax.Word) -> bool:
 def program_calls_the_tool(program: shell_syntax.Word, arguments: ct.Sequence[shell_syntax.Word]) -> bool:
     """Return whether a program of a simple command, run with these arguments, may call propose, demonstrate or run."""
     if names_the_tool(program):
-        return calls_live(arguments)
+        return runs_one_of(arguments, LIVE_SUBCOMMANDS)
     match shell_syntax.command_name(program.value):
         case name if name in SHELLS:
             return shell_calls_the_tool(arguments)

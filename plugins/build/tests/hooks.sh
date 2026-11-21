@@ -284,6 +284,33 @@ tofu_runs "a proposal in the OpenTofu form of a root module under a directory na
 tofu_runs "a proposal in the OpenTofu form of a root module named tofu" \
   "$live_mutation propose staging-logs --opentofu infra/tofu --check 'reachable=curl -fsS https://staging.example.com'"
 
+at_once="live-mutation.py runs the --derive, --show and --check commands of propose and the command of demonstrate at once, with no go-ahead, so none of them may write: only a proposal's run does."
+production_apply="tofu -chdir=infra/production apply -auto-approve"
+runs_at_once() {
+  jq --arg at_once "$at_once" '.hookSpecificOutput.permissionDecisionReason |= "\($at_once) \(.)"' <<<"$1"
+}
+tofu_denied "apply in the --derive command of build:live-mutation's tool" \
+  "$live_mutation propose set-value --derive '$production_apply' --show 'true' --run 'true'" \
+  "$(runs_at_once "$(writes "$production_apply")")"
+tofu_denied "apply in the --show command of build:live-mutation's tool" \
+  "$live_mutation propose set-value --derive 'true' --show '$production_apply' --run 'true'" \
+  "$(runs_at_once "$(writes "$production_apply")")"
+tofu_denied "apply in a --check command of build:live-mutation's tool in its OpenTofu form" \
+  "$live_mutation propose staging-logs --opentofu infra/staging --check 'fresh=$production_apply'" \
+  "$(runs_at_once "$(writes "$production_apply")")"
+tofu_denied "apply in the command of a demonstration of build:live-mutation's tool" \
+  "$live_mutation demonstrate staging-logs no-changes '$production_apply'" \
+  "$(runs_at_once "$(writes "$production_apply")")"
+tofu_denied "apply in a --check command that an abbreviation of the option gives build:live-mutation's tool" \
+  "$live_mutation propose staging-logs --opentofu infra/staging --ch='fresh=$production_apply'" \
+  "$(runs_at_once "$(writes "$production_apply")")"
+tofu_denied "a --check command of build:live-mutation's tool in a variable" \
+  "$live_mutation propose staging-logs --opentofu infra/tofu/staging --check \"\$check\"" \
+  "$(runs_at_once "$(hidden "$live_mutation propose staging-logs --opentofu infra/tofu/staging --check \"\$check\"" \
+    "an argument of live-mutation.py comes from a variable or a substitution")")"
+tofu_runs "apply in the --run command of build:live-mutation's tool" \
+  "$live_mutation propose set-value --derive 'true' --show 'true' --run '$production_apply'"
+
 subagent='{"agent_id": "a1", "agent_type": "general-purpose"}'
 tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
   "$(writes "tofu -chdir=$organization apply organization.tfplan")" "$subagent"
