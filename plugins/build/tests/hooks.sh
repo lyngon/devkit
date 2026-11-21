@@ -166,6 +166,9 @@ tofu_denied "apply by the path of the program" "/nix/store/6knn-opentofu-1.12.6/
   "$(writes "/nix/store/6knn-opentofu-1.12.6/bin/tofu destroy -auto-approve")"
 tofu_denied "apply under nix run" "nix run nixpkgs#opentofu -- -chdir=$organization apply organization.tfplan" \
   "$(writes "nix run nixpkgs#opentofu -- -chdir=$organization apply organization.tfplan")"
+tofu_denied "apply behind flock, a program that the hook does not know as a wrapper" \
+  "flock infra.lock tofu -chdir=$organization apply organization.tfplan" \
+  "$(writes "flock infra.lock tofu -chdir=$organization apply organization.tfplan")"
 tofu_denied "state rm under xargs" "xargs -n1 tofu state rm < addresses.txt" "$(writes "xargs -n1 tofu state rm")"
 tofu_denied "apply in bash -c" "bash -c 'cd infra && tofu apply organization.tfplan'" \
   "$(writes "tofu apply organization.tfplan")"

@@ -143,11 +143,7 @@ type Finding = Unparsed | Hidden | ReadsStandardInput | Run
 
 
 class Arity(enum.Enum):
-    """What an option of a wrapper takes when it takes no number of the words after it.
-
-    ATTACHED_ONLY takes an argument in its own word only, as -i of xargs does, and EVERY_LATER_WORD takes every word
-    after it, so that the wrapper runs no program, as -v of command does.
-    """
+    """What an option of a wrapper takes when it takes no number of the words after it."""
 
     ATTACHED_ONLY = enum.auto()
     EVERY_LATER_WORD = enum.auto()
@@ -156,41 +152,42 @@ class Arity(enum.Enum):
 type Takes = int | Arity
 
 
-type InWord = tuple[str, Takes, str | None]
+class Missing(enum.Enum):
+    """An argument of an option of a wrapper that the reader does not have."""
+
+    NONE_GIVEN = enum.auto()
+    UNSEEN = enum.auto()
+
+
+type Argument = str | Missing
+
+XARGS_REPLACEMENT_WITHOUT_AN_ARGUMENT = {Missing.NONE_GIVEN: XARGS_DEFAULT_REPLACEMENT, Missing.UNSEEN: IN_EVERY_WORD}
+
+
+class UnreadableOptionError(Exception):
+    """An option word of a wrapper names options that its table does not, or an expansion hides which."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Taken:
-    """An option that a wrapper took, by its name in the wrapper's table, and its argument.
-
-    The argument is "" when it takes none, and None when an expansion hides it.
-    """
+    """An option that a wrapper took, by its name in the wrapper's table, and its argument."""
 
     name: str
-    argument: str | None
+    argument: Argument
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Reading:
-    """How a wrapper reads the words of a simple command after it: the options it takes and the programs it runs.
-
-    Every word from the position unread on may be a program, since the reader cannot tell where the program is.
-    """
+    """How a wrapper reads the words of a simple command after it: the options it takes and the programs it runs."""
 
     options: tuple[Taken, ...] = ()
     programs: tuple[int, ...] = ()
-    unread: int | None = None
+    programs_from: int | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Wrapper:
-    """How a program that runs another program reads its words up to the program it runs.
-
-    Its options, each with what it takes, may stand anywhere before that program, up to --, and after an option that
-    options does not name, the reader cannot tell where the program is. Then come its operands, and with assignments
-    any NAME=VALUE word, and the next word is the program. With subcommands, its first word that is no option names
-    the subcommand, and only a subcommand that subcommands names runs a program.
-    """
+    """How a program that runs another program reads its words up to the program it runs."""
 
     options: ct.Mapping[str, Takes] = dataclasses.field(default_factory=dict[str, Takes])
     operands: int = 0
@@ -202,33 +199,33 @@ class Wrapper:
         taken: list[Taken] = []
         operands = self.operands
         in_options = True
-        remaining = iter(range(position + 1, len(words)))
-        for at in remaining:
+        at = position + 1
+        while at < len(words):
             word = words[at]
             if in_options and word.value == "--":
                 in_options = False
             elif in_options and is_option(word, self.options):
-                found = options_in(word, self.options, words, remaining)
-                if found is None:
-                    return Reading(tuple(taken), (), at + 1)
+                try:
+                    found, following = options_in(word, self.options, words[at + 1 :])
+                except UnreadableOptionError:
+                    return Reading(tuple(taken), programs_from=at + 1)
                 taken.extend(found)
-                if found and self.options[found[-1].name] is Arity.EVERY_LATER_WORD:
+                if self.options[found[-1].name] is Arity.EVERY_LATER_WORD:
                     return Reading(tuple(taken))
+                at += following
             elif self.subcommands:
                 return subcommand_reading(words, at, self.subcommands, tuple(taken))
             elif not (self.assignments and ASSIGNMENT.match(word.start)):
                 if not operands:
                     return Reading(tuple(taken), (at,))
                 operands -= 1
+            at += 1
         return Reading(tuple(taken))
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Exec:
-    """A wrapper whose words are all its own but the command after each of its options, as -exec of find is.
-
-    A command runs up to a word of ends, after which the wrapper reads its own words again, or to the last word.
-    """
+    """A wrapper whose words are all its own but the command after each of its options, as -exec of find is."""
 
     options: frozenset[str]
     ends: frozenset[str] = frozenset()
@@ -420,8 +417,8 @@ def program_positions(words: ct.Sequence[shell_syntax.Word]) -> list[int]:
         elif name in WRAPPERS:
             reading = WRAPPERS[name].reading(words, position)
             pending.extend(reading.programs)
-            if reading.unread is not None:
-                pending.extend(range(reading.unread, len(words)))
+            if reading.programs_from is not None:
+                pending.extend(range(reading.programs_from, len(words)))
     return sorted(found)
 
 
@@ -434,98 +431,92 @@ def subcommand_reading(
     """Return how a wrapper that took these options reads the words from its subcommand at a position on."""
     name = words[position].value
     if name is None:
-        return Reading(taken, (), position + 1)
+        return Reading(taken, programs_from=position + 1)
     subcommand = subcommands.get(name)
     if subcommand is None:
         return Reading(taken)
     inner = subcommand.reading(words, position)
-    return Reading((*taken, *inner.options), inner.programs, inner.unread)
+    return Reading((*taken, *inner.options), inner.programs, inner.programs_from)
 
 
 def is_option(word: shell_syntax.Word, table: ct.Mapping[str, Takes]) -> bool:
-    """Return whether a wrapper with this table of options reads a word as an option: one that starts with -.
-
-    A lone - is an option only where the table names it.
-    """
+    """Return whether a wrapper with this table of options reads a word as an option: one that starts with -."""
     return word.start.startswith("-") and (word.start != "-" or not word.complete or "-" in table)
 
 
 def options_in(
-    word: shell_syntax.Word,
-    table: ct.Mapping[str, Takes],
-    words: ct.Sequence[shell_syntax.Word],
-    remaining: ct.Iterator[int],
-) -> list[Taken] | None:
-    """Return the options that an option word gives a wrapper with this table, each with its argument.
+    word: shell_syntax.Word, table: ct.Mapping[str, Takes], following: ct.Sequence[shell_syntax.Word]
+) -> tuple[list[Taken], int]:
+    """Return the options that an option word gives a wrapper with this table, and how many following words they take.
 
-    An option whose argument is not in its own word takes it from the words that remaining holds the positions of.
-    None means that the reader cannot tell which options the word gives: the table names none of them, or an
-    expansion hides which.
+    Raises UnreadableOptionError.
     """
     if word.complete and word.start in table:
-        found = [(word.start, table[word.start], "")]
-    elif word.start.startswith("--"):
-        found = long_option(word, table)
-    else:
-        found = short_options(word, table)
-    if found is None:
-        return None
-    return [Taken(name, argument(takes, attached, words, remaining)) for name, takes, attached in found]
+        option, taking = take(word.start, table[word.start], Missing.NONE_GIVEN, following)
+        return [option], taking
+    if word.start.startswith("--"):
+        return long_option(word, table, following)
+    return short_options(word, table, following)
 
 
-def long_option(word: shell_syntax.Word, table: ct.Mapping[str, Takes]) -> list[InWord] | None:
-    """Return the long option that a word gives, with what it takes and its argument after =, or None.
+def long_option(
+    word: shell_syntax.Word, table: ct.Mapping[str, Takes], following: ct.Sequence[shell_syntax.Word]
+) -> tuple[list[Taken], int]:
+    """Return the long option that a word gives, and how many following words it takes.
 
-    It may be abbreviated to any start that no other long option of the table shares. The argument is "" without =.
+    Raises UnreadableOptionError.
     """
     name, equals, attached = word.start.partition("=")
     names = [name] if name in table else [option for option in table if option.startswith(name)]
     if len(names) != 1 or not (word.complete or equals):
-        return None
-    return [(names[0], table[names[0]], (attached if word.complete else None) if equals else "")]
+        raise UnreadableOptionError
+    given: Argument = Missing.NONE_GIVEN
+    if equals:
+        given = attached if word.complete else Missing.UNSEEN
+    option, taking = take(names[0], table[names[0]], given, following)
+    return [option], taking
 
 
-def short_options(word: shell_syntax.Word, table: ct.Mapping[str, Takes]) -> list[InWord] | None:
-    """Return the short options that a word gives, each with what it takes and its argument in the word, or None.
+def short_options(
+    word: shell_syntax.Word, table: ct.Mapping[str, Takes], following: ct.Sequence[shell_syntax.Word]
+) -> tuple[list[Taken], int]:
+    """Return the short options that a word gives, and how many following words the last of them takes.
 
-    Every option but the last takes nothing, and the rest of the word after the last is its argument.
+    Raises UnreadableOptionError.
     """
-    start = word.start
-    found: list[InWord] = []
-    for at, letter in enumerate(start[1:], start=2):
-        name, rest = f"-{letter}", start[at:]
+    found: list[Taken] = []
+    for at, letter in enumerate(word.start[1:], start=2):
+        name, rest = f"-{letter}", word.start[at:]
         takes = table.get(name)
-        if takes is None:
-            return None
-        if takes == 0:
-            found.append((name, takes, ""))
-            continue
-        if isinstance(takes, int) and not (word.complete or rest):
-            return None
-        return [*found, (name, takes, rest if word.complete else None)]
-    return found if word.complete else None
+        if takes is None or (isinstance(takes, int) and takes > 0 and not (word.complete or rest)):
+            raise UnreadableOptionError
+        if takes != 0:
+            option, taking = take(
+                name, takes, (rest or Missing.NONE_GIVEN) if word.complete else Missing.UNSEEN, following
+            )
+            return [*found, option], taking
+        found.append(Taken(name, Missing.NONE_GIVEN))
+    if not word.complete:
+        raise UnreadableOptionError
+    return found, 0
 
 
-def argument(
-    takes: Takes, attached: str | None, words: ct.Sequence[shell_syntax.Word], remaining: ct.Iterator[int]
-) -> str | None:
-    """Return the argument of an option that takes this, from its own word or the next, taken from remaining.
-
-    The option takes as many of the words after it as it takes arguments, but one fewer when its own word holds its
-    argument. An argument that no word holds is None, as a hidden one is.
-    """
+def take(name: str, takes: Takes, given: Argument, following: ct.Sequence[shell_syntax.Word]) -> tuple[Taken, int]:
+    """Return an option with the argument in its own word or the next, and how many following words it takes."""
     if isinstance(takes, Arity):
-        return attached
-    following = [next(remaining, None) for _ in range(takes if attached == "" else takes - 1)]
-    if attached != "" or takes == 0:
-        return attached
-    return None if following[0] is None else words[following[0]].value
+        return Taken(name, given), 0
+    if given is not Missing.NONE_GIVEN:
+        return Taken(name, given), max(takes - 1, 0)
+    if takes == 0:
+        return Taken(name, Missing.NONE_GIVEN), 0
+    value = following[0].value if following else None
+    return Taken(name, Missing.UNSEEN if value is None else value), takes
 
 
 def xargs_replacement(options: ct.Sequence[Taken]) -> str | None:
     """Return the string that xargs with these options puts its input in place of, or None when it adds its input."""
     replacements = [
-        IN_EVERY_WORD if option.argument is None else option.argument or XARGS_DEFAULT_REPLACEMENT
+        option.argument if isinstance(option.argument, str) else XARGS_REPLACEMENT_WITHOUT_AN_ARGUMENT[option.argument]
         for option in options
         if option.name in XARGS_REPLACE_OPTIONS
     ]
@@ -549,8 +540,8 @@ def readings(words: ct.Sequence[shell_syntax.Word]) -> list[tuple[tuple[shell_sy
     if xargs is None:
         return found
     reading = WRAPPERS[XARGS].reading(words, xargs)
-    if reading.unread is not None:
-        replaced_from, replacement = reading.unread, IN_EVERY_WORD
+    if reading.programs_from is not None:
+        replaced_from, replacement = reading.programs_from, IN_EVERY_WORD
     elif reading.programs:
         replaced_from, replacement = reading.programs[0] + 1, xargs_replacement(reading.options)
     else:
@@ -605,10 +596,7 @@ def findings(command: str) -> ct.Iterator[Finding]:
 
 
 def call_findings(call: shell_syntax.Call) -> ct.Iterator[Finding]:
-    """Yield a program that a simple command hides, or else the commands it hands a shell, its programs and tofu.
-
-    OpenTofu counts at any word, since a program that the reader does not know as a wrapper may run it from there.
-    """
+    """Yield a program that a simple command hides, or else the commands it hands a shell, its programs and tofu."""
     found = [(words, origin, program_positions(words)) for words, origin in readings(call.words)]
     for words, origin, programs in found:
         if any(words[at].value is None for at in programs):
