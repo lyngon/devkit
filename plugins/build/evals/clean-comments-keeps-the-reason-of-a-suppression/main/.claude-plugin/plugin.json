@@ -1,0 +1,4 @@
+{
+  "name": "rates",
+  "description": "Exchange rates for agents: a skill that prints the rate of a currency pair, and a hook that refuses a pair written in lower case."
+}
