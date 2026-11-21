@@ -2,7 +2,7 @@
 """Propose, run and record a live mutation, for build:live-mutation.
 
     live-mutation.py propose <name> --derive <cmd> --show <cmd> --run <cmd> [--check <check>=<cmd>]...
-    live-mutation.py propose <name> --opentofu <root module> [--destroy] [--check <check>=<cmd>]...
+    live-mutation.py propose <name> --opentofu <root> [--destroy] [--target <address>]... [--check <check>=<cmd>]...
     live-mutation.py demonstrate <name> <check> <cmd> [--session <id>]
     live-mutation.py run <name> <digest> [--go-ahead <the owner's words>]
     live-mutation.py record <name> [--session <id>]
@@ -76,8 +76,8 @@ HOOKS = pathlib.Path(__file__).resolve().parents[3] / "hooks"
 if str(HOOKS) not in sys.path:
     sys.path.append(str(HOOKS))
 
-import opentofu_commands  # noqa: E402  # beside the plugin's hooks, which read OpenTofu commands as the tool does
-import shell_syntax  # noqa: E402  # beside them too, the parser that opentofu_commands reads with
+import opentofu_commands  # noqa: E402
+import shell_syntax  # noqa: E402
 
 KEY = f"{unprotected_roots.UNPROTECTED_ROOTS}:"
 
@@ -1035,10 +1035,7 @@ def directory_read(run: opentofu_commands.Run, found: opentofu_commands.TofuComm
 
 
 def argument_reasons(run: opentofu_commands.Run, found: opentofu_commands.TofuCommand) -> list[str]:
-    """Return how the arguments of a value-printing OpenTofu run read another state, other values or another file.
-
-    Raises UnreadRunError when an expansion hides an argument, other than the frozen plan that a show reads.
-    """
+    """Return how the arguments of a value-printing OpenTofu run read another state, other values or another file."""
     reasons: list[str] = []
     for argument in found.arguments:
         name = opentofu_commands.flag_name(argument)
