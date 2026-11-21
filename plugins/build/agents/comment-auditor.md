@@ -15,6 +15,7 @@ Only these exceptions stay:
 - Non-obvious behavior forced by an external dependency, platform, vendor, or protocol we cannot reshape. Surprises in our own code go. Delete them and mark the exact symbol `MUST KILL` for the rename, extraction, type, or rearchitecture that makes the behavior obvious without prose.
 - A reason or an invariant of our own code that the code cannot show and no check holds, which the principle `record-what-the-code-cannot-show` admits. When a reshape, a type, or a check could carry it, it goes, with the flag above.
 - `// prettier-ignore`. Lint suppressions stay only when their rule is faulty, pedantic, or style-only.
+- The reason written beside a suppression that stays, such as the second comment of `# noqa: E402  # reason`, even where the code around it shows the reason too. Without it a reader has to work out why the rule is off there.
 - Doc comments that define a public API contract.
 - Issue or RFC links that explain a constraint code cannot express.
 
