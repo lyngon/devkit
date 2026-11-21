@@ -48,6 +48,9 @@ failures=0
 # The stub also writes to the file that FAKE_BUILD_LOG names what the command
 # check-pull-request that it finds says, or `none`, which tells the build of
 # the environment that it runs in.
+# The real command finds a case at each prompt.md under the directory that it
+# runs in, in a directory that git ignores (issue 224) and in a dot directory
+# too (measured on Claude Code 2.1.325).
 mkdir "$tmp/bin" "$tmp/devenv" "$tmp/tools" "$tmp/empty" "$tmp/store"
 cat >"$tmp/bin/claude" <<'EOF'
 #!/usr/bin/env bash
@@ -58,6 +61,10 @@ if [[ $* == --version ]]; then
 fi
 printf '%s\t%s\n' "$PWD" "$*" >>"$FAKE_CLAUDE_LOG"
 printf '%s\t%s\n' "$PWD" "$(check-pull-request 2>/dev/null || echo none)" >>"$FAKE_BUILD_LOG"
+shopt -s globstar dotglob nullglob
+prompts=(**/prompt.md)
+shopt -u globstar dotglob nullglob
+printf '%s\t%s\n' "$PWD" "${prompts[*]}" >>"$FAKE_CASES_LOG"
 [[ -z ${FAKE_PROFILE_LINK:-} ]] || ln -sfn "$FAKE_PROFILE_UPDATE" "$FAKE_PROFILE_LINK"
 json="" output=evals/results/stub filter="" keep=""
 while (($# > 0)); do
@@ -137,6 +144,7 @@ echo "Report: $output/report.html" >&2
 EOF
 chmod +x "$tmp/bin/claude"
 export FAKE_CLAUDE_LOG=$tmp/claude.log FAKE_CLAUDE_PID=$tmp/claude.pid FAKE_BUILD_LOG=$tmp/build.log
+export FAKE_CASES_LOG=$tmp/cases.log
 export FAKE_TASK_PID=$tmp/task.pid
 
 # The stub of devenv does what `devenv shell -- <command>` of devenv 2.4.0 was
@@ -394,21 +402,28 @@ compare() {
   remove "$tmp/scratch" && mkdir "$tmp/scratch"
   : >"$FAKE_CLAUDE_LOG"
   : >"$FAKE_BUILD_LOG"
+  : >"$FAKE_CASES_LOG"
   code=0
   out=$(cd "$repo" && XDG_RUNTIME_DIR=$runtime TMPDIR=$tmp/tmpdir NIX_STORE=$tmp/store DEVENV_ROOT=$root PATH=$path \
     "$program" "$@" 2>"$tmp/stderr" </dev/null) || code=$?
   err=$(<"$tmp/stderr")
   calls=$(<"$FAKE_CLAUDE_LOG")
   builds=$(<"$FAKE_BUILD_LOG")
+  cases=$(<"$FAKE_CASES_LOG")
 }
 
-# The stub's calls from inside the repository, and from outside it.
-calls_in() {
-  grep -F -- "$1"$'\t' <<<"$calls" || true
+line_of_run() {
+  local lines
+  mapfile -t lines <<<"$2"
+  if [[ $1 == base ]]; then echo "${lines[0]-}"; else echo "${lines[1]-}"; fi
 }
 
-calls_outside() {
-  grep -vF -- "$1"$'\t' <<<"$calls" || true
+call_at() {
+  line_of_run "$1" "$calls"
+}
+
+directory_of_call() {
+  echo "${1%%$'\t'*}"
 }
 
 # grant_of <call>: what one call of the stub grants, which is every word after
@@ -428,14 +443,12 @@ shared_of() {
   echo "Read(/$1/shared/**)"
 }
 
-# The build that the run inside the repository found, and the one that the
-# run outside it found.
-build_in() {
-  grep -F -- "$1"$'\t' <<<"$builds" | cut -f 2
+build_at() {
+  line_of_run "$1" "$builds" | cut -f 2
 }
 
-build_outside() {
-  grep -vF -- "$1"$'\t' <<<"$builds" | cut -f 2
+cases_at() {
+  line_of_run "$1" "$cases" | cut -f 2
 }
 
 # hooks <repo>: the git hooks of the repository, each with its content.
@@ -558,22 +571,26 @@ check "two commits: the progress of a run reaches stderr" contains "$err" "
 check "two commits: what a run prints on stdout reaches stderr" contains "$err" "
 CASE  SCORE PASS% RUNS COST  NOTES
 "
-check "two commits: one run at head, in the working tree" equals "$(calls_in "$repo" | wc -l)" 1
-check "two commits: one run at base, outside the working tree" equals "$(calls_outside "$repo" | wc -l)" 1
+check "two commits: one run at each commit" equals "$(wc -l <<<"$calls")" 2
+check "two commits: the head run is outside the working tree" lacks "$(directory_of_call "$(call_at head)")" "$repo"
+check "two commits: the base run is outside the working tree" lacks "$(directory_of_call "$(call_at base)")" "$repo"
+check "two commits: the runs are in two checkouts" \
+  lacks "$(directory_of_call "$(call_at head)")" "$(directory_of_call "$(call_at base)")"
 check "two commits: the head run is the suite of the checkout, unpublished, without a baseline arm" \
-  contains "$(calls_in "$repo")" "plugin eval . "
+  contains "$(call_at head)" "plugin eval . "
 for flag in "--no-publish" "--ablation none" "--trust-plugin" "--scaffold"; do
-  check "two commits: the head run passes $flag" contains "$(calls_in "$repo")" "$flag"
-  check "two commits: the base run passes $flag" contains "$(calls_outside "$repo")" "$flag"
+  check "two commits: the head run passes $flag" contains "$(call_at head)" "$flag"
+  check "two commits: the base run passes $flag" contains "$(call_at base)" "$flag"
 done
 check "two commits: no filter unless asked" lacks "$calls" "--case"
 # A skill links a document in shared/, outside every plugin, and a run may
 # read through a link only where it may read the file that the link leads to
 # (measured on Claude Code 2.1.283). So each run is granted the shared
 # documents of its own checkout, and no tool unless asked.
-check "two commits: the head run is granted the shared documents of the working tree alone" \
-  equals "$(grant_of "$(calls_in "$repo")")" "$(shared_of "$(cd "$repo" && pwd -P)")"
-call=$(calls_outside "$repo")
+call=$(call_at head)
+check "two commits: the head run is granted the shared documents of its own checkout alone" \
+  equals "$(grant_of "$call")" "$(shared_of "$(directory_of_call "$call")")"
+call=$(call_at base)
 check "two commits: the base run is granted the shared documents of its own checkout alone" \
   equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
 check "two commits: nothing is left behind" nothing_left "$repo"
@@ -582,8 +599,8 @@ repo=$(two_commits)
 compare "$repo" "$(sha "$repo" main~1)" --case 'red-*' --allow-tools Write 'Bash(git:*)' --runs 1 --model sonnet
 check "options: exits 0" equals "$code" 0
 for option in "--case red-*" "--allow-tools Write Bash(git:*)" "--runs 1" "--model sonnet"; do
-  check "options: the head run gets $option" contains "$(calls_in "$repo")" "$option"
-  check "options: the base run gets $option" contains "$(calls_outside "$repo")" "$option"
+  check "options: the head run gets $option" contains "$(call_at head)" "$option"
+  check "options: the base run gets $option" contains "$(call_at base)" "$option"
 done
 check "options: a commit given by its hash is named once" contains "$out" "base: $(sha "$repo" main~1)"$'\n'
 check "options: the tools that both runs were granted follow the commits and the version of the harness" contains "$out" "head: $(sha "$repo" main)
@@ -596,9 +613,10 @@ case "
 # place of the first would leave a run without a tool that the operator named.
 repo=$(two_commits)
 compare "$repo" main~1 --allow-tools Write --case 'red-*' --allow-tools 'Bash(git:*)' Edit
+call=$(call_at head)
 check "a second list of tools: the head run gets both lists, then its shared documents, as one" \
-  equals "$(grant_of "$(calls_in "$repo")")" "Write Bash(git:*) Edit $(shared_of "$(cd "$repo" && pwd -P)")"
-call=$(calls_outside "$repo")
+  equals "$(grant_of "$call")" "Write Bash(git:*) Edit $(shared_of "$(directory_of_call "$call")")"
+call=$(call_at base)
 check "a second list of tools: the base run gets both lists, then its shared documents, as one" \
   equals "$(grant_of "$call")" "Write Bash(git:*) Edit $(shared_of "${call%%$'\t'*}")"
 check "a second list of tools: the comparison names every tool" contains "$out" "
@@ -612,7 +630,7 @@ repo=$(two_commits)
 runtime=$tmp/link
 compare "$repo" main~1
 runtime=$tmp/scratch
-call=$(calls_outside "$repo")
+call=$(call_at base)
 check "a checkout behind a symbolic link: its run is granted its shared documents by the path without the link" \
   equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
 check "a checkout behind a symbolic link: the path is not the one through the link" \
@@ -637,6 +655,38 @@ check "uncommitted changes: the working tree is as it was" equals "$(git -C "$re
  D plugins/one/evals/stays-green/prompt.md
 ?? draft.md
 ?? plugins/one/evals/stays-green/workspace/"
+
+repo=$(two_commits)
+echo /tmp/ >>"$repo/.git/info/exclude"
+mkdir -p "$repo/tmp/copy" "$repo/tmp/added" "$repo/plugins/three/evals/not-committed-yet"
+cp -R "$repo/plugins" "$repo/tmp/copy/"
+echo "A case of the fixture." >"$repo/tmp/added/prompt.md"
+git -C "$repo" add --force tmp/added/prompt.md
+echo "A case of the fixture." >"$repo/plugins/three/evals/not-committed-yet/prompt.md"
+git -C "$repo" add plugins/three/evals/not-committed-yet/prompt.md
+echo "A workspace of the case." >"$repo/plugins/three/evals/not-committed-yet/notes.md"
+compare "$repo" main~1
+check "an ignored copy of the cases: exits 0" equals "$code" 0
+check "an ignored copy of the cases: the head run finds no case in it" lacks "$(cases_at head)" "tmp/copy/"
+check "an ignored copy of the cases: the head run finds the case added from an ignored directory" \
+  contains "$(cases_at head)" "tmp/added/prompt.md"
+check "an ignored copy of the cases: the head run finds the case that is not committed yet" \
+  contains "$(cases_at head)" "plugins/three/evals/not-committed-yet/prompt.md"
+check "an ignored copy of the cases: the working tree and its index are as they were" \
+  equals "$(git -C "$repo" status --porcelain --ignored)" "A  plugins/three/evals/not-committed-yet/prompt.md
+A  tmp/added/prompt.md
+?? plugins/three/evals/not-committed-yet/notes.md
+!! tmp/copy/"
+
+repo=$(two_commits)
+echo "# Draft" >"$repo/draft.md"
+code=$(
+  unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
+  export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.useConfigOnly GIT_CONFIG_VALUE_0=true
+  compare "$repo" main~1
+  echo "$code"
+)
+check "no identity of the operator's: exits 0" equals "$code" 0
 
 # A run has no gated tool that it does not grant, whatever the case lists, and
 # the harness says so about a case that lists one. A grader that expects that
@@ -1146,7 +1196,7 @@ check "no result at base: says which run and how it ended, and what it said" con
 compare-evals: the eval run at base wrote no result (devenv shell exited with status 1)
 the eval run at base failed to load plugins/one/evals/stays-green: $invalid_yaml"
 check "no result at base: prints no table" equals "$out" ""
-check "no result at base: runs nothing at head" equals "$(calls_in "$repo")" ""
+check "no result at base: runs nothing at head" equals "$(call_at head)" ""
 
 # Each run gets the commands of its own commit. The base run enters the
 # environment of the base commit with devenv shell, in its checkout; the head
@@ -1160,9 +1210,9 @@ chmod +x "$tmp/store/working-tree-environment/bin/check-pull-request"
 path=$tmp/store/working-tree-environment/bin:$with_claude
 repo=$(two_commits)
 compare "$repo" base
-check "a command that the base commit lacks: is not found at base" equals "$(build_outside "$repo")" none
+check "a command that the base commit lacks: is not found at base" equals "$(build_at base)" none
 check "a command that the base commit lacks: is found at head, in the environment of the working tree" \
-  equals "$(build_in "$repo")" "check-pull-request of the working tree"
+  equals "$(build_at head)" "check-pull-request of the working tree"
 with_build "$repo" "check-pull-request of the base commit"
 cat >"$repo/baseline/claude" <<'EOF'
 #!/usr/bin/env bash
@@ -1176,9 +1226,9 @@ with_build "$repo" "check-pull-request of the head commit"
 commit "$repo" "chore: a head that changes the environment"
 compare "$repo" with-build
 check "a command that both commits have: the base run gets the base commit's build" \
-  equals "$(build_outside "$repo")" "check-pull-request of the base commit"
+  equals "$(build_at base)" "check-pull-request of the base commit"
 check "a command that both commits have: the head run gets the working tree's environment" \
-  equals "$(build_in "$repo")" "check-pull-request of the working tree"
+  equals "$(build_at head)" "check-pull-request of the working tree"
 check "a claude in the environment of the base commit: both runs start the claude that the program found" \
   lacks "$calls" "the claude of an environment"
 check "a command that both commits have: nothing is left behind" nothing_left "$repo"
@@ -1495,8 +1545,6 @@ check "a harness that prints no version: says so" equals "$err" \
   "compare-evals: cannot read the version of Claude Code from $(cd "$tmp/silent" && pwd -P)/claude: --version printed nothing"
 path=$with_claude
 
-# The run in the working tree keeps the environment that the program starts
-# from, so that has to be the devenv shell of the working tree.
 shell_root=$tmp/empty
 compare "$repo" main~1
 check "the devenv shell of another directory: exits 1" equals "$code" 1
