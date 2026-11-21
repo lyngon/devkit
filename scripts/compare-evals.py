@@ -15,7 +15,11 @@ environment, and the run of the working tree keeps the devenv shell that
 this program starts from. A case that seeds its working directory does so
 with a script of its own, which runs as whoever runs this, at both commits.
 The clones and everything a run writes go in a directory of their own in
-XDG_RUNTIME_DIR, and are removed again. Before the first run it refuses an
+XDG_RUNTIME_DIR, and are removed again, all but the trace of each run that
+scored below 1.00: a comparison that is printed keeps a copy of each such
+trace in a directory beside it, and names the copy below the table, so that
+a failure that a rerun does not repeat can still be read. Before the first
+run it refuses an
 XDG_RUNTIME_DIR that names no directory, and one under which the sandbox of
 a run would have no room for its sockets, which would fail every shell
 command.
@@ -108,6 +112,22 @@ class Options:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class KeptTrace:
+    """The trace of a run that scored below 1.00, where the harness wrote it and where the comparison keeps a copy.
+
+    The run is numbered from 1, in the order of the runs of its case in the
+    result. The harness wrote the trace in the scratch directory, which goes
+    when the comparison ends, so keep_traces copies it before the comparison
+    that names the copy is printed.
+    """
+
+    run: int
+    score: float
+    written: pathlib.Path
+    kept: pathlib.Path
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class Case:
     """What one eval case did at one commit.
 
@@ -118,7 +138,8 @@ class Case:
     reason to the errors, and still counts in the score. A run in which every
     shell command failed adds to the failed shells what the first of them
     said. A grader that failed is listed with the number of runs it failed
-    in, in the order the case declares its graders.
+    in, in the order the case declares its graders. Each run that scored
+    below 1.00 and has a trace has that trace in the kept traces.
     """
 
     score: float
@@ -128,6 +149,7 @@ class Case:
     failed_shells: tuple[str, ...]
     read_only_shells: tuple[str, ...]
     failed_graders: ct.Mapping[str, int]
+    kept_traces: tuple[KeptTrace, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -420,6 +442,15 @@ def run_temporary(scratch: pathlib.Path) -> pathlib.Path:
     return scratch / "tmp"
 
 
+def traces_directory(scratch: pathlib.Path) -> pathlib.Path:
+    """Return the directory that keeps the traces of the runs below 1.00, beside the scratch directory, which goes.
+
+    It is named after the scratch directory, and keep_traces makes it for
+    the first trace that it keeps.
+    """
+    return scratch.with_name(f"{scratch.name}-traces")
+
+
 def check_room_for_sandbox(scratch: pathlib.Path) -> None:
     """Raise CompareError when the TMPDIR of a run is too long for the sockets of its sandbox."""
     temporary = run_temporary(scratch)
@@ -450,7 +481,9 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
     instead. All that the run prints goes to stderr as it comes. The trace of
     a run that ended well outlives the run only under `--keep-temp`, which
     keeps the sandbox of every run, so the run gets a temporary directory
-    inside the scratch directory and the sandboxes go with it.
+    inside the scratch directory and the sandboxes go with it. Each run below
+    1.00 gets a place for a copy of its trace, in the traces directory under
+    the side.
 
     A run that found no case writes no result, and is read as a result
     without a case. Raises RunError, with what the run said about its suite,
@@ -497,7 +530,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
     else:
         status = f"{launcher.name} exited with status {run.returncode}"
         raise RunError(f"the eval run at {side} wrote no result ({status})", said)
-    return parse_result(data, side, progress, said)
+    return parse_result(data, side, progress, said, traces_directory(scratch) / side)
 
 
 def found_no_case(progress: ct.Iterable[str], status: int) -> bool:
@@ -657,14 +690,16 @@ def read_only_shell(results: ct.Sequence[ct.Mapping[str, object]]) -> str | None
     return None
 
 
-def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said) -> Result:
+def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said, kept: pathlib.Path) -> Result:
     """Turn what a run of `claude plugin eval` wrote and said into a Result.
 
     That is the result it wrote, the trace of each run that the result
     names, what it said about each case in its progress and what it said
-    about its suite. The result is narrowed here, once. Raises RunError when
-    it has another shape than the one this program was written against, and
-    when a trace cannot be read.
+    about its suite. The result is narrowed here, once. The trace of each run
+    below 1.00 gets its place in the kept directory, under the directory of
+    its case, and is not copied here. Raises RunError when the result has
+    another shape than the one this program was written against, and when a
+    trace cannot be read.
     """
     if not isinstance(data, dict):
         raise RunError(f"the result at {side} is not a JSON object", said)
@@ -684,8 +719,11 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
                 for grader in json_array(json_field(run, "graders"))
             ]
             failures = {name: verdicts.count((name, False)) for name, _ in verdicts}
-            shells = [shell_results(str(json_field(run, "tracePath"))) for run in runs]
-            parsed[str(json_field(entry, "dir"))] = Case(
+            directory = str(json_field(entry, "dir"))
+            traces = [str(json_field(run, "tracePath")) for run in runs]
+            scores = [json_number(json_field(run, "score")) for run in runs]
+            shells = [shell_results(trace) for trace in traces]
+            parsed[directory] = Case(
                 score=json_number(json_field(json_field(entry, "aggregates"), "score")),
                 runs=len(runs),
                 notes=notes_about(str(json_field(entry, "name")), progress),
@@ -693,6 +731,11 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
                 failed_shells=tuple(line for results in shells if (line := failed_shell(results)) is not None),
                 read_only_shells=tuple(line for results in shells if (line := read_only_shell(results)) is not None),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
+                kept_traces=tuple(
+                    KeptTrace(run, score, pathlib.Path(trace), kept / directory / f"run-{run}.jsonl")
+                    for run, (score, trace) in enumerate(zip(scores, traces, strict=True), start=1)
+                    if score < 1 and trace
+                ),
             )
         return Result(
             cases=parsed,
@@ -704,6 +747,20 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
         raise RunError(f"the trace of a run at {side} cannot be read: {error}", said) from error
     except (KeyError, TypeError, ValueError) as error:
         raise RunError(f"the result at {side} holds a field this program cannot read: {error!r}", said) from error
+
+
+def keep_traces(*results: Result) -> None:
+    """Copy the trace of each run below 1.00 of the results to the place that the comparison names.
+
+    Called just before a comparison that holds the results is returned,
+    while the traces that the harness wrote are still there, so that a
+    comparison that ends without a table keeps no trace.
+    """
+    for result in results:
+        for case in result.cases.values():
+            for trace in case.kept_traces:
+                trace.kept.parent.mkdir(parents=True, exist_ok=True)
+                _ = shutil.copyfile(trace.written, trace.kept)
 
 
 def counted(number: int, noun: str) -> str:
@@ -742,6 +799,10 @@ def reasons(case: Case) -> list[str]:
             for line, count in collections.Counter(case.read_only_shells).items()
         ),
         *(f"grader {name} failed in {count} of {case.runs} runs" for name, count in case.failed_graders.items()),
+        *(
+            f"run {trace.run} of {case.runs} scored {trace.score:.2f}, and its trace is kept at {trace.kept}"
+            for trace in case.kept_traces
+        ),
     ]
 
 
@@ -853,7 +914,9 @@ def compare(options: Options) -> Comparison:
     the devenv shell of the working tree. When the run of the working tree
     writes no result that this program can read after the base run gave one,
     the comparison holds the table of the base run, which was paid for, and
-    below it what the other run said and the reason.
+    below it what the other run said and the reason. Each comparison keeps the
+    trace of each run below 1.00 of the results it holds, beside the scratch
+    directory, and names where.
 
     Raises CompareError outside a git repository, outside the devenv shell of
     the working tree, for a base that names no commit, without `claude` or
@@ -898,18 +961,20 @@ def compare(options: Options) -> Comparison:
             if not base.cases:
                 raise CompareError("\n".join([str(error), *base_said, *about_suite("head", error.said)])) from error
             without_result = [*about_suite("head", error.said), str(error)]
+            keep_traces(base)
             return Comparison((*header, *report([Column("base", base, frozenset())], without_result)), str(error))
-    if not base.cases and not head.cases:
-        why = [
-            *about_suite("base", base.said, base.cut_short_reason),
-            *about_suite("head", head.said, head.cut_short_reason),
-        ]
-        raise CompareError("\n".join(["no eval case ran at either commit", *why]))
-    for name in head.cases:
-        if not working_tree_has_case(root, name):
-            raise CompareError(
-                f"the result at head names the case {name}, which holds no prompt.md in the working tree",
-            )
+        if not base.cases and not head.cases:
+            why = [
+                *about_suite("base", base.said, base.cut_short_reason),
+                *about_suite("head", head.said, head.cut_short_reason),
+            ]
+            raise CompareError("\n".join(["no eval case ran at either commit", *why]))
+        for name in head.cases:
+            if not working_tree_has_case(root, name):
+                raise CompareError(
+                    f"the result at head names the case {name}, which holds no prompt.md in the working tree",
+                )
+        keep_traces(base, head)
     only_base, only_head = base.cases.keys() - head.cases.keys(), head.cases.keys() - base.cases.keys()
     columns = [
         Column("base", base, frozenset(name for name in only_head if commit_has_case(root, base_commit, name))),

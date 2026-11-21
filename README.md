@@ -369,7 +369,7 @@ Run the suite at a base commit and on the working tree, and print the score of e
 compare-evals origin/main --allow-tools Write
 ```
 
-`compare-evals` checks the base commit and a commit of the working tree out into temporary clones, runs the command above in each, the scripts that seed a working directory included, and removes what it created.
+`compare-evals` checks the base commit and a commit of the working tree out into temporary clones, runs the command above in each, the scripts that seed a working directory included, and removes what it created, except a copy of the trace of each run that scored below 1.00 (see below).
 Each run is granted the `shared/` of its own checkout.
 The working tree counts as head, with its uncommitted changes and its untracked files, and without the files that git ignores.
 The harness runs every case that it finds under its checkout, in a directory that git ignores too, such as a copy of the cases under `tmp/` (measured on Claude Code 2.1.325).
@@ -457,6 +457,16 @@ plugins/discover/evals/brainstorm-no-docs at head: not granted (missing --allow-
 `compare-evals` finds such a line by the name of the case at its start and reads none of the words after it (measured on Claude Code 2.1.283).
 When a later harness starts such a line otherwise, the note is missing from the comparison and the line is still in the output of the run, which goes to stderr as it comes.
 There the harness also says `kept temp` for the sandbox of each run, which `--keep-temp` keeps, and `compare-evals` removes the sandboxes with the rest.
+Before that it copies the trace of each run that scored below 1.00, so that a failure that a rerun does not repeat can still be read.
+Below the table, after the graders of its case, each such run is listed with where its trace is kept:
+
+```text
+plugins/build/evals/live-mutation-runs-after-the-go-ahead at head: run 1 of 1 scored 0.00, and its trace is kept at /run/user/1000/compare-evals-8_uoyc7j-traces/head/plugins/build/evals/live-mutation-runs-after-the-go-ahead/run-1.jsonl
+```
+
+The runs of a case are numbered in the order of its result.
+The copies lie in `XDG_RUNTIME_DIR`, in a directory named after the one that `compare-evals` removed, and stay until you remove them or your last login session ends.
+A comparison that ends without a table, such as one that an interrupt ends, keeps no trace.
 A case that is new at head has no score at the base commit.
 To see it fail first, commit the case before the change it proves and name that commit as the base.
 
