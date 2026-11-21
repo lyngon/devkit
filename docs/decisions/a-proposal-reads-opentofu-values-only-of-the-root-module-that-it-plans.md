@@ -1,6 +1,6 @@
 # A proposal reads OpenTofu values only of the root module that it plans
 
-The tool of `build:live-mutation` hides only the values that the frozen plan of its OpenTofu form marks sensitive, so it refuses every command of a proposal that could print values of any other plan or state.
+The tool of `build:live-mutation` hides only the values that the frozen plan of its OpenTofu form and the state of that root module mark sensitive, so it refuses every command of a proposal that could print values of any other plan or state.
 The generic form refuses a proposal whose frozen inputs hold an OpenTofu saved plan, and any command that runs an OpenTofu command that prints values, such as `plan`, `show`, `output`, `state show` or `console`.
 The OpenTofu form refuses a check or a demonstration that runs one against a root module other than its own.
 A command that names `tofu` and that the tool cannot read, such as through a wrapper, a script or a variable, is refused as the plugin's OpenTofu hook refuses one, by the same reader.

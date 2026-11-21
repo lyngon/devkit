@@ -67,10 +67,11 @@ They run the `tofu` on the PATH that the tool has.
 Two plans of one state differ byte for byte while `tofu show -no-color` renders them alike, which is why the tool compares renderings.
 `no-changes` exits 2 before the apply and 0 after it, so its run before the apply is its failing run.
 
-The tool reads the plan's JSON from `tofu show -json` into memory and never writes it to a file, since it holds sensitive values in plain text.
-`tofu` prints a value that the plan marks sensitive where it loses the mark, as in the output of a `terraform_data` resource whose input holds one.
+The tool reads the JSON of the plan and of the root module's state from `tofu show -json` into memory and never writes either to a file, since both hold sensitive values in plain text.
+`tofu` prints a value that the plan or the state marks sensitive where it loses the mark, as in the output of a `terraform_data` resource whose input holds one.
 So each command prints into a file that has no name, and before the tool writes what it printed, as the rendering or under `outputs/`, it replaces each such value with `(sensitive value hidden by live-mutation.py)`.
-It finds a value of a root variable declared sensitive, and a value under a mark of a resource change, of a change made outside OpenTofu or of an output change, printed as it is, quoted with escapes or as a heredoc.
+It finds a value of a root variable declared sensitive, a value under a mark of a resource change, of a change made outside OpenTofu or of an output change, and a value under a mark of a resource or an output of the state, in any module, printed as it is, quoted with escapes or as a heredoc.
+The state holds what the plan cannot know yet, such as a value that the apply generates, and what a `-target` plan leaves out.
 Before the run, a command that printed one stops the proposal or the run, and after it the tool only hides it.
 The generic form hides nothing, since the tool cannot read what its inputs mark sensitive, so it runs no OpenTofu command that prints values.
 
@@ -107,7 +108,8 @@ Beyond those of the generic form, its refusals:
 - `bad-root`: the root module is absolute, holds `..`, passes through a symlink or names no directory. Name the directory itself, relative to the root of the repository.
 - `reserved-check`: a check you give is named `no-changes`, which the form adds itself. Name it otherwise.
 - `plan-unreadable`: `tofu show -json` failed, or printed no JSON with a list of resource changes and a configuration of modules that the tool reads.
-- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. When a check of yours printed it, fix the check and propose again. Otherwise stop and tell the owner, since the generic form refuses an OpenTofu plan.
+- `state-unreadable`: `tofu show -json` failed on the state of the root module, or printed no JSON object, or one with a module whose resources or modules the tool cannot read.
+- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan or the state marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. When a check of yours printed it, fix the check and propose again. Otherwise stop and tell the owner, since the generic form refuses an OpenTofu plan.
 - `nothing-to-apply`: the plan changes nothing, since `no-changes` passes, so the check could never fail.
 
 ### The declaration
@@ -130,7 +132,7 @@ unprotected-roots:
 
 ## What a command may print
 
-The tool hides only the values that the frozen plan of the OpenTofu form marks sensitive.
+The tool hides only the values that the frozen plan of the OpenTofu form and the state of its root module mark sensitive.
 So before any command runs, it reads each command that you wrote: every command of the generic form, the checks of the OpenTofu form and the command of `demonstrate`.
 It reads them as the plugin's OpenTofu hook reads a command in the shell, with the plugin's `hooks/opentofu_commands.py`, through `bash -c`, `sh -c`, `eval`, here-documents and `xargs`.
 These OpenTofu commands print values: `plan`, `apply`, `destroy`, `refresh`, `test`, `show`, `output`, `console`, `state show` and `state pull`.
@@ -150,7 +152,7 @@ live-mutation.py demonstrate <name> <check> '<cmd>' [--session <id>]
 
 It runs a variant of a check's command against a state where the property does not hold, and logs it, so that the record shows the check can fail.
 With `--session`, it logs the demonstration in the proposal of that session, as for a run whose session ended before it wrote the record.
-It refuses `bad-session` and `not-found` as `record` does, `no-such-check` for a check that the proposal does not have, `unhidden-values` or `unread-command` for its command, as for `propose`, and `plan-unreadable` for a proposal of the OpenTofu form whose frozen plan `tofu show -json` cannot read.
+It refuses `bad-session` and `not-found` as `record` does, `no-such-check` for a check that the proposal does not have, `unhidden-values` or `unread-command` for its command, as for `propose`, and `plan-unreadable` or `state-unreadable` for a proposal of the OpenTofu form whose frozen plan or state `tofu show -json` cannot read.
 The tool hides a sensitive value in its output as for a check.
 
 ## run
@@ -178,15 +180,20 @@ It checks these in order, and each refusal changes nothing live:
 7. `already-ran`: a proposal runs once, with a go-ahead or without one. Propose again from the new live state.
 8. `unhidden-values` or `unread-command`: a command that you wrote may print values that the tool cannot hide, as in a proposal that the tool made before it read commands. Propose again.
 9. `inputs-changed`: a frozen input changed after the proposal. Propose again.
-10. `plan-unreadable`, for the OpenTofu form, while it reads the frozen plan again, and `git-missing` or `git-failed`, without `--go-ahead` only, while it reads the rule files again.
+10. `plan-unreadable` or `state-unreadable`, for the OpenTofu form, while it reads the frozen plan and the state again, and `git-missing` or `git-failed`, without `--go-ahead` only, while it reads the rule files again.
 11. `needs-go-ahead`, without `--go-ahead` only: the proposal runs only on the owner's go-ahead. The refusal gives each reason, and says so when the proposal was shown waiting. Show the owner the proposal and ask.
-12. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output. `plan-unreadable` here means that `tofu show -json` cannot read the plan derived again, and `saved-plan` that the derive command of the generic form wrote an OpenTofu saved plan.
-13. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan or the plan derived again marks sensitive. Act as for the refusal of `propose`.
+12. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output. `plan-unreadable` here means that `tofu show -json` cannot read the plan derived again, `state-unreadable` that it cannot read the state, and `saved-plan` that the derive command of the generic form wrote an OpenTofu saved plan.
+13. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan, the plan derived again or the state marks sensitive. Act as for the refusal of `propose`.
 14. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
 
 A run can take longer than a command in the foreground may, as a landing zone upgrade does.
 Start such a run in the background and wait for it to end.
 The tool writes the run's output, with each sensitive value hidden, to the file that it names under `outputs/` once the run ends.
+
+After the run, the tool reads the state again, since the apply may generate a sensitive value that the plan could not know.
+When `tofu show -json` cannot read the state, it refuses `state-unreadable` with how the run ended, keeps nothing that the run printed and runs no check after it.
+This refusal alone comes after the run changed live state.
+Judge the result from live state, and write the record, which says that the run has no end in the log.
 
 ## record
 
