@@ -19,14 +19,16 @@ rendering.
 
 The OpenTofu form writes those commands for a saved plan of one root module, a
 directory relative to the root of the repository, and adds the check
-no-changes. It reads the plan's JSON into memory only, since that holds
-sensitive values in plain text. tofu prints such a value where it loses the
-mark, so the tool hides each value that the plan marks sensitive in all that a
-command prints before it writes it, and a proposal or a run that would show one
-stops before the run. With --target, the plan and no-changes take -target for
-each address, and the proposal waits. Before any command runs, the tool reads
-each command that the agent wrote with the reader of the plugin's OpenTofu hook,
-opentofu_commands.py, and refuses one that names tofu and that it cannot read.
+no-changes. It reads the JSON of the plan and of the root module's state into
+memory only, since both hold sensitive values in plain text. tofu prints such a
+value where it loses the mark, so the tool hides each value that the plan or the
+state marks sensitive in all that a command prints before it writes it, and
+reads the state again after the apply, which may generate one. A proposal or a
+run that would show one stops before the run. With --target, the plan and
+no-changes take -target for each address, and the proposal waits. Before any
+command runs, the tool reads each command that the agent wrote with the reader
+of the plugin's OpenTofu hook, opentofu_commands.py, and refuses one that names
+tofu and that it cannot read.
 The generic form runs no OpenTofu command that prints values and keeps no saved
 plan among its inputs, and a check or a demonstration of the OpenTofu form
 prints values of the form's own root module alone. A proposal of that form runs without a go-ahead
@@ -130,8 +132,8 @@ SETS_A_TF_VARIABLE = re.compile(r"(?<![A-Za-z0-9_])TF_[A-Za-z0-9_]*\+?=")
 FROZEN_PLAN = frozenset({"$LIVE_MUTATION_INPUTS/plan", "${LIVE_MUTATION_INPUTS}/plan"})
 SAVED_PLAN_MEMBER = "tfplan"
 OPENTOFU_FORM = (
-    "Propose an OpenTofu plan in the OpenTofu form, which hides what the plan marks sensitive, and when the plan needs"
-    " an argument that the form does not take, stop and tell the owner."
+    "Propose an OpenTofu plan in the OpenTofu form, which hides what the plan and the state mark sensitive, and when"
+    " the plan needs an argument that the form does not take, stop and tell the owner."
 )
 IN_THE_SHELL = "Read any other value of OpenTofu that you need in the shell, outside the proposal."
 OWN_ROOT_ONLY = "Read the root module of the form alone there, and any other in the shell, outside the proposal."
@@ -658,17 +660,6 @@ def root_module(root: pathlib.Path, text: str) -> str:
     return str(path)
 
 
-def plan_of(text: str) -> dict[str, object]:
-    """Parse a plan's JSON. Raises RefusalError for text that holds no JSON object."""
-    try:
-        plan = json_object(t.cast("object", json.loads(text)))
-    except json.JSONDecodeError as error:
-        raise RefusalError(f"plan-unreadable: tofu show -json printed no JSON ({error})") from None
-    if plan is None:
-        raise RefusalError("plan-unreadable: tofu show -json printed no JSON object")
-    return plan
-
-
 def resource_changes(
     plan: ct.Mapping[str, object], key: t.Literal["resource_changes", "resource_drift"] = "resource_changes"
 ) -> list[tuple[str, dict[str, object]]]:
@@ -836,16 +827,29 @@ def said(result: subprocess.CompletedProcess[bytes]) -> str:
     return " ".join(result.stderr.decode(errors="replace").split())
 
 
+def printed_json(root: pathlib.Path, inputs: pathlib.Path, command: str, refusal: str) -> dict[str, object]:
+    """Return the JSON object that a line of sh prints, which the tool keeps in memory only.
+
+    Raises RefusalError, named by the refusal given, when the command fails or prints no JSON object.
+    """
+    result = captured(root, inputs, command)
+    if result.returncode != 0:
+        raise RefusalError(f"{refusal}: `{command}` exited {result.returncode}: {said(result)}")
+    try:
+        printed = json_object(t.cast("object", json.loads(result.stdout.decode(errors="replace"))))
+    except json.JSONDecodeError as error:
+        raise RefusalError(f"{refusal}: `{command}` printed no JSON ({error})") from None
+    if printed is None:
+        raise RefusalError(f"{refusal}: `{command}` printed no JSON object")
+    return printed
+
+
 def read_plan(root: pathlib.Path, inputs: pathlib.Path, form: OpenTofu) -> dict[str, object]:
     """Return the JSON of the plan among the inputs of the OpenTofu form, which it keeps in memory only.
 
     Raises RefusalError (plan-unreadable) when tofu show -json fails or prints no JSON object.
     """
-    command = form.plan_json()
-    result = captured(root, inputs, command)
-    if result.returncode != 0:
-        raise RefusalError(f"plan-unreadable: `{command}` exited {result.returncode}: {said(result)}")
-    return plan_of(result.stdout.decode(errors="replace"))
+    return printed_json(root, inputs, form.plan_json(), "plan-unreadable")
 
 
 def strings(value: object) -> ct.Iterator[str]:
@@ -902,12 +906,50 @@ def secrets_of(plan: ct.Mapping[str, object]) -> Secrets:
     return frozenset(found)
 
 
-def secrets_in(root: pathlib.Path, inputs: pathlib.Path, form: Form) -> Secrets:
-    """Return each value that the plan among the inputs marks sensitive, and none for the generic form.
+def module_secrets(module: object) -> ct.Iterator[str]:
+    """Yield each string that a module of a state's JSON marks sensitive, in its resources and its child modules.
 
-    The tool cannot read what the inputs of the generic form mark sensitive.
+    Raises RefusalError (state-unreadable) for a module whose resources or child modules are no list.
     """
-    return frozenset() if isinstance(form, Generic) else secrets_of(read_plan(root, inputs, form))
+    fields = json_object(module) or {}
+    resources, children = fields.get("resources", []), fields.get("child_modules", [])
+    if not isinstance(resources, list) or not isinstance(children, list):
+        raise RefusalError("state-unreadable: the state's JSON holds a module whose resources or modules are no list")
+    for item in t.cast("list[object]", resources):
+        resource = json_object(item) or {}
+        yield from marked(resource.get("values"), resource.get("sensitive_values"))
+    for child in t.cast("list[object]", children):
+        yield from module_secrets(child)
+
+
+def state_secrets_of(state: ct.Mapping[str, object]) -> Secrets:
+    """Return each string that a state's JSON marks sensitive, in an output or a resource of any module."""
+    values = json_object(state.get("values")) or {}
+    outputs = (json_object(output) or {} for output in (json_object(values.get("outputs")) or {}).values())
+    found = {secret for output in outputs for secret in marked(output.get("value"), output.get("sensitive"))}
+    return frozenset(found | set(module_secrets(values.get("root_module"))))
+
+
+def state_secrets_in(root: pathlib.Path, inputs: pathlib.Path, form: Form) -> Secrets:
+    """Return each value that the state of the root module of the OpenTofu form marks sensitive now.
+
+    The state holds what the plan cannot know, such as a value that the apply generates, and what a -target plan
+    leaves out. Returns none for the generic form, whose root module the tool does not know. Raises RefusalError
+    (state-unreadable) when tofu show -json cannot read the state.
+    """
+    if isinstance(form, Generic):
+        return frozenset()
+    return state_secrets_of(printed_json(root, inputs, form.tofu("show -json"), "state-unreadable"))
+
+
+def secrets_in(root: pathlib.Path, inputs: pathlib.Path, form: Form) -> Secrets:
+    """Return each value that the plan among the inputs or the state of its root module marks sensitive now.
+
+    The tool cannot read what the inputs of the generic form mark sensitive, so it returns none for that form. Raises
+    RefusalError (plan-unreadable or state-unreadable) when tofu show -json cannot read one of the two.
+    """
+    planned = frozenset[str]() if isinstance(form, Generic) else secrets_of(read_plan(root, inputs, form))
+    return planned | state_secrets_in(root, inputs, form)
 
 
 def plan_reasons(root: pathlib.Path, place: Place, form: OpenTofu) -> list[str]:
@@ -970,10 +1012,10 @@ def sensitive_shown(paths: ct.Iterable[pathlib.Path], outcome_of_it: str) -> Ref
     """Return the refusal of a proposal or a run that printed a sensitive value, naming the files where it is hidden."""
     listed = ", ".join(str(path) for path in paths)
     message = (
-        f"sensitive-value-shown: a command printed a value that the plan marks sensitive, so {outcome_of_it};"
-        f" the tool hid it in {listed}. OpenTofu prints such a value where it loses the mark, as in the output of a"
-        " terraform_data resource whose input holds one. When a check of yours printed it, fix the check and"
-        " propose again. Otherwise stop and tell the owner, since the generic form refuses an OpenTofu plan."
+        "sensitive-value-shown: a command printed a value that the plan or the state marks sensitive, so"
+        f" {outcome_of_it}; the tool hid it in {listed}. OpenTofu prints such a value where it loses the mark, as in"
+        " the output of a terraform_data resource whose input holds one. When a check of yours printed it, fix the"
+        " check and propose again. Otherwise stop and tell the owner, since the generic form refuses an OpenTofu plan."
     )
     return RefusalError(message)
 
@@ -1083,7 +1125,8 @@ def run_refusal(command: str, run: opentofu_commands.Run, form: Form, *, moves: 
     if not reasons:
         return None
     message = (
-        f"{prints}, {', '.join(reasons)}, and the tool hides only the values of the frozen plan of `{form.root}`."
+        f"{prints}, {', '.join(reasons)}, and the tool hides only the values that the frozen plan and the state of"
+        f" `{form.root}` mark sensitive."
         f" {OWN_ROOT_ONLY}"
     )
     return RefusalError(message)
@@ -1109,10 +1152,10 @@ def finding_refusal(
 def refusal_of(command: str, form: Form) -> RefusalError | None:
     """Return why the tool refuses a command of a proposal for what OpenTofu may print in it, or None.
 
-    The tool hides only the values of the frozen plan of the OpenTofu form, so the generic form runs no OpenTofu
-    command that prints values, and a check or a demonstration of the OpenTofu form runs one only against the root
-    module of the form. It reads the command with the reader of the plugin's OpenTofu hook, and refuses a command that
-    names tofu and that the reader cannot read.
+    The tool hides only the values that the frozen plan and the state of the root module of the OpenTofu form mark
+    sensitive, so the generic form runs no OpenTofu command that prints values, and a check or a demonstration of the
+    OpenTofu form runs one only against the root module of the form. It reads the command with the reader of the
+    plugin's OpenTofu hook, and refuses a command that names tofu and that the reader cannot read.
     """
     if opentofu_commands.NAMES_TOFU.search(command) is None:
         return None
@@ -1146,10 +1189,10 @@ def refuse_unhidden(commands: ct.Iterable[str], form: Form) -> None:
 
 
 def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secrets, list[pathlib.Path]]:
-    """Derive the inputs of a proposal and render them, and log both with each sensitive value of the plan hidden.
+    """Derive the inputs of a proposal and render them, and log both with each sensitive value hidden.
 
-    Returns the plan's sensitive values and the files where the tool hid one. Raises RefusalError (derive-failed or
-    show-failed) when either command fails.
+    Returns the sensitive values of the plan and the state, and the files where the tool hid one. Raises RefusalError
+    (derive-failed or show-failed) when either command fails.
     """
     commands = form.commands
     output = output_name(place, Kind.DERIVE)
@@ -1178,7 +1221,7 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
 
     Raises RefusalError (inputs-changed) when a check changes an input, so that the route, the digest and the run all
     read the inputs that the derive command wrote, and (sensitive-value-shown) when a command printed a value that
-    the plan marks sensitive.
+    the plan or the state marks sensitive.
     """
     commands = form.commands
     place = place_of(root, session, name)
@@ -1286,8 +1329,8 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: S
     """Derive and render again from live state into the directory drift, and log it.
 
     The rendering is the one the owner approved on a go-ahead, and the proposed one without. Returns the given
-    sensitive values with those of the plan derived again. Raises RefusalError unless deriving again gives the same
-    rendering and prints no sensitive value.
+    sensitive values with those of the plan derived again and of the state. Raises RefusalError unless deriving again
+    gives the same rendering and prints no sensitive value.
     """
     started = now()
     if place.drift.exists():
@@ -1392,6 +1435,15 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
     path = place.outputs / output
     commands = proposal.form.commands
     status, printed, _ = execute(commands.run, root, place.inputs)
+    try:
+        secrets |= state_secrets_in(root, place.inputs, proposal.form)
+    except RefusalError as error:
+        message = (
+            f"{error}\nThe run {outcome(status)}, and the tool kept nothing that it printed and ran no check after it,"
+            " since it cannot tell which values the apply generated. Judge the result from live state, and write the"
+            " record."
+        )
+        raise RefusalError(message) from None
     _ = logged(place, Entry(Kind.RUN, started, now(), status, commands.run, output), printed, secrets)
     after = [entry for entry, _ in checked(root, place, Kind.CHECK, commands.checks, secrets)]
     lines = [
