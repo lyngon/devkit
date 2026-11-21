@@ -2,7 +2,9 @@
 set -euo pipefail
 
 case_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+checkout=$(cd "$case_dir/../../../.." && pwd -P)
 
+ln -s "$checkout" "$HOME/devkit"
 bash "$case_dir/../live-mutation-stops-with-the-proposal/seed-workspace.sh"
 session=$(grep -m 1 -o '"sessionId":"[^"]*"' "$case_dir/history.jsonl" | cut -d '"' -f 4)
 mkdir -p "tmp/live-mutation/$session"
