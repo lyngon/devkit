@@ -202,14 +202,11 @@ path=$with_claude
 
 # --- Fixture helpers ---------------------------------------------------------
 
-# run_of <score> <error>: one run of a case, as the result file holds it.
 run_of() {
   jq -n --argjson score "$1" --arg error "$2" \
     '{score: $score, passed: ($score == 1), error: (if $error == "" then null else $error end), graders: []}'
 }
 
-# case_of <dir> <score> <runs> [<error>]: one case with that many runs, each
-# with the score of the case.
 case_of() {
   jq -n --arg dir "$1" --argjson score "$2" --argjson runs "$3" --argjson run "$(run_of "$2" "${4:-}")" \
     '{name: ($dir | split("/") | last), dir: $dir, arms: {with: [range($runs) | $run]}, aggregates: {score: $score, passRate: $score}}'
@@ -491,8 +488,6 @@ with_build() {
   chmod +x "$1/baseline/check-pull-request"
 }
 
-# files_under <directory>: every file below the directory, one path to a line,
-# in the order of the glob.
 files_under() {
   local file
   shopt -s globstar dotglob nullglob
@@ -502,8 +497,6 @@ files_under() {
   shopt -u globstar dotglob nullglob
 }
 
-# traces_named_in <comparison>: each path at which the comparison says that it
-# keeps the trace of a run.
 traces_named_in() {
   local line
   while IFS= read -r line; do
@@ -511,7 +504,6 @@ traces_named_in() {
   done <<<"$1"
 }
 
-# holds <file> <text>: the file is there and holds the text.
 holds() {
   [[ -f $1 ]] || {
     echo "  no file: $1"
@@ -520,9 +512,6 @@ holds() {
   equals "$(<"$1")" "$2"
 }
 
-# nothing_left <repo> [<comparison>]: nothing is left behind but the traces
-# that the comparison names, in the directory in XDG_RUNTIME_DIR that holds
-# them.
 nothing_left() {
   local repo=$1 named trace roots=()
   named=$(traces_named_in "${2:-}" | sort)
@@ -536,8 +525,6 @@ nothing_left() {
     equals "$(ls -A "$tmp/tmpdir")" ""
 }
 
-# kept_root: the one directory that the last comparison left in
-# XDG_RUNTIME_DIR, which keeps the traces that it names.
 kept_root() {
   echo "$tmp/scratch/$(ls -A "$tmp/scratch")"
 }
@@ -1000,10 +987,6 @@ check "read-only shells: the words of zsh count too" contains "$out" \
   "plugins/one/evals/red-then-green at head: a shell command could not write in 1 of 1 runs, the first saying: zsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af"
 check "read-only shells: every sandbox is removed" nothing_left "$repo" "$out"
 
-# The trace of a run that scored below 1.00 outlives the comparison, which
-# says where it is kept, so that a failure that a rerun does not repeat can be
-# read (issue 230). Here the second of two runs at head fails a grader, and the
-# one run of the case at the base commit scored 0.
 passed=$(trace_of "$(shell_call 1 false "On branch main")")
 failed=$(trace_of "$(shell_call 1 true "$not_a_repository")")
 repo=$(two_commits)
@@ -1354,11 +1337,8 @@ check "an environment that does not build at base: says so" \
   contains "$err" "compare-evals: the eval run at base wrote no result (devenv shell exited with status 1)"
 check "an environment that does not build at base: runs nothing" equals "$calls" ""
 
-# An interrupt ends the run as well. The run of the working tree here never
-# ends by itself, after the run at the base commit gave a result in which a
-# run scored below 1.00, and the signal reaches the program alone. A command
-# that a script starts in the background ignores the signal, so env gives it
-# back its default.
+# A command that a script starts in the background ignores SIGINT, so env
+# gives it back its default.
 repo=$(two_commits)
 : >"$repo/canned-hang"
 commit "$repo" "chore: a run that never ends"

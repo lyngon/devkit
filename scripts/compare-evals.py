@@ -19,10 +19,9 @@ XDG_RUNTIME_DIR, and are removed again, all but the trace of each run that
 scored below 1.00: a comparison that is printed keeps a copy of each such
 trace in a directory beside it, and names the copy below the table, so that
 a failure that a rerun does not repeat can still be read. Before the first
-run it refuses an
-XDG_RUNTIME_DIR that names no directory, and one under which the sandbox of
-a run would have no room for its sockets, which would fail every shell
-command.
+run it refuses an XDG_RUNTIME_DIR that names no directory, and one under
+which the sandbox of a run would have no room for its sockets, which would
+fail every shell command.
 Exits 0 when it prints a comparison, whatever the scores are, since a red
 case at the base commit is the point. The status says that there is a
 comparison to read and nothing about what it is worth. The comparison says
@@ -116,9 +115,7 @@ class KeptTrace:
     """The trace of a run that scored below 1.00, where the harness wrote it and where the comparison keeps a copy.
 
     The run is numbered from 1, in the order of the runs of its case in the
-    result. The harness wrote the trace in the scratch directory, which goes
-    when the comparison ends, so keep_traces copies it before the comparison
-    that names the copy is printed.
+    result.
     """
 
     run: int
@@ -443,11 +440,7 @@ def run_temporary(scratch: pathlib.Path) -> pathlib.Path:
 
 
 def traces_directory(scratch: pathlib.Path) -> pathlib.Path:
-    """Return the directory that keeps the traces of the runs below 1.00, beside the scratch directory, which goes.
-
-    It is named after the scratch directory, and keep_traces makes it for
-    the first trace that it keeps.
-    """
+    """Return the directory that keeps the traces of the runs below 1.00, beside the scratch directory, which goes."""
     return scratch.with_name(f"{scratch.name}-traces")
 
 
@@ -481,9 +474,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
     instead. All that the run prints goes to stderr as it comes. The trace of
     a run that ended well outlives the run only under `--keep-temp`, which
     keeps the sandbox of every run, so the run gets a temporary directory
-    inside the scratch directory and the sandboxes go with it. Each run below
-    1.00 gets a place for a copy of its trace, in the traces directory under
-    the side.
+    inside the scratch directory and the sandboxes go with it.
 
     A run that found no case writes no result, and is read as a result
     without a case. Raises RunError, with what the run said about its suite,
@@ -695,11 +686,9 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
 
     That is the result it wrote, the trace of each run that the result
     names, what it said about each case in its progress and what it said
-    about its suite. The result is narrowed here, once. The trace of each run
-    below 1.00 gets its place in the kept directory, under the directory of
-    its case, and is not copied here. Raises RunError when the result has
-    another shape than the one this program was written against, and when a
-    trace cannot be read.
+    about its suite. The result is narrowed here, once. Raises RunError when
+    it has another shape than the one this program was written against, and
+    when a trace cannot be read.
     """
     if not isinstance(data, dict):
         raise RunError(f"the result at {side} is not a JSON object", said)
@@ -750,12 +739,7 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
 
 
 def keep_traces(*results: Result) -> None:
-    """Copy the trace of each run below 1.00 of the results to the place that the comparison names.
-
-    Called just before a comparison that holds the results is returned,
-    while the traces that the harness wrote are still there, so that a
-    comparison that ends without a table keeps no trace.
-    """
+    """Copy the trace of each run below 1.00 of the results to the place that the comparison names."""
     for result in results:
         for case in result.cases.values():
             for trace in case.kept_traces:
