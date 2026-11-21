@@ -198,6 +198,34 @@ tofu_denied "a subcommand in a variable, in eval" "eval \"tofu \$subcommand\"" \
   "$(hidden "tofu \$subcommand" "its subcommand comes from a variable or a substitution")"
 tofu_denied "bash -c with a command partly in a variable" "bash -c \"tofu \"\$subcommand" \
   "$(hidden "bash -c \"tofu \"\$subcommand" "the command it hands a shell comes from a variable or a substitution")"
+tofu_denied "a subcommand that xargs adds from a pipe" "echo apply | xargs tofu -chdir=$organization" \
+  "$(hidden "xargs tofu -chdir=$organization" "its subcommand comes from the input of xargs")"
+tofu_denied "apply -auto-approve that xargs adds from a pipe" "echo 'apply -auto-approve' | xargs tofu" \
+  "$(hidden "xargs tofu" "its subcommand comes from the input of xargs")"
+tofu_denied "destroy that xargs adds from a here-string" "xargs tofu -chdir=$organization <<<'destroy -auto-approve'" \
+  "$(hidden "xargs tofu -chdir=$organization" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs -I puts in place of {}" \
+  "echo apply | xargs -I{} tofu -chdir=$organization {} -auto-approve" \
+  "$(hidden "xargs -I{} tofu -chdir=$organization {} -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs --replace puts in place of its own string" \
+  "echo apply | xargs --replace=SUB tofu SUB -auto-approve" \
+  "$(hidden "xargs --replace=SUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs -0I, its options in one word, puts in place" \
+  "printf 'apply\0' | xargs -0ISUB tofu SUB -auto-approve" \
+  "$(hidden "xargs -0ISUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs adds after -E, which takes the next word" "echo apply | xargs -E -I{} tofu" \
+  "$(hidden "xargs -E -I{} tofu" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs adds after --process-slot-var, which takes the next word" \
+  "echo apply | xargs --process-slot-var -I{} tofu" \
+  "$(hidden "xargs --process-slot-var -I{} tofu" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs -I puts in place after -e, which takes no next word" \
+  "echo apply | xargs -e -I{} tofu {} -auto-approve" \
+  "$(hidden "xargs -e -I{} tofu {} -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "init with flags that xargs adds" "echo -migrate-state | xargs tofu init" \
+  "$(hidden "xargs tofu init" "an argument comes from the input of xargs and may be -force-copy or -migrate-state")"
+tofu_runs "fmt of the files that xargs adds" "find infra -name '*.tf' | xargs tofu fmt"
+tofu_runs "a plan in each directory that xargs -I puts in place of {}" "ls -d infra/*/ | xargs -I{} tofu -chdir={} plan"
+tofu_runs "xargs and tofu as words that echo prints" "echo xargs tofu"
 
 tofu_runs "plan in a loop over directories" "for d in a b; do tofu -chdir=\"infra/\$d\" plan; done"
 tofu_runs "plan in nix shell" "nix shell nixpkgs#opentofu --command tofu -chdir=$organization plan"
@@ -310,6 +338,13 @@ tofu_denied "a --check command of build:live-mutation's tool in a variable" \
     "an argument of live-mutation.py comes from a variable or a substitution")")"
 tofu_runs "apply in the --run command of build:live-mutation's tool" \
   "$live_mutation propose set-value --derive 'true' --show 'true' --run '$production_apply'"
+tofu_denied "a proposal of build:live-mutation's tool whose arguments xargs adds" \
+  "echo \"propose staging-logs --opentofu infra/staging --check 'fresh=$production_apply'\" | xargs $live_mutation" \
+  "$(runs_at_once "$(hidden "xargs $live_mutation" "an argument of live-mutation.py comes from the input of xargs")")"
+tofu_denied "the command of a demonstration of build:live-mutation's tool that xargs -0 adds" \
+  "echo '$production_apply' | xargs -0 $live_mutation demonstrate staging-logs no-changes" \
+  "$(runs_at_once "$(hidden "xargs -0 $live_mutation demonstrate staging-logs no-changes" \
+    "an argument of live-mutation.py comes from the input of xargs")")"
 
 subagent='{"agent_id": "a1", "agent_type": "general-purpose"}'
 tofu_denied "apply in a subagent" "tofu -chdir=$organization apply organization.tfplan" \
@@ -362,6 +397,8 @@ tofu_denied "a run of build:live-mutation's tool under a program in a variable i
   "\"\$PYTHON\" $live_mutation run staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
 tofu_denied "build:live-mutation's tool under xargs -I, its subcommand replaced from standard input, in a subagent" \
   "echo run | xargs -I{} $live_mutation {} staging-logs 3f9a1c0d5e7b2a46" "$reports" "$subagent"
+tofu_runs "record of build:live-mutation's tool under xargs, its name on standard input, in a subagent" \
+  "echo staging-logs | xargs $live_mutation record" "$subagent"
 tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash in a subagent" \
   "bash <<<'$live_mutation run staging-logs 3f9a1c0d5e7b2a46'" "$reports" "$subagent"
 tofu_denied "a run of build:live-mutation's tool in a here-string fed to bash -o pipefail in a subagent" \

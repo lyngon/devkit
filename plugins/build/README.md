@@ -37,6 +37,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   The hook reads a command with `shfmt`, as bash and then as zsh, and finds tofu wherever a word names it, by its name, its path or the flake output `#opentofu`, so it also denies a write after a global option such as `-chdir`, after a `cd`, behind a wrapper such as `devenv shell --`, `aws-vault exec --`, `nix run`, `timeout` or `xargs`, inside a substitution or a loop, and in what `bash -c`, `sh -c` or `eval` runs.
   Where the command runs a shell as a program, the hook reads the commands that the shell reads from a heredoc or a here-string as it reads those of `bash -c`, and also what `echo` writes into a pipe to the shell.
   A variable that the command assigns once, to a literal value, counts as that value.
+  A program that `xargs` runs also gets the words of its input, after its own arguments or in place of the string that `-I`, `-i` or `--replace` names, and the hook counts each of those words as one that a variable hides.
   Where the command runs the script of `live-mutation` as a program, the hook reads the commands that the call gives the script to run at once, with no go-ahead, as it reads those of `bash -c`: the `--derive`, `--show` and `--check` commands of `propose` and the command of `demonstrate`.
   It finds them with the script's own parser, so an option written as an abbreviation or with `=` counts too, and it denies such a call when a variable or a substitution hides any of its arguments.
   The `--run` command, which runs only on a go-ahead or where the script finds none is needed, may hold a write.
@@ -45,7 +46,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   It counts the script only where the command may run it as a program, never as an argument of another program.
   A simple command runs its first word, and when that word is a wrapper such as `env`, `timeout`, `nix shell --command` or `python3`, or a variable hides it, the hook takes any later word for a program too.
   It also reads what `bash -c` and `eval` run and the value of an alias.
-  The subcommand is the first word after the script's path that is not `--`, and the call counts when a variable or a substitution hides that word, when `xargs` runs the script, and when a shell reads its commands from a heredoc, a here-string or a pipe in a command that names the script.
+  The subcommand is the first word after the script's path that is not `--`, and the call counts when a variable, a substitution or the input of `xargs` hides that word, and when a shell reads its commands from a heredoc, a here-string or a pipe in a command that names the script.
   So `ruff check`, `cp` or `grep` of the script runs, and so does a shell that runs a script file whose path holds no variable or substitution.
   It fails closed.
   It denies a command that names tofu and that it cannot read, and says why, when `shfmt` is not on its PATH, when the command parses neither as bash nor as zsh, and when a variable or a substitution decides the program, the subcommand or a flag that would make it write.

@@ -9,6 +9,7 @@ tool, nor the tool in a call whose subcommand the hook cannot read.
 import argparse
 import collections.abc as ct
 import contextlib
+import enum
 import importlib
 import io
 import itertools
@@ -75,7 +76,26 @@ WRAPPERS = frozenset(
     }
 )
 
-ADDS_WORDS_FROM_ITS_INPUT = "xargs"
+XARGS = "xargs"
+
+XARGS_REPLACE = "--replace"
+
+XARGS_DEFAULT_REPLACEMENT = "{}"
+
+XARGS_SHORT_WITH_AN_ARGUMENT = frozenset("adEILnPs")
+
+XARGS_SHORT_WITH_AN_ATTACHED_ARGUMENT = frozenset("eil")
+
+XARGS_LONG_WITH_AN_ARGUMENT = (
+    "--arg-file",
+    "--delimiter",
+    "--max-args",
+    "--max-chars",
+    "--max-procs",
+    "--process-slot-var",
+)
+
+IN_EVERY_WORD = ""
 
 SHELL_FLAGS_WITH_AN_ARGUMENT = frozenset("oO")
 
@@ -132,7 +152,12 @@ OPENTOFU_FLAKE = re.compile(r"[^#]*#(?:.*\.)?opentofu")
 
 DIALECTS = ("bash", "zsh")
 
-EXPANDED = "comes from a variable or a substitution"
+
+class Origin(enum.StrEnum):
+    """Where a word that the hook cannot see comes from, as a denial says it."""
+
+    EXPANSION = "comes from a variable or a substitution"
+    XARGS_INPUT = "comes from the input of xargs"
 
 
 def writes(part: str) -> str:
@@ -201,11 +226,11 @@ def tofu_command(arguments: ct.Sequence[shell_syntax.Word]) -> tuple[str | None,
     return command, rest
 
 
-def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str) -> str | None:
+def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: Origin) -> str | None:
     """Return why the hook denies an OpenTofu run with these arguments, or None when it only reads."""
     command, rest = tofu_command(arguments)
     if command is None:
-        return hidden(part, f"its subcommand {EXPANDED}")
+        return hidden(part, f"its subcommand {origin}")
     if command in WRITES_ALWAYS:
         return writes(part)
     flags = WRITES_WITH_A_FLAG.get(command, frozenset())
@@ -213,7 +238,7 @@ def tofu_run(arguments: ct.Sequence[shell_syntax.Word], part: str) -> str | None
     if names & flags:
         return writes(part)
     if None in names:
-        return hidden(part, f"an argument {EXPANDED} and may be {' or '.join(f'-{flag}' for flag in sorted(flags))}")
+        return hidden(part, f"an argument {origin} and may be {' or '.join(f'-{flag}' for flag in sorted(flags))}")
     return None
 
 
@@ -248,7 +273,7 @@ def echoed(arguments: ct.Sequence[shell_syntax.Word]) -> str | None:
 
 def handed(command: str | None, call: shell_syntax.Call) -> str | None:
     """Return why the hook denies a command that a call hands a shell, or None to let it run."""
-    return hidden(call.text, f"the command it hands a shell {EXPANDED}") if command is None else denial(command)
+    return hidden(call.text, f"the command it hands a shell {Origin.EXPANSION}") if command is None else denial(command)
 
 
 def input_denial(call: shell_syntax.Call) -> str | None:
@@ -294,15 +319,23 @@ def shell_denial(call: shell_syntax.Call) -> str | None:
 def call_denial(call: shell_syntax.Call) -> str | None:
     """Return why the hook denies a simple command of a command that names tofu, or None to let it run."""
     if call.words and call.words[0].value is None:
-        return hidden(call.text, f"its program {EXPANDED}")
+        return hidden(call.text, f"its program {Origin.EXPANSION}")
     reason = shell_denial(call)
     if reason is not None:
         return reason
+    programs = program_positions(call.words)
     for index, word in enumerate(call.words):
-        reason = tofu_run(call.words[index + 1 :], call.text) if names_tofu(word) else None
-        if reason is not None:
-            return reason
-    return tool_denial(call)
+        if names_tofu(word):
+            run = tofu_run
+        elif index in programs and names_the_tool(word):
+            run = tool_run
+        else:
+            continue
+        for arguments, origin in readings(call.words, index):
+            reason = run(arguments, call.text, origin)
+            if reason is not None:
+                return reason
+    return None
 
 
 def tool_parser() -> argparse.ArgumentParser:
@@ -331,26 +364,21 @@ def commands_given_at_once(arguments: list[str]) -> list[str]:
             return []
 
 
-def tool_denial(call: shell_syntax.Call) -> str | None:
-    """Return why the hook denies a call of the tool of build:live-mutation, or None to let it run.
+def tool_run(arguments: ct.Sequence[shell_syntax.Word], part: str, origin: Origin) -> str | None:
+    """Return why the hook denies a run of the tool of build:live-mutation with these arguments, or None to let it run.
 
-    It denies a call that may propose or demonstrate when an expansion hides any of its arguments, or when the hook
-    denies a command that the call gives the tool to run at once.
+    It denies a run that may propose or demonstrate when any of its arguments is hidden, or when the hook denies a
+    command that the arguments give the tool to run at once.
     """
-    words = call.words
-    for position in program_positions(words):
-        arguments = words[position + 1 :]
-        if not names_the_tool(words[position]) or not runs_one_of(arguments, RUN_AT_ONCE):
-            continue
-        values = [argument.value for argument in arguments]
-        if None in values:
-            reason = hidden(call.text, f"an argument of {TOOL} {EXPANDED}")
-        else:
-            commands = commands_given_at_once(t.cast("list[str]", values))
-            reason = next((found for command in commands if (found := denial(command)) is not None), None)
-        if reason is not None:
-            return f"{AT_ONCE} {reason}"
-    return None
+    if not runs_one_of(arguments, RUN_AT_ONCE):
+        return None
+    values = [argument.value for argument in arguments]
+    if None in values:
+        reason = hidden(part, f"an argument of {TOOL} {origin}")
+    else:
+        commands = commands_given_at_once(t.cast("list[str]", values))
+        reason = next((found for command in commands if (found := denial(command)) is not None), None)
+    return None if reason is None else f"{AT_ONCE} {reason}"
 
 
 def denial(command: str) -> str | None:
@@ -389,6 +417,85 @@ def program_positions(words: ct.Sequence[shell_syntax.Word]) -> range:
     if words[0].value is None or shell_syntax.command_name(words[0].value) in WRAPPERS:
         return range(len(words))
     return range(1)
+
+
+def xargs_options(words: ct.Sequence[shell_syntax.Word], position: int) -> ct.Sequence[shell_syntax.Word] | None:
+    """Return the words between the xargs that runs the program at a position of a simple command and that program.
+
+    None means that no xargs runs it.
+    """
+    runs = [at for at in program_positions(words)[:position] if shell_syntax.command_name(words[at].value) == XARGS]
+    return words[runs[-1] + 1 : position] if runs else None
+
+
+def long_option_replacement(option: str, remaining: ct.Iterator[shell_syntax.Word]) -> str | None:
+    """Return the string that a long option of xargs names for its input to replace, or None when it names none."""
+    name, equals, argument = option.partition("=")
+    if XARGS_REPLACE.startswith(name):
+        return argument if equals else XARGS_DEFAULT_REPLACEMENT
+    if not equals and any(long.startswith(name) for long in XARGS_LONG_WITH_AN_ARGUMENT):
+        _ = next(remaining, None)
+    return None
+
+
+def short_options_replacement(options: str, remaining: ct.Iterator[shell_syntax.Word]) -> str | None:
+    """Return the string that a word of short options of xargs names for its input to replace, or None."""
+    for at, letter in enumerate(options[1:], start=1):
+        attached = options[at + 1 :]
+        if letter in XARGS_SHORT_WITH_AN_ATTACHED_ARGUMENT:
+            return (attached or XARGS_DEFAULT_REPLACEMENT) if letter == "i" else None
+        if letter in XARGS_SHORT_WITH_AN_ARGUMENT:
+            argument = attached or next(remaining, shell_syntax.UNSEEN).value
+            if letter != "I":
+                return None
+            return IN_EVERY_WORD if argument is None else argument
+    return None
+
+
+def xargs_replacement(options: ct.Sequence[shell_syntax.Word]) -> str | None:
+    """Return the string that xargs with these options puts its input in place of, or None when it adds its input."""
+    replacement = None
+    remaining = iter(options)
+    for option in remaining:
+        value = option.value
+        if value is None:
+            return IN_EVERY_WORD
+        if value == "--":
+            break
+        if value.startswith("--"):
+            named = long_option_replacement(value, remaining)
+        elif value.startswith("-"):
+            named = short_options_replacement(value, remaining)
+        else:
+            named = None
+        replacement = replacement if named is None else named
+    return replacement
+
+
+def put_in_place(word: shell_syntax.Word, replacement: str) -> shell_syntax.Word:
+    """Return the word that xargs hands on, hidden from the first place where it holds the replacement on."""
+    at = word.start.find(replacement)
+    return word if at < 0 else shell_syntax.Word(word.start[:at], complete=False, text=word.text)
+
+
+def readings(
+    words: ct.Sequence[shell_syntax.Word], position: int
+) -> list[tuple[ct.Sequence[shell_syntax.Word], Origin]]:
+    """Return the arguments that the program at a position of a simple command may run with, each with their origin.
+
+    Behind xargs, the program also runs with the words of its input: after its own arguments, or in place of the
+    string that -I, -i or --replace names.
+    """
+    arguments = words[position + 1 :]
+    found: list[tuple[ct.Sequence[shell_syntax.Word], Origin]] = [(arguments, Origin.EXPANSION)]
+    options = xargs_options(words, position)
+    if options is not None:
+        replacement = xargs_replacement(options)
+        if replacement is None:
+            found.append(([*arguments, shell_syntax.UNSEEN], Origin.XARGS_INPUT))
+        else:
+            found.append(([put_in_place(argument, replacement) for argument in arguments], Origin.XARGS_INPUT))
+    return found
 
 
 def runs_one_of(arguments: ct.Sequence[shell_syntax.Word], subcommands: frozenset[str]) -> bool:
@@ -466,16 +573,13 @@ def program_calls_the_tool(program: shell_syntax.Word, arguments: ct.Sequence[sh
 def call_calls_the_tool(words: ct.Sequence[shell_syntax.Word]) -> bool:
     """Return whether a simple command may call propose, demonstrate or run of the tool of build:live-mutation.
 
-    The tool counts only where the command may run it as a program, never as an argument of another program, and
-    behind xargs, which adds words from its input, it counts whatever its arguments.
+    The tool counts only where the command may run it as a program, never as an argument of another program.
     """
-    for position in program_positions(words):
-        program, arguments = words[position], words[position + 1 :]
-        before = {shell_syntax.command_name(word.value) for word in words[:position]}
-        behind_xargs = ADDS_WORDS_FROM_ITS_INPUT in before and names_the_tool(program)
-        if behind_xargs or program_calls_the_tool(program, arguments):
-            return True
-    return False
+    return any(
+        program_calls_the_tool(words[position], arguments)
+        for position in program_positions(words)
+        for arguments, _ in readings(words, position)
+    )
 
 
 def calls_the_tool(command: str) -> bool:
