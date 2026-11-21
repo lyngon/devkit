@@ -36,14 +36,14 @@ write_history() {
   local checkout=$1 parent_of_the_result=$2
   local file=$checkout/plugins/one/evals/resumes/history.jsonl
   cat >"$file" <<'EOF'
-{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Read /recorded/devkit/plugins/one/old.md first.","stdout":"Read /recorded/devkit/plugins/one/old.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"/recorded/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Read /recorded/devkit/plugins/one/old.md first.\n</system-reminder>"}]}
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Read ~/devkit/plugins/one/old.md first.","stdout":"Read ~/devkit/plugins/one/old.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"/recorded/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Read ~/devkit/plugins/one/old.md first.\n</system-reminder>"}]}
 {"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"/recorded/cwd"}
 {"parentUuid":"b","type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t","name":"Bash","input":{"command":"ls"}}]},"uuid":"c","sessionId":"x","cwd":"/recorded/cwd"}
 {"parentUuid":"c","attachment":{"type":"hook_non_blocking_error","hookName":"PreToolUse:Bash","toolUseID":"t","hookEvent":"PreToolUse","stderr":"Failed with non-blocking status code: quiet.sh: no shfmt","exitCode":1,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/quiet.sh","durationMs":5},"type":"attachment","uuid":"d","sessionId":"x","cwd":"/recorded/cwd"}
 EOF
   printf '{"parentUuid":"%s","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t","content":"notes.md"}]},"toolUseResult":{"stdout":"notes.md"},"uuid":"e","sessionId":"x","cwd":"/recorded/cwd"}\n' "$parent_of_the_result" >>"$file"
   cat >>"$file" <<'EOF'
-{"parentUuid":"e","attachment":{"type":"hook_success","hookName":"SessionStart:compact","toolUseID":"s2","hookEvent":"SessionStart","content":"Read /recorded/devkit/plugins/one/notes.md first.","stdout":"Read /recorded/devkit/plugins/one/notes.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"f","sessionId":"x","cwd":"/recorded/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:compact hook success: Read /recorded/devkit/plugins/one/notes.md first.\n</system-reminder>"}]}
+{"parentUuid":"e","attachment":{"type":"hook_success","hookName":"SessionStart:compact","toolUseID":"s2","hookEvent":"SessionStart","content":"Read ~/devkit/plugins/one/notes.md first.","stdout":"Read ~/devkit/plugins/one/notes.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"f","sessionId":"x","cwd":"/recorded/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:compact hook success: Read ~/devkit/plugins/one/notes.md first.\n</system-reminder>"}]}
 EOF
   echo "$file"
 }
@@ -77,7 +77,7 @@ before=$(<"$file")
 run --check "$root"
 check "the check exits 1 on a history that is behind" test "$code" -eq 1
 check "the check names the record whose text the hook no longer prints" \
-  says "plugins/one/evals/resumes/history.jsonl:1: behind: $unexpanded_plugin_root/hooks/greet.sh on SessionStart:startup exits 0 and prints \"Read /recorded/devkit/plugins/one/notes.md first.\" at head"
+  says "plugins/one/evals/resumes/history.jsonl:1: behind: $unexpanded_plugin_root/hooks/greet.sh on SessionStart:startup exits 0 and prints \"Read ~/devkit/plugins/one/notes.md first.\" at head"
 check "the check names the record of a hook that prints nothing at head" \
   says "plugins/one/evals/resumes/history.jsonl:4: behind: $unexpanded_plugin_root/hooks/quiet.sh on PreToolUse:Bash prints nothing at head"
 check "the check names the command that brings it up to date" says 'run update-eval-histories'
@@ -88,11 +88,11 @@ check "the check changes nothing" test "$(<"$file")" == "$before"
 run "$root"
 check "the update exits 0 when it can bring every record up to date" test "$code" -eq 0
 check "the record holds what the hook prints at head, with the checkout as recorded" \
-  test "$(jq -sr '.[0].attachment.stdout' "$file")" == "Read /recorded/devkit/plugins/one/notes.md first."
+  test "$(jq -sr '.[0].attachment.stdout' "$file")" == "Read ~/devkit/plugins/one/notes.md first."
 check "the record's content and reminder hold the same text" \
   test "$(jq -sr '.[0] | .attachment.content + "|" + .rendered[0].content' "$file")" == \
-  "Read /recorded/devkit/plugins/one/notes.md first.|<system-reminder>
-SessionStart:startup hook success: Read /recorded/devkit/plugins/one/notes.md first.
+  "Read ~/devkit/plugins/one/notes.md first.|<system-reminder>
+SessionStart:startup hook success: Read ~/devkit/plugins/one/notes.md first.
 </system-reminder>"
 check "the record of the hook that prints nothing is gone, and the others stay" \
   test "$(jq -sr 'map(.uuid) | join(" ")' "$file")" == "a b c e f"

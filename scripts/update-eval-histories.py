@@ -7,8 +7,9 @@ what one hook command printed for one hook event. The program replays each such 
 plugin of the checkout registers for the event with that command, in hooks/hooks.json or in the frontmatter of a
 skill or an agent, on the input that the transcript records, in an empty working directory and with the variables
 that Claude Code gives a hook in an eval run, since a case resumes the transcript in one. In what the hooks print it
-writes the checkout as /recorded/devkit and the working directory as the one the transcript records, as the
-recording did.
+writes the checkout as ~/devkit and the working directory as the one the transcript records, as the recording did.
+The checkout is named under the home directory because a run has a home of its own, where the seed script of a case
+can link ~/devkit to the checkout of the run.
 
 The records of a command in an event are current when they hold the outputs of those hooks one for one, leaving out
 a hook that prints nothing, since such a hook leaves no record. A record that is not current takes the output that no
@@ -34,7 +35,7 @@ import sys
 import tempfile
 import typing as t
 
-RECORDED_CHECKOUT = "/recorded/devkit"
+RECORDED_CHECKOUT = "~/devkit"
 
 HOOK_RECORDS = frozenset({"hook_success", "hook_non_blocking_error", "hook_blocking_error"})
 
