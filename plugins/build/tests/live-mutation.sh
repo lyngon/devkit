@@ -657,7 +657,7 @@ mkdir -p "$emptied"
 cat >"$emptied/tofu" <<EOF
 #!/bin/sh
 case " \$* " in
-*" show -json "*)
+*" show -json "*"/plan ")
   "$opentofu/tofu" "\$@" | python3 -c 'import json, sys; plan = json.load(sys.stdin); [change["change"].update(actions=[]) for change in plan["resource_changes"]]; json.dump(plan, sys.stdout)'
   ;;
 *) exec "$opentofu/tofu" "\$@" ;;
@@ -1239,7 +1239,7 @@ expect_unhidden() {
   local label=$1 check=$2 reason=$3
   propose_tofu staging-probe --opentofu infra/staging --target terraform_data.spare --check "read=$check"
   expect "a check of the OpenTofu form that prints values $label is refused" 1 \
-    '^live-mutation\.py: unhidden-values: `'"$rest_of_line"'` runs `tofu [a-z ]+`, which prints the values of a plan or a state, '"$reason"', and the tool hides only the values of the frozen plan of `infra/staging`\.'
+    '^live-mutation\.py: unhidden-values: `'"$rest_of_line"'` runs `tofu [a-z ]+`, which prints the values of a plan or a state, '"$reason"', and the tool hides only the values that the frozen plan and the state of `infra/staging` mark sensitive\.'
 }
 
 expect_unhidden "of another root module" 'tofu -chdir=infra/production output' 'against `infra/production`'
