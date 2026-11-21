@@ -1073,6 +1073,49 @@ expect "a rendering derived again that shows a sensitive value stops the run" 1 
 expect_secrets_kept "a run stopped by the rendering derived again"
 expect_state "a run stopped by the rendering derived again changes no state" infra/staging "$state"
 
+expect_no_proposal() {
+  local label=$1 name=$2
+  if [[ ! -e "$repository/$proposals/$name/proposal.json" ]]; then
+    pass "$label"
+  else
+    fail "$label" "it saved $proposals/$name/proposal.json"
+  fi
+}
+
+new_tofu_repository
+carry_the_token_in_logging
+publish
+set_level infra/staging
+sed -i 's/input = "spare"/input = "spare-two"/' "$repository/infra/staging/main.tf"
+state=$(state_of infra/staging)
+propose_tofu staging-logs-by-hand \
+  --derive 'tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data.logging -out="$LIVE_MUTATION_INPUTS/plan"' \
+  --show 'tofu -chdir=infra/staging show -no-color "$LIVE_MUTATION_INPUTS/plan"' \
+  --run 'tofu -chdir=infra/staging apply -no-color -input=false "$LIVE_MUTATION_INPUTS/plan"' \
+  --check 'no-changes=tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data.logging -detailed-exitcode'
+expect "a -target plan in the generic form is refused before it runs" 1 \
+  '^live-mutation\.py: unhidden-values: `tofu -chdir=infra/staging plan '
+expect_secrets_kept "a -target plan refused in the generic form"
+expect_no_proposal "a -target plan refused in the generic form is no proposal" staging-logs-by-hand
+
+mkdir -p "$repository/scripts"
+printf '%s\n' '#!/bin/sh' \
+  'exec tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data.logging -out="$LIVE_MUTATION_INPUTS/plan"' \
+  >"$repository/scripts/plan-staging.sh"
+printf '%s\n' '#!/bin/sh' 'exec tofu -chdir=infra/staging show -no-color "$LIVE_MUTATION_INPUTS/plan"' \
+  >"$repository/scripts/show-staging.sh"
+printf '%s\n' '#!/bin/sh' 'exec tofu -chdir=infra/staging apply -no-color -input=false "$LIVE_MUTATION_INPUTS/plan"' \
+  >"$repository/scripts/apply-staging.sh"
+chmod +x "$repository"/scripts/*.sh
+rm -rf "${repository:?}/$proposals"
+propose_tofu staging-logs-by-script --derive ./scripts/plan-staging.sh --show ./scripts/show-staging.sh \
+  --run ./scripts/apply-staging.sh
+expect "a saved plan that the generic form derives through a script is refused before the tool writes what it printed" 1 \
+  '^live-mutation\.py: saved-plan: '
+expect_secrets_kept "a saved plan refused in the generic form"
+expect_no_proposal "a saved plan refused in the generic form is no proposal" staging-logs-by-script
+expect_state "a plan refused in the generic form changes no state" infra/staging "$state"
+
 if ((failures > 0)); then
   echo "test-live-mutation: $failures failure(s)" >&2
   exit 1
