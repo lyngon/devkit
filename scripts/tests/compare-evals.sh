@@ -202,14 +202,13 @@ path=$with_claude
 
 # --- Fixture helpers ---------------------------------------------------------
 
-# run_of <error>: one run of a case, as the result file holds it.
 run_of() {
-  jq -n --arg error "$1" '{score: 0, passed: false, error: (if $error == "" then null else $error end), graders: []}'
+  jq -n --argjson score "$1" --arg error "$2" \
+    '{score: $score, passed: ($score == 1), error: (if $error == "" then null else $error end), graders: []}'
 }
 
-# case_of <dir> <score> <runs> [<error>]: one case with that many runs.
 case_of() {
-  jq -n --arg dir "$1" --argjson score "$2" --argjson runs "$3" --argjson run "$(run_of "${4:-}")" \
+  jq -n --arg dir "$1" --argjson score "$2" --argjson runs "$3" --argjson run "$(run_of "$2" "${4:-}")" \
     '{name: ($dir | split("/") | last), dir: $dir, arms: {with: [range($runs) | $run]}, aggregates: {score: $score, passRate: $score}}'
 }
 
@@ -489,12 +488,45 @@ with_build() {
   chmod +x "$1/baseline/check-pull-request"
 }
 
+files_under() {
+  local file
+  shopt -s globstar dotglob nullglob
+  for file in "$1"/**; do
+    [[ ! -f $file ]] || echo "$file"
+  done
+  shopt -u globstar dotglob nullglob
+}
+
+traces_named_in() {
+  local line
+  while IFS= read -r line; do
+    [[ $line != *", and its trace is kept at "* ]] || echo "${line##*, and its trace is kept at }"
+  done <<<"$1"
+}
+
+holds() {
+  [[ -f $1 ]] || {
+    echo "  no file: $1"
+    return 1
+  }
+  equals "$(<"$1")" "$2"
+}
+
 nothing_left() {
-  local repo=$1
+  local repo=$1 named trace roots=()
+  named=$(traces_named_in "${2:-}" | sort)
+  while IFS= read -r trace; do
+    [[ -z $trace ]] || roots+=("$(cut -d / -f 1 <<<"${trace#"$tmp/scratch/"}")")
+  done <<<"$named"
   equals "$(git -C "$repo" worktree list | wc -l)" 1 &&
     equals "$(git -C "$repo" status --porcelain)" "" &&
-    equals "$(ls -A "$tmp/scratch")" "" &&
+    equals "$(ls -A "$tmp/scratch")" "$(printf '%s\n' "${roots[@]}" | uniq)" &&
+    equals "$(files_under "$tmp/scratch" | sort)" "$named" &&
     equals "$(ls -A "$tmp/tmpdir")" ""
+}
+
+kept_root() {
+  echo "$tmp/scratch/$(ls -A "$tmp/scratch")"
 }
 
 # --- Cases -------------------------------------------------------------------
@@ -546,7 +578,8 @@ runtime=$tmp/scratch
 repo=$(two_commits)
 compare "$repo" main~1
 check "two commits: exits 0" equals "$code" 0
-check "two commits: prints the commits, the version that the harness printed, then each case with its score and runs at base and at head, then the graders that failed" equals "$out" "base: $(sha "$repo" main~1) (main~1)
+kept=$(kept_root)
+check "two commits: prints the commits, the version that the harness printed, then each case with its score and runs at base and at head, then the graders that failed and where the trace of each run below 1.00 is kept" equals "$out" "base: $(sha "$repo" main~1) (main~1)
 head: $(sha "$repo" main)
 claude: 2.1.325 (Claude Code)
 granted tools: none
@@ -558,8 +591,12 @@ plugins/one/evals/stays-green      1.00 (3 runs)  0.67 (3 runs)
 plugins/two/evals/new-at-head      -              1.00 (1 run)
 
 plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+plugins/one/evals/red-then-green at base: run 1 of 1 scored 0.00, and its trace is kept at $kept/base/plugins/one/evals/red-then-green/run-1.jsonl
 plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
 plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
+plugins/one/evals/stays-green at head: run 1 of 3 scored 0.67, and its trace is kept at $kept/head/plugins/one/evals/stays-green/run-1.jsonl
+plugins/one/evals/stays-green at head: run 2 of 3 scored 0.67, and its trace is kept at $kept/head/plugins/one/evals/stays-green/run-2.jsonl
+plugins/one/evals/stays-green at head: run 3 of 3 scored 0.67, and its trace is kept at $kept/head/plugins/one/evals/stays-green/run-3.jsonl
 
 cost: base 0.25 USD, head 0.50 USD"
 check "two commits: the progress of a run reaches stderr" contains "$err" "
@@ -593,7 +630,7 @@ check "two commits: the head run is granted the shared documents of its own chec
 call=$(call_at base)
 check "two commits: the base run is granted the shared documents of its own checkout alone" \
   equals "$(grant_of "$call")" "$(shared_of "${call%%$'\t'*}")"
-check "two commits: nothing is left behind" nothing_left "$repo"
+check "two commits: nothing is left behind" nothing_left "$repo" "$out"
 
 repo=$(two_commits)
 compare "$repo" "$(sha "$repo" main~1)" --case 'red-*' --allow-tools Write 'Bash(git:*)' --runs 1 --model sonnet
@@ -704,16 +741,19 @@ commit "$repo" "chore: two cases list gated tools"
 compare "$repo" main~1
 check "a run that lacked a tool: exits 0" equals "$code" 0
 check "a run that lacked a tool: what the harness said is counted beside the score" contains "$out" "plugins/one/evals/red-then-green  1.00 (1 run)   1.00 (1 run, 1 note)"
-check "a run that lacked a tool: the case, the commit and the tool follow the table, ahead of the graders" contains "$out" "
+kept=$(kept_root)
+check "a run that lacked a tool: the case, the commit and the tool follow the table, ahead of the graders and the kept traces" contains "$out" "
 
 plugins/one/evals/red-then-green at head: $not_granted: Write
 plugins/one/evals/stays-green at base: grader names-it failed in 2 of 3 runs
 plugins/one/evals/stays-green at base: grader asks-first failed in 1 of 3 runs
+plugins/one/evals/stays-green at base: run 1 of 3 scored 0.67, and its trace is kept at $kept/base/plugins/one/evals/stays-green/run-1.jsonl
+plugins/one/evals/stays-green at base: run 2 of 3 scored 0.67, and its trace is kept at $kept/base/plugins/one/evals/stays-green/run-2.jsonl
+plugins/one/evals/stays-green at base: run 3 of 3 scored 0.67, and its trace is kept at $kept/base/plugins/one/evals/stays-green/run-3.jsonl
 plugins/one/evals/stays-green at head: $not_granted: Write, Bash
 plugins/one/evals/stays-green at head: grader names-it failed in 2 of 3 runs
 plugins/one/evals/stays-green at head: grader asks-first failed in 1 of 3 runs
-
-cost:"
+plugins/one/evals/stays-green at head: run 1 of 3 scored 0.67, and its trace is kept at $kept/head/plugins/one/evals/stays-green/run-1.jsonl"
 
 # The other way round: at head no case lists a gated tool any more.
 progress_of red-then-green >"$repo/canned-progress"
@@ -779,7 +819,7 @@ compare "$repo" without-the-case --case 'new-*'
 check "no case at the base commit: exits 0" equals "$code" 0
 check "no case at the base commit: the case has a dash there" contains "$out" "plugins/two/evals/new-at-head  -     1.00 (1 run)"
 check "no case at the base commit: the base run cost nothing" contains "$out" "cost: base 0.00 USD, head 0.50 USD"
-check "no case at the base commit: nothing is left behind" nothing_left "$repo"
+check "no case at the base commit: nothing is left behind" nothing_left "$repo" "$out"
 
 # Nor is it one when a case file of that commit fails to load. The harness
 # then prints an empty table and its summary in place of the words, and
@@ -807,7 +847,7 @@ plugins/two/evals/new-at-head  -     1.00 (1 run)
 the eval run at base failed to load plugins/one/evals/stays-green: $invalid_yaml
 
 cost: base 0.00 USD, head 0.50 USD"
-check "no case at the base commit, and a file that fails to load there: nothing is left behind" nothing_left "$repo"
+check "no case at the base commit, and a file that fails to load there: nothing is left behind" nothing_left "$repo" "$out"
 
 # When the one case that the filter matches fails to load, no case runs at
 # either commit. There is no comparison then, as for a filter that matches
@@ -826,7 +866,7 @@ check "no case at either commit, and a file that fails to load at head: prints n
 check "no case at either commit, and a file that fails to load at head: the error names the file" contains "$err" "
 compare-evals: no eval case ran at either commit
 the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml"
-check "no case at either commit, and a file that fails to load at head: nothing is left behind" nothing_left "$repo"
+check "no case at either commit, and a file that fails to load at head: nothing is left behind" nothing_left "$repo" "$out"
 
 # The likelier case: the file of the case that the filter names fails to load
 # at head, after the base run scored it. The base score stays, and the line
@@ -882,7 +922,7 @@ check "run errors: the reason names its case and commit" contains "$out" "
 plugins/one/evals/needs-bash at head: run error: $refusal
 "
 check "run errors: the harness says that it kept the sandbox of such a run" contains "$err" "  kept temp: "
-check "run errors: that sandbox is removed too" nothing_left "$repo"
+check "run errors: that sandbox is removed too" nothing_left "$repo" "$out"
 progress_of needs-bash "$not_granted: Bash" >"$repo/canned-progress"
 commit "$repo" "chore: the harness says that the case lacked a tool"
 compare "$repo" base
@@ -922,7 +962,7 @@ check "failed shells: what the first command of such a run said follows the tabl
 
 plugins/one/evals/needs-bash at head: every shell command failed in 2 of 3 runs, the first ending in: bwrap: Can't mkdir parents for /run/secrets.d/1: Permission denied
 "
-check "failed shells: every sandbox is removed" nothing_left "$repo"
+check "failed shells: every sandbox is removed" nothing_left "$repo" "$out"
 
 read_only=$'Exit code 128\nfatal: Unable to create \'/tmp/claude-eval-maGtG6/home/cwd/.git/index.lock\': Read-only file system'
 zsh_read_only=$'Exit code 1\nzsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af'
@@ -945,7 +985,27 @@ check "read-only shells: a run in which every shell command failed so counts as 
   "plugins/one/evals/red-then-green   0.00 (1 run)   1.00 (1 run, 1 failed shell, 1 read-only shell)"
 check "read-only shells: the words of zsh count too" contains "$out" \
   "plugins/one/evals/red-then-green at head: a shell command could not write in 1 of 1 runs, the first saying: zsh:1: read-only file system: /tmp/claude-eval-xARfaW/tmp/claude-1000/cwd-19af"
-check "read-only shells: every sandbox is removed" nothing_left "$repo"
+check "read-only shells: every sandbox is removed" nothing_left "$repo" "$out"
+
+passed=$(trace_of "$(shell_call 1 false "On branch main")")
+failed=$(trace_of "$(shell_call 1 true "$not_a_repository")")
+repo=$(two_commits)
+result 0.5 "$(case_of plugins/one/evals/red-then-green 0.5 2 | with_grader writes-the-file pf |
+  with_traces "$passed" "$failed" | jq '.arms.with[0].score = 1 | .arms.with[1].score = 0')" >"$repo/canned-result.json"
+commit "$repo" "chore: a case whose second run fails a grader"
+compare "$repo" base
+check "a run below 1.00: exits 0" equals "$code" 0
+check "a run below 1.00: the comparison names where its trace is kept, below the graders of its case" contains "$out" "
+plugins/one/evals/red-then-green at head: grader writes-the-file failed in 1 of 2 runs
+plugins/one/evals/red-then-green at head: run 2 of 2 scored 0.00, and its trace is kept at $runtime/"
+check "a run below 1.00: its trace is still there after the comparison, as the run wrote it" \
+  holds "$(traces_named_in "$(grep -F "red-then-green at head: run 2 of 2 " <<<"$out")")" "$(jq -c '.[]' <<<"$failed")"
+check "a run below 1.00 at the base commit: its trace is kept too" \
+  contains "$out" "plugins/one/evals/red-then-green at base: run 1 of 1 scored 0.00, and its trace is kept at $runtime/"
+check "a run at 1.00: keeps no trace" lacks "$out" "run 1 of 2"
+check "a run below 1.00: nothing but the traces that the comparison names is left behind" nothing_left "$repo" "$out"
+check "a run below 1.00: the comparison names the trace of each run below 1.00 and no other" \
+  equals "$(traces_named_in "$out" | wc -l)" 2
 
 repo=$(two_commits)
 gone=$tmp/gone/out/trace.jsonl
@@ -994,6 +1054,7 @@ plugins/two/evals/new-at-head      -              1.00 (1 run)
 the eval run at head was cut short (interrupted): the table may lack cases
 
 plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+plugins/one/evals/red-then-green at base: run 1 of 1 scored 0.00, and its trace is kept at $(kept_root)/base/plugins/one/evals/red-then-green/run-1.jsonl
 
 cost: base 0.25 USD, head 0.40 USD"
 
@@ -1014,7 +1075,7 @@ check "both suites cut short: each has its line, the base first" contains "$out"
 the eval run at base was cut short (cost_ceiling): the table may lack cases
 the eval run at head was cut short (interrupted): the table may lack cases
 
-cost:"
+plugins/one/evals/red-then-green at base: run 1 of 1"
 check "both suites cut short: a case that the base commit has and its run did not reach has no dash there" contains "$out" "
 plugins/one/evals/stays-green     no result     1.00 (3 runs)
 "
@@ -1050,6 +1111,7 @@ the eval run at head failed to load plugins/one/evals/stays-green: $invalid_yaml
 the eval run at head failed to load plugins/two/evals/new-at-head/case.yaml: $no_graders
 
 plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+plugins/one/evals/red-then-green at base: run 1 of 1 scored 0.00, and its trace is kept at $(kept_root)/base/plugins/one/evals/red-then-green/run-1.jsonl
 
 cost: base 0.25 USD, head 0.40 USD"
 compare "$repo/plugins" base
@@ -1081,7 +1143,7 @@ check "a case file that failed to load at the base commit: is named from the roo
 the eval run at base failed to load plugins/one/evals/red-then-green: $invalid_yaml
 
 cost:"
-check "a case file that failed to load at the base commit: nothing is left behind" nothing_left "$repo"
+check "a case file that failed to load at the base commit: nothing is left behind" nothing_left "$repo" "$out"
 
 # A suite can fail to load a file and be cut short too. Both lines name its
 # commit, in the order the harness met the two: the file before the runs.
@@ -1106,6 +1168,8 @@ result 0.5 "$(case_of one/evals/red-then-green 1 1)" >"$repo/canned-result.json"
 compare "$repo" base
 check "a path that names no case at head: exits 1" equals "$code" 1
 check "a path that names no case at head: names the path" contains "$err" "compare-evals: the result at head names the case one/evals/red-then-green, which holds no prompt.md in the working tree"
+check "a path that names no case at head: keeps no trace of the base run, though a run of it scored below 1.00" \
+  equals "$(ls -A "$tmp/scratch")" ""
 
 # A result that does not say whether it is partial is not taken for a whole
 # one.
@@ -1147,9 +1211,11 @@ the eval run at head failed to load plugins/two/evals/new-at-head: $invalid_yaml
 the eval run at head wrote no result (claude exited with status 1)
 
 plugins/one/evals/red-then-green at base: grader writes-the-file failed in 1 of 1 runs
+plugins/one/evals/red-then-green at base: run 1 of 1 scored 0.00, and its trace is kept at $(kept_root)/base/plugins/one/evals/red-then-green/run-1.jsonl
 
 cost: base 0.25 USD"
-check "no result at head: nothing is left behind" nothing_left "$repo"
+check "no result at head: nothing but the traces that the table of the base run names is left behind" \
+  nothing_left "$repo" "$out"
 
 # A head result that the program cannot read is no result either.
 repo=$(two_commits)
@@ -1231,7 +1297,7 @@ check "a command that both commits have: the head run gets the working tree's en
   equals "$(build_at head)" "check-pull-request of the working tree"
 check "a claude in the environment of the base commit: both runs start the claude that the program found" \
   lacks "$calls" "the claude of an environment"
-check "a command that both commits have: nothing is left behind" nothing_left "$repo"
+check "a command that both commits have: nothing is left behind" nothing_left "$repo" "$out"
 path=$with_claude
 
 # Entering the environment of a commit writes git hook shims. Before 7e4605f
@@ -1271,28 +1337,29 @@ check "an environment that does not build at base: says so" \
   contains "$err" "compare-evals: the eval run at base wrote no result (devenv shell exited with status 1)"
 check "an environment that does not build at base: runs nothing" equals "$calls" ""
 
-# An interrupt ends the run as well. The run here never ends by itself, and
-# the signal reaches the program alone. A command that a script starts in the
-# background ignores the signal, so env gives it back its default.
+# A command that a script starts in the background ignores SIGINT, so env
+# gives it back its default.
 repo=$(two_commits)
 : >"$repo/canned-hang"
 commit "$repo" "chore: a run that never ends"
 remove "$tmp/scratch" && mkdir "$tmp/scratch"
+: >"$FAKE_CLAUDE_LOG"
 (cd "$repo" && XDG_RUNTIME_DIR=$tmp/scratch TMPDIR=$tmp/tmpdir DEVENV_ROOT=$repo PATH=$path \
-  exec env --default-signal=INT "$program" main >/dev/null 2>&1 </dev/null) &
+  exec env --default-signal=INT "$program" base >/dev/null 2>&1 </dev/null) &
 program_pid=$!
 for _ in {1..100}; do
   [[ ! -s $FAKE_CLAUDE_PID ]] || break
   sleep 0.1
 done
 check "an interrupt: comes while the run is on" test -s "$FAKE_CLAUDE_PID"
+check "an interrupt: comes after the run at the base commit" equals "$(wc -l <"$FAKE_CLAUDE_LOG")" 2
 run_pid=$(<"$FAKE_CLAUDE_PID")
 kill -INT "$program_pid"
 code=0
 wait "$program_pid" || code=$?
 check "an interrupt: ends the program the way a signal does" equals "$code" 130
 check "an interrupt: ends the run" gone "$run_pid"
-check "an interrupt: nothing is left behind" nothing_left "$repo"
+check "an interrupt: nothing is left behind, not even the trace of the base run below 1.00" nothing_left "$repo"
 kill "$run_pid" 2>/dev/null || true
 
 # An interrupt can come while devenv still enters the environment of the base
@@ -1379,7 +1446,7 @@ compare "$repo" no-such-branch
 check "a base that names no commit: exits 1" equals "$code" 1
 check "a base that names no commit: says so" contains "$err" "compare-evals: 'no-such-branch' names no commit"
 check "a base that names no commit: runs nothing" equals "$calls" ""
-check "a base that names no commit: nothing is left behind" nothing_left "$repo"
+check "a base that names no commit: nothing is left behind" nothing_left "$repo" "$out"
 
 # git gets the base as a revision, never as an option, and the base run gets
 # the commit that the base names. Only `git update-ref` makes a branch whose
@@ -1485,7 +1552,7 @@ repo=$(two_commits)
 compare "$repo" main~1
 check "claude is not on the PATH: exits 1" equals "$code" 1
 check "claude is not on the PATH: says so" contains "$err" "compare-evals: claude is not on the PATH"
-check "claude is not on the PATH: nothing is left behind" nothing_left "$repo"
+check "claude is not on the PATH: nothing is left behind" nothing_left "$repo" "$out"
 path=$without_devenv
 compare "$repo" main~1
 check "devenv is not on the PATH: exits 1" equals "$code" 1
