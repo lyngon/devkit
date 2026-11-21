@@ -2,7 +2,7 @@
 """Propose, run and record a live mutation, for build:live-mutation.
 
     live-mutation.py propose <name> --derive <cmd> --show <cmd> --run <cmd> [--check <check>=<cmd>]...
-    live-mutation.py propose <name> --opentofu <root module> [--destroy] [--check <check>=<cmd>]...
+    live-mutation.py propose <name> --opentofu <root> [--destroy] [--target <address>]... [--check <check>=<cmd>]...
     live-mutation.py demonstrate <name> <check> <cmd> [--session <id>]
     live-mutation.py run <name> <digest> [--go-ahead <the owner's words>]
     live-mutation.py record <name> [--session <id>]
@@ -23,7 +23,13 @@ no-changes. It reads the plan's JSON into memory only, since that holds
 sensitive values in plain text. tofu prints such a value where it loses the
 mark, so the tool hides each value that the plan marks sensitive in all that a
 command prints before it writes it, and a proposal or a run that would show one
-stops before the run. A proposal of that form runs without a go-ahead
+stops before the run. With --target, the plan and no-changes take -target for
+each address, and the proposal waits. Before any command runs, the tool reads
+each command that the agent wrote with the reader of the plugin's OpenTofu hook,
+opentofu_commands.py, and refuses one that names tofu and that it cannot read.
+The generic form runs no OpenTofu command that prints values and keeps no saved
+plan among its inputs, and a check or a demonstration of the OpenTofu form
+prints values of the form's own root module alone. A proposal of that form runs without a go-ahead
 when no resource change of its plan does more than create, read or update and
 none imports, its configuration holds no provisioner, no TF_CLI_ARGS variable
 and no TF_DATA_DIR is set, the root module's workspace is default, HEAD was on
@@ -62,8 +68,16 @@ import subprocess
 import sys
 import tempfile
 import typing as t
+import zipfile
 
 import unprotected_roots
+
+HOOKS = pathlib.Path(__file__).resolve().parents[3] / "hooks"
+if str(HOOKS) not in sys.path:
+    sys.path.append(str(HOOKS))
+
+import opentofu_commands  # noqa: E402
+import shell_syntax  # noqa: E402
 
 KEY = f"{unprotected_roots.UNPROTECTED_ROOTS}:"
 
@@ -109,10 +123,26 @@ FIELDS_AN_OLDER_PROPOSAL_LACKS: ct.Mapping[str, object] = {
     "branch": None,
 }
 FIELDS_AN_OLDER_LOG_LINE_LACKS: ct.Mapping[str, object] = {"rule_file": "", "commit": "", "directory": "", "urls": []}
+FIELDS_AN_OLDER_OPENTOFU_FORM_LACKS: ct.Mapping[str, object] = {"targets": []}
+READS_ANOTHER_STATE = frozenset({"state", "var", "var-file"})
+CHANGES_DIRECTORY = frozenset({"cd", "popd", "pushd"})
+SETS_A_TF_VARIABLE = re.compile(r"(?<![A-Za-z0-9_])TF_[A-Za-z0-9_]*\+?=")
+FROZEN_PLAN = frozenset({"$LIVE_MUTATION_INPUTS/plan", "${LIVE_MUTATION_INPUTS}/plan"})
+SAVED_PLAN_MEMBER = "tfplan"
+OPENTOFU_FORM = (
+    "Propose an OpenTofu plan in the OpenTofu form, which hides what the plan marks sensitive, and when the plan needs"
+    " an argument that the form does not take, stop and tell the owner."
+)
+IN_THE_SHELL = "Read any other value of OpenTofu that you need in the shell, outside the proposal."
+OWN_ROOT_ONLY = "Read the root module of the form alone there, and any other in the shell, outside the proposal."
 
 
 class RefusalError(Exception):
     """A request the tool refuses. The message names the refusal and the way out."""
+
+
+class UnreadRunError(Exception):
+    """An OpenTofu run that an expansion hides part of from the tool. The message says which part, and why."""
 
 
 class Kind(enum.StrEnum):
@@ -175,12 +205,15 @@ class Generic:
 class OpenTofu:
     """The OpenTofu form of a proposal: a saved plan of one root module, a directory relative to the repository.
 
-    The form holds the checks that the agent gave, never no-changes, and writes every command itself, so no stored
-    command can differ from the commands that it runs.
+    The form holds the resource addresses that the plan targets and the checks that the agent gave, never
+    no-changes, and writes every command itself, so no stored command can differ from the commands that it runs.
+    The plan and no-changes both take each target, so that no-changes judges the part of the root module that the
+    plan changes.
     """
 
     root: str
     destroy: bool
+    targets: tuple[str, ...]
     checks: dict[str, str]
 
     def tofu(self, arguments: str) -> str:
@@ -191,11 +224,12 @@ class OpenTofu:
     def commands(self) -> Commands:
         """Return the commands of the form, with the check no-changes before the given ones."""
         destroy = " -destroy" if self.destroy else ""
+        narrowed = destroy + "".join(f" {shlex.quote(f'-target={target}')}" for target in self.targets)
         return Commands(
-            derive=self.tofu(f"plan -no-color -input=false{destroy} -out={PLAN}"),
+            derive=self.tofu(f"plan -no-color -input=false{narrowed} -out={PLAN}"),
             show=self.tofu(f"show -no-color {PLAN}"),
             run=self.tofu(f"apply -no-color -input=false {PLAN}"),
-            checks={NO_CHANGES: self.tofu(f"plan -no-color -input=false{destroy} -detailed-exitcode"), **self.checks},
+            checks={NO_CHANGES: self.tofu(f"plan -no-color -input=false{narrowed} -detailed-exitcode"), **self.checks},
         )
 
     def plan_json(self) -> str:
@@ -376,7 +410,8 @@ def form_of(fields: ct.Mapping[str, object]) -> Form:
     checks = texts_of(form, "checks")
     if NO_CHANGES in checks:
         raise RefusalError(f"corrupt: the OpenTofu form holds a check of its own named {NO_CHANGES}")
-    return OpenTofu(root=text_of(form, "root"), destroy=destroy, checks=checks)
+    targets = strings_of({**FIELDS_AN_OLDER_OPENTOFU_FORM_LACKS, **form}, "targets")
+    return OpenTofu(root=text_of(form, "root"), destroy=destroy, targets=targets, checks=checks)
 
 
 def form_fields(form: Form) -> dict[str, object]:
@@ -384,8 +419,9 @@ def form_fields(form: Form) -> dict[str, object]:
     match form:
         case Generic(commands=commands):
             return dataclasses.asdict(commands)
-        case OpenTofu(root=root, destroy=destroy, checks=checks):
-            return {"form": {"kind": "opentofu", "root": root, "destroy": destroy, "checks": checks}}
+        case OpenTofu(root=root, destroy=destroy, targets=targets, checks=checks):
+            fields = {"kind": "opentofu", "root": root, "destroy": destroy, "targets": list(targets), "checks": checks}
+            return {"form": fields}
 
 
 def route_from(value: object) -> Route:
@@ -702,6 +738,9 @@ def route_of(root: pathlib.Path, place: Place, form: Form, branch: str | None) -
     if isinstance(form, Generic):
         return GoAheadNeeded((GENERIC,))
     reasons = [*plan_reasons(root, place, form), *reach_reasons(root, place, form)]
+    if form.targets:
+        listed = ", ".join(f"`-target={target}`" for target in form.targets)
+        reasons.append(f"The plan takes {listed}, and only a plan of the whole root module runs without a go-ahead.")
     if branch is None:
         reasons.append("HEAD was detached at the proposal, so its action record has no branch to wait on.")
     try:
@@ -934,10 +973,176 @@ def sensitive_shown(paths: ct.Iterable[pathlib.Path], outcome_of_it: str) -> Ref
         f"sensitive-value-shown: a command printed a value that the plan marks sensitive, so {outcome_of_it};"
         f" the tool hid it in {listed}. OpenTofu prints such a value where it loses the mark, as in the output of a"
         " terraform_data resource whose input holds one. When a check of yours printed it, fix the check and"
-        " propose again. Otherwise stop and tell the owner, and never propose it in the generic form, which hides"
-        " nothing."
+        " propose again. Otherwise stop and tell the owner, since the generic form refuses an OpenTofu plan."
     )
     return RefusalError(message)
+
+
+def is_saved_plan(path: pathlib.Path) -> bool:
+    """Return whether a file is an OpenTofu saved plan: a zip archive that holds a member named tfplan."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return SAVED_PLAN_MEMBER in archive.namelist()
+    except zipfile.BadZipFile:
+        return False
+
+
+def refuse_saved_plans(inputs: pathlib.Path, outcome_of_it: str) -> None:
+    """Refuse inputs of the generic form that hold an OpenTofu saved plan, whose sensitive values that form cannot read.
+
+    Raises RefusalError (saved-plan) before the tool writes anything that the derive command printed.
+    """
+    plans = sorted(
+        path.relative_to(inputs).as_posix() for path in inputs.rglob("*") if path.is_file() and is_saved_plan(path)
+    )
+    if plans:
+        message = (
+            f"saved-plan: the derive command wrote the OpenTofu saved plan {', '.join(plans)}, whose sensitive values"
+            f" the generic form cannot hide, so {outcome_of_it}, and the tool wrote nothing that it printed."
+            f" {OPENTOFU_FORM}"
+        )
+        raise RefusalError(message)
+
+
+def unread_command(part: str, why: str) -> RefusalError:
+    """Return the refusal of a command that names tofu and that the tool cannot read."""
+    message = (
+        f"unread-command: `{part}` names tofu, and the tool cannot read it, since {why}, so it cannot tell what"
+        " OpenTofu prints there. Spell the OpenTofu command out, without a variable, a substitution or a script"
+        " that runs it."
+    )
+    return RefusalError(message)
+
+
+def is_frozen_plan(word: shell_syntax.Word) -> bool:
+    """Return whether a word names the frozen plan by LIVE_MUTATION_INPUTS, quoted or not."""
+    return word.unexpanded in FROZEN_PLAN or word.text in FROZEN_PLAN
+
+
+def directory_read(run: opentofu_commands.Run, found: opentofu_commands.TofuCommand) -> str:
+    """Return the directory that an OpenTofu run reads, its -chdir or the root of the repository, without `./`.
+
+    Raises UnreadRunError when an expansion hides a global option.
+    """
+    directory = "."
+    for option in found.options:
+        name = opentofu_commands.flag_name(option)
+        if name is None or (name == "chdir" and option.value is None):
+            raise UnreadRunError(f"a global option {run.origin}")
+        if name == "chdir" and option.value is not None:
+            directory = option.value.partition("=")[2]
+    return str(pathlib.PurePosixPath(directory))
+
+
+def argument_reasons(run: opentofu_commands.Run, found: opentofu_commands.TofuCommand) -> list[str]:
+    """Return how the arguments of a value-printing OpenTofu run read another state, other values or another file."""
+    reasons: list[str] = []
+    for argument in found.arguments:
+        name = opentofu_commands.flag_name(argument)
+        if found.name == "show" and name in {"", None}:
+            if not is_frozen_plan(argument):
+                reasons.append(f"of `{argument.text}`, a file other than the frozen plan")
+        elif name is None:
+            raise UnreadRunError(f"an argument {run.origin}")
+        elif name in READS_ANOTHER_STATE:
+            reasons.append(f"with `-{name}`")
+    return reasons
+
+
+def foreign_reasons(command: str, run: opentofu_commands.Run, form: OpenTofu, *, moves: bool) -> list[str]:
+    """Return how a value-printing OpenTofu run reads more than the root module of the form, or none.
+
+    None means that the run reads the root module of the form alone: its -chdir names it, the command changes no
+    directory and sets no TF_ variable, the run takes no argument that reads another state or other values, and a
+    show reads no file but the frozen plan. Raises UnreadRunError when an expansion hides what the run reads.
+    """
+    found = opentofu_commands.tofu_command(run.arguments)
+    directory = directory_read(run, found)
+    reasons = [f"against `{directory}`"] if directory != form.root else []
+    if moves:
+        reasons.append("after a cd, pushd or popd, which may leave it")
+    if SETS_A_TF_VARIABLE.search(command) is not None:
+        reasons.append("while the command sets a `TF_` variable, which may point it at another state")
+    return [*reasons, *argument_reasons(run, found)]
+
+
+def run_refusal(command: str, run: opentofu_commands.Run, form: Form, *, moves: bool) -> RefusalError | None:
+    """Return why the tool refuses an OpenTofu run in a command of a proposal, or None when it may run there."""
+    name = opentofu_commands.tofu_command(run.arguments).name
+    if name is None:
+        return unread_command(run.part, f"its subcommand {run.origin}")
+    if name not in opentofu_commands.PRINTS_VALUES:
+        return None
+    prints = f"unhidden-values: `{run.part}` runs `tofu {name}`, which prints the values of a plan or a state"
+    if isinstance(form, Generic):
+        return RefusalError(f"{prints}, and the generic form hides none of them. {OPENTOFU_FORM} {IN_THE_SHELL}")
+    try:
+        reasons = foreign_reasons(command, run, form, moves=moves)
+    except UnreadRunError as error:
+        return unread_command(run.part, str(error))
+    if not reasons:
+        return None
+    message = (
+        f"{prints}, {', '.join(reasons)}, and the tool hides only the values of the frozen plan of `{form.root}`."
+        f" {OWN_ROOT_ONLY}"
+    )
+    return RefusalError(message)
+
+
+def finding_refusal(
+    command: str, finding: opentofu_commands.Finding, form: Form, *, moves: bool
+) -> RefusalError | None:
+    """Return why the tool refuses what the reader found in a command of a proposal, or None."""
+    match finding:
+        case opentofu_commands.Unparsed(cause=opentofu_commands.Unparsable.PARSER_MISSING):
+            return unread_command(command, "shfmt, which parses it, is not on the PATH of the tool")
+        case opentofu_commands.Unparsed():
+            return unread_command(command, "it parses neither as bash nor as zsh")
+        case opentofu_commands.Hidden(part=part, why=why):
+            return unread_command(part, why)
+        case opentofu_commands.ReadsStandardInput(part=part):
+            return unread_command(part, "it runs a shell on commands from standard input that the tool does not see")
+        case opentofu_commands.Run(program=program):
+            return run_refusal(command, finding, form, moves=moves) if opentofu_commands.names_tofu(program) else None
+
+
+def refusal_of(command: str, form: Form) -> RefusalError | None:
+    """Return why the tool refuses a command of a proposal for what OpenTofu may print in it, or None.
+
+    The tool hides only the values of the frozen plan of the OpenTofu form, so the generic form runs no OpenTofu
+    command that prints values, and a check or a demonstration of the OpenTofu form runs one only against the root
+    module of the form. It reads the command with the reader of the plugin's OpenTofu hook, and refuses a command that
+    names tofu and that the reader cannot read.
+    """
+    if opentofu_commands.NAMES_TOFU.search(command) is None:
+        return None
+    findings = list(opentofu_commands.findings(command))
+    moves = any(
+        isinstance(finding, opentofu_commands.Run)
+        and shell_syntax.command_name(finding.program.value) in CHANGES_DIRECTORY
+        for finding in findings
+    )
+    refusals = (finding_refusal(command, finding, form, moves=moves) for finding in findings)
+    return next((refusal for refusal in refusals if refusal is not None), None)
+
+
+def commands_written_by_hand(form: Form) -> list[str]:
+    """Return the commands of a form that the agent wrote: all of the generic form, the checks of the OpenTofu form."""
+    match form:
+        case Generic(commands=commands):
+            return [commands.derive, commands.show, commands.run, *commands.checks.values()]
+        case OpenTofu(checks=checks):
+            return list(checks.values())
+
+
+def refuse_unhidden(commands: ct.Iterable[str], form: Form) -> None:
+    """Refuse the first command that may print OpenTofu values that the tool cannot hide, before any of them runs.
+
+    Raises RefusalError (unhidden-values or unread-command).
+    """
+    refusal = next((found for command in commands if (found := refusal_of(command, form)) is not None), None)
+    if refusal is not None:
+        raise refusal
 
 
 def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secrets, list[pathlib.Path]]:
@@ -950,6 +1155,8 @@ def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secre
     output = output_name(place, Kind.DERIVE)
     started = now()
     status, printed, _ = execute(commands.derive, root, place.inputs)
+    if isinstance(form, Generic):
+        refuse_saved_plans(place.inputs, "there is no proposal")
     derived = Entry(Kind.DERIVE, started, now(), status, commands.derive, output)
     secrets = secrets_in(root, place.inputs, form) if status == 0 else frozenset[str]()
     hidden = [place.outputs / output] if logged(place, derived, printed, secrets) else []
@@ -978,6 +1185,7 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
     for check in commands.checks:
         if not NAME.fullmatch(check):
             raise RefusalError(f"bad-name: the check {check!r} is not a kebab-case name such as no-changes")
+    refuse_unhidden(commands_written_by_hand(form), form)
     branch = unprotected_roots.branch_of(root)
     if place.directory.exists():
         used = consumed(read_log(place))
@@ -1066,6 +1274,7 @@ def demonstrate(root: pathlib.Path, session: str, name: str, check: str, command
     form = load(place).form
     if check not in form.commands.checks:
         raise RefusalError(f"no-such-check: proposal {name} has no check {check}")
+    refuse_unhidden([command], form)
     secrets = secrets_in(root, place.inputs, form)
     [(entry, _)] = checked(root, place, Kind.DEMONSTRATION, {check: command}, secrets)
     if entry.status == 0:
@@ -1087,6 +1296,8 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: S
     inputs.mkdir(parents=True)
     commands = proposal.form.commands
     status, printed, _ = execute(commands.derive, root, inputs)
+    if isinstance(proposal.form, Generic):
+        refuse_saved_plans(inputs, "nothing ran")
     rendering = errors = ""
     if status == 0:
         secrets |= secrets_in(root, inputs, proposal.form)
@@ -1155,6 +1366,7 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
             " a proposal runs once, so propose again from the new live state"
         )
         raise RefusalError(message)
+    refuse_unhidden(commands_written_by_hand(proposal.form), proposal.form)
     changed = changed_inputs(proposal.inputs, digests_of(place.inputs))
     if changed:
         raise RefusalError(f"inputs-changed: {changed} changed since the proposal; propose again")
@@ -1371,6 +1583,13 @@ def parser() -> argparse.ArgumentParser:
         "--opentofu", metavar="ROOT", help="in place of the three, apply a plan of this root module"
     )
     _ = proposing.add_argument("--destroy", action="store_true", help="with --opentofu, plan a destroy")
+    _ = proposing.add_argument(
+        "--target",
+        action="append",
+        default=[],
+        metavar="ADDRESS",
+        help="with --opentofu, plan only this resource address, as -target does; the proposal then waits",
+    )
     _ = proposing.add_argument("--check", type=check_pair, action="append", default=[], metavar="CHECK=CMD")
     demonstrating = commands.add_parser("demonstrate", help="run a check where its property does not hold")
     _ = demonstrating.add_argument("name")
@@ -1399,17 +1618,20 @@ def proposed(parsing: argparse.ArgumentParser, parsed: argparse.Namespace, root:
     """
     derive, show, executes = (t.cast("str | None", getattr(parsed, flag)) for flag in ("derive", "show", "run"))
     opentofu, destroy = t.cast("str | None", parsed.opentofu), t.cast("bool", parsed.destroy)
+    targets = tuple(t.cast("list[str]", parsed.target))
     checks = dict(t.cast("list[tuple[str, str]]", parsed.check))
     if opentofu is not None:
         if derive is not None or show is not None or executes is not None:
             parsing.error("--opentofu writes the derive, show and run commands itself, so it takes none of them")
         if NO_CHANGES in checks:
             raise RefusalError(f"reserved-check: the OpenTofu form adds the check {NO_CHANGES}; name yours otherwise")
-        return OpenTofu(root=root_module(root, opentofu), destroy=destroy, checks=checks)
+        return OpenTofu(root=root_module(root, opentofu), destroy=destroy, targets=targets, checks=checks)
     if derive is None or show is None or executes is None:
         parsing.error("propose takes --derive, --show and --run, or --opentofu")
     if destroy:
         parsing.error("--destroy plans a destroy of the OpenTofu form, so it takes --opentofu")
+    if targets:
+        parsing.error("--target narrows a plan of the OpenTofu form, so it takes --opentofu")
     return Generic(Commands(derive, show, executes, checks))
 
 

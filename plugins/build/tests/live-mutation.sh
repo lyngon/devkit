@@ -581,12 +581,10 @@ new_tofu_repository
 rule sandbox.md "unprotected-roots:" "  - infra/staging"
 publish
 set_level infra/staging
-propose_tofu staging-by-hand \
-  --derive 'tofu -chdir=infra/staging plan -input=false -out="$LIVE_MUTATION_INPUTS/plan"' \
-  --show 'tofu -chdir=infra/staging show -no-color "$LIVE_MUTATION_INPUTS/plan"' \
-  --run 'tofu -chdir=infra/staging apply -input=false "$LIVE_MUTATION_INPUTS/plan"' \
-  --check 'no-changes=tofu -chdir=infra/staging plan -input=false -detailed-exitcode'
-expect_waits "a proposal of the generic form" staging-by-hand infra/staging \
+propose_tofu staging-by-hand --derive true --show 'printf "forget terraform_data.spare\n"' \
+  --run 'tofu -chdir=infra/staging state rm terraform_data.spare' \
+  --check 'no-changes=test -z "$(tofu -chdir=infra/staging state list terraform_data.spare)"'
+expect_waits "a proposal of the generic form, which lets a state list and a state rm through" staging-by-hand infra/staging \
   'The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead\.' \
   'The proposal was shown as waiting for the owner.s go-ahead, and such a proposal never runs without one\.'
 
@@ -919,7 +917,10 @@ expect_secrets_kept() {
   local label=$1 secret searched holders unexpected="" printed=""
   for secret in "${secrets[@]}"; do
     searched=0
-    holders=$(grep -rlF --binary-files=text -e "$secret" "$repository/tmp/live-mutation") || searched=$?
+    holders=""
+    if [[ -e "$repository/tmp/live-mutation" ]]; then
+      holders=$(grep -rlF --binary-files=text -e "$secret" "$repository/tmp/live-mutation") || searched=$?
+    fi
     if ((searched > 1)); then
       unexpected+="grep exited $searched"$'\n'
     fi
@@ -1072,6 +1073,131 @@ tofu_mutation session-one run staging-spare "$digest"
 expect "a rendering derived again that shows a sensitive value stops the run" 1 '^live-mutation\.py: sensitive-value-shown: '
 expect_secrets_kept "a run stopped by the rendering derived again"
 expect_state "a run stopped by the rendering derived again changes no state" infra/staging "$state"
+
+expect_no_proposal() {
+  local label=$1 name=$2
+  if [[ ! -e "$repository/$proposals/$name/proposal.json" ]]; then
+    pass "$label"
+  else
+    fail "$label" "it saved $proposals/$name/proposal.json"
+  fi
+}
+
+new_tofu_repository
+carry_the_token_in_logging
+publish
+set_level infra/staging
+sed -i 's/input = "spare"/input = "spare-two"/' "$repository/infra/staging/main.tf"
+state=$(state_of infra/staging)
+propose_tofu staging-logs-by-hand \
+  --derive 'tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data.logging -out="$LIVE_MUTATION_INPUTS/plan"' \
+  --show 'tofu -chdir=infra/staging show -no-color "$LIVE_MUTATION_INPUTS/plan"' \
+  --run 'tofu -chdir=infra/staging apply -no-color -input=false "$LIVE_MUTATION_INPUTS/plan"' \
+  --check 'no-changes=tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data.logging -detailed-exitcode'
+expect "a -target plan in the generic form is refused before it runs" 1 \
+  '^live-mutation\.py: unhidden-values: `tofu -chdir=infra/staging plan '
+expect_secrets_kept "a -target plan refused in the generic form"
+expect_no_proposal "a -target plan refused in the generic form is no proposal" staging-logs-by-hand
+
+mkdir -p "$repository/scripts"
+printf '%s\n' '#!/bin/sh' \
+  'exec tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data.logging -out="$LIVE_MUTATION_INPUTS/plan"' \
+  >"$repository/scripts/plan-staging.sh"
+printf '%s\n' '#!/bin/sh' 'exec tofu -chdir=infra/staging show -no-color "$LIVE_MUTATION_INPUTS/plan"' \
+  >"$repository/scripts/show-staging.sh"
+printf '%s\n' '#!/bin/sh' 'exec tofu -chdir=infra/staging apply -no-color -input=false "$LIVE_MUTATION_INPUTS/plan"' \
+  >"$repository/scripts/apply-staging.sh"
+chmod +x "$repository"/scripts/*.sh
+rm -rf "${repository:?}/$proposals"
+propose_tofu staging-logs-by-script --derive ./scripts/plan-staging.sh --show ./scripts/show-staging.sh \
+  --run ./scripts/apply-staging.sh
+expect "a saved plan that the generic form derives through a script is refused before the tool writes what it printed" 1 \
+  '^live-mutation\.py: saved-plan: '
+expect_secrets_kept "a saved plan refused in the generic form"
+expect_no_proposal "a saved plan refused in the generic form is no proposal" staging-logs-by-script
+expect_state "a plan refused in the generic form changes no state" infra/staging "$state"
+
+propose_tofu staging-read-by-hand --derive true --show 'printf "read the logging resource\n"' --run true \
+  --check 'read=tofu -chdir=infra/staging state show terraform_data.logging'
+expect "a check of the generic form that prints values of OpenTofu is refused" 1 \
+  '^live-mutation\.py: unhidden-values: `tofu -chdir=infra/staging state show terraform_data\.logging` runs `tofu state show`, which prints the values of a plan or a state, and the generic form hides none of them\.'
+mutation session-one propose staging-read-by-hand --derive true --show true --run true --target terraform_data.spare
+expect "--target takes --opentofu" 2 '--target narrows a plan of the OpenTofu form, so it takes --opentofu'
+
+printf '%s\n' '#!/bin/sh' 'if [ -e plan-now ]; then exec ./scripts/plan-staging.sh; fi' \
+  'printf "nothing yet\n" >"$LIVE_MUTATION_INPUTS/plan"' >"$repository/scripts/plan-later.sh"
+chmod +x "$repository/scripts/plan-later.sh"
+propose_tofu staging-logs-later --derive ./scripts/plan-later.sh --show 'printf "no plan yet\n"' --run true
+expect "a derive of the generic form that writes no saved plan at the proposal is a proposal" 0 \
+  'Proposal `staging-logs-later` at digest'
+: >"$repository/plan-now"
+tofu_mutation session-one run staging-logs-later "$digest" --go-ahead "Go ahead with staging-logs-later."
+expect "a saved plan that the derive of the generic form writes in the drift check stops the run" 1 \
+  '^live-mutation\.py: saved-plan: the derive command wrote the OpenTofu saved plan plan, whose sensitive values the generic form cannot hide, so nothing ran'
+expect_secrets_kept "a run stopped by a saved plan in its drift check"
+expect_state "a run stopped by a saved plan in its drift check changes no state" infra/staging "$state"
+
+expect_unhidden() {
+  local label=$1 check=$2 reason=$3
+  propose_tofu staging-probe --opentofu infra/staging --target terraform_data.spare --check "read=$check"
+  expect "a check of the OpenTofu form that prints values $label is refused" 1 \
+    '^live-mutation\.py: unhidden-values: `'"$rest_of_line"'` runs `tofu [a-z ]+`, which prints the values of a plan or a state, '"$reason"', and the tool hides only the values of the frozen plan of `infra/staging`\.'
+}
+
+expect_unhidden "of another root module" 'tofu -chdir=infra/production output' 'against `infra/production`'
+expect_unhidden "of the root of the repository" 'tofu output' 'against `\.`'
+expect_unhidden "after a cd" 'cd infra && tofu -chdir=infra/staging output' 'after a cd, pushd or popd, which may leave it'
+expect_unhidden "with a TF_ variable" 'TF_WORKSPACE=other tofu -chdir=infra/staging output' \
+  'while the command sets a `TF_` variable, which may point it at another state'
+expect_unhidden "of another state" 'tofu -chdir=infra/staging output -state=other.tfstate' 'with `-state`'
+expect_unhidden "with other values" 'tofu -chdir=infra/staging plan -var level=trace' 'with `-var`'
+expect_unhidden "with a file of other values" 'tofu -chdir=infra/staging plan -var-file=other.tfvars' \
+  'with `-var-file`'
+expect_unhidden "of another plan" 'tofu -chdir=infra/staging show other.plan' \
+  'of `other\.plan`, a file other than the frozen plan'
+propose_tofu staging-probe --opentofu infra/staging --check 'read=sh -c "$(printf tofu) output"'
+expect "a check that names tofu and hides the program that a shell runs is refused" 1 \
+  '^live-mutation\.py: unread-command: `\$\(printf tofu\) output` names tofu, and the tool cannot read it, since its program comes from a variable or a substitution'
+propose_tofu staging-probe --opentofu infra/staging --check 'read=tofu -chdir=infra/staging "$SUBCOMMAND"'
+expect "a check whose OpenTofu subcommand an expansion hides is refused" 1 \
+  '^live-mutation\.py: unread-command: `tofu -chdir=infra/staging "\$SUBCOMMAND"` names tofu, and the tool cannot read it, since its subcommand comes from a variable or a substitution'
+expect_no_proposal "a refused check of the OpenTofu form is no proposal" staging-probe
+propose_tofu staging-probe --opentofu infra/staging --target terraform_data.spare \
+  --check 'read=tofu -chdir=./infra/staging/ show -no-color "$LIVE_MUTATION_INPUTS/plan" >/dev/null'
+expect "a check that shows the frozen plan of the root module of the form is let through" 0 \
+  '- `read` passes: `tofu -chdir=\./infra/staging/ show -no-color "\$LIVE_MUTATION_INPUTS/plan" >/dev/null`'
+
+new_tofu_repository
+carry_the_token_in_logging
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+set_level infra/staging
+sed -i 's/input = "spare"/input = "spare-two"/' "$repository/infra/staging/main.tf"
+propose_tofu staging-spare --opentofu infra/staging --target terraform_data.spare
+expect "a -target plan of the OpenTofu form plans and checks with -target" 0 \
+  'tofu -chdir=infra/staging apply -no-color -input=false "\$LIVE_MUTATION_INPUTS/plan".*terraform_data\.spare will be updated in-place.*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -target=terraform_data\.spare -detailed-exitcode`'
+rendering=$(contents "$repository/$proposals/staging-spare/rendering.txt")
+if [[ "$rendering" == *terraform_data.spare* && "$rendering" != *terraform_data.logging* ]]; then
+  pass "the rendering of a -target plan shows only its target"
+else
+  fail "the rendering of a -target plan shows only its target" "the rendering:"$'\n'"$rendering"
+fi
+tofu_mutation session-one demonstrate staging-spare no-changes 'tofu -chdir=infra/production plan -detailed-exitcode'
+expect "a demonstration of the OpenTofu form against another root module is refused" 1 \
+  '^live-mutation\.py: unhidden-values: `tofu -chdir=infra/production plan -detailed-exitcode` runs `tofu plan`, which prints the values of a plan or a state, against `infra/production`, '
+expect_waits "a -target plan of an unprotected root module" staging-spare infra/staging \
+  'The plan takes `-target=terraform_data\.spare`, and only a plan of the whole root module runs without a go-ahead\.' \
+  "$shown_waiting"
+pending_plan=$(tofu_in infra/staging plan -no-color -input=false 2>&1 || true)
+if [[ "$pending_plan" == *"terraform_data.logging will be updated"* && "$pending_plan" != *"terraform_data.spare will be"* ]]; then
+  pass "a run of a -target plan leaves the change of every other resource unapplied"
+else
+  fail "a run of a -target plan leaves the change of every other resource unapplied" \
+    "the plan after it:"$'\n'"${pending_plan//"$token"/"$hidden"}"
+fi
+tofu_mutation session-one record staging-spare
+expect "the record of a run of a -target plan is written" 0 'session-one/staging-spare/record-1\.md'
+expect_secrets_kept "a -target plan of the OpenTofu form, run and recorded"
 
 if ((failures > 0)); then
   echo "test-live-mutation: $failures failure(s)" >&2
