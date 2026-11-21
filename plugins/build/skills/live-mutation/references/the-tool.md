@@ -39,11 +39,14 @@ Its refusals:
 - `already-ran`: a proposal of that name ran. Propose under a new name.
 - `derive-failed` or `show-failed`: the derive or the show command exited with a status other than 0. The refusal names the file that holds its output.
 - `inputs-changed`: a check changed an input while it ran. Fix the check and propose again.
+- `unhidden-values`: a command that you wrote runs an OpenTofu command that prints values, which the generic form never runs and a check of the OpenTofu form runs only against its own root module, as [What a command may print](#what-a-command-may-print) says. Nothing ran. The refusal names the command and what it reads.
+- `unread-command`: a command that you wrote names `tofu`, and the tool cannot read it. Nothing ran. Spell the OpenTofu command out in the command.
+- `saved-plan`: the derive command of the generic form wrote an OpenTofu saved plan into the inputs. There is no proposal, and the tool wrote nothing that the derive printed. Propose the plan in the OpenTofu form.
 
 ## The OpenTofu form
 
 ```sh
-live-mutation.py propose <name> --opentofu <root module> [--destroy] [--check '<check>=<cmd>']...
+live-mutation.py propose <name> --opentofu <root module> [--destroy] [--target <address>]... [--check '<check>=<cmd>']...
 ```
 
 The root module is a directory relative to the root of the repository.
@@ -58,6 +61,7 @@ tofu -chdir=environments/sandbox plan -no-color -input=false -detailed-exitcode
 ```
 
 With `--destroy`, both plan commands take `-destroy` after `-input=false`.
+With `--target`, both take `-target=<address>` for each address after that, so that `no-changes` judges only the part of the root module that the plan changes.
 They run the `tofu` on the PATH that the tool has.
 `$LIVE_MUTATION_INPUTS` is an absolute path, so `-chdir` leaves the plan file where the tool looks for it.
 Two plans of one state differ byte for byte while `tofu show -no-color` renders them alike, which is why the tool compares renderings.
@@ -68,7 +72,7 @@ The tool reads the plan's JSON from `tofu show -json` into memory and never writ
 So each command prints into a file that has no name, and before the tool writes what it printed, as the rendering or under `outputs/`, it replaces each such value with `(sensitive value hidden by live-mutation.py)`.
 It finds a value of a root variable declared sensitive, and a value under a mark of a resource change, of a change made outside OpenTofu or of an output change, printed as it is, quoted with escapes or as a heredoc.
 Before the run, a command that printed one stops the proposal or the run, and after it the tool only hides it.
-The generic form hides nothing, since the tool cannot read what its inputs mark sensitive.
+The generic form hides nothing, since the tool cannot read what its inputs mark sensitive, so it runs no OpenTofu command that prints values.
 
 The proposal ends with its route.
 It needs no go-ahead only when none of these holds, and otherwise it waits and the output gives each that holds:
@@ -76,6 +80,7 @@ It needs no go-ahead only when none of these holds, and otherwise it waits and t
 - A resource change of the plan has no action, an action beyond no-op, create, read and update, such as a delete, a replace or a forget, or a form that the tool cannot read.
 - A resource change of the plan imports an object, which the state of the root module never held.
 - The configuration of the plan, in the root module or in any module that it calls, holds a provisioner, which runs code that the plan does not show.
+- The plan takes `--target`, since the tool judges the route of a plan of the whole root module only.
 - `TF_CLI_ARGS` or a `TF_CLI_ARGS_` variable is set in the tool's environment, since the form takes no plan argument beyond its own.
 - `TF_DATA_DIR` is set in the tool's environment, since it picks a backend and a state that `-chdir` does not.
 - `tofu -chdir=<root module> workspace show`, run in the tool's environment, fails or names a workspace other than `default`, as `TF_WORKSPACE` or a selected workspace does.
@@ -91,8 +96,10 @@ The tool reads none of the other variables that choose a backend, a provider or 
 
 A destroy is planned with `--destroy`, and it always waits, since its plan deletes every resource.
 An import is an `import` block in the code, and its plan always waits.
-A plan that needs any other argument, such as `-target`, `-replace` or `-var-file`, goes through the generic form.
-So do `tofu import`, the `state` commands and `tofu force-unlock`, and all of them always wait.
+A plan that needs `-target` takes `--target`, once for each address.
+A plan that needs any other argument, such as `-replace` or `-var-file`, has no form: stop and tell the owner.
+A forced replacement can take `tofu taint` in the generic form, and then the plan in the OpenTofu form.
+`tofu import`, the `state` commands and `tofu force-unlock` go through the generic form, and all of them always wait.
 A command that has no inputs, such as `tofu force-unlock`, derives nothing (`--derive true`) and shows what it acts on.
 
 Beyond those of the generic form, its refusals:
@@ -100,7 +107,7 @@ Beyond those of the generic form, its refusals:
 - `bad-root`: the root module is absolute, holds `..`, passes through a symlink or names no directory. Name the directory itself, relative to the root of the repository.
 - `reserved-check`: a check you give is named `no-changes`, which the form adds itself. Name it otherwise.
 - `plan-unreadable`: `tofu show -json` failed, or printed no JSON with a list of resource changes and a configuration of modules that the tool reads.
-- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. When a check of yours printed it, fix the check and propose again. Otherwise stop and tell the owner, and never propose it in the generic form, which would show the value.
+- `sensitive-value-shown`: the derive, the show or a check printed a value that the plan marks sensitive. There is no proposal, and the refusal names the files where the tool hid the value. When a check of yours printed it, fix the check and propose again. Otherwise stop and tell the owner, since the generic form refuses an OpenTofu plan.
 - `nothing-to-apply`: the plan changes nothing, since `no-changes` passes, so the check could never fail.
 
 ### The declaration
@@ -121,6 +128,20 @@ unprotected-roots:
 - A rule file that names `unprotected-roots` in any other form makes every proposal of the OpenTofu form wait, and the reason names the file. A rule file without the key counts for nothing.
 - The reader is `scripts/unprotected_roots.py`, beside the tool, which imports it.
 
+## What a command may print
+
+The tool hides only the values that the frozen plan of the OpenTofu form marks sensitive.
+So before any command runs, it reads each command that you wrote: every command of the generic form, the checks of the OpenTofu form and the command of `demonstrate`.
+It reads them as the plugin's OpenTofu hook reads a command in the shell, with the plugin's `hooks/opentofu_commands.py`, through `bash -c`, `sh -c`, `eval`, here-documents and `xargs`.
+These OpenTofu commands print values: `plan`, `apply`, `destroy`, `refresh`, `test`, `show`, `output`, `console`, `state show` and `state pull`.
+
+- The generic form runs none of them, and a saved plan among its inputs stops the proposal and the run.
+- A check or a demonstration of the OpenTofu form runs one only against the root module of the form. Its `-chdir` names that directory, the command holds no `cd`, `pushd` or `popd` and sets no `TF_` variable, the run takes no `-state`, `-var` or `-var-file`, and a `show` reads no file but `"$LIVE_MUTATION_INPUTS/plan"`.
+- A command that names `tofu` and that the tool cannot read, as where a variable or a substitution hides what it runs, is refused. A script that runs `tofu` and that the command runs without naming `tofu` is not read, so name `tofu` in the command itself.
+
+Read any other root module, and any other value of OpenTofu that you need, in the shell, outside the proposal.
+A refactor across root modules goes through `moved`, `removed` and `import` blocks in the OpenTofu form.
+
 ## demonstrate
 
 ```sh
@@ -129,7 +150,7 @@ live-mutation.py demonstrate <name> <check> '<cmd>' [--session <id>]
 
 It runs a variant of a check's command against a state where the property does not hold, and logs it, so that the record shows the check can fail.
 With `--session`, it logs the demonstration in the proposal of that session, as for a run whose session ended before it wrote the record.
-It refuses `bad-session` and `not-found` as `record` does, `no-such-check` for a check that the proposal does not have, and `plan-unreadable` for a proposal of the OpenTofu form whose frozen plan `tofu show -json` cannot read.
+It refuses `bad-session` and `not-found` as `record` does, `no-such-check` for a check that the proposal does not have, `unhidden-values` or `unread-command` for its command, as for `propose`, and `plan-unreadable` for a proposal of the OpenTofu form whose frozen plan `tofu show -json` cannot read.
 The tool hides a sensitive value in its output as for a check.
 
 ## run
@@ -155,12 +176,13 @@ It checks these in order, and each refusal changes nothing live:
 5. `corrupt`, as for every command.
 6. `digest-mismatch`: the digest is not the one the proposal has now, as after a second propose. Show the owner the proposal at its digest and ask again.
 7. `already-ran`: a proposal runs once, with a go-ahead or without one. Propose again from the new live state.
-8. `inputs-changed`: a frozen input changed after the proposal. Propose again.
-9. `plan-unreadable`, for the OpenTofu form, while it reads the frozen plan again, and `git-missing` or `git-failed`, without `--go-ahead` only, while it reads the rule files again.
-10. `needs-go-ahead`, without `--go-ahead` only: the proposal runs only on the owner's go-ahead. The refusal gives each reason, and says so when the proposal was shown waiting. Show the owner the proposal and ask.
-11. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output. `plan-unreadable` here means that `tofu show -json` cannot read the plan derived again.
-12. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan or the plan derived again marks sensitive. Act as for the refusal of `propose`.
-13. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
+8. `unhidden-values` or `unread-command`: a command that you wrote may print values that the tool cannot hide, as in a proposal that the tool made before it read commands. Propose again.
+9. `inputs-changed`: a frozen input changed after the proposal. Propose again.
+10. `plan-unreadable`, for the OpenTofu form, while it reads the frozen plan again, and `git-missing` or `git-failed`, without `--go-ahead` only, while it reads the rule files again.
+11. `needs-go-ahead`, without `--go-ahead` only: the proposal runs only on the owner's go-ahead. The refusal gives each reason, and says so when the proposal was shown waiting. Show the owner the proposal and ask.
+12. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output. `plan-unreadable` here means that `tofu show -json` cannot read the plan derived again, and `saved-plan` that the derive command of the generic form wrote an OpenTofu saved plan.
+13. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan or the plan derived again marks sensitive. Act as for the refusal of `propose`.
+14. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
 
 A run can take longer than a command in the foreground may, as a landing zone upgrade does.
 Start such a run in the background and wait for it to end.
