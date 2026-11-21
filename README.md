@@ -458,10 +458,10 @@ plugins/discover/evals/brainstorm-no-docs at head: not granted (missing --allow-
 When a later harness starts such a line otherwise, the note is missing from the comparison and the line is still in the output of the run, which goes to stderr as it comes.
 There the harness also says `kept temp` for the sandbox of each run, which `--keep-temp` keeps, and `compare-evals` removes the sandboxes with the rest.
 Before that it copies the trace of each run that scored below 1.00, so that a failure that a rerun does not repeat can still be read.
-Below the table, after the graders of its case, each such run is listed with where its trace is kept:
+Below the table, after the graders of its case, each such run is listed with where its trace is kept (measured on Claude Code 2.1.327):
 
 ```text
-plugins/build/evals/live-mutation-runs-after-the-go-ahead at head: run 1 of 1 scored 0.00, and its trace is kept at /run/user/1000/compare-evals-8_uoyc7j-traces/head/plugins/build/evals/live-mutation-runs-after-the-go-ahead/run-1.jsonl
+plugins/devkit/evals/probe-issue-230-keeps-a-failed-trace at head: run 1 of 1 scored 0.00, and its trace is kept at /run/user/1000/compare-evals-wa3c11rk-traces/head/plugins/devkit/evals/probe-issue-230-keeps-a-failed-trace/run-1.jsonl
 ```
 
 The runs of a case are numbered in the order of its result.
