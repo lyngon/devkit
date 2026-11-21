@@ -1074,6 +1074,104 @@ expect "a rendering derived again that shows a sensitive value stops the run" 1 
 expect_secrets_kept "a run stopped by the rendering derived again"
 expect_state "a run stopped by the rendering derived again changes no state" infra/staging "$state"
 
+generate_a_secret() {
+  cat >"$repository/infra/staging/generated.tf" <<'EOF'
+resource "terraform_data" "generated" {
+  input = sensitive(uuid())
+}
+
+output "generated" {
+  value = terraform_data.generated.output
+}
+EOF
+}
+
+generated_value() {
+  secrets=("$(tofu_in infra/staging output -raw generated || true)")
+  if [[ "${secrets[0]}" =~ ^[0-9a-f-]{36}$ ]]; then
+    pass "$1: the state holds the generated value"
+  else
+    fail "$1: the state holds the generated value" "the output generated is '${secrets[0]}'"
+  fi
+}
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+generate_a_secret
+propose_tofu staging-generate --opentofu infra/staging
+expect "a plan that creates a terraform_data resource from a sensitive value it cannot know yet shows it unknown" 0 \
+  '\+ input += \(sensitive value\).*\+ generated = \(known after apply\).*The run needs no go-ahead: '
+tofu_mutation session-one run staging-generate "$digest"
+expect "the apply prints the generated value as an output, and the tool hides it there and in no-changes after the run" 1 \
+  "The run passes.*generated = \"\\(sensitive value hidden by live-mutation\\.py\\)\".*- \`no-changes\` fails \\(2\\)"
+generated_value "a run that generated a sensitive value"
+tofu_mutation session-one demonstrate staging-generate no-changes \
+  'tofu -chdir=infra/staging plan -no-color -input=false -detailed-exitcode'
+expect "a demonstration after the run that prints the generated value is logged" 0 \
+  'The demonstration of no-changes fails \(2\)'
+tofu_mutation session-one record staging-generate
+expect "the record of a run that generated a sensitive value is written" 0 'session-one/staging-generate/record-1\.md'
+expect_secrets_kept "a run that generated a sensitive value, checked, demonstrated and recorded"
+record=$(contents "$repository/$proposals/staging-generate/record-1.md")
+was=$(grep -c -F "~ output = \"$hidden\" -> (known after apply)" <<<"$record" || true)
+if [[ "$record" == *$'\n'"generated = \"$hidden\""$'\n'* && "$was" == 2 ]]; then
+  pass "the record hides the generated value in the output of the run, of no-changes after it and of the demonstration"
+else
+  fail "the record hides the generated value in the output of the run, of no-changes after it and of the demonstration" \
+    "found the hidden value before the plan $was time(s) in:"$'\n'"$record"
+fi
+
+sed -i 's/input = "spare"/input = "spare-two"/' "$repository/infra/staging/main.tf"
+propose_tofu staging-spare --opentofu infra/staging --target terraform_data.spare \
+  --check 'whole=tofu -chdir=infra/staging plan -no-color -input=false'
+expect "a check that prints a value that the state marks sensitive and a -target plan leaves out stops the proposal" 1 \
+  '^live-mutation\.py: sensitive-value-shown: .*/staging-spare/outputs/004-check-whole\.txt\. OpenTofu prints'
+expect_secrets_kept "a proposal stopped by a check that printed a value of the state"
+
+new_tofu_repository
+rule sandbox.md "unprotected-roots:" "  - infra/staging"
+publish
+generate_a_secret
+stand_in=$tmp/state-unreadable-after-the-apply
+mkdir -p "$stand_in"
+cat >"$stand_in/tofu" <<EOF
+#!/bin/sh
+case " \$* " in
+*" apply "*)
+  "$opentofu/tofu" "\$@"
+  status=\$?
+  : >"$repository/applied"
+  exit \$status
+  ;;
+*" show -json ")
+  if [ -e "$repository/applied" ]; then
+    echo "the backend of the test is unreachable" >&2
+    exit 1
+  fi
+  exec "$opentofu/tofu" "\$@"
+  ;;
+*) exec "$opentofu/tofu" "\$@" ;;
+esac
+EOF
+chmod +x "$stand_in/tofu"
+call_tool "$script_tools:$stand_in" session-one propose staging-generate --opentofu infra/staging
+digest=$(sed -n 's/^Proposal `staging-generate` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+call_tool "$script_tools:$stand_in" session-one run staging-generate "$digest"
+expect "a run whose state the tool cannot read after the apply keeps nothing that the apply printed" 1 \
+  '^live-mutation\.py: state-unreadable: `tofu -chdir=infra/staging show -json` exited 1: the backend of the test is unreachable'$'\n''The run passes, and the tool kept nothing that it printed and ran no check after it'
+generated_value "a run whose state the tool cannot read after the apply"
+tofu_mutation session-one record staging-generate
+expect_secrets_kept "a run whose state the tool cannot read after the apply, recorded"
+record=$(contents "$repository/$proposals/staging-generate/record-1.md")
+if [[ "$record" == *"- The run started at "*" and has no end in the log."* ]]; then
+  pass "the record of a run whose state the tool cannot read after the apply says that the run has no end in the log"
+else
+  fail "the record of a run whose state the tool cannot read after the apply says that the run has no end in the log" \
+    "got:"$'\n'"$record"
+fi
+secrets=("$token")
+
 expect_no_proposal() {
   local label=$1 name=$2
   if [[ ! -e "$repository/$proposals/$name/proposal.json" ]]; then
