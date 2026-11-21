@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: clean-comments-keeps-the-reason-of-a-suppression
+context:
+  scaffold_script: seed-workspace.sh
