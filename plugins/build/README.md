@@ -39,6 +39,7 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   Where the command runs a shell as a program, the hook reads the commands that the shell reads from a heredoc or a here-string as it reads those of `bash -c`, and also what `echo` writes into a pipe to the shell.
   A variable that the command assigns once, to a literal value, counts as that value.
   A program that `xargs` runs also gets the words of its input, after its own arguments or in place of the string that `-I`, `-i` or `--replace` names, and the hook counts each of those words as one that a variable hides.
+  `xargs` puts its input in place of that string only in the words after its own program, never in the program's name (measured on GNU findutils 4.11.0), so the hook counts a program as hidden there only behind a wrapper that `xargs` runs, such as `env`.
   Where the command runs the script of `live-mutation` as a program, the hook reads the commands that the call gives the script to run at once, with no go-ahead, as it reads those of `bash -c`: the `--derive`, `--show` and `--check` commands of `propose` and the command of `demonstrate`.
   It finds them with the script's own parser, so an option written as an abbreviation or with `=` counts too, and it denies such a call when a variable or a substitution hides any of its arguments.
   The `--run` command, which runs only on a go-ahead or where the script finds none is needed, may hold a write.
@@ -46,12 +47,14 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   It denies rather than asks, since the skill decides whether a live mutation waits for the owner, and it denies in a subagent as in the lead (measured on Claude Code 2.1.283 and 2.1.322).
   In a subagent, whose hook input holds an `agent_id`, it also denies a call of the script's `propose`, `demonstrate` or `run`, and tells the subagent to report to its lead.
   It counts the script only where the command may run it as a program, never as an argument of another program.
-  A simple command runs its first word, and when that word is a wrapper such as `env`, `timeout`, `nix shell --command` or `python3`, or a variable hides it, the hook takes any later word for a program too.
+  A simple command runs its first word, and when that word is a wrapper such as `env`, `timeout`, `aws-vault exec`, `nix shell --command`, `find -exec` or `python3`, the hook reads the wrapper's options, operands and `NAME=VALUE` words as the wrapper does, to find the program that it runs.
+  Where a variable hides a program, or a wrapper takes an option that the hook does not know, the hook takes any later word for a program too.
   It also reads what `bash -c` and `eval` run and the value of an alias.
   The subcommand is the first word after the script's path that is not `--`, and the call counts when a variable, a substitution or the input of `xargs` hides that word, and when a shell reads its commands from a heredoc, a here-string or a pipe in a command that names the script.
   So `ruff check`, `cp` or `grep` of the script runs, and so does a shell that runs a script file whose path holds no variable or substitution.
   It fails closed.
   It denies a command that names tofu and that it cannot read, and says why, when `shfmt` is not on its PATH, when the command parses neither as bash nor as zsh, and when a variable or a substitution decides the program, the subcommand or a flag that would make it write.
+  The program counts wherever the command runs one, as its first word or behind a wrapper, and so does a program that the input of `xargs` gives.
   It also denies such a command when a shell that it runs as a program reads its commands from any other standard input, such as a file, a pipe from `cat`, or an `echo` with a backslash, which the `echo` of zsh turns into a line break.
   It never sees a program that runs tofu as a process of its own, such as a script file, `make` or a devenv task.
   `tests/hooks.sh` runs the hook with a PATH of the baseline's `lyngon.scriptTools` and nothing else, and once with `python3` and no `shfmt`.

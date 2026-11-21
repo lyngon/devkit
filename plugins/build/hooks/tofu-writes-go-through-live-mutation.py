@@ -236,9 +236,9 @@ def call_calls_the_tool(words: ct.Sequence[shell_syntax.Word]) -> bool:
     The tool counts only where the command may run it as a program, never as an argument of another program.
     """
     return any(
-        program_calls_the_tool(words[position], arguments)
-        for position in opentofu_commands.program_positions(words)
-        for arguments, _ in opentofu_commands.readings(words, position)
+        program_calls_the_tool(handed[position], handed[position + 1 :])
+        for handed, _ in opentofu_commands.readings(words)
+        for position in opentofu_commands.program_positions(handed)
     )
 
 

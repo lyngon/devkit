@@ -166,6 +166,9 @@ tofu_denied "apply by the path of the program" "/nix/store/6knn-opentofu-1.12.6/
   "$(writes "/nix/store/6knn-opentofu-1.12.6/bin/tofu destroy -auto-approve")"
 tofu_denied "apply under nix run" "nix run nixpkgs#opentofu -- -chdir=$organization apply organization.tfplan" \
   "$(writes "nix run nixpkgs#opentofu -- -chdir=$organization apply organization.tfplan")"
+tofu_denied "apply behind flock, a program that the hook does not know as a wrapper" \
+  "flock infra.lock tofu -chdir=$organization apply organization.tfplan" \
+  "$(writes "flock infra.lock tofu -chdir=$organization apply organization.tfplan")"
 tofu_denied "state rm under xargs" "xargs -n1 tofu state rm < addresses.txt" "$(writes "xargs -n1 tofu state rm")"
 tofu_denied "apply in bash -c" "bash -c 'cd infra && tofu apply organization.tfplan'" \
   "$(writes "tofu apply organization.tfplan")"
@@ -192,6 +195,33 @@ tofu_denied "the program in a variable assigned twice" "T=/bin/true; T=/nix/stor
 tofu_denied "the program in a variable assigned the path of tofu" \
   "T=/nix/store/6knn-opentofu-1.12.6/bin/tofu; \$T -chdir=$organization apply organization.tfplan" \
   "$(writes "\$T -chdir=$organization apply organization.tfplan")"
+from_a_variable="its program comes from a variable or a substitution"
+tofu_denied "the program in a substitution under timeout" "timeout 60 \"\$(command -v tofu)\" apply -auto-approve" \
+  "$(hidden "timeout 60 \"\$(command -v tofu)\" apply -auto-approve" "$from_a_variable")"
+tofu_denied "the program in a substitution under env" "env \"\$(echo tofu)\" apply -auto-approve" \
+  "$(hidden "env \"\$(echo tofu)\" apply -auto-approve" "$from_a_variable")"
+tofu_denied "the program in a substitution after env -u and its argument" \
+  "env -u AWS_PROFILE \"\$(command -v tofu)\" apply -auto-approve" \
+  "$(hidden "env -u AWS_PROFILE \"\$(command -v tofu)\" apply -auto-approve" "$from_a_variable")"
+tofu_denied "the program in a variable under aws-vault exec, after its profile and --" \
+  "aws-vault exec management -- \"\$TOFU\" -chdir=$organization apply organization.tfplan" \
+  "$(hidden "aws-vault exec management -- \"\$TOFU\" -chdir=$organization apply organization.tfplan" "$from_a_variable")"
+tofu_denied "the program in a substitution under aws-vault exec after an option that the hook does not know" \
+  "aws-vault exec --duration=1h management -- \"\$(command -v tofu)\" apply -auto-approve" \
+  "$(hidden "aws-vault exec --duration=1h management -- \"\$(command -v tofu)\" apply -auto-approve" "$from_a_variable")"
+tofu_denied "the program in a variable after --command of nix shell" \
+  "nix shell nixpkgs#opentofu --command \"\$TOFU\" -chdir=$organization apply organization.tfplan" \
+  "$(hidden "nix shell nixpkgs#opentofu --command \"\$TOFU\" -chdir=$organization apply organization.tfplan" \
+    "$from_a_variable")"
+tofu_runs "plan under env, with a variable in a value that env sets" "env TF_LOG=\"\$level\" tofu -chdir=$organization plan"
+tofu_runs "plan under timeout, with variables in its options, its duration and the arguments of tofu" \
+  "timeout -s \"\$signal\" \"\$duration\" tofu -chdir=$organization plan -var \"region=\$region\""
+tofu_runs "plan under aws-vault exec, with its profile in a variable" \
+  "aws-vault exec \"\$profile\" -- tofu -chdir=$organization plan"
+tofu_runs "help of tofu under nix shell, with a variable in the arguments of tofu" \
+  "nix shell nixpkgs#opentofu --command tofu \$c -help"
+tofu_runs "command -v of a program in a variable, which runs nothing" "command -v \$program && tofu version"
+tofu_runs "a script under python3, with a variable in its arguments" "python3 tmp/probe.py \"\$state\" tofu"
 tofu_denied "apply in bash -c, in double quotes with a variable" "bash -c \"cd \$dir && tofu apply organization.tfplan\"" \
   "$(writes "tofu apply organization.tfplan")"
 tofu_denied "a subcommand in a variable, in eval" "eval \"tofu \$subcommand\"" \
@@ -210,6 +240,9 @@ tofu_denied "a subcommand that xargs -I puts in place of {}" \
 tofu_denied "a subcommand that xargs --replace puts in place of its own string" \
   "echo apply | xargs --replace=SUB tofu SUB -auto-approve" \
   "$(hidden "xargs --replace=SUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs --repl, an abbreviation of --replace, puts in place of its own string" \
+  "echo apply | xargs --repl=SUB tofu SUB -auto-approve" \
+  "$(hidden "xargs --repl=SUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
 tofu_denied "a subcommand that xargs -0I, its options in one word, puts in place" \
   "printf 'apply\0' | xargs -0ISUB tofu SUB -auto-approve" \
   "$(hidden "xargs -0ISUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
@@ -223,6 +256,13 @@ tofu_denied "a subcommand that xargs -I puts in place after -e, which takes no n
   "$(hidden "xargs -e -I{} tofu {} -auto-approve" "its subcommand comes from the input of xargs")"
 tofu_denied "init with flags that xargs adds" "echo -migrate-state | xargs tofu init" \
   "$(hidden "xargs tofu init" "an argument comes from the input of xargs and may be -force-copy or -migrate-state")"
+from_xargs="its program comes from the input of xargs"
+tofu_denied "the program of env that xargs -I puts in place of {}" "echo tofu | xargs -I{} env {} apply -auto-approve" \
+  "$(hidden "xargs -I{} env {} apply -auto-approve" "$from_xargs")"
+tofu_denied "the program of env that xargs adds from a pipe" "echo 'tofu apply -auto-approve' | xargs env" \
+  "$(hidden "xargs env" "$from_xargs")"
+tofu_runs "a program named {} that xargs -I runs as written, since it puts its input only in the words after it" \
+  "echo tofu | xargs -I{} {} apply -auto-approve"
 tofu_runs "fmt of the files that xargs adds" "find infra -name '*.tf' | xargs tofu fmt"
 tofu_runs "a plan in each directory that xargs -I puts in place of {}" "ls -d infra/*/ | xargs -I{} tofu -chdir={} plan"
 tofu_runs "xargs and tofu as words that echo prints" "echo xargs tofu"
