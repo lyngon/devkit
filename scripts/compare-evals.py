@@ -111,7 +111,7 @@ class Options:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
-class KeptTrace:
+class TraceToKeep:
     """The trace of a run that scored below 1.00, where the harness wrote it and where the comparison keeps a copy.
 
     The run is numbered from 1, in the order of the runs of its case in the
@@ -121,7 +121,7 @@ class KeptTrace:
     run: int
     score: float
     written: pathlib.Path
-    kept: pathlib.Path
+    destination: pathlib.Path
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -146,7 +146,7 @@ class Case:
     failed_shells: tuple[str, ...]
     read_only_shells: tuple[str, ...]
     failed_graders: ct.Mapping[str, int]
-    kept_traces: tuple[KeptTrace, ...]
+    kept_traces: tuple[TraceToKeep, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -681,7 +681,7 @@ def read_only_shell(results: ct.Sequence[ct.Mapping[str, object]]) -> str | None
     return None
 
 
-def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said, kept: pathlib.Path) -> Result:
+def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said, keep_in: pathlib.Path) -> Result:
     """Turn what a run of `claude plugin eval` wrote and said into a Result.
 
     That is the result it wrote, the trace of each run that the result
@@ -721,7 +721,7 @@ def parse_result(data: object, side: str, progress: ct.Sequence[str], said: Said
                 read_only_shells=tuple(line for results in shells if (line := read_only_shell(results)) is not None),
                 failed_graders={name: count for name, count in failures.items() if count > 0},
                 kept_traces=tuple(
-                    KeptTrace(run, score, pathlib.Path(trace), kept / directory / f"run-{run}.jsonl")
+                    TraceToKeep(run, score, pathlib.Path(trace), keep_in / directory / f"run-{run}.jsonl")
                     for run, (score, trace) in enumerate(zip(scores, traces, strict=True), start=1)
                     if score < 1 and trace
                 ),
@@ -743,8 +743,8 @@ def keep_traces(*results: Result) -> None:
     for result in results:
         for case in result.cases.values():
             for trace in case.kept_traces:
-                trace.kept.parent.mkdir(parents=True, exist_ok=True)
-                _ = shutil.copyfile(trace.written, trace.kept)
+                trace.destination.parent.mkdir(parents=True, exist_ok=True)
+                _ = shutil.copyfile(trace.written, trace.destination)
 
 
 def counted(number: int, noun: str) -> str:
@@ -784,7 +784,7 @@ def reasons(case: Case) -> list[str]:
         ),
         *(f"grader {name} failed in {count} of {case.runs} runs" for name, count in case.failed_graders.items()),
         *(
-            f"run {trace.run} of {case.runs} scored {trace.score:.2f}, and its trace is kept at {trace.kept}"
+            f"run {trace.run} of {case.runs} scored {trace.score:.2f}, and its trace is kept at {trace.destination}"
             for trace in case.kept_traces
         ),
     ]
