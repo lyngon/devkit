@@ -440,7 +440,7 @@ def subcommand_reading(
 
 
 def is_option(word: shell_syntax.Word, table: ct.Mapping[str, Takes]) -> bool:
-    """Return whether a wrapper with this table of options reads a word as an option: one that starts with -."""
+    """Return whether a wrapper with this table of options reads a word as an option."""
     return word.start.startswith("-") and (word.start != "-" or not word.complete or "-" in table)
 
 

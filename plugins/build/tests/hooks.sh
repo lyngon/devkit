@@ -240,6 +240,9 @@ tofu_denied "a subcommand that xargs -I puts in place of {}" \
 tofu_denied "a subcommand that xargs --replace puts in place of its own string" \
   "echo apply | xargs --replace=SUB tofu SUB -auto-approve" \
   "$(hidden "xargs --replace=SUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
+tofu_denied "a subcommand that xargs --repl, an abbreviation of --replace, puts in place of its own string" \
+  "echo apply | xargs --repl=SUB tofu SUB -auto-approve" \
+  "$(hidden "xargs --repl=SUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
 tofu_denied "a subcommand that xargs -0I, its options in one word, puts in place" \
   "printf 'apply\0' | xargs -0ISUB tofu SUB -auto-approve" \
   "$(hidden "xargs -0ISUB tofu SUB -auto-approve" "its subcommand comes from the input of xargs")"
