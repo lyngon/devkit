@@ -328,11 +328,11 @@ Its `name` is the name of the case's directory, and `validate-marketplace` fails
 `context.add_dirs` does not serve here: it lets a run read a directory of the case where it lies, and nothing tells the agent where that is (measured on Claude Code 2.1.283).
 
 A case that goes on from a recorded session, such as one about what a session does after a compaction, resumes it: `context.history_file` in its `case.yaml` names a transcript in the case directory, and the prompt is the next turn.
-The cases `mode-survives-compaction` and `mode-lost-is-reread` keep what follows the compaction boundary of a real session's transcript, with the paths of the machine that recorded it replaced (the checkout by `~/devkit`), and their seed script rebuilds the repository as that session left it.
+The cases `mode-survives-compaction` and `mode-lost-is-reread` keep what follows the compaction boundary of a real session's transcript, with the paths of the machine that recorded it replaced (the checkout by `~/devkit` and the working directory by `~/cwd`), and their seed script rebuilds the repository as that session left it.
 A session resumed from that part alone goes on from the compaction (measured on Claude Code 2.1.283).
 The output of a hook in a transcript is the text that the hook prints at head.
 `update-eval-histories` keeps it so.
-It runs each hook whose output a transcript holds again, on the input that the transcript shows the hook got, and writes what the hook prints now into the record, or deletes the record when the hook prints nothing.
+It runs each hook whose output a transcript holds again, on the input that the transcript shows the hook got, with the directory that the hook runs in as its `cwd`, and writes what the hook prints now into the record, or deletes the record when the hook prints nothing.
 It runs the hooks as in an eval run, where the case resumes the transcript, so a transcript recorded in a run keeps the record of the `devkit` plugin's hook, which prints only there.
 `devenv test` fails a transcript that it would change, so run it after a change to a hook or to the text that one prints:
 
@@ -340,7 +340,12 @@ It runs the hooks as in an eval run, where the case resumes the transcript, so a
 update-eval-histories
 ```
 
-A run has a home directory of its own, so `~/devkit` names a file there only when the seed script links it.
+A run has a home directory of its own, and its working directory is `cwd` in that home (measured on Claude Code 2.1.329).
+So a history names the working directory as `~/cwd` throughout, the `cwd` field of each record included, and every path under it resolves in the run.
+An agent that resumes a history goes to the paths it names, and one searched the file system for a working directory that its run lacked (measured on Claude Code 2.1.325).
+`update-eval-histories` refuses a history whose record names another working directory.
+At the resume Claude Code tells the agent the run's working directory beside the recorded one, as `Primary working directory: <the run's> (was ~/cwd)` (measured on Claude Code 2.1.329).
+`~/devkit` names a file in the home only when the seed script links it.
 A case whose run uses a file of the checkout that the transcript names links `~/devkit` to the checkout of the run, as `live-mutation-runs-after-the-go-ahead` does for the tool that runs its proposal.
 Without the link, its agent searched the whole file system for the tool, and the search ended after the reply that held the URL of the action record, so the last reply lacked it (measured on Claude Code 2.1.325).
 The compaction cases link nothing, so a run cannot read the files of the checkout that recorded their transcripts, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name.
