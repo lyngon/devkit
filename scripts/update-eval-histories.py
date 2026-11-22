@@ -10,7 +10,9 @@ that Claude Code gives a hook in an eval run, since a case resumes the transcrip
 directory as the cwd of its input, as in a run. In what the hooks print it writes the checkout as ~/devkit and the
 working directory as ~/cwd, the names that a history gives them throughout. Both are named under the home directory
 because a run has a home of its own: its working directory is ~/cwd, and the seed script of a case can link ~/devkit
-to the checkout of the run. The program refuses a history whose record names another working directory.
+to the checkout of the run. The program refuses a history whose record names another working directory, and one that
+holds an environment record: after one, Claude Code tells a resumed agent that its working directory moved from the
+one the record names, and without one it tells the agent the run's environment.
 
 The records of a command in an event are current when they hold the outputs of those hooks one for one, leaving out
 a hook that prints nothing, since such a hook leaves no record. A record that is not current takes the output that no
@@ -182,6 +184,18 @@ def histories(root: pathlib.Path) -> list[pathlib.Path]:
         if name:
             found.append(case.parent / name)
     return found
+
+
+def check_working_directory(record: dict[str, object], where: str) -> None:
+    """Raise HistoryError for a record that tells a resumed agent of a working directory other than the run's."""
+    if (cwd := record.get("cwd", RECORDED_WORKING_DIRECTORY)) != RECORDED_WORKING_DIRECTORY:
+        resolved = f"a history names it {RECORDED_WORKING_DIRECTORY}, the working directory of every run"
+        raise HistoryError(f"{where}: names the working directory {json.dumps(cwd)}, and {resolved}")
+    attachment = record.get("attachment")
+    if isinstance(attachment, dict) and t.cast("dict[str, object]", attachment).get("type") == "environment":
+        moved = "after which Claude Code tells a resumed agent that its working directory moved"
+        fix = "delete the record, and give the record that hangs off it its parent"
+        raise HistoryError(f"{where}: holds an environment record, {moved}; {fix}")
 
 
 def attachment_of(record: dict[str, object]) -> dict[str, object] | None:
@@ -469,9 +483,7 @@ def update(history: pathlib.Path, hooks: list[Hook], replayer: Replayer) -> tupl
     events: dict[tuple[str, str], dict[str, list[int]]] = {}
     for index, record in enumerate(records):
         where = f"{history}:{index + 1}"
-        if (cwd := record.get("cwd", RECORDED_WORKING_DIRECTORY)) != RECORDED_WORKING_DIRECTORY:
-            resolved = f"a history names it {RECORDED_WORKING_DIRECTORY}, the working directory of every run"
-            raise HistoryError(f"{where}: names the working directory {json.dumps(cwd)}, and {resolved}")
+        check_working_directory(record, where)
         attachment = attachment_of(record)
         if attachment is None:
             continue
