@@ -166,6 +166,18 @@ check "the refusal names the first such record and the path that resolves" \
   says "plugins/one/evals/resumes/history.jsonl:1: names the working directory \"/recorded/cwd\", and a history names it ~/cwd, the working directory of every run"
 check "the refused history stays as it was" test "$(<"$file")" == "$before"
 
+cat >"$file" <<'EOF'
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Runs in ~/cwd, the directory that its input names.","stdout":"Runs in ~/cwd, the directory that its input names.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/where.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Runs in ~/cwd, the directory that its input names.\n</system-reminder>"}]}
+{"parentUuid":"a","attachment":{"type":"environment","snapshot":{"workingDirectory":"~/cwd","isWorktree":false,"isGitRepo":true,"additionalWorkingDirectories":[],"platform":"linux"}},"type":"attachment","uuid":"e","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\n# Environment\n - Primary working directory: ~/cwd\n</system-reminder>"}]}
+{"parentUuid":"e","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"~/cwd"}
+EOF
+before=$(<"$file")
+run "$root"
+check "the update refuses a history that holds the environment of the recording" test "$code" -eq 1
+check "the refusal names that record and how to take it out" \
+  says "plugins/one/evals/resumes/history.jsonl:2: holds an environment record, after which Claude Code tells a resumed agent that its working directory moved; delete the record, and give the record that hangs off it its parent"
+check "the history with the environment record stays as it was" test "$(<"$file")" == "$before"
+
 if ((failures > 0)); then
   echo "update-eval-histories tests: $failures failed" >&2
   exit 1
