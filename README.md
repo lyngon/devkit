@@ -341,7 +341,7 @@ update-eval-histories
 ```
 
 A run has a home directory of its own, and its working directory is `cwd` in that home (measured on Claude Code 2.1.329).
-So a history names the working directory as `~/cwd` throughout, the `cwd` field of each record included, and every path under it resolves in the run.
+So a history names the working directory as `~/cwd` throughout, the `cwd` field of each record included, and a path that it names under the working directory leads into the run's.
 An agent that resumes a history goes to the paths it names, and one searched the file system for a working directory that its run lacked (measured on Claude Code 2.1.325).
 `update-eval-histories` refuses a history whose record names another working directory.
 At the resume Claude Code tells the agent the run's working directory beside the recorded one, as `Primary working directory: <the run's> (was ~/cwd)` (measured on Claude Code 2.1.329).
