@@ -157,8 +157,8 @@ EOF
 run --check "$root"
 check "a replayed hook gets the directory it runs in as its cwd, which its output names as ~/cwd" \
   test "$code:$out" == "0:update-eval-histories: ok, each history records what its hooks print at head (1 checked)"
-sed -i 's#"cwd":"~/cwd"#"cwd":"/recorded/cwd"#' "$file"
-before=$(<"$file")
+before=$(jq -c '.cwd = "/recorded/cwd"' "$file")
+echo "$before" >"$file"
 run "$root"
 check "the update refuses a history that names the working directory by a path that a run does not resolve" \
   test "$code" -eq 1
