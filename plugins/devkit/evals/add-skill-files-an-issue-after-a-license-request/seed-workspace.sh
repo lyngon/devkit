@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory with the stand-in for the Lyngon
-# devkit that the case add-skill-finishes-a-planned-change keeps, without its
-# design file. main is checked out.
-#
-# Nothing in the run reaches a network. The upstream acme/brevity is a git
-# repository at tmp/forge/acme-brevity, made from that case's upstream/
-# without its LICENSE, so that the skill has no license. The case puts
-# .git/forge/bin in front of the PATH, which holds a gh that keeps the issues
-# it is given under .git/forge/, where the graders read them.
 set -euo pipefail
 
 case_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
