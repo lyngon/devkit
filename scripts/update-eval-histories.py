@@ -86,10 +86,10 @@ class Output:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Event:
-    """One hook event of a history: the input of each hook but its cwd, and the value its matchers are tried on."""
+    """One hook event of a history."""
 
     name: str
-    hook_input: dict[str, object]
+    recorded_input: dict[str, object]
     matched: str
 
 
@@ -283,14 +283,14 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
     """Return the hook event of a hook record, with the input that the transcript says its hooks got."""
     attachment = table(record.get("attachment"), where)
     name = text(attachment.get("hookEvent"), f"{where}: hookEvent")
-    hook_input: dict[str, object] = {
+    recorded: dict[str, object] = {
         "session_id": text(record.get("sessionId"), f"{where}: sessionId"),
         "hook_event_name": name,
     }
     match name:
         case "SessionStart":
             source = text(attachment.get("hookName"), f"{where}: hookName").partition(":")[2]
-            return Event(name, hook_input | {"source": source}, source)
+            return Event(name, recorded | {"source": source}, source)
         case "PreToolUse":
             tool_use_id = text(attachment.get("toolUseID"), f"{where}: toolUseID")
             block = tool_use(records, tool_use_id)
@@ -298,9 +298,9 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
                 raise HistoryError(f"{where}: no tool call of the history has the ID {tool_use_id}")
             tool_name = text(block.get("name"), f"{where}: the name of tool call {tool_use_id}")
             calls = {"tool_name": tool_name, "tool_input": block.get("input"), "tool_use_id": tool_use_id}
-            return Event(name, hook_input | calls, tool_name)
+            return Event(name, recorded | calls, tool_name)
         case "Stop":
-            return Event(name, hook_input | stop_input(records, record, where), "")
+            return Event(name, recorded | stop_input(records, record, where), "")
         case _:
             raise HistoryError(f"{where}: the program cannot replay a hook of the event {name}")
 
@@ -330,7 +330,7 @@ class Replayer:
             environment["CLAUDE_ENV_FILE"] = str(own / "env-file.sh")
         result = subprocess.run(
             ["bash", "-c", hook.command],
-            input=json.dumps(event.hook_input | {"cwd": str(workdir)}, separators=(",", ":")),
+            input=json.dumps(event.recorded_input | {"cwd": str(workdir)}, separators=(",", ":")),
             capture_output=True,
             text=True,
             cwd=workdir,
