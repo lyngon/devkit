@@ -13,7 +13,7 @@ The devkit neither vendors (copying without permission) nor pins (distributing w
    - The upstream, the path and the commit, the date of the request, and the link to it or the note "email sent".
    - Under the heading "Not before", that a license or written permission exists.
 
-   It gets no label, because nobody can build it before the author answers.
+   It gets the label `deferred`, because nobody can build it before the author answers.
 
 ## Request template
 
