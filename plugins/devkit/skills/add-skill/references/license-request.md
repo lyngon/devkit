@@ -7,11 +7,13 @@ The devkit neither vendors (copying without permission) nor pins (distributing w
 
 1. Tell the user, naming the upstream and the commit, and that the flow stops here.
 2. Offer to draft a request to the author, choosing the channel that exists: a GitHub issue on the repository, otherwise an email if an address is public, otherwise a message on the platform where the skill was published.
-3. If the user sends it, add a line to `docs/TODO.md`:
+3. If the user sends it, file an issue on the devkit, so that someone follows the request up. The issue holds:
 
-   ```md
-   - {YYYY-MM-DD}: Follow up on the license request for {owner/repo/path} ({link to issue or note "email sent"}); re-run `/devkit:add-skill` once a license or written permission exists.
-   ```
+   - As its goal, that the skill enters the devkit through `/devkit:add-skill`.
+   - The upstream, the path and the commit, the date of the request, and the link to it or the note "email sent".
+   - Under the heading "Not before", that a license or written permission exists.
+
+   It gets no label, because nobody can build it before the author answers.
 
 ## Request template
 
