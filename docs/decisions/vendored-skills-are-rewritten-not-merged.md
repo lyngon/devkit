@@ -7,6 +7,6 @@ Every deviation from upstream is listed under "Local patches" in that record, un
 ## Consequences
 
 - Upstream trigger phrases ("grill me") are kept in skill descriptions, so muscle memory from upstream still works.
-- The comparison is manual until the skill for it in `docs/TODO.md` exists.
+- The comparison is manual until the skill for it exists, which is the work of [bump-skill: carry an upstream's changes into what the devkit vendored from it](https://github.com/lyngon/devkit/issues/261).
 
 Enforced by: judgment

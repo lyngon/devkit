@@ -56,8 +56,7 @@ What this repository is for, for whom, and what done means is in [INTENT.md](INT
 │   ├── CLAUDE.md           imports INTENT.md into every agent session
 │   └── rules/              this repository's principles, one per file, loaded by path
 ├── docs/
-│   ├── decisions/          decisions about this repository that the code cannot show
-│   └── TODO.md             deferred work
+│   └── decisions/          decisions about this repository that the code cannot show
 ├── INTENT.md               what the repository is for, for whom, and what done means
 └── CONCEPTS.md             the terms used in this repository
 ```

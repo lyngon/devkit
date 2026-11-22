@@ -19,7 +19,7 @@ One entry point for growing the marketplace, so every addition follows the same 
 ## When not to use
 
 - Outside the devkit repository. Check that `.claude-plugin/marketplace.json` exists and its `name` is `lyngon`; otherwise stop and say this skill only maintains the devkit.
-- Updating a skill that is already in the catalog. Say so and point at `docs/TODO.md` (the bump flow) instead of installing twice.
+- Updating a skill that is already in the catalog. Say so and point at the issue for the bump flow, [bump-skill: carry an upstream's changes into what the devkit vendored from it](https://github.com/lyngon/devkit/issues/261), instead of installing twice.
 - Editing an in-house skill. Edit it directly.
 
 ## Step 0: Classify the request
@@ -55,7 +55,7 @@ Follow [references/find.md](references/find.md).
 Resolve to an exact upstream: repository URL, every path inside it that the request names, and the commit you inspected.
 Clone with `--depth 1` into the scratchpad; never into the repository.
 When the upstream already has a record under `catalog/vendored/`, inspect the commit that record names, because a record covers one upstream at one commit.
-Taking a newer commit is a bump of everything vendored from that upstream, which is the bump flow in `docs/TODO.md`.
+Taking a newer commit is a bump of everything vendored from that upstream, which is the bump flow of that issue.
 
 ### A.2 Confirm it is the right one
 
