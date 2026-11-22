@@ -7,11 +7,6 @@ Queued items are listed in the order to implement them; a new one is placed by i
 
 ## Queued
 
-The first three are the remaining pieces of the philosophy overhaul, in order; what is settled for each is in [the roadmap](plans/2026-10-07-philosophy-overhaul-roadmap.md).
-
-- 2026-10-07: [Issue pipeline](seed-prompts/005-issue-pipeline.md), a design through `discover:approach`. Filing, triage and picking on GitHub Issues, replacing this file.
-- 2026-10-07: [GitHub repository setup](seed-prompts/006-github-repository-setup.md), a design through `discover:approach`. `repo:init` emits the ruleset, CODEOWNERS, labels, issue forms and merge settings.
-- 2026-10-07: [Rules as checks](seed-prompts/007-rules-as-checks.md), a design through `discover:approach`, then one bounded change per check. Every rule a tool can decide moves from prose into a check.
 - 2026-09-27: [Roadmap for multi-piece work](seed-prompts/roadmap-for-multi-piece-work.md), a design through `discover:approach`. A place for the order of the pieces and the facts they share when a design splits work into pieces, kept until the last piece lands.
 - 2026-09-26: [Session wrap-up skill](seed-prompts/conclude-skill.md), a design through `discover:approach`. Documents up to date and a clean branch, prompts for continuing, process improvements as a paste-ready devkit prompt that extends this file, and feedback on the session; run by hand at the end of a lyngon.com session on 2026-09-27, which settled where it sits (after the integration choice, before the push).
 
