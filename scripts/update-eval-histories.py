@@ -6,10 +6,13 @@ record of the transcript, an attachment of type hook_success, hook_non_blocking_
 what one hook command printed for one hook event. The program replays each such event: it runs every hook that a
 plugin of the checkout registers for the event with that command, in hooks/hooks.json or in the frontmatter of a
 skill or an agent, on the input that the transcript records, in an empty working directory and with the variables
-that Claude Code gives a hook in an eval run, since a case resumes the transcript in one. In what the hooks print it
-writes the checkout as ~/devkit and the working directory as the one the transcript records, as the recording did.
-The checkout is named under the home directory because a run has a home of its own, where the seed script of a case
-can link ~/devkit to the checkout of the run.
+that Claude Code gives a hook in an eval run, since a case resumes the transcript in one. Each hook gets that
+directory as the cwd of its input, as in a run. In what the hooks print it writes the checkout as ~/devkit and the
+working directory as ~/cwd, the names that a history gives them throughout. Both are named under the home directory
+because a run has a home of its own: its working directory is ~/cwd, and the seed script of a case can link ~/devkit
+to the checkout of the run. The program refuses a history whose record names another working directory, and one that
+holds an environment record: after one, Claude Code tells a resumed agent that its working directory moved from the
+one the record names, and without one it tells the agent the run's environment.
 
 The records of a command in an event are current when they hold the outputs of those hooks one for one, leaving out
 a hook that prints nothing, since such a hook leaves no record. A record that is not current takes the output that no
@@ -37,6 +40,8 @@ import typing as t
 
 RECORDED_CHECKOUT = "~/devkit"
 
+RECORDED_WORKING_DIRECTORY = "~/cwd"
+
 HOOK_RECORDS = frozenset({"hook_success", "hook_non_blocking_error", "hook_blocking_error"})
 
 NON_BLOCKING_ERROR = "Failed with non-blocking status code: "
@@ -47,7 +52,7 @@ DEFAULT_TIMEOUT_SECONDS = 60.0
 
 
 class HistoryError(Exception):
-    """A history or a hook registration that the program cannot read."""
+    """A history or a hook registration that the program cannot read or replay."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -81,12 +86,11 @@ class Output:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class Event:
-    """One hook event that a history records: the input each hook got, and the value its matchers are tried on."""
+    """One hook event of a history."""
 
     name: str
-    hook_input: dict[str, object]
+    recorded_input: dict[str, object]
     matched: str
-    cwd: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -182,6 +186,18 @@ def histories(root: pathlib.Path) -> list[pathlib.Path]:
     return found
 
 
+def check_working_directory(record: dict[str, object], where: str) -> None:
+    """Raise HistoryError for a record that tells a resumed agent of a working directory other than the run's."""
+    if (cwd := record.get("cwd", RECORDED_WORKING_DIRECTORY)) != RECORDED_WORKING_DIRECTORY:
+        resolved = f"a history names it {RECORDED_WORKING_DIRECTORY}, the working directory of every run"
+        raise HistoryError(f"{where}: names the working directory {json.dumps(cwd)}, and {resolved}")
+    attachment = record.get("attachment")
+    if isinstance(attachment, dict) and t.cast("dict[str, object]", attachment).get("type") == "environment":
+        moved = "after which Claude Code tells a resumed agent that its working directory moved"
+        fix = "delete the record, and give the record that hangs off it its parent"
+        raise HistoryError(f"{where}: holds an environment record, {moved}; {fix}")
+
+
 def attachment_of(record: dict[str, object]) -> dict[str, object] | None:
     """Return the attachment of a hook record, or None for any other record."""
     attachment = record.get("attachment")
@@ -267,16 +283,14 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
     """Return the hook event of a hook record, with the input that the transcript says its hooks got."""
     attachment = table(record.get("attachment"), where)
     name = text(attachment.get("hookEvent"), f"{where}: hookEvent")
-    cwd = text(record.get("cwd"), f"{where}: cwd")
-    hook_input: dict[str, object] = {
+    recorded: dict[str, object] = {
         "session_id": text(record.get("sessionId"), f"{where}: sessionId"),
-        "cwd": cwd,
         "hook_event_name": name,
     }
     match name:
         case "SessionStart":
             source = text(attachment.get("hookName"), f"{where}: hookName").partition(":")[2]
-            return Event(name, hook_input | {"source": source}, source, cwd)
+            return Event(name, recorded | {"source": source}, source)
         case "PreToolUse":
             tool_use_id = text(attachment.get("toolUseID"), f"{where}: toolUseID")
             block = tool_use(records, tool_use_id)
@@ -284,9 +298,9 @@ def event_of(records: list[dict[str, object]], record: dict[str, object], where:
                 raise HistoryError(f"{where}: no tool call of the history has the ID {tool_use_id}")
             tool_name = text(block.get("name"), f"{where}: the name of tool call {tool_use_id}")
             calls = {"tool_name": tool_name, "tool_input": block.get("input"), "tool_use_id": tool_use_id}
-            return Event(name, hook_input | calls, tool_name, cwd)
+            return Event(name, recorded | calls, tool_name)
         case "Stop":
-            return Event(name, hook_input | stop_input(records, record, where), "", cwd)
+            return Event(name, recorded | stop_input(records, record, where), "")
         case _:
             raise HistoryError(f"{where}: the program cannot replay a hook of the event {name}")
 
@@ -316,7 +330,7 @@ class Replayer:
             environment["CLAUDE_ENV_FILE"] = str(own / "env-file.sh")
         result = subprocess.run(
             ["bash", "-c", hook.command],
-            input=json.dumps(event.hook_input, separators=(",", ":")),
+            input=json.dumps(event.recorded_input | {"cwd": str(workdir)}, separators=(",", ":")),
             capture_output=True,
             text=True,
             cwd=workdir,
@@ -326,7 +340,7 @@ class Replayer:
         )
 
         def as_recorded(printed: str) -> str:
-            return printed.replace(str(self.root), RECORDED_CHECKOUT).replace(str(workdir), event.cwd)
+            return printed.replace(str(self.root), RECORDED_CHECKOUT).replace(str(workdir), RECORDED_WORKING_DIRECTORY)
 
         return Output(result.returncode, as_recorded(result.stdout), as_recorded(result.stderr))
 
@@ -469,6 +483,7 @@ def update(history: pathlib.Path, hooks: list[Hook], replayer: Replayer) -> tupl
     events: dict[tuple[str, str], dict[str, list[int]]] = {}
     for index, record in enumerate(records):
         where = f"{history}:{index + 1}"
+        check_working_directory(record, where)
         attachment = attachment_of(record)
         if attachment is None:
             continue

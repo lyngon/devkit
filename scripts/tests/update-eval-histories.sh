@@ -36,14 +36,14 @@ write_history() {
   local checkout=$1 parent_of_the_result=$2
   local file=$checkout/plugins/one/evals/resumes/history.jsonl
   cat >"$file" <<'EOF'
-{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Read ~/devkit/plugins/one/old.md first.","stdout":"Read ~/devkit/plugins/one/old.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"/recorded/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Read ~/devkit/plugins/one/old.md first.\n</system-reminder>"}]}
-{"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"/recorded/cwd"}
-{"parentUuid":"b","type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t","name":"Bash","input":{"command":"ls"}}]},"uuid":"c","sessionId":"x","cwd":"/recorded/cwd"}
-{"parentUuid":"c","attachment":{"type":"hook_non_blocking_error","hookName":"PreToolUse:Bash","toolUseID":"t","hookEvent":"PreToolUse","stderr":"Failed with non-blocking status code: quiet.sh: no shfmt","exitCode":1,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/quiet.sh","durationMs":5},"type":"attachment","uuid":"d","sessionId":"x","cwd":"/recorded/cwd"}
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Read ~/devkit/plugins/one/old.md first.","stdout":"Read ~/devkit/plugins/one/old.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Read ~/devkit/plugins/one/old.md first.\n</system-reminder>"}]}
+{"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"~/cwd"}
+{"parentUuid":"b","type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t","name":"Bash","input":{"command":"ls"}}]},"uuid":"c","sessionId":"x","cwd":"~/cwd"}
+{"parentUuid":"c","attachment":{"type":"hook_non_blocking_error","hookName":"PreToolUse:Bash","toolUseID":"t","hookEvent":"PreToolUse","stderr":"Failed with non-blocking status code: quiet.sh: no shfmt","exitCode":1,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/quiet.sh","durationMs":5},"type":"attachment","uuid":"d","sessionId":"x","cwd":"~/cwd"}
 EOF
-  printf '{"parentUuid":"%s","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t","content":"notes.md"}]},"toolUseResult":{"stdout":"notes.md"},"uuid":"e","sessionId":"x","cwd":"/recorded/cwd"}\n' "$parent_of_the_result" >>"$file"
+  printf '{"parentUuid":"%s","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t","content":"notes.md"}]},"toolUseResult":{"stdout":"notes.md"},"uuid":"e","sessionId":"x","cwd":"~/cwd"}\n' "$parent_of_the_result" >>"$file"
   cat >>"$file" <<'EOF'
-{"parentUuid":"e","attachment":{"type":"hook_success","hookName":"SessionStart:compact","toolUseID":"s2","hookEvent":"SessionStart","content":"Read ~/devkit/plugins/one/notes.md first.","stdout":"Read ~/devkit/plugins/one/notes.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"f","sessionId":"x","cwd":"/recorded/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:compact hook success: Read ~/devkit/plugins/one/notes.md first.\n</system-reminder>"}]}
+{"parentUuid":"e","attachment":{"type":"hook_success","hookName":"SessionStart:compact","toolUseID":"s2","hookEvent":"SessionStart","content":"Read ~/devkit/plugins/one/notes.md first.","stdout":"Read ~/devkit/plugins/one/notes.md first.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/greet.sh","durationMs":5},"type":"attachment","uuid":"f","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:compact hook success: Read ~/devkit/plugins/one/notes.md first.\n</system-reminder>"}]}
 EOF
   echo "$file"
 }
@@ -125,8 +125,8 @@ EOF
 root=$(new_checkout)
 write_eval_run_hook "$root" "one plugin: in an eval run"
 cat >"$root/plugins/one/evals/resumes/history.jsonl" <<'EOF'
-{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"","stdout":"","stderr":"one plugin: in an eval run\n","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/in-eval-run.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"/recorded/cwd"}
-{"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"/recorded/cwd"}
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"","stdout":"","stderr":"one plugin: in an eval run\n","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/in-eval-run.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"~/cwd"}
+{"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"~/cwd"}
 EOF
 run --check "$root"
 check "the check passes a history recorded in an eval run, with the record of a hook that prints only there" \
@@ -135,6 +135,48 @@ write_eval_run_hook "$root" "one plugin: in an eval run, again"
 run --check "$root"
 check "the check names that record when the hook prints another line in an eval run at head" \
   says "plugins/one/evals/resumes/history.jsonl:1: behind: $unexpanded_plugin_root/hooks/in-eval-run.sh on SessionStart:startup exits 0 and prints \"one plugin: in an eval run, again\" at head"
+
+root=$(new_checkout)
+cat >"$root/plugins/one/hooks/hooks.json" <<'EOF'
+{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/where.sh"}]}]}}
+EOF
+cat >"$root/plugins/one/hooks/where.sh" <<'EOF'
+#!/usr/bin/env bash
+if [[ $(cat) == *"\"cwd\":\"$PWD\""* ]]; then
+  echo "Runs in $PWD, the directory that its input names."
+else
+  echo "Runs in $PWD, and its input names another directory."
+fi
+EOF
+chmod +x "$root/plugins/one/hooks/where.sh"
+file=$root/plugins/one/evals/resumes/history.jsonl
+cat >"$file" <<'EOF'
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Runs in ~/cwd, the directory that its input names.","stdout":"Runs in ~/cwd, the directory that its input names.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/where.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Runs in ~/cwd, the directory that its input names.\n</system-reminder>"}]}
+{"parentUuid":"a","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"~/cwd"}
+EOF
+run --check "$root"
+check "a replayed hook gets the directory it runs in as its cwd, which its output names as ~/cwd" \
+  test "$code:$out" == "0:update-eval-histories: ok, each history records what its hooks print at head (1 checked)"
+before=$(jq -c '.cwd = "/recorded/cwd"' "$file")
+echo "$before" >"$file"
+run "$root"
+check "the update refuses a history that names the working directory by a path that a run does not resolve" \
+  test "$code" -eq 1
+check "the refusal names the first such record and the path that resolves" \
+  says "plugins/one/evals/resumes/history.jsonl:1: names the working directory \"/recorded/cwd\", and a history names it ~/cwd, the working directory of every run"
+check "the refused history stays as it was" test "$(<"$file")" == "$before"
+
+cat >"$file" <<'EOF'
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Runs in ~/cwd, the directory that its input names.","stdout":"Runs in ~/cwd, the directory that its input names.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/where.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Runs in ~/cwd, the directory that its input names.\n</system-reminder>"}]}
+{"parentUuid":"a","attachment":{"type":"environment","snapshot":{"workingDirectory":"~/cwd","isWorktree":false,"isGitRepo":true,"additionalWorkingDirectories":[],"platform":"linux"}},"type":"attachment","uuid":"e","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\n# Environment\n - Primary working directory: ~/cwd\n</system-reminder>"}]}
+{"parentUuid":"e","type":"user","message":{"role":"user","content":"List the files."},"uuid":"b","sessionId":"x","cwd":"~/cwd"}
+EOF
+before=$(<"$file")
+run "$root"
+check "the update refuses a history that holds the environment of the recording" test "$code" -eq 1
+check "the refusal names that record and how to take it out" \
+  says "plugins/one/evals/resumes/history.jsonl:2: holds an environment record, after which Claude Code tells a resumed agent that its working directory moved; delete the record, and give the record that hangs off it its parent"
+check "the history with the environment record stays as it was" test "$(<"$file")" == "$before"
 
 if ((failures > 0)); then
   echo "update-eval-histories tests: $failures failed" >&2
