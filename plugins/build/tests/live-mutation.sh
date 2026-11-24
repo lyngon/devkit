@@ -255,6 +255,38 @@ else
   fail "the record quotes a go-ahead that holds an apostrophe word for word" "got:"$'\n'"$record"
 fi
 
+new_repository old new
+cat >"$repository/gate.py" <<'EOF'
+import os, pathlib, time
+gate = pathlib.Path("gate")
+if gate.is_dir():
+    (gate / str(os.getpid())).touch()
+    end = time.monotonic() + 3
+    while len(list(gate.iterdir())) < 2 and time.monotonic() < end:
+        time.sleep(0.05)
+EOF
+mutation session-one propose run-once --derive "python3 gate.py && $derive" --show "$show" --run 'printf "ran\n" >>runs'
+digest=$(sed -n 's/^Proposal `run-once` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+mkdir "$repository/gate"
+for call in first second; do
+  (
+    status=0
+    cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$script" run run-once "$digest" \
+      --go-ahead "yes" >"$tmp/$call.txt" 2>&1 || status=$?
+    echo "$status" >"$tmp/$call.status"
+  ) &
+done
+wait
+statuses=$(cat "$tmp/first.status" "$tmp/second.status" | sort | tr '\n' ' ')
+refused=$(cat "$tmp/first.txt" "$tmp/second.txt")
+if [[ "$(line_count "$repository/runs")" == 1 && "$statuses" == "0 1 " &&
+  "$refused" == *"live-mutation.py: already-ran: proposal run-once ran on the go-ahead 'yes' at "* ]]; then
+  pass "two runs of one proposal started together run it once, and the second is refused as already run"
+else
+  fail "two runs of one proposal started together run it once, and the second is refused as already run" \
+    "the command ran $(line_count "$repository/runs") times, the runs exited $statuses and printed:"$'\n'"$refused"
+fi
+
 new_repository new new
 mkdir -p "$repository/tmp/live-mutation"
 cp -R "$devkit/plugins/build/tests/live-mutation/released-session" "$repository/tmp/live-mutation/"
