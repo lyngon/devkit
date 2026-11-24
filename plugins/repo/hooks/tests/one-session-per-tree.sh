@@ -159,8 +159,6 @@ stop_session() {
   done
 }
 
-# run_hook <session> <event> [tool or source] [directory]: runs the hook as
-# hooks.json registers it, in the session's directory or in <directory>.
 run_hook() {
   local files=$tmp/sessions/$1 command
   jq -n --arg name "$1" --arg event "$2" --arg detail "${3-}" '{session_id: "id-\($name)", hook_event_name: $event}

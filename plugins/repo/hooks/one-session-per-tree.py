@@ -79,7 +79,7 @@ def stat(pid: int) -> list[str] | None:
 
 
 def text(entry: dict[str, object], key: str) -> str:
-    """Return the string a registry entry or the hook input holds under a key, or "" for anything else or nothing."""
+    """Return the string under a key, or "" for anything else or nothing."""
     value = entry.get(key)
     return value if isinstance(value, str) else ""
 
@@ -302,7 +302,7 @@ def warning(own: Session, tree: pathlib.Path, event: str, now: float) -> dict[st
 def resume_record(hook_input: dict[str, object]) -> pathlib.Path | None:
     """Return the file that records a resume of the input's session until the session's first prompt.
 
-    None when the input names no session id of the form Claude Code gives one, which could name another file.
+    None when the input names no session id of the form Claude Code gives one.
     """
     session_id = text(hook_input, "session_id")
     if SESSION_ID.fullmatch(session_id) is None:
