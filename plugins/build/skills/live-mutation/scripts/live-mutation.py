@@ -449,8 +449,8 @@ def route_fields(route: Route) -> dict[str, object]:
 def load(place: Place) -> Proposal:
     """Read a proposal from its directory.
 
-    Raises RefusalError (corrupt) for a proposal whose file holds no JSON object or a field of the wrong kind, or
-    whose digest is not the one that its commands, inputs and rendering give.
+    Raises RefusalError (corrupt) for a proposal whose file's JSON is no object or lacks a field, or whose digest is
+    not the one that its commands, inputs and rendering give.
     """
     fields = {**FIELDS_AN_OLDER_PROPOSAL_LACKS, **fields_of(place.proposal.read_text(encoding="utf-8"))}
     branch = fields["branch"]
@@ -1198,7 +1198,7 @@ def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secre
     Returns the sensitive values of the plan and the state, and the files where the tool hid one. Raises RefusalError
     (derive-failed or show-failed) when either command fails, (saved-plan) when the derive command of the generic
     form wrote an OpenTofu saved plan, (plan-unreadable or state-unreadable) when tofu show -json cannot read the
-    plan or the state, and (corrupt) when the log does not parse.
+    plan or the state, and (corrupt) for a line of the log whose JSON is no object or lacks a field.
     """
     commands = form.commands
     output = output_name(place, Kind.DERIVE)
@@ -1226,11 +1226,11 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
     """Derive, render and check a proposal of this session, and return the text that shows it to the owner.
 
     Raises RefusalError (bad-name) for a name or a check that is no kebab-case name, (unhidden-values or
-    unread-command) for a command that may print OpenTofu values that the tool cannot hide, (corrupt) for a log that
-    does not parse, (already-ran) when a proposal of the name ran, (derive-failed, show-failed, saved-plan,
-    plan-unreadable or state-unreadable) as derive_and_show does, (inputs-changed) when a check changes an input, so
-    that the route, the digest and the run all read the inputs that the derive command wrote,
-    (sensitive-value-shown) when a command printed a value that the plan or the state marks sensitive, and
+    unread-command) for a command that may print OpenTofu values that the tool cannot hide, (corrupt) for a line of
+    the log whose JSON is no object or lacks a field, (already-ran) when a proposal of the name ran, (derive-failed,
+    show-failed, saved-plan, plan-unreadable or state-unreadable) as derive_and_show does, (inputs-changed) when a
+    check changes an input, so that the route, the digest and the run all read the inputs that the derive command
+    wrote, (sensitive-value-shown) when a command printed a value that the plan or the state marks sensitive, and
     (nothing-to-apply) when the plan of the OpenTofu form changes nothing. Raises GitError (git-missing or
     git-failed) when git cannot read the branch or the rule files.
     """
@@ -1352,7 +1352,7 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: S
     when deriving or rendering again fails, (saved-plan) when the derive command of the generic form wrote an
     OpenTofu saved plan, (plan-unreadable or state-unreadable) when tofu show -json cannot read the plan derived again
     or the state, (sensitive-value-shown) when deriving or rendering again printed a sensitive value, (drifted) when
-    the rendering derived again differs, and (corrupt) when the log does not parse.
+    the rendering derived again differs, and (corrupt) for a line of the log whose JSON is no object or lacks a field.
     """
     started = now()
     if place.drift.exists():
