@@ -231,6 +231,30 @@ else
   fail "the record shows the demonstration of another session, after the run" "got:"$'\n'"$record"
 fi
 
+new_repository old new
+mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply" --check "matches=$matches"
+digest=$(sed -n 's/^Proposal `set-value` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+printed=$(sed -n "/ run set-value $digest --go-ahead /p" <<<"$output")
+quoting="write each \`'\` in them as \`'\\''\`"
+if [[ -n "$printed" && "$output" == *"$quoting"* ]] && "$BASH" -n -c "$printed" 2>/dev/null; then
+  pass "the printed go-ahead command parses as it is printed, and the proposal says how to quote an apostrophe"
+else
+  fail "the printed go-ahead command parses as it is printed, and the proposal says how to quote an apostrophe" \
+    "the command is:"$'\n'"$printed"$'\n'"in:"$'\n'"$output"
+fi
+words="Yes, it's fine"
+filled="${printed%"'"*"'"}'${words//"'"/"'\\''"}'"
+status=0
+output=$(cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$BASH" -c "$filled" 2>&1) || status=$?
+expect "the printed go-ahead command, filled in with words that hold an apostrophe, runs the proposal" 0 'The run passes'
+mutation session-one record set-value
+record=$(contents "$repository/tmp/live-mutation/session-one/set-value/record-1.md")
+if [[ "$record" == *$'\n'"- Go-ahead at "*", in the owner's words: \"Yes, it's fine\""$'\n'* ]]; then
+  pass "the record quotes a go-ahead that holds an apostrophe word for word"
+else
+  fail "the record quotes a go-ahead that holds an apostrophe word for word" "got:"$'\n'"$record"
+fi
+
 new_repository new new
 mkdir -p "$repository/tmp/live-mutation"
 cp -R "$devkit/plugins/build/tests/live-mutation/released-session" "$repository/tmp/live-mutation/"
