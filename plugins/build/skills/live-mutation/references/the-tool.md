@@ -186,8 +186,8 @@ It checks these in order, and each refusal changes nothing live:
 13. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan, the plan derived again or the state marks sensitive. Act as for the refusal of `propose`.
 14. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
 
-From `already-ran` on, a run holds its proposal alone.
-A second run of the proposal started meanwhile waits until the first starts its command or is refused, so two runs started together run it once.
+A run locks its proposal from the check for `already-ran` until it starts its command or is refused.
+A second run of the proposal waits for that lock, so two runs started together run it once.
 
 A run can take longer than a command in the foreground may, as a landing zone upgrade does.
 Start such a run in the background and wait for it to end.

@@ -1411,9 +1411,9 @@ def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAh
 def one_run_at_a_time(place: Place) -> ct.Generator[None]:
     """Hold the lock of a proposal's directory, which one run of the proposal holds at a time.
 
-    A run holds it from its check that no line of the log used the proposal up to the line that uses it up, so of
-    two runs started together the second waits and then finds the proposal used up. The kernel drops the lock with
-    the process that held it, so a run that died leaves none behind.
+    A run holds it from the check that nothing used the proposal up until it logs the line that uses it up, so of two
+    runs started together the second waits and then finds the proposal used up. The kernel drops the lock with the
+    process that held it, so a run that died leaves none behind.
     """
     directory = os.open(place.directory, os.O_RDONLY | os.O_DIRECTORY)
     try:
