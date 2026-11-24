@@ -449,8 +449,8 @@ def route_fields(route: Route) -> dict[str, object]:
 def load(place: Place) -> Proposal:
     """Read a proposal from its directory.
 
-    Raises RefusalError (corrupt) for a proposal whose file's JSON is no object or lacks a field, or whose digest is
-    not the one that its commands, inputs and rendering give.
+    Raises RefusalError (corrupt) for a proposal whose file's JSON is no object, or whose digest is not the one that
+    its commands, inputs and rendering give.
     """
     fields = {**FIELDS_AN_OLDER_PROPOSAL_LACKS, **fields_of(place.proposal.read_text(encoding="utf-8"))}
     branch = fields["branch"]
@@ -1197,8 +1197,8 @@ def derive_and_show(root: pathlib.Path, place: Place, form: Form) -> tuple[Secre
 
     Returns the sensitive values of the plan and the state, and the files where the tool hid one. Raises RefusalError
     (derive-failed or show-failed) when either command fails, (saved-plan) when the derive command of the generic
-    form wrote an OpenTofu saved plan, (plan-unreadable or state-unreadable) when tofu show -json cannot read the
-    plan or the state, and (corrupt) for a line of the log whose JSON is no object or lacks a field.
+    form wrote an OpenTofu saved plan, and (plan-unreadable or state-unreadable) when tofu show -json cannot read the
+    plan or the state.
     """
     commands = form.commands
     output = output_name(place, Kind.DERIVE)
@@ -1227,10 +1227,9 @@ def propose(root: pathlib.Path, session: str, name: str, form: Form) -> str:
 
     Raises RefusalError (bad-name) for a name or a check that is no kebab-case name, (unhidden-values or
     unread-command) for a command that may print OpenTofu values that the tool cannot hide, (corrupt) for a line of
-    the log whose JSON is no object or lacks a field, (already-ran) when a proposal of the name ran, (derive-failed,
-    show-failed, saved-plan, plan-unreadable or state-unreadable) as derive_and_show does, (inputs-changed) when a
-    check changes an input, so that the route, the digest and the run all read the inputs that the derive command
-    wrote, (sensitive-value-shown) when a command printed a value that the plan or the state marks sensitive, and
+    the log whose JSON is no object, (already-ran) when a proposal of the name ran, (derive-failed, show-failed,
+    saved-plan, plan-unreadable or state-unreadable) as derive_and_show does, (inputs-changed) when a check changes an
+    input, (sensitive-value-shown) when a command printed a value that the plan or the state marks sensitive, and
     (nothing-to-apply) when the plan of the OpenTofu form changes nothing. Raises GitError (git-missing or
     git-failed) when git cannot read the branch or the rule files.
     """
@@ -1351,8 +1350,8 @@ def drift_check(root: pathlib.Path, place: Place, proposal: Proposal, secrets: S
     sensitive values with those of the plan derived again and of the state. Raises RefusalError (drift-check-failed)
     when deriving or rendering again fails, (saved-plan) when the derive command of the generic form wrote an
     OpenTofu saved plan, (plan-unreadable or state-unreadable) when tofu show -json cannot read the plan derived again
-    or the state, (sensitive-value-shown) when deriving or rendering again printed a sensitive value, (drifted) when
-    the rendering derived again differs, and (corrupt) for a line of the log whose JSON is no object or lacks a field.
+    or the state, (sensitive-value-shown) when deriving or rendering again printed a sensitive value, and (drifted)
+    when the rendering derived again differs.
     """
     started = now()
     if place.drift.exists():
@@ -1409,12 +1408,7 @@ def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAh
 
 @contextlib.contextmanager
 def one_run_at_a_time(place: Place) -> ct.Generator[None]:
-    """Hold the lock of a proposal's directory, which one run of the proposal holds at a time.
-
-    A run holds it from the check that nothing used the proposal up until it logs the line that uses it up, so of two
-    runs started together the second waits and then finds the proposal used up. The kernel drops the lock with the
-    process that held it, so a run that died leaves none behind.
-    """
+    """Hold the lock of a proposal's directory, which one run of the proposal holds at a time."""
     directory = os.open(place.directory, os.O_RDONLY | os.O_DIRECTORY)
     try:
         fcntl.flock(directory, fcntl.LOCK_EX)
@@ -1614,8 +1608,8 @@ def posted(root: pathlib.Path, session: str, name: str, urls: ct.Sequence[str]) 
 def pending(root: pathlib.Path) -> tuple[int, str]:
     """List the runs of the current branch whose action record is not posted, in every session, in the order they ran.
 
-    Returns 1 when a proposal could not be read, since its run may be among them. Raises RefusalError (detached-head)
-    when HEAD is detached, and GitError (git-missing or git-failed) when git cannot read the branch.
+    Returns 1 when a proposal could not be read. Raises RefusalError (detached-head) when HEAD is detached, and
+    GitError (git-missing or git-failed) when git cannot read the branch.
     """
     branch = unprotected_roots.branch_of(root)
     if branch is None:
@@ -1706,8 +1700,8 @@ def parser() -> argparse.ArgumentParser:
 def proposed(parsing: argparse.ArgumentParser, parsed: argparse.Namespace, root: pathlib.Path) -> Form:
     """Return the form that the arguments of propose ask for. Exits 2 on a wrong combination.
 
-    Raises RefusalError (reserved-check) for a check of the OpenTofu form named no-changes, which the form adds
-    itself, and (bad-root) for a root module that is no directory relative to the repository, as root_module says.
+    Raises RefusalError (reserved-check) for a check of the OpenTofu form named no-changes, and (bad-root) for a root
+    module that is no directory relative to the repository, as root_module says.
     """
     derive, show, executes = (t.cast("str | None", getattr(parsed, flag)) for flag in ("derive", "show", "run"))
     opentofu, destroy = t.cast("str | None", parsed.opentofu), t.cast("bool", parsed.destroy)
@@ -1731,8 +1725,8 @@ def proposed(parsing: argparse.ArgumentParser, parsed: argparse.Namespace, root:
 def session_named(parsed: argparse.Namespace, environ: ct.Mapping[str, str]) -> str:
     """Return the session that --session names, or this one without it.
 
-    Raises RefusalError (bad-session) for a --session that is no session ID, which must never fall back to this
-    session, and (no-conversation) without --session outside a Claude Code session.
+    Raises RefusalError (bad-session) for a --session that is no session ID, and (no-conversation) without --session
+    outside a Claude Code session.
     """
     given = t.cast("str | None", parsed.session)
     if given is None:
