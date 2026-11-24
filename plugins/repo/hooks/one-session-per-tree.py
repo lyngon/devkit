@@ -78,9 +78,9 @@ def stat(pid: int) -> list[str] | None:
     return ["", *head.split(" (", 1), *tail.split()]
 
 
-def text(entry: dict[str, object], key: str) -> str:
+def text(json_object: dict[str, object], key: str) -> str:
     """Return the string under a key, or "" for anything else or nothing."""
-    value = entry.get(key)
+    value = json_object.get(key)
     return value if isinstance(value, str) else ""
 
 
@@ -323,7 +323,7 @@ def record_resume(hook_input: dict[str, object], now: float) -> None:
     record.touch()
 
 
-def first_prompt_since_resume(hook_input: dict[str, object]) -> bool:
+def remove_resume_record(hook_input: dict[str, object]) -> bool:
     """Remove the record of a resume of the input's session, and return whether there was one."""
     record = resume_record(hook_input)
     if record is None:
@@ -340,7 +340,7 @@ def main() -> None:
     loaded = t.cast("object", json.load(sys.stdin))
     hook_input = t.cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
     event, source = text(hook_input, "hook_event_name"), text(hook_input, "source")
-    if event == "UserPromptSubmit" and not first_prompt_since_resume(hook_input):
+    if event == "UserPromptSubmit" and not remove_resume_record(hook_input):
         return
     if event == "SessionStart" and source == "resume":
         record_resume(hook_input, time.time())

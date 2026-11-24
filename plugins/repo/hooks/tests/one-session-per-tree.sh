@@ -159,16 +159,19 @@ stop_session() {
   done
 }
 
+declare -A session_id=()
+
 run_hook() {
-  local files=$tmp/sessions/$1 command
-  jq -n --arg name "$1" --arg event "$2" --arg detail "${3-}" '{session_id: "id-\($name)", hook_event_name: $event}
+  local session=$1 event=$2 tool_or_source=${3-} directory=${4-} files=$tmp/sessions/$1 command
+  jq -n --arg id "${session_id[$session]:-id-$session}" --arg event "$event" --arg detail "$tool_or_source" \
+    '{session_id: $id, hook_event_name: $event}
     + if $event == "PreToolUse" then {tool_name: $detail, tool_input: {command: "git status"}}
       elif $event == "UserPromptSubmit" then {prompt: "carry on"}
       else {source: (if $detail == "" then "startup" else $detail end)} end' \
     >"$files/input"
-  command=$(hook_command "$2" "${3-}")
-  if [[ -n ${4-} && -n $command ]]; then
-    command="cd $(printf %q "$4") && $command"
+  command=$(hook_command "$event" "$tool_or_source")
+  if [[ -n $directory && -n $command ]]; then
+    command="cd $(printf %q "$directory") && $command"
   fi
   echo "$command" >"$files/requests"
   code=$(<"$files/done") out=$(<"$files/out") err=$(<"$files/err")
@@ -176,7 +179,7 @@ run_hook() {
 
 next_case() {
   stop_sessions
-  pid=()
+  pid=() session_id=()
   rm -rf "$tmp/sessions" "${registry:?}"/* "$plugin_data"
 }
 
@@ -309,6 +312,16 @@ touch "$untold/id-resumed-recently"
 run_hook later SessionStart resume
 check "a resume forgets the sessions resumed more than a week ago that never got a prompt, and keeps a recent one" \
   equals "$code|$out|$err|$(cd "$untold" && echo *)" "0|||id-later id-resumed-recently"
+
+next_case
+start_session earlier "$main" cli idle
+start_session later "$main" cli busy
+session_id[later]=../../outside-the-plugin-data
+run_hook later SessionStart resume
+at_resume="$code|$out|$err, files $(find "$tmp" -name outside-the-plugin-data | wc -l) $(find "$tmp" -path "$plugin_data/*" -type f | wc -l)"
+run_hook later UserPromptSubmit
+check "a resume whose session id names another path: no file written, there or in the plugin data, and nothing said at its first prompt" \
+  equals "resume $at_resume; first prompt $code|$out|$err" "resume 0||, files 0 0; first prompt 0||"
 
 terminal_name=$(<"$tmp/terminals/pty/name")
 
