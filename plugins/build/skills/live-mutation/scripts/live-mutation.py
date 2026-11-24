@@ -110,7 +110,8 @@ GO_HEX_ESCAPED = frozenset(chr(code) for code in [*range(0x20), 0x7F])
 BASIC_PLANE = range(0x10000)
 DELETES_NOTHING = frozenset({"no-op", "create", "read", "update"})
 GENERIC = "The proposal is of the generic form, and only the OpenTofu form runs without a go-ahead."
-GO_AHEAD_WORDS = "'<the owner's words>'"
+GO_AHEAD_WORDS = "'<the words of the owner>'"
+QUOTING = r"Put the owner's words between the single quotes word for word, and write each `'` in them as `'\''`."
 JUDGED = (
     "Run it without one only when you judge that the apply can be undone and that the plan reaches only the target"
     " that the rule names:"
@@ -790,7 +791,7 @@ def go_ahead_command(name: str, digest: str) -> str:
 
 def route_lines(name: str, digest: str, route: Route) -> list[str]:
     """Return the end of a proposal's output: its route, and the commands that run it."""
-    on_a_go_ahead = ["```sh", go_ahead_command(name, digest), "```"]
+    on_a_go_ahead = ["```sh", go_ahead_command(name, digest), "```", "", QUOTING]
     if isinstance(route, GoAheadNeeded):
         return [
             "The run waits for the owner's go-ahead:",
@@ -1379,7 +1380,7 @@ def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAh
     reasons = "".join(f"\n- {reason}" for reason in waits)
     message = (
         f"needs-go-ahead: proposal {name} runs only on the owner's go-ahead:{reasons}\n"
-        f"Show the owner the proposal and ask. On a go-ahead: {go_ahead_command(name, proposal.digest)}"
+        f"Show the owner the proposal and ask. On a go-ahead: {go_ahead_command(name, proposal.digest)}\n{QUOTING}"
     )
     raise RefusalError(message)
 
