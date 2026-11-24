@@ -55,10 +55,12 @@ record has no such line yet.
 
 import argparse
 import collections.abc as ct
+import contextlib
 import dataclasses
 import datetime as dt
 import difflib
 import enum
+import fcntl
 import hashlib
 import json
 import os
@@ -1385,6 +1387,22 @@ def exemption_of(root: pathlib.Path, place: Place, proposal: Proposal) -> NoGoAh
     raise RefusalError(message)
 
 
+@contextlib.contextmanager
+def one_run_at_a_time(place: Place) -> ct.Generator[None]:
+    """Hold the lock of a proposal's directory, which one run of the proposal holds at a time.
+
+    A run holds it from its check that no line of the log used the proposal up to the line that uses it up, so of
+    two runs started together the second waits and then finds the proposal used up. The kernel drops the lock with
+    the process that held it, so a run that died leaves none behind.
+    """
+    directory = os.open(place.directory, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        fcntl.flock(directory, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(directory)
+
+
 def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | None) -> tuple[int, str]:
     """Run a proposal of this session once, on a go-ahead for its digest or where it needs none, then check it."""
     if words is not None and not words.strip():
@@ -1397,41 +1415,42 @@ def run(root: pathlib.Path, session: str, name: str, digest: str, words: str | N
             " show the owner the proposal at that digest and ask again"
         )
         raise RefusalError(message)
-    used = consumed(read_log(place))
-    if used is not None and used.kind is Kind.GO_AHEAD:
-        message = (
-            f"already-ran: proposal {name} ran on the go-ahead {used.words!r} at {used.started};"
-            " a go-ahead covers one run, so propose again from the new live state"
-        )
-        raise RefusalError(message)
-    if used is not None:
-        message = (
-            f"already-ran: proposal {name} ran without a go-ahead at {used.started};"
-            " a proposal runs once, so propose again from the new live state"
-        )
-        raise RefusalError(message)
-    refuse_unhidden(commands_written_by_hand(proposal.form), proposal.form)
-    changed = changed_inputs(proposal.inputs, digests_of(place.inputs))
-    if changed:
-        raise RefusalError(f"inputs-changed: {changed} changed since the proposal; propose again")
-    secrets = secrets_in(root, place.inputs, proposal.form)
-    allowed_by = words if words is not None else exemption_of(root, place, proposal)
-    secrets = drift_check(root, place, proposal, secrets, approved=isinstance(allowed_by, str))
-    output = output_name(place, Kind.RUN)
-    if isinstance(allowed_by, str):
-        allowed = Entry(Kind.GO_AHEAD, now(), now(), 0, output=output, words=allowed_by)
-    else:
-        allowed = Entry(
-            Kind.NO_GO_AHEAD,
-            now(),
-            now(),
-            0,
-            output=output,
-            rule_file=allowed_by.rule_file,
-            commit=allowed_by.commit,
-            directory=allowed_by.directory,
-        )
-    append(place, allowed)
+    with one_run_at_a_time(place):
+        used = consumed(read_log(place))
+        if used is not None and used.kind is Kind.GO_AHEAD:
+            message = (
+                f"already-ran: proposal {name} ran on the go-ahead {used.words!r} at {used.started};"
+                " a go-ahead covers one run, so propose again from the new live state"
+            )
+            raise RefusalError(message)
+        if used is not None:
+            message = (
+                f"already-ran: proposal {name} ran without a go-ahead at {used.started};"
+                " a proposal runs once, so propose again from the new live state"
+            )
+            raise RefusalError(message)
+        refuse_unhidden(commands_written_by_hand(proposal.form), proposal.form)
+        changed = changed_inputs(proposal.inputs, digests_of(place.inputs))
+        if changed:
+            raise RefusalError(f"inputs-changed: {changed} changed since the proposal; propose again")
+        secrets = secrets_in(root, place.inputs, proposal.form)
+        allowed_by = words if words is not None else exemption_of(root, place, proposal)
+        secrets = drift_check(root, place, proposal, secrets, approved=isinstance(allowed_by, str))
+        output = output_name(place, Kind.RUN)
+        if isinstance(allowed_by, str):
+            allowed = Entry(Kind.GO_AHEAD, now(), now(), 0, output=output, words=allowed_by)
+        else:
+            allowed = Entry(
+                Kind.NO_GO_AHEAD,
+                now(),
+                now(),
+                0,
+                output=output,
+                rule_file=allowed_by.rule_file,
+                commit=allowed_by.commit,
+                directory=allowed_by.directory,
+            )
+        append(place, allowed)
     started = now()
     path = place.outputs / output
     commands = proposal.form.commands
