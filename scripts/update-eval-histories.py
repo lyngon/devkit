@@ -202,7 +202,7 @@ def check_working_directory(record: dict[str, object], where: str) -> None:
 
 
 def check_background_command(record: dict[str, object], where: str) -> None:
-    """Raise HistoryError for the result of a command that the Bash tool of the recording moved to the background."""
+    """Raise HistoryError for the result of a command that the Bash tool of the recording ran in the background."""
     result = record.get("toolUseResult")
     task = t.cast("dict[str, object]", result).get("backgroundTaskId") if isinstance(result, dict) else None
     if isinstance(task, str):
