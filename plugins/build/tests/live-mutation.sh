@@ -287,6 +287,40 @@ else
     "the command ran $(line_count "$repository/runs") times, the runs exited $statuses and printed:"$'\n'"$refused"
 fi
 
+new_repository old new
+cat >"$repository/hold.py" <<'EOF'
+import pathlib, sys, time
+hold = pathlib.Path("hold")
+if hold.exists():
+    pathlib.Path("held").touch()
+    end = time.monotonic() + 30
+    while hold.exists() and time.monotonic() < end:
+        time.sleep(0.05)
+    sys.exit(1)
+EOF
+mutation session-one propose killed-run --derive "python3 hold.py && $derive" --show "$show" --run 'printf "ran\n" >>runs'
+digest=$(sed -n 's/^Proposal `killed-run` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+touch "$repository/hold"
+(cd "$repository" && exec env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$script" run killed-run "$digest" \
+  --go-ahead "yes" >/dev/null 2>&1) &
+killed=$!
+for _ in $(seq 200); do
+  [[ -e "$repository/held" ]] && break
+  sleep 0.05
+done
+kill -KILL "$killed"
+wait "$killed" 2>/dev/null || true
+rm "$repository/hold"
+status=0
+output=$(cd "$repository" && timeout 20 env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$script" run killed-run \
+  "$digest" --go-ahead "yes" 2>&1) || status=$?
+if [[ -e "$repository/held" && "$(line_count "$repository/runs")" == 1 ]]; then
+  expect "a run killed while it holds the lock of its proposal leaves the next run free to run it" 0 'The run passes'
+else
+  fail "a run killed while it holds the lock of its proposal leaves the next run free to run it" \
+    "the killed run held the lock: $([[ -e "$repository/held" ]] && echo yes || echo no), the command ran $(line_count "$repository/runs") times, and the next run exited $status:"$'\n'"$output"
+fi
+
 new_repository new new
 mkdir -p "$repository/tmp/live-mutation"
 cp -R "$devkit/plugins/build/tests/live-mutation/released-session" "$repository/tmp/live-mutation/"
