@@ -353,7 +353,7 @@ A queued completion is no such record.
 `~/devkit` names a file in the home only when the seed script links it.
 A case whose run uses a file of the checkout that the transcript names links `~/devkit` to the checkout of the run, as `live-mutation-runs-after-the-go-ahead` does for the tool that runs its proposal.
 Without the link, its agent searched the whole file system for the tool, and the search ended after the reply that held the URL of the action record, so the last reply lacked it (measured on Claude Code 2.1.325).
-The compaction cases link nothing, so a run cannot read the files of the checkout that recorded their transcripts, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name.
+The compaction cases link nothing, so a run cannot read the files of the checkout that recorded their transcripts, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name, with the Read tool or with a shell command.
 
 A case proves a change only when it scores the same in every run, so write it to leave the model little room:
 
