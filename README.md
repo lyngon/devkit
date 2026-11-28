@@ -353,7 +353,7 @@ A queued completion is no such record.
 `~/devkit` names a file in the home only when the seed script links it.
 A case whose run uses a file of the checkout that the transcript names links `~/devkit` to the checkout of the run, as `live-mutation-runs-after-the-go-ahead` does for the tool that runs its proposal.
 Without the link, its agent searched the whole file system for the tool, and the search ended after the reply that held the URL of the action record, so the last reply lacked it (measured on Claude Code 2.1.325).
-The compaction cases link nothing, so a run cannot read the files of the checkout that recorded their transcripts, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name.
+The compaction cases link nothing, so a run cannot read the files of the checkout that recorded their transcripts, and `mode-lost-is-reread` grades that the agent reads the mode's file before it edits, writes or delegates, at the path the summary names or the one the standing instructions name, with the Read tool or with a shell command.
 
 A case proves a change only when it scores the same in every run, so write it to leave the model little room:
 
@@ -364,6 +364,7 @@ A case proves a change only when it scores the same in every run, so write it to
 - Leave to a judge only what no other grader can check. Whether a file was written is for `file_exists`. A rubric that also asked whether the reply announced one failed a reply that kept its list of ideas in chat, in 37 of 39 votes (measured on Claude Code 2.1.283).
 - Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).
 - Grade the `Write` call too when no file may be written under the name of a seeded one. For `file_exists` a seeded file that was deleted and written again is no file the run created (measured on Claude Code 2.1.283).
+- Grade the `Write` call of a file under a protected path, not the file. A run is in `dontAsk` mode, which refuses every `Write` to a path that <https://code.claude.com/docs/en/permission-modes#protected-paths> lists, whatever `--allow-tools` grants, and `/repo:init` writes four of them: `.claude/settings.json`, `.claude/CLAUDE.md`, `.vscode/extensions.json` and `.envrc`. A `tool_used` grader counts the refused call, and its input holds what the file would hold (measured on Claude Code 2.1.329). A run that is granted Bash wrote `.claude/CLAUDE.md` and `.envrc` through the shell, and the sandbox refused the other two, so a case whose agent writes them so measures another run than the one an owner starts.
 - Give a claim a case of its own when a second route reaches the same end. A ledger file past the limit is deleted by the prune script as well as by the rule for a repeat, so the case of that rule seeds a file within the limit.
 - List `Write` in a case that expects no file, and grant it to the run. Without the grant the agent has no tool that creates a file, so the grader cannot fail. A run prints `not granted` for a case that lists a tool the run lacks, unless `--json` names a file for its result (measured on Claude Code 2.1.283), and `compare-evals` repeats that line below its table.
 - Grade an `Agent` call on its input, which is the input that the model wrote, also when a hook changed it before it ran (measured on Claude Code 2.1.283 and 2.1.299). A `tool_used` grader counts the calls that subagents make too, at every depth, and a call that a hook refused (measured in a headless session on Claude Code 2.1.283 and 2.1.322).
@@ -421,6 +422,7 @@ Below it, what the other run said about its suite is followed by the reason it g
 the eval run at head wrote no result (claude exited with status 1)
 ```
 
+When a signal ended the run, the parentheses name the signal, as in `claude was ended by signal SIGKILL`.
 When the run at the base commit writes no result, `compare-evals` ends before the run of the working tree starts.
 The harness leaves a case whose file it failed to load out of its result, and names the case and the error on stderr, by the path of its directory or of its `case.yaml` where it has one.
 The comparison repeats that line below the table, with its commit and the path from the root (measured on Claude Code 2.1.283):

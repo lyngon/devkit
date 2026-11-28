@@ -91,6 +91,7 @@ if [[ -f canned-hang ]]; then
   echo "$$" >"$FAKE_CLAUDE_PID"
   exec sleep 1000
 fi
+[[ ! -f canned-signal ]] || kill -s "$(<canned-signal)" "$$"
 print_progress() {
   [[ -f canned-progress ]] || return 0
   local progress
@@ -1217,6 +1218,21 @@ cost: base 0.25 USD"
 check "no result at head: nothing but the traces that the table of the base run names is left behind" \
   nothing_left "$repo" "$out"
 
+repo=$(two_commits)
+echo KILL >"$repo/canned-signal"
+commit "$repo" "chore: a head whose run a signal ends"
+compare "$repo" base
+check "a run that a signal ends: exits 1" equals "$code" 1
+check "a run that a signal ends: names the signal" contains "$err" "compare-evals: the eval run at head wrote no result (claude was ended by signal SIGKILL)"
+
+# Python names no real-time signal but the first and the last, and the first
+# is 34 under glibc.
+repo=$(two_commits)
+echo 35 >"$repo/canned-signal"
+commit "$repo" "chore: a head whose run a real-time signal ends"
+compare "$repo" base
+check "a run that a signal without a name ends: names it by its number" contains "$err" "compare-evals: the eval run at head wrote no result (claude was ended by signal 35)"
+
 # A head result that the program cannot read is no result either.
 repo=$(two_commits)
 echo 'Usage: claude plugin eval' >"$repo/canned-result.json"
@@ -1586,7 +1602,7 @@ check "a profile switched while the suite runs: the header names the version of 
   contains "$out" $'\nclaude: 2.1.325 (Claude Code)\n'
 path=$with_claude
 
-mkdir "$tmp/failing" "$tmp/silent"
+mkdir "$tmp/failing" "$tmp/silent" "$tmp/killed"
 cat >"$tmp/failing/claude" <<EOF
 #!/usr/bin/env bash
 [[ \$* != --version ]] || exec "$tmp/failing/node" "\$@"
@@ -1597,7 +1613,12 @@ cat >"$tmp/silent/claude" <<EOF
 [[ \$* != --version ]] || exit 0
 exec "$tmp/bin/claude" "\$@"
 EOF
-chmod +x "$tmp/failing/claude" "$tmp/silent/claude"
+cat >"$tmp/killed/claude" <<EOF
+#!/usr/bin/env bash
+[[ \$* != --version ]] || kill -s KILL "\$\$"
+exec "$tmp/bin/claude" "\$@"
+EOF
+chmod +x "$tmp/failing/claude" "$tmp/silent/claude" "$tmp/killed/claude"
 failing=$(cd "$tmp/failing" && pwd -P)/claude
 path=$tmp/failing:$with_claude
 compare "$repo" main~1
@@ -1610,6 +1631,11 @@ compare "$repo" main~1
 check "a harness that prints no version: exits 1 before any run" equals "$code $calls" "1 "
 check "a harness that prints no version: says so" equals "$err" \
   "compare-evals: cannot read the version of Claude Code from $(cd "$tmp/silent" && pwd -P)/claude: --version printed nothing"
+path=$tmp/killed:$with_claude
+compare "$repo" main~1
+check "a harness whose --version a signal ends: exits 1 before any run" equals "$code $calls" "1 "
+check "a harness whose --version a signal ends: names the signal" equals "$err" \
+  "compare-evals: cannot read the version of Claude Code from $(cd "$tmp/killed" && pwd -P)/claude: --version was ended by signal SIGKILL"
 path=$with_claude
 
 shell_root=$tmp/empty

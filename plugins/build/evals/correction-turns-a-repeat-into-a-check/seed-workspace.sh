@@ -4,7 +4,9 @@
 # and commit.
 set -euo pipefail
 
-cp -R "$(dirname "${BASH_SOURCE[0]}")/workspace/." .
+here=$(dirname "${BASH_SOURCE[0]}")
+cp -R "$here/workspace/." .
+bash "$here/date-back.sh" a-migration-was-edited-after-it-ran.md 2026-08-19 '100 days ago'
 git init -q -b main
 git add -A
 git -c user.name=seed -c user.email=seed@example.com commit -q -m "chore: seed the repository"
