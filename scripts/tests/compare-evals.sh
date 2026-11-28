@@ -1230,6 +1230,14 @@ compare "$repo" base
 check "a run that a signal ends: exits 1" equals "$code" 1
 check "a run that a signal ends: names the signal" contains "$err" "compare-evals: the eval run at head wrote no result (claude was ended by signal SIGKILL)"
 
+# Python names no real-time signal but the first and the last, and the first
+# is 34 under glibc.
+repo=$(two_commits)
+echo 35 >"$repo/canned-signal"
+commit "$repo" "chore: a head whose run a real-time signal ends"
+compare "$repo" base
+check "a run that a signal without a name ends: names it by its number" contains "$err" "compare-evals: the eval run at head wrote no result (claude was ended by signal 35)"
+
 # A head result that the program cannot read is no result either.
 repo=$(two_commits)
 echo 'Usage: claude plugin eval' >"$repo/canned-result.json"
