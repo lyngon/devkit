@@ -360,6 +360,7 @@ A case proves a change only when it scores the same in every run, so write it to
 - Invoke the skill as a slash command when the case is about what the skill does. A trigger phrase tests the routing, and another skill may answer.
 - Grade no call of the Skill tool in such a case, since the harness loads a slash command itself.
 - Say in the prompt what the workspace is. A run starts in an empty directory, and an agent that expects code there stops to ask where it is.
+- Seed a repository when the case needs one, also to have none matter. The sandbox writes a repository without commits into the run's home, so git takes an unseeded working directory for part of it, with `.aws/` and `.gitconfig` of the home untracked, and the build plugin refuses `🏁 Session complete` there (measured on Claude Code 2.1.329).
 - Prefer a grader that no model judges.
 - Leave to a judge only what no other grader can check. Whether a file was written is for `file_exists`. A rubric that also asked whether the reply announced one failed a reply that kept its list of ideas in chat, in 37 of 39 votes (measured on Claude Code 2.1.283).
 - Grade the call that deletes a seeded file, not the file. A grader that targets a file that is gone fails whatever it looks for, and `file_exists` and the target `files` see only what the run created (measured on Claude Code 2.1.283).

@@ -16,7 +16,7 @@ A change is one concern, delivered as one pull request.
 - When the change is done and the full check passes, invoke build:pull-request. It pushes the branch and opens the pull request without asking. The owner reviews the pull request and decides the merge.
 - Fixes after a push are new commits. Never rewrite pushed history without asking.
 
-End every turn with a status line alone on the last line of your last message: ⏳ Still running while something you started runs, saying what; 🔔 Your move when progress needs the operator, saying what you need; 🏁 Session complete when nothing is left for you to do, listing what is left for the operator. If unsure, use 🔔.
+End every turn with a status marker alone on the last line of your last message: ⏳ Still running while something you started runs, saying what; 🔔 Your move when progress needs the operator, saying what you need; 🏁 Session complete when nothing is left for you to do, listing what is left for the operator. If unsure, use 🔔.
 
 When the operator corrects you, a review finding is accepted or a change is reverted, invoke build:correction.
 

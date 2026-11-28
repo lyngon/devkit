@@ -830,17 +830,16 @@ turn_sent_back_for() {
   check "$label: sent back" json_equals "$out" "$expected"
 }
 
-outside=$tmp/turn-end/outside
+# Without links in it, since git names a checkout by its path without links.
+turn_end=$(cd "$tmp" && pwd -P)/turn-end
+outside=$turn_end/outside
 mkdir -p "$outside"
 
 turn_ends "a question that waits for the operator" "Shall I squash the two commits?
 
 $your_move" "$outside"
-turn_ends "a status line after trailing blank lines and spaces" "The pull request is open.
-
-$your_move
-
-" "$outside"
+turn_ends "a status marker followed by spaces and blank lines" \
+  "$(printf 'The pull request is open.\n\n%s  \n \n' "$your_move")" "$outside"
 turn_ends "a running marker with the emoji's variation selector, while a shell runs" "The full check runs.
 
 ⏳️ Still running" "$outside" "$shell_task"
@@ -851,19 +850,19 @@ $your_move" "$outside" "$dream_task"
 turn_ends "complete outside any checkout" "The answer is 42. Nothing is left to do.
 $complete" "$outside"
 
-turn_sent_back_for "a message without a status line" \
+turn_sent_back_for "a message without a status marker" \
   "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
   "The fix is committed and the pull request is open." "$outside"
 turn_sent_back_for "an empty message" "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" "" "$outside"
-turn_sent_back_for "a status line with a full stop" \
+turn_sent_back_for "a status marker with a full stop" \
   "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
   "Shall I go on?
 $your_move." "$outside"
-turn_sent_back_for "a status line in bold" \
+turn_sent_back_for "a status marker in bold" \
   "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
   "Shall I go on?
 **$your_move**" "$outside"
-turn_sent_back_for "a marker before the status line" \
+turn_sent_back_for "a marker above the last line" \
   "$(turn_sent_back "It holds a status marker before its last line." "$pick_one")" \
   "$running_marker was the state an hour ago.
 Shall I go on?
@@ -883,7 +882,7 @@ turn_sent_back_for "your move while a wake-up waits" \
     "$(say_what_runs "the scheduled wake-up c1 (*/20 * * * *)")")" \
   "Waiting for CI.
 $your_move" "$outside" "$no_task" "$wake_up"
-turn_sent_back_for "a message without a status line while a shell and a wake-up run" \
+turn_sent_back_for "a message without a status marker while a shell and a wake-up run" \
   "$(turn_sent_back "Its last line is no status marker alone." \
     "$(say_what_runs "the shell b1 (Run the full check); the scheduled wake-up c1 (*/20 * * * *)")")" \
   "The full check runs." "$outside" "$shell_task" "$wake_up"
@@ -915,7 +914,7 @@ fixture_git() {
     -c init.defaultBranch=main -c advice.detachedHead=false "$@"
 }
 
-forge=$tmp/turn-end/forge
+forge=$turn_end/forge
 fixture_git init -q "$forge/seed"
 echo one >"$forge/seed/a.txt"
 fixture_git -C "$forge/seed" add a.txt
@@ -923,7 +922,7 @@ fixture_git -C "$forge/seed" commit -q -m "add a"
 fixture_git clone -q --bare "$forge/seed" "$forge/origin.git"
 fixture_git -C "$forge/seed" remote add origin "$forge/origin.git"
 fixture_git -C "$forge/seed" fetch -q origin
-checkout=$tmp/turn-end/checkout
+checkout=$turn_end/checkout
 fixture_git clone -q "$forge/origin.git" "$checkout"
 
 commit_in() {
@@ -942,13 +941,14 @@ turn_sent_back_for "complete with a change outside a commit" \
   "$(turn_sent_back "It ends with $complete. The checkout at $checkout holds work that origin lacks: \`git status\` lists 1 path, such as \`M a.txt\`." "$pick_one")" \
   "$(complete_in)" "$checkout"
 fixture_git -C "$checkout" checkout -q a.txt
-echo notes >"$checkout/notes.md"
-turn_sent_back_for "complete with an untracked file" \
-  "$(turn_sent_back "It ends with $complete. The checkout at $checkout holds work that origin lacks: \`git status\` lists 1 path, such as \`?? notes.md\`." "$pick_one")" \
-  "$(complete_in)" "$checkout"
-rm "$checkout/notes.md"
+mkdir "$checkout/docs"
+echo notes >"$checkout/docs/notes.md"
+turn_sent_back_for "complete in a subdirectory, with an untracked file" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $checkout holds work that origin lacks: \`git status\` lists 1 path, such as \`?? docs/\`." "$pick_one")" \
+  "$(complete_in)" "$checkout/docs"
+rm -r "$checkout/docs"
 
-detached=$tmp/turn-end/detached
+detached=$turn_end/detached
 fixture_git -C "$checkout" worktree add -q --detach "$detached" origin/main
 turn_ends "complete in a detached worktree at origin/main" "$(complete_in)" "$detached"
 commit_in "$detached" "local fix"
@@ -956,7 +956,7 @@ turn_sent_back_for "complete in a detached worktree with a commit of its own" \
   "$(turn_sent_back "It ends with $complete. The checkout at $detached holds work that origin lacks: 1 commit of HEAD, the oldest \`$(fixture_git -C "$detached" log -1 --format=%h) local fix\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
   "$(complete_in)" "$detached"
 
-squashed=$tmp/turn-end/squashed
+squashed=$turn_end/squashed
 fixture_git clone -q "$forge/origin.git" "$squashed"
 fixture_git -C "$squashed" switch -q -c feat/squashed
 commit_in "$squashed" "squashed one"
@@ -977,7 +977,7 @@ turn_sent_back_for "complete on a squash-merged branch with a commit after the m
   "$(turn_sent_back "It ends with $complete. The checkout at $squashed holds work that origin lacks: 3 commits of HEAD, the oldest \`$(fixture_git -C "$squashed" log -1 --format=%h HEAD~2) squashed one\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
   "$(complete_in)" "$squashed"
 
-abandoned=$tmp/turn-end/abandoned
+abandoned=$turn_end/abandoned
 fixture_git clone -q "$forge/origin.git" "$abandoned"
 fixture_git -C "$abandoned" switch -q -c feat/abandoned
 commit_in "$abandoned" "abandoned change"
@@ -987,7 +987,7 @@ turn_sent_back_for "complete on a branch deleted on origin without a pull reques
   "$(turn_sent_back "It ends with $complete. The checkout at $abandoned holds work that origin lacks: 1 commit of HEAD, the oldest \`$(fixture_git -C "$abandoned" log -1 --format=%h) abandoned change\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
   "$(complete_in)" "$abandoned"
 
-tracking=$tmp/turn-end/tracking
+tracking=$turn_end/tracking
 fixture_git clone -q "$forge/origin.git" "$tracking"
 fixture_git -C "$tracking" switch -q -c feat/tracks-main --track origin/main
 commit_in "$tracking" "tracked change"
@@ -998,7 +998,7 @@ fixture_git -C "$tracking" push -q origin feat/tracks-main
 turn_ends "complete on a branch that tracks origin/main, its commit pushed to a branch of its own" \
   "$(complete_in)" "$tracking"
 
-local_only=$tmp/turn-end/local-only
+local_only=$turn_end/local-only
 fixture_git init -q "$local_only"
 echo first >"$local_only/a.txt"
 fixture_git -C "$local_only" add a.txt
@@ -1007,15 +1007,15 @@ turn_sent_back_for "complete with commits and no origin" \
   "$(turn_sent_back "It ends with $complete. The checkout at $local_only holds work that origin lacks: it has commits, and no remote named origin holds them." "$pick_one")" \
   "$(complete_in)" "$local_only"
 
-unborn=$tmp/turn-end/unborn
+unborn=$turn_end/unborn
 fixture_git init -q "$unborn"
 turn_ends "complete in a repository without a commit or a change" "$(complete_in)" "$unborn"
 
-gone=$tmp/turn-end/origin-gone
+gone=$turn_end/origin-gone
 fixture_git clone -q "$forge/origin.git" "$gone"
-fixture_git -C "$gone" remote set-url origin "$tmp/turn-end/no-such-origin.git"
+fixture_git -C "$gone" remote set-url origin "$turn_end/no-such-origin.git"
 turn_sent_back_for "complete where origin cannot be fetched" \
-  "$(turn_sent_back "It ends with $complete. The hook cannot show that the checkout at $gone holds nothing that origin lacks, since git fetch failed: fatal: '$tmp/turn-end/no-such-origin.git' does not appear to be a git repository." "$pick_one")" \
+  "$(turn_sent_back "It ends with $complete. The hook cannot show that the checkout around $gone holds nothing that origin lacks, since git fetch failed: fatal: '$turn_end/no-such-origin.git' does not appear to be a git repository." "$pick_one")" \
   "$(complete_in)" "$gone"
 
 auditor_matcher=$(jq -r '.hooks.PreToolUse[] | select(.hooks[].command | contains("/hooks/auditor-deletes-only-comments.py")) | .matcher' "$root/hooks/hooks.json")

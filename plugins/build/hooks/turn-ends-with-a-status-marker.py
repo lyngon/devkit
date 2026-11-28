@@ -125,14 +125,17 @@ def count(number: int, noun: str) -> str:
     return f"1 {noun}" if number == 1 else f"{number} {noun}s"
 
 
-def in_a_checkout(cwd: pathlib.Path) -> bool:
-    """Say whether the directory lies in the working tree of a checkout. Raises CheckoutUnreadError when git fails."""
-    inside = git(cwd, "rev-parse", "--is-inside-work-tree", check=False)
-    if inside.returncode != 0 and "not a git repository" in inside.stderr:
-        return False
-    if inside.returncode != 0:
-        raise CheckoutUnreadError(failure(inside, "rev-parse"))
-    return inside.stdout.strip() == "true"
+def checkout_around(cwd: pathlib.Path) -> pathlib.Path | None:
+    """Return the top level of the working tree that the directory lies in, or None when it lies in no repository.
+
+    Raises CheckoutUnreadError when git fails, as it does in a repository without a working tree.
+    """
+    top = git(cwd, "rev-parse", "--show-toplevel", check=False)
+    if top.returncode != 0 and "not a git repository" in top.stderr:
+        return None
+    if top.returncode != 0:
+        raise CheckoutUnreadError(failure(top, "rev-parse"))
+    return pathlib.Path(top.stdout.strip())
 
 
 def commits_only_here(cwd: pathlib.Path) -> str | None:
@@ -155,17 +158,15 @@ def commits_only_here(cwd: pathlib.Path) -> str | None:
     return f"{commits} of HEAD, the oldest `{oldest}`, lie on no branch of origin, and no ref there is HEAD"
 
 
-def work_only_here(cwd: pathlib.Path) -> list[str]:
-    """Return what of the checkout around the directory exists there and not on origin, or nothing outside a checkout.
+def work_only_here(top: pathlib.Path) -> list[str]:
+    """Return what of the checkout at its top level exists there and not on origin.
 
     Raises CheckoutUnreadError when git cannot show it.
     """
-    if not in_a_checkout(cwd):
-        return []
     found: list[str] = []
-    if paths := git(cwd, "status", "--porcelain").stdout.splitlines():
+    if paths := git(top, "status", "--porcelain").stdout.splitlines():
         found.append(f"`git status` lists {count(len(paths), 'path')}, such as `{paths[0].strip()}`")
-    if commits := commits_only_here(cwd):
+    if commits := commits_only_here(top):
         found.append(commits)
     return found
 
@@ -176,12 +177,13 @@ def block(reason: str) -> dict[str, object]:
 
 
 def checkout_problem(cwd: pathlib.Path) -> str | None:
-    """Return why the checkout around the directory cannot go with the session, or None when it can."""
+    """Return why the checkout around the directory cannot go with the session, or None when it can or there is none."""
     try:
-        left = work_only_here(cwd)
+        top = checkout_around(cwd)
+        left = work_only_here(top) if top else []
     except CheckoutUnreadError as error:
-        return f"The hook cannot show that the checkout at {cwd} holds nothing that origin lacks, since {error}."
-    return f"The checkout at {cwd} holds work that origin lacks: {'; '.join(left)}." if left else None
+        return f"The hook cannot show that the checkout around {cwd} holds nothing that origin lacks, since {error}."
+    return f"The checkout at {top} holds work that origin lacks: {'; '.join(left)}." if left else None
 
 
 def lead_answer(message: str, running: list[str], cwd: pathlib.Path) -> dict[str, object] | None:
