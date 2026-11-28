@@ -1,4 +1,4 @@
 ---
 type: regex
-pattern: '(^|\n\n)[^?]*\?[*_`)\s]*$'
+pattern: '(^|\n\n)[^?]*\?[*_`)\s]*(🔔 Your move\s*)?$'
 ---
