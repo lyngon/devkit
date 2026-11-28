@@ -56,11 +56,12 @@ exec 3<>"$1/requests"
 while read -r command <&3; do
   code=0
   env -i PATH="$SCRIPT_TOOLS" HOME="$TEST_HOME" CLAUDE_CONFIG_DIR="$TEST_CONFIG" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-    "$BASH" -c "$command" <"$1/input" >"$1/out" 2>"$1/err" || code=$?
+    CLAUDE_PLUGIN_DATA="$TEST_PLUGIN_DATA" "$BASH" -c "$command" <"$1/input" >"$1/out" 2>"$1/err" || code=$?
   echo "$code" >"$1/done"
 done
 EOF
-export SCRIPT_TOOLS=$script_tools TEST_HOME=$tmp TEST_CONFIG=$config PLUGIN_ROOT=$plugin_root
+plugin_data=$tmp/plugin-data
+export SCRIPT_TOOLS=$script_tools TEST_HOME=$tmp TEST_CONFIG=$config PLUGIN_ROOT=$plugin_root TEST_PLUGIN_DATA=$plugin_data
 export SESSION_SCRIPT=$session_script
 
 terminal_script=$tmp/terminal.sh
@@ -158,20 +159,28 @@ stop_session() {
   done
 }
 
+declare -A session_id=()
+
 run_hook() {
-  local files=$tmp/sessions/$1
-  jq -n --arg event "$2" --arg detail "${3-}" '{session_id: "id", hook_event_name: $event}
+  local session=$1 event=$2 tool_or_source=${3-} directory=${4-} files=$tmp/sessions/$1 command
+  jq -n --arg id "${session_id[$session]:-id-$session}" --arg event "$event" --arg detail "$tool_or_source" \
+    '{session_id: $id, hook_event_name: $event}
     + if $event == "PreToolUse" then {tool_name: $detail, tool_input: {command: "git status"}}
+      elif $event == "UserPromptSubmit" then {prompt: "carry on"}
       else {source: (if $detail == "" then "startup" else $detail end)} end' \
     >"$files/input"
-  hook_command "$2" "${3-}" >"$files/requests"
+  command=$(hook_command "$event" "$tool_or_source")
+  if [[ -n $directory && -n $command ]]; then
+    command="cd $(printf %q "$directory") && $command"
+  fi
+  echo "$command" >"$files/requests"
   code=$(<"$files/done") out=$(<"$files/out") err=$(<"$files/err")
 }
 
 next_case() {
   stop_sessions
-  pid=()
-  rm -rf "$tmp/sessions" "${registry:?}"/*
+  pid=() session_id=()
+  rm -rf "$tmp/sessions" "${registry:?}"/* "$plugin_data"
 }
 
 check() {
@@ -205,17 +214,17 @@ on_screen() {
   jq -r '.systemMessage' <<<"$out"
 }
 
-model_asked_to_tell() {
-  jq -r '.hookSpecificOutput.hookEventName == "SessionStart"
-    and .hookSpecificOutput.additionalContext == .systemMessage + "\nTell the operator in your first reply."' <<<"$out"
+model_asked_to_tell_at() {
+  jq -r --arg event "$1" '.hookSpecificOutput.hookEventName == $event
+    and .hookSpecificOutput.additionalContext == .systemMessage + "\nTell the operator in your next reply."' <<<"$out"
 }
 
 refused="Two sessions in one working tree change its HEAD, its index and its files under each other, so the repo plugin refuses this session's edits and shell commands here until this session has moved to a worktree of its own or that session has ended."
 why="$refused Every other tool still works, Read, EnterWorktree and ExitWorktree among them. The standing instructions at the start of this session ask for this move, so it counts as the operator asking for each call below."
 
-check "hooks.json runs the check before Edit, Write, NotebookEdit, Bash and Monitor, and at session start" \
-  equals "$(for tool in Edit Write NotebookEdit Bash Monitor Read EnterWorktree ExitWorktree Agent; do echo "$tool $(hook_command PreToolUse "$tool" | wc -l)"; done | tr '\n' ' ')$(hook_command SessionStart | wc -l)" \
-  "Edit 1 Write 1 NotebookEdit 1 Bash 1 Monitor 1 Read 0 EnterWorktree 0 ExitWorktree 0 Agent 0 1"
+check "hooks.json runs the check before Edit, Write, NotebookEdit, Bash and Monitor, at session start and at each prompt" \
+  equals "$(for tool in Edit Write NotebookEdit Bash Monitor Read EnterWorktree ExitWorktree Agent; do echo "$tool $(hook_command PreToolUse "$tool" | wc -l)"; done | tr '\n' ' ')$(hook_command SessionStart | wc -l) $(hook_command UserPromptSubmit | wc -l)" \
+  "Edit 1 Write 1 NotebookEdit 1 Bash 1 Monitor 1 Read 0 EnterWorktree 0 ExitWorktree 0 Agent 0 1 1"
 
 next_case
 start_session earlier "$main" claude-vscode idle
@@ -267,16 +276,52 @@ check "the same at session start, without a terminal: on screen, kill -KILL ends
 $refused
 \"earlier\" is stopped, so a plain kill leaves it stopped, and kill -KILL ${pid[earlier]} ends it."
 run_hook later SessionStart resume
-check "the same at a resume, which starts in the tree it was launched in: nothing said" equals "$code|$out|$err" "0||"
+check "the same at a resume: nothing said at its session start, which runs in the tree it was launched in" equals "$code|$out|$err" "0||"
 
 next_case
 start_session earlier "$shared" claude-vscode idle
 start_session later "$shared" cli busy
 run_hook later SessionStart
 check "session start beside an earlier session that runs: on screen and to the model, kill ends it" \
-  equals "$code|$err|$(on_screen)|$(model_asked_to_tell)" "0||The Claude Code session \"earlier\" (pid ${pid[earlier]}, a VS Code session, idle for 2 h 5 min) works in this working tree, $shared, which has the branch worktree-shared checked out, and started before this session.
+  equals "$code|$err|$(on_screen)|$(model_asked_to_tell_at SessionStart)" "0||The Claude Code session \"earlier\" (pid ${pid[earlier]}, a VS Code session, idle for 2 h 5 min) works in this working tree, $shared, which has the branch worktree-shared checked out, and started before this session.
 $refused
 kill ${pid[earlier]} ends \"earlier\".|true"
+run_hook later UserPromptSubmit
+check "the first prompt after that session start: nothing said again" equals "$code|$out|$err" "0||"
+
+next_case
+start_session in-launch-tree "$main" cli idle
+start_session earlier "$shared" claude-vscode idle
+start_session resumed "$shared" cli busy
+run_hook resumed SessionStart resume "$main"
+at_resume="$code|$out|$err"
+run_hook resumed UserPromptSubmit
+at_first_prompt="$code|$err|$(on_screen)|$(model_asked_to_tell_at UserPromptSubmit)"
+run_hook resumed UserPromptSubmit
+check "a resume into a worktree where an earlier session works: nothing at its session start in the launch tree, the worktree's session alone at its first prompt, on screen and to the model, and nothing at the next prompt" \
+  equals "resume $at_resume; first prompt $at_first_prompt; next prompt $code|$out|$err" "resume 0||; first prompt 0||The Claude Code session \"earlier\" (pid ${pid[earlier]}, a VS Code session, idle for 2 h 5 min) works in this working tree, $shared, which has the branch worktree-shared checked out, and started before this session.
+$refused
+kill ${pid[earlier]} ends \"earlier\".|true; next prompt 0||"
+
+next_case
+start_session later "$main" cli busy
+untold=$plugin_data/resumed-without-session-warning
+mkdir -p "$untold"
+touch -d "8 days ago" "$untold/id-resumed-long-ago"
+touch "$untold/id-resumed-recently"
+run_hook later SessionStart resume
+check "a resume forgets the sessions resumed more than a week ago that never got a prompt, and keeps a recent one" \
+  equals "$code|$out|$err|$(cd "$untold" && echo *)" "0|||id-later id-resumed-recently"
+
+next_case
+start_session earlier "$main" cli idle
+start_session later "$main" cli busy
+session_id[later]=../../outside-the-plugin-data
+run_hook later SessionStart resume
+at_resume="$code|$out|$err, files $(find "$tmp" -name outside-the-plugin-data | wc -l) $(find "$tmp" -path "$plugin_data/*" -type f | wc -l)"
+run_hook later UserPromptSubmit
+check "a resume whose session id names another path: no file written, there or in the plugin data, and nothing said at its first prompt" \
+  equals "resume $at_resume; first prompt $code|$out|$err" "resume 0||, files 0 0; first prompt 0||"
 
 terminal_name=$(<"$tmp/terminals/pty/name")
 
@@ -332,6 +377,11 @@ check "its own entry missing: allowed, and nothing said before a call" equals "$
 run_hook later SessionStart
 check "its own entry missing: one line at session start names the registry" \
   equals "$code|$out|$err" "0|Claude Code's registry of live sessions, $registry, holds no entry for this session, so the repo plugin cannot tell whether another session works in this working tree, and nothing stops a second session from working in it beside this one.|"
+run_hook later SessionStart resume
+at_resume="$code|$out"
+run_hook later UserPromptSubmit
+check "its own entry missing at a resume: the same line at its session start, and nothing at its first prompt" \
+  equals "resume $at_resume; first prompt $code|$out|$err" "resume 0|Claude Code's registry of live sessions, $registry, holds no entry for this session, so the repo plugin cannot tell whether another session works in this working tree, and nothing stops a second session from working in it beside this one.; first prompt 0||"
 
 if ((failures > 0)); then
   echo "session check tests: $failures failure(s)" >&2

@@ -3,15 +3,18 @@
 
 PreToolUse, on the tools that change a working tree: denies the call while a live session that started before this
 one works in the call's tree, and says how this session moves on. SessionStart: says so when Claude Code's registry
-of live sessions holds no entry for this session, since every call then runs unchecked; otherwise, at startup only,
-names each earlier session in this session's tree and how to end it, on screen and to the model. A resumed session
-runs SessionStart in the tree it was launched in, before it enters its worktree, so it gets no such names.
+of live sessions holds no entry for this session, since every call then runs unchecked; otherwise, at startup, names
+each earlier session in this session's tree and how to end it, on screen and to the model. A resumed session runs
+SessionStart in the tree it was launched in, before it enters its worktree, so it gets those names at its first
+UserPromptSubmit instead, which runs in the tree it works in.
 """
 
+import contextlib
 import dataclasses
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 import typing as t
@@ -31,6 +34,10 @@ UNREGISTERED = (
     " so the repo plugin cannot tell whether another session works in this working tree,"
     " and nothing stops a second session from working in it beside this one."
 )
+
+SESSION_ID = re.compile(r"[A-Za-z0-9_-]+")
+
+WEEK_SECONDS = 7 * 24 * 60 * 60
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -71,9 +78,9 @@ def stat(pid: int) -> list[str] | None:
     return ["", *head.split(" (", 1), *tail.split()]
 
 
-def text(entry: dict[str, object], key: str) -> str:
-    """Return the string a registry entry holds under a key, or "" when it holds something else or nothing."""
-    value = entry.get(key)
+def text(json_object: dict[str, object], key: str) -> str:
+    """Return the string under a key, or "" for anything else or nothing."""
+    value = json_object.get(key)
     return value if isinstance(value, str) else ""
 
 
@@ -276,11 +283,11 @@ def denial(own: Session, tree: pathlib.Path, now: float) -> str | None:
     return f"{held(earlier, wording, tree, head, now)}{allowed}\n{stay}\n{move}"
 
 
-def warning(own: Session, tree: pathlib.Path, now: float) -> dict[str, object] | None:
-    """Return the SessionStart output that names the earlier sessions in this session's tree and how to end each.
+def warning(own: Session, tree: pathlib.Path, event: str, now: float) -> dict[str, object] | None:
+    """Return the output for a hook event that names the earlier sessions in this session's tree and how to end each.
 
-    The CLI shows the systemMessage on screen before the first prompt and never passes it to the model. VS Code shows
-    none, so the additionalContext asks the model to pass it on. None when no earlier live session works in the tree.
+    The CLI shows the systemMessage on screen and never passes it to the model. VS Code shows none, so the
+    additionalContext asks the model to pass it on. None when no earlier live session works in the tree.
     """
     earlier = earlier_in(tree, own)
     if not earlier:
@@ -288,31 +295,72 @@ def warning(own: Session, tree: pathlib.Path, now: float) -> dict[str, object] |
     wording = ONE if len(earlier) == 1 else SEVERAL
     endings = " ".join(ending(other, own) for other in earlier)
     message = f"{held(earlier, wording, tree, checked_out(tree), now)}\n{endings}"
-    context = f"{message}\nTell the operator in your first reply."
-    return {
-        "systemMessage": message,
-        "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context},
-    }
+    context = f"{message}\nTell the operator in your next reply."
+    return {"systemMessage": message, "hookSpecificOutput": {"hookEventName": event, "additionalContext": context}}
+
+
+def resume_record(hook_input: dict[str, object]) -> pathlib.Path | None:
+    """Return the file that records a resume of the input's session until the session's first prompt.
+
+    None when the input names no session id of the form Claude Code gives one.
+    """
+    session_id = text(hook_input, "session_id")
+    if SESSION_ID.fullmatch(session_id) is None:
+        return None
+    return pathlib.Path(os.environ["CLAUDE_PLUGIN_DATA"]) / "resumed-without-session-warning" / session_id
+
+
+def record_resume(hook_input: dict[str, object], now: float) -> None:
+    """Record a resumed session until its first prompt, and forget the ones resumed over a week ago that got none."""
+    record = resume_record(hook_input)
+    if record is None:
+        return
+    record.parent.mkdir(parents=True, exist_ok=True)
+    for other in record.parent.iterdir():
+        with contextlib.suppress(FileNotFoundError):
+            if now - other.stat().st_mtime > WEEK_SECONDS:
+                other.unlink()
+    record.touch()
+
+
+def remove_resume_record(hook_input: dict[str, object]) -> bool:
+    """Remove the record of a resume of the input's session, and return whether there was one."""
+    record = resume_record(hook_input)
+    if record is None:
+        return False
+    try:
+        record.unlink()
+    except FileNotFoundError:
+        return False
+    return True
 
 
 def main() -> None:
     """Read the hook input on stdin and print the hook's output, if any."""
     loaded = t.cast("object", json.load(sys.stdin))
     hook_input = t.cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
+    event, source = text(hook_input, "hook_event_name"), text(hook_input, "source")
+    if event == "UserPromptSubmit" and not remove_resume_record(hook_input):
+        return
+    if event == "SessionStart" and source == "resume":
+        record_resume(hook_input, time.time())
     own = own_session()
     tree = tree_of(pathlib.Path.cwd())
-    if hook_input.get("hook_event_name") == "SessionStart":
-        if own is None:
+    if own is None:
+        if event == "SessionStart":
             print(UNREGISTERED.format(registry=registry()))
-        elif hook_input.get("source") == "startup" and tree is not None:
-            output = warning(own, tree, time.time())
-            if output is not None:
-                json.dump(output, sys.stdout)
         return
-    reason = None if own is None or tree is None else denial(own, tree, time.time())
-    if reason is not None:
-        output = {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}
-        json.dump({"hookSpecificOutput": output}, sys.stdout)
+    if tree is None:
+        return
+    if event == "PreToolUse":
+        reason = denial(own, tree, time.time())
+        if reason is not None:
+            output = {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}
+            json.dump({"hookSpecificOutput": output}, sys.stdout)
+    elif event == "UserPromptSubmit" or (event == "SessionStart" and source == "startup"):
+        output = warning(own, tree, event, time.time())
+        if output is not None:
+            json.dump(output, sys.stdout)
 
 
 if __name__ == "__main__":
