@@ -147,11 +147,13 @@ The decision and the options it rejected are in `docs/decisions/a-session-moves-
   Otherwise it calls `EnterWorktree` without a name, so that Claude Code generates one, since a name in use enters that worktree and a session refused the shell cannot list the names in use.
   When `EnterWorktree` answers that the session is in a worktree session already, as it does after `--worktree` and after a resume into a worktree, the session first calls `ExitWorktree` with action `keep`, which leaves the worktree, and the other session's lock on it, in place.
 - At `SessionStart` of a new session, when earlier sessions work in its tree, the hook names them as the refusal does, says that it refuses this session's edits and shell commands there, and says how to end each one.
-  The CLI shows the `systemMessage` on screen before the first prompt, and VS Code does not, so the same text goes to the model as `additionalContext` with a request to tell the operator.
+  The CLI shows the `systemMessage` on screen, and VS Code does not, so the same text goes to the model as `additionalContext` with a request to tell the operator.
   A plain `kill` leaves a stopped process stopped with the signal pending, and after `kill -CONT` a stopped session of the CLI handled the signal and stopped again (2.1.321, issue 167), so the way out of a stopped job is `fg` in the shell that started it, then `/exit`.
   When that shell is on this session's terminal, the operator ends this session first.
   A stopped session without a terminal ends with `kill -KILL`, and a session that runs ends with `kill`.
-  A resumed session gets no such lines, because it runs `SessionStart` in the tree it was launched in and enters its worktree only after that (issue 158).
+  A resumed session runs `SessionStart` in the tree it was launched in and enters its worktree only after that (issue 158), so it gets these lines at its first prompt instead, from the `UserPromptSubmit` that runs in the tree it works in before the model replies, and later prompts get none.
+  The hook records a resumed session under `$CLAUDE_PLUGIN_DATA/resumed-without-session-warning/` until its first prompt, and a resume forgets every session resumed more than a week ago that never got one.
+  In a headless run on Claude Code 2.1.329 on 2026-11-24, a `--worktree` session resumed from its launch tree while another session sat idle in that worktree got these lines at its first prompt and quoted them.
 - At `SessionStart`, when the registry holds no file for this session, the hook says so in one line that names the registry's directory.
   The check then lets every call run, as `docs/decisions/the-session-check-fails-open-when-the-registry-is-unreadable.md` of the devkit decides.
 
