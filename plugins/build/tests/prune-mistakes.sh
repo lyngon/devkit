@@ -168,29 +168,26 @@ prune "$repo" 365 --today 2026-10-13
 expect "a file with bytes that are no UTF-8 is aged like any other" "$repo" 0 "" \
   "prune-mistakes: deleted 1 of 1 ledger files, the limit is 365 days"
 
-# --- The ledgers that the eval cases seed ------------------------------------
-
-# A case of the correction skill scores the same on any day only when its
-# seeded ledger ages with the day of the run. So each seed runs on a day more
-# than a year after the cases were written, and the script prunes that day
-# (issue 54). The seeded print call of the repeat case lies past the limit,
-# and the earlier mistake beside it does not.
 evals=$devkit/plugins/build/evals
+case_limit=365
+newest_date_in_the_tree=$(sed -n 's/^- \*\*Date\*\*: //p' \
+  "$evals"/correction-turns-a-repeat-into-a-check/workspace/docs/mistakes/*.md | sort | tail -n 1)
+first_day_past_every_date_in_the_tree=$(date -d "$newest_date_in_the_tree + $((case_limit + 1)) days" +%F)
 seeded() {
   local repo
   repo=$(mktemp -d "$tmp/seeded.XXXXXX")
-  (cd "$repo" && faketime "$1 12:00:00" bash "$evals/$2/seed-workspace.sh")
+  (cd "$repo" && faketime "$first_day_past_every_date_in_the_tree 12:00:00" bash "$evals/$1/seed-workspace.sh")
   echo "$repo"
 }
 
-repo=$(seeded 2028-01-01 correction-turns-a-repeat-into-a-check)
-prune "$repo" 365 --today 2028-01-01
+repo=$(seeded correction-turns-a-repeat-into-a-check)
+prune "$repo" "$case_limit" --today "$first_day_past_every_date_in_the_tree"
 expect "the repeat case's ledger, seeded and pruned the same day: the print call goes, the earlier mistake stays" \
   "$repo" 0 "a-migration-was-edited-after-it-ran.md" \
   "prune-mistakes: deleted 1 of 2 ledger files, the limit is 365 days"
 
-repo=$(seeded 2028-01-01 correction-deletes-the-ledger-file-of-a-repeat)
-prune "$repo" 365 --today 2028-01-01
+repo=$(seeded correction-deletes-the-ledger-file-of-a-repeat)
+prune "$repo" "$case_limit" --today "$first_day_past_every_date_in_the_tree"
 expect "the deletion case's ledger, seeded and pruned the same day: the script deletes nothing" \
   "$repo" 0 "a-migration-was-edited-after-it-ran.md a-print-call-was-left-in-library-code.md" \
   "prune-mistakes: deleted 0 of 2 ledger files, the limit is 365 days"

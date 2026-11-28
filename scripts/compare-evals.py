@@ -524,13 +524,7 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
 
 
 def how_it_ended(name: str, status: int) -> str:
-    """Say how a process that this program started ended, from the status that subprocess gives it.
-
-    A negative status is no exit status: it is the number of the signal that
-    ended the process, which a shell would report as 128 plus that number. A
-    signal that Python has no name for, such as a real-time one, is named by
-    its number.
-    """
+    """Say how a process that this program started ended, from the status that subprocess gives it."""
     if status >= 0:
         return f"{name} exited with status {status}"
     try:

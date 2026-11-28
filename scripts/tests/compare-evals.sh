@@ -45,8 +45,6 @@ failures=0
 # the harness was not measured to treat like that filter.
 # A checkout with the file canned-hang stands for a run that never ends: the
 # stub writes its process ID to the file that FAKE_CLAUDE_PID names and stays.
-# One with the file canned-signal stands for a run that a signal ends before it
-# writes a result: the stub sends itself the signal that the file names.
 # The stub also writes to the file that FAKE_BUILD_LOG names what the command
 # check-pull-request that it finds says, or `none`, which tells the build of
 # the environment that it runs in.
@@ -1220,9 +1218,6 @@ cost: base 0.25 USD"
 check "no result at head: nothing but the traces that the table of the base run names is left behind" \
   nothing_left "$repo" "$out"
 
-# A signal that ends the run gives it no exit status of its own: SIGKILL sent
-# to the process tree of the harness during a run ended it at once (measured
-# on Claude Code 2.1.283, issue 75).
 repo=$(two_commits)
 echo KILL >"$repo/canned-signal"
 commit "$repo" "chore: a head whose run a signal ends"

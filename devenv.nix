@@ -347,8 +347,6 @@ let
   # Fixture tests for the prune script that the correction skill ships. The
   # test hands the script a PATH of the baseline's lyngon.scriptTools and
   # nothing else, which is all a repository's shell promises a shipped script.
-  # It also seeds the ledgers of the skill's eval cases on a day that faketime
-  # gives their seed scripts.
   testPruneMistakes = pkgs.writeShellApplication {
     name = "test-prune-mistakes";
     runtimeInputs = [
