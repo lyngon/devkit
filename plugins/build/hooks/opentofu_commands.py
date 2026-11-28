@@ -1,4 +1,4 @@
-# ruff: noqa: INP001
+# ruff: noqa: INP001  # a module beside the hook scripts that import it, which no package holds
 """What a shell command may run, as the OpenTofu hook and the tool of build:live-mutation read it.
 
 findings() reads a command, the commands it hands a shell or eval included, and yields in the order of its text
