@@ -968,14 +968,24 @@ fixture_git -C "$forge/seed" merge -q --squash origin/feat/squashed >/dev/null
 fixture_git -C "$forge/seed" commit -q -m "squashed (#1)"
 fixture_git -C "$forge/seed" push -q origin main
 fixture_git -C "$forge/seed" push -q origin --delete feat/squashed
+# The fetch that the repo plugin runs at the start of a session, after which the branch has no upstream.
+fixture_git -C "$squashed" fetch -q --prune origin
 turn_ends "complete on a branch whose pull request merged as a squash and whose remote branch is deleted" \
   "$(complete_in)" "$squashed"
-check "the squash case: the hook pruned the remote branch it judged by" \
-  equals "$(fixture_git -C "$squashed" branch -r --list origin/feat/squashed)" ""
 commit_in "$squashed" "after the merge"
 turn_sent_back_for "complete on a squash-merged branch with a commit after the merge" \
   "$(turn_sent_back "It ends with $complete. The checkout at $squashed holds work that origin lacks: 3 commits of HEAD, the oldest \`$(fixture_git -C "$squashed" log -1 --format=%h HEAD~2) squashed one\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
   "$(complete_in)" "$squashed"
+
+abandoned=$tmp/turn-end/abandoned
+fixture_git clone -q "$forge/origin.git" "$abandoned"
+fixture_git -C "$abandoned" switch -q -c feat/abandoned
+commit_in "$abandoned" "abandoned change"
+fixture_git -C "$abandoned" push -q -u origin feat/abandoned
+fixture_git -C "$forge/seed" push -q origin --delete feat/abandoned
+turn_sent_back_for "complete on a branch deleted on origin without a pull request, its remote ref not yet pruned" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $abandoned holds work that origin lacks: 1 commit of HEAD, the oldest \`$(fixture_git -C "$abandoned" log -1 --format=%h) abandoned change\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
+  "$(complete_in)" "$abandoned"
 
 tracking=$tmp/turn-end/tracking
 fixture_git clone -q "$forge/origin.git" "$tracking"
