@@ -778,6 +778,249 @@ run_stop_hook "\`\`\`text
 After the block $em_dash a dash in prose."
 check "a dash in prose after a closed fence: sent back" json_equals "$out" "$(sent_back "After the block $em_dash a dash in prose.")"
 
+running_marker='⏳ Still running'
+your_move='🔔 Your move'
+complete='🏁 Session complete'
+no_task='[]'
+shell_task='[{"id": "b1", "type": "shell", "status": "running", "description": "Run the full check", "command": "devenv test"}]'
+subagent_task='[{"id": "a7", "type": "subagent", "status": "running", "description": "Review the diff", "agent_type": "general-purpose"}]'
+dream_task='[{"id": "d1", "type": "dream", "status": "running", "description": "dreaming"}]'
+wake_up='[{"id": "c1", "schedule": "*/20 * * * *", "recurring": true, "prompt": "Check the CI run"}]'
+
+run_turn_end() {
+  local event=$1 message=$2 cwd=$3 tasks=${4:-$no_task} crons=${5:-$no_task} stop_hook_active=${6:-false} command
+  command=$(jq -r --arg event "$event" '.hooks[$event][].hooks[].command' "$root/hooks/hooks.json")
+  jq -n --arg event "$event" --arg message "$message" --arg cwd "$cwd" --argjson tasks "$tasks" --argjson crons "$crons" \
+    --argjson active "$stop_hook_active" \
+    '{session_id: "s", transcript_path: "/dev/null", cwd: $cwd, permission_mode: "default", hook_event_name: $event,
+      stop_hook_active: $active, last_assistant_message: $message, background_tasks: $tasks, session_crons: $crons}
+     + if $event == "SubagentStop" then {agent_id: "a7", agent_type: "general-purpose", agent_transcript_path: "/dev/null"} else {} end' \
+    >"$tmp/stdin"
+  code=0
+  out=$(env -i PATH="$script_tools" HOME="$tmp" GIT_CEILING_DIRECTORIES="$tmp" CLAUDE_PLUGIN_ROOT="$root" \
+    "$tools/bash" -c "$command" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+  err=$(<"$tmp/stderr")
+}
+
+turn_sent_back() {
+  jq -n --arg reason "The message cannot end the turn. $1 $2 Put no marker anywhere else." '{decision: "block", reason: $reason}'
+}
+
+pick_one="Write the whole message again and end it with one of these lines alone: $your_move when progress needs the operator, or $complete when nothing is left for you to do and nothing exists only in the checkout. When unsure, end with $your_move."
+
+say_what_runs() {
+  echo "This still runs: $1. Write the whole message again, say in it what still runs, and end it with this line alone: $running_marker"
+}
+
+turn_ends() {
+  local label=$1
+  shift
+  run_turn_end Stop "$@"
+  check "$label: exits 0" equals "$code" 0
+  check "$label: prints nothing, so the turn ends" equals "$out$err" ""
+}
+
+turn_sent_back_for() {
+  local label=$1 expected=$2
+  shift 2
+  run_turn_end Stop "$@"
+  check "$label: exits 0" equals "$code" 0
+  check "$label: sent back" json_equals "$out" "$expected"
+}
+
+# Without links in it, since git names a checkout by its path without links.
+turn_end=$(cd "$tmp" && pwd -P)/turn-end
+outside=$turn_end/outside
+mkdir -p "$outside"
+
+turn_ends "a question that waits for the operator" "Shall I squash the two commits?
+
+$your_move" "$outside"
+turn_ends "a status marker followed by spaces and blank lines" \
+  "$(printf 'The pull request is open.\n\n%s  \n \n' "$your_move")" "$outside"
+turn_ends "a running marker with the emoji's variation selector, while a shell runs" "The full check runs.
+
+⏳️ Still running" "$outside" "$shell_task"
+turn_ends "a running marker while a wake-up waits" "I look at the CI run again in 20 minutes.
+$running_marker" "$outside" "$no_task" "$wake_up"
+turn_ends "your move while only Claude Code's own memory task runs" "Which name do you want?
+$your_move" "$outside" "$dream_task"
+turn_ends "complete outside any checkout" "The answer is 42. Nothing is left to do.
+$complete" "$outside"
+
+turn_sent_back_for "a message without a status marker" \
+  "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
+  "The fix is committed and the pull request is open." "$outside"
+turn_sent_back_for "a message without a status marker after the hook sent one back" \
+  "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
+  "The fix is committed and the pull request is open." "$outside" "$no_task" "$no_task" true
+turn_sent_back_for "an empty message" "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" "" "$outside"
+turn_sent_back_for "a status marker with a full stop" \
+  "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
+  "Shall I go on?
+$your_move." "$outside"
+turn_sent_back_for "a status marker in bold" \
+  "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
+  "Shall I go on?
+**$your_move**" "$outside"
+turn_sent_back_for "a marker above the last line" \
+  "$(turn_sent_back "It holds a status marker before its last line." "$pick_one")" \
+  "$running_marker was the state an hour ago.
+Shall I go on?
+$your_move" "$outside"
+turn_sent_back_for "your move while a shell runs" \
+  "$(turn_sent_back "It ends with $your_move, while something that the session started still runs." \
+    "$(say_what_runs "the shell b1 (Run the full check)")")" \
+  "Shall I go on?
+$your_move" "$outside" "$shell_task"
+turn_sent_back_for "complete while a subagent runs" \
+  "$(turn_sent_back "It ends with $complete, while something that the session started still runs." \
+    "$(say_what_runs "the subagent a7 (Review the diff)")")" \
+  "Everything is done.
+$complete" "$outside" "$subagent_task"
+turn_sent_back_for "your move while a wake-up waits" \
+  "$(turn_sent_back "It ends with $your_move, while something that the session started still runs." \
+    "$(say_what_runs "the scheduled wake-up c1 (*/20 * * * *)")")" \
+  "Waiting for CI.
+$your_move" "$outside" "$no_task" "$wake_up"
+turn_sent_back_for "a message without a status marker while a shell and a wake-up run" \
+  "$(turn_sent_back "Its last line is no status marker alone." \
+    "$(say_what_runs "the shell b1 (Run the full check); the scheduled wake-up c1 (*/20 * * * *)")")" \
+  "The full check runs." "$outside" "$shell_task" "$wake_up"
+turn_sent_back_for "still running while nothing runs" \
+  "$(turn_sent_back "It ends with $running_marker, while nothing that the session started still runs." "$pick_one")" \
+  "The tests run.
+$running_marker" "$outside"
+
+run_turn_end SubagentStop "The diff renames one function and changes no behaviour." "$outside"
+check "a subagent's report without a marker: exits 0" equals "$code" 0
+check "a subagent's report without a marker: prints nothing, so it goes to the lead" equals "$out$err" ""
+run_turn_end SubagentStop "The diff renames one function.
+$complete" "$outside"
+check "a subagent's report with a marker: exits 0" equals "$code" 0
+check "a subagent's report with a marker: sent back" json_equals "$out" \
+  "$(jq -n '{decision: "block", reason: "A subagent'"'"'s report carries no status marker, since the markers say where the lead'"'"'s session stands. Write the report again without ⏳, 🔔 and 🏁, and change nothing else."}')"
+
+jq -n --arg cwd "$outside" '{session_id: "s", cwd: $cwd, hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "Done."}' >"$tmp/stdin"
+code=0
+out=$(env -i PATH="$script_tools" CLAUDE_PLUGIN_ROOT="$root" "$tools/bash" -c "$(jq -r '.hooks.Stop[].hooks[].command' "$root/hooks/hooks.json")" <"$tmp/stdin" 2>"$tmp/stderr") || code=$?
+err=$(<"$tmp/stderr")
+check "an input without background_tasks: exits 1" equals "$code" 1
+check "an input without background_tasks: names the missing list" equals "$out$err" \
+  "turn-ends-with-a-status-marker.py: the hook input holds no list background_tasks, which Claude Code sends"
+
+fixture_git() {
+  env HOME="$tmp" GIT_CONFIG_NOSYSTEM=1 git -c user.name=Fixture -c user.email=fixture@example.com \
+    -c init.defaultBranch=main -c advice.detachedHead=false "$@"
+}
+
+forge=$turn_end/forge
+fixture_git init -q "$forge/seed"
+echo one >"$forge/seed/a.txt"
+fixture_git -C "$forge/seed" add a.txt
+fixture_git -C "$forge/seed" commit -q -m "add a"
+fixture_git clone -q --bare "$forge/seed" "$forge/origin.git"
+fixture_git -C "$forge/seed" remote add origin "$forge/origin.git"
+fixture_git -C "$forge/seed" fetch -q origin
+checkout=$turn_end/checkout
+fixture_git clone -q "$forge/origin.git" "$checkout"
+
+commit_in() {
+  echo "$2" >>"$1/a.txt"
+  fixture_git -C "$1" commit -q -am "$2"
+}
+
+complete_in() {
+  printf 'The work is merged and nothing is left for me to do.\n%s' "$complete"
+}
+
+fetch_as_the_repo_plugin_does_at_session_start() {
+  fixture_git -C "$1" fetch --quiet --prune origin
+}
+
+turn_ends "complete in a clean clone on main" "$(complete_in)" "$checkout"
+
+echo two >>"$checkout/a.txt"
+turn_sent_back_for "complete with a change outside a commit" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $checkout holds work that origin lacks: \`git status\` lists 1 path, such as \`M a.txt\`." "$pick_one")" \
+  "$(complete_in)" "$checkout"
+fixture_git -C "$checkout" checkout -q a.txt
+mkdir "$checkout/docs"
+echo notes >"$checkout/docs/notes.md"
+turn_sent_back_for "complete in a subdirectory, with an untracked file" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $checkout holds work that origin lacks: \`git status\` lists 1 path, such as \`?? docs/\`." "$pick_one")" \
+  "$(complete_in)" "$checkout/docs"
+rm -r "$checkout/docs"
+
+detached=$turn_end/detached
+fixture_git -C "$checkout" worktree add -q --detach "$detached" origin/main
+turn_ends "complete in a detached worktree at origin/main" "$(complete_in)" "$detached"
+commit_in "$detached" "local fix"
+turn_sent_back_for "complete in a detached worktree with a commit of its own" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $detached holds work that origin lacks: 1 commit of HEAD, the oldest \`$(fixture_git -C "$detached" log -1 --format=%h) local fix\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
+  "$(complete_in)" "$detached"
+
+squashed=$turn_end/squashed
+fixture_git clone -q "$forge/origin.git" "$squashed"
+fixture_git -C "$squashed" switch -q -c feat/squashed
+commit_in "$squashed" "squashed one"
+commit_in "$squashed" "squashed two"
+fixture_git -C "$squashed" push -q -u origin feat/squashed
+fixture_git -C "$squashed" push -q origin feat/squashed:refs/pull/1/head
+fixture_git -C "$forge/seed" fetch -q origin
+fixture_git -C "$forge/seed" merge -q --squash origin/feat/squashed >/dev/null
+fixture_git -C "$forge/seed" commit -q -m "squashed (#1)"
+fixture_git -C "$forge/seed" push -q origin main
+fixture_git -C "$forge/seed" push -q origin --delete feat/squashed
+fetch_as_the_repo_plugin_does_at_session_start "$squashed"
+turn_ends "complete on a branch whose pull request merged as a squash and whose remote branch is deleted" \
+  "$(complete_in)" "$squashed"
+commit_in "$squashed" "after the merge"
+turn_sent_back_for "complete on a squash-merged branch with a commit after the merge" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $squashed holds work that origin lacks: 3 commits of HEAD, the oldest \`$(fixture_git -C "$squashed" log -1 --format=%h HEAD~2) squashed one\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
+  "$(complete_in)" "$squashed"
+
+abandoned=$turn_end/abandoned
+fixture_git clone -q "$forge/origin.git" "$abandoned"
+fixture_git -C "$abandoned" switch -q -c feat/abandoned
+commit_in "$abandoned" "abandoned change"
+fixture_git -C "$abandoned" push -q -u origin feat/abandoned
+fixture_git -C "$forge/seed" push -q origin --delete feat/abandoned
+turn_sent_back_for "complete on a branch deleted on origin without a pull request, its remote ref not yet pruned" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $abandoned holds work that origin lacks: 1 commit of HEAD, the oldest \`$(fixture_git -C "$abandoned" log -1 --format=%h) abandoned change\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
+  "$(complete_in)" "$abandoned"
+
+tracking=$turn_end/tracking
+fixture_git clone -q "$forge/origin.git" "$tracking"
+fixture_git -C "$tracking" switch -q -c feat/tracks-main --track origin/main
+commit_in "$tracking" "tracked change"
+turn_sent_back_for "complete on a branch that tracks origin/main, its commit not pushed" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $tracking holds work that origin lacks: 1 commit of HEAD, the oldest \`$(fixture_git -C "$tracking" log -1 --format=%h) tracked change\`, lie on no branch of origin, and no ref there is HEAD." "$pick_one")" \
+  "$(complete_in)" "$tracking"
+fixture_git -C "$tracking" push -q origin feat/tracks-main
+turn_ends "complete on a branch that tracks origin/main, its commit pushed to a branch of its own" \
+  "$(complete_in)" "$tracking"
+
+local_only=$turn_end/local-only
+fixture_git init -q "$local_only"
+echo first >"$local_only/a.txt"
+fixture_git -C "$local_only" add a.txt
+fixture_git -C "$local_only" commit -q -m "first"
+turn_sent_back_for "complete with commits and no origin" \
+  "$(turn_sent_back "It ends with $complete. The checkout at $local_only holds work that origin lacks: it has commits, and no remote named origin holds them." "$pick_one")" \
+  "$(complete_in)" "$local_only"
+
+unborn=$turn_end/unborn
+fixture_git init -q "$unborn"
+turn_ends "complete in a repository without a commit or a change" "$(complete_in)" "$unborn"
+
+gone=$turn_end/origin-gone
+fixture_git clone -q "$forge/origin.git" "$gone"
+fixture_git -C "$gone" remote set-url origin "$turn_end/no-such-origin.git"
+turn_sent_back_for "complete where origin cannot be fetched" \
+  "$(turn_sent_back "It ends with $complete. The hook cannot show that the checkout around $gone holds nothing that origin lacks, since git fetch failed: fatal: '$turn_end/no-such-origin.git' does not appear to be a git repository." "$pick_one")" \
+  "$(complete_in)" "$gone"
+
 auditor_matcher=$(jq -r '.hooks.PreToolUse[] | select(.hooks[].command | contains("/hooks/auditor-deletes-only-comments.py")) | .matcher' "$root/hooks/hooks.json")
 check "the auditor's hook matches the tools that write files" equals "$auditor_matcher" "Edit|Write|NotebookEdit|Bash"
 

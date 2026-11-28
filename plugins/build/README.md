@@ -83,6 +83,16 @@ The license is `LICENSE-pstack` in this plugin, and the provenance record is [ps
   Of the auditor's shell commands it refuses each write into a repository that `hooks/shell_writes.py` names, the same writes that `hooks/lead-writes-no-code.py` refuses the lead, and lets any other program run.
   `tests/hooks.sh` runs it with a PATH of the baseline's `lyngon.scriptTools` and nothing else, and once with `python3` and no `pygmentize`.
 - `Stop`, named in the frontmatter of `auto`: `hooks/reply-has-no-dash.py` sends a reply of the lead back once when its prose holds an em dash or an en dash, which the mode's rules for the reply forbid, and quotes the lines that hold one. Code, fenced or inline, is left out, since the mode asks for some output verbatim. Claude Code gives the hook the reply as `last_assistant_message`, and the reply written after the block ends the turn whatever it holds, so a dash the lead cannot remove ends no session in a loop (measured on Claude Code 2.1.283 and 2.1.299). It runs where the hook on writes runs, and `tests/hooks.sh` runs it with a PATH of the baseline's `lyngon.scriptTools` and nothing else.
+- `Stop` and `SubagentStop`: `hooks/turn-ends-with-a-status-marker.py` sends the last message of a turn of the lead back until its last line, alone, is the status marker that fits, and no marker stands before that line.
+  The standing instructions name the three markers.
+  `⏳ Still running` fits while the hook input lists something in `background_tasks` or `session_crons`, other than the tasks that Claude Code starts on its own (a `dream` or an `auto-mode scan`), and `🔔 Your move` or `🏁 Session complete` fits when it lists nothing.
+  `🏁` also needs a checkout that holds nothing that origin lacks: `git status --porcelain` prints nothing, and after `git fetch --prune origin` every commit of HEAD is on a branch of origin, or HEAD is the commit of a ref that `git ls-remote origin` lists.
+  The ref covers a branch whose pull request merged as a squash commit, since GitHub keeps `refs/pull/<number>/head` after it deletes the branch.
+  A fetch that fails, a git command that gives no answer within 10 seconds and a missing git each refuse `🏁` too.
+  At `SubagentStop` the hook sends back a report that holds a marker, since the markers say where the lead stands.
+  It sends a message back as often as the message fails, because a marker that fits is always open to the agent, and Claude Code ends the turn after 8 blocks in a row (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`, read in the binaries of 2.1.321 and 2.1.329).
+  Claude Code runs `Stop` in the lead only, and `SubagentStop` with the report as `last_assistant_message` (measured on Claude Code 2.1.329).
+  `tests/hooks.sh` runs it with a PATH of the baseline's `lyngon.scriptTools` and nothing else, against git repositories with a bare origin.
 
 ## The mistake ledger
 
