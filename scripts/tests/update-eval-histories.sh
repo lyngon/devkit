@@ -178,6 +178,21 @@ check "the refusal names that record and how to take it out" \
   says "plugins/one/evals/resumes/history.jsonl:2: holds an environment record, after which Claude Code tells a resumed agent that its working directory moved; delete the record, and give the record that hangs off it its parent"
 check "the history with the environment record stays as it was" test "$(<"$file")" == "$before"
 
+cat >"$file" <<'EOF'
+{"parentUuid":null,"attachment":{"type":"hook_success","hookName":"SessionStart:startup","toolUseID":"s","hookEvent":"SessionStart","content":"Runs in ~/cwd, the directory that its input names.","stdout":"Runs in ~/cwd, the directory that its input names.\n","stderr":"","exitCode":0,"command":"\"${CLAUDE_PLUGIN_ROOT}\"/hooks/where.sh","durationMs":5},"type":"attachment","uuid":"a","sessionId":"x","cwd":"~/cwd","rendered":[{"content":"<system-reminder>\nSessionStart:startup hook success: Runs in ~/cwd, the directory that its input names.\n</system-reminder>"}]}
+{"parentUuid":"a","type":"user","message":{"role":"user","content":"Find the repository."},"uuid":"b","sessionId":"x","cwd":"~/cwd"}
+{"parentUuid":"b","type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t","name":"Bash","input":{"command":"find / -name orders"}}]},"uuid":"c","sessionId":"x","cwd":"~/cwd"}
+{"parentUuid":"c","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t","content":"Command did not complete within its 120s timeout and was moved to the background (ID: bfind1234)."}]},"toolUseResult":{"stdout":"","stderr":"","interrupted":false,"backgroundTaskId":"bfind1234"},"uuid":"e","sessionId":"x","cwd":"~/cwd"}
+{"parentUuid":"e","type":"user","message":{"role":"user","content":"<task-notification>\n<task-id>bfind1234</task-id>\n<tool-use-id>t</tool-use-id>\n<status>completed</status>\n<summary>Background command \"Find the repository\" completed (exit code 0)</summary>\n</task-notification>"},"origin":{"kind":"task-notification"},"uuid":"g","sessionId":"x","cwd":"~/cwd"}
+EOF
+before=$(<"$file")
+run "$root"
+check "the update refuses a history that holds a background command, also one whose completion it records" \
+  test "$code" -eq 1
+check "the refusal names the result of that command and how to take the command out" \
+  says "plugins/one/evals/resumes/history.jsonl:4: holds the background command bfind1234, and a run resumes no background command of the recording; delete the call and its result, and give the record that hangs off each its parent"
+check "the history with the background command stays as it was" test "$(<"$file")" == "$before"
+
 if ((failures > 0)); then
   echo "update-eval-histories tests: $failures failed" >&2
   exit 1

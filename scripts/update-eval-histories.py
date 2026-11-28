@@ -12,7 +12,10 @@ working directory as ~/cwd, the names that a history gives them throughout. Both
 because a run has a home of its own: its working directory is ~/cwd, and the seed script of a case can link ~/devkit
 to the checkout of the run. The program refuses a history whose record names another working directory, and one that
 holds an environment record: after one, Claude Code tells a resumed agent that its working directory moved from the
-one the record names, and without one it tells the agent the run's environment.
+one the record names, and without one it tells the agent the run's environment. It also refuses a history that holds
+a background command, finished or not: a run starts no process of the recording, and at the resume Claude Code tells
+the agent that a background command whose end it finds no record of was stopped, in the turn of the prompt. Which
+records count as that end is for Claude Code to decide, and a queued completion does not.
 
 The records of a command in an event are current when they hold the outputs of those hooks one for one, leaving out
 a hook that prints nothing, since such a hook leaves no record. A record that is not current takes the output that no
@@ -196,6 +199,16 @@ def check_working_directory(record: dict[str, object], where: str) -> None:
         moved = "after which Claude Code tells a resumed agent that its working directory moved"
         fix = "delete the record, and give the record that hangs off it its parent"
         raise HistoryError(f"{where}: holds an environment record, {moved}; {fix}")
+
+
+def check_background_command(record: dict[str, object], where: str) -> None:
+    """Raise HistoryError for the result of a command that the Bash tool of the recording ran in the background."""
+    result = record.get("toolUseResult")
+    task = t.cast("dict[str, object]", result).get("backgroundTaskId") if isinstance(result, dict) else None
+    if isinstance(task, str):
+        resumes = "a run resumes no background command of the recording"
+        fix = "delete the call and its result, and give the record that hangs off each its parent"
+        raise HistoryError(f"{where}: holds the background command {task}, and {resumes}; {fix}")
 
 
 def attachment_of(record: dict[str, object]) -> dict[str, object] | None:
@@ -484,6 +497,7 @@ def update(history: pathlib.Path, hooks: list[Hook], replayer: Replayer) -> tupl
     for index, record in enumerate(records):
         where = f"{history}:{index + 1}"
         check_working_directory(record, where)
+        check_background_command(record, where)
         attachment = attachment_of(record)
         if attachment is None:
             continue
