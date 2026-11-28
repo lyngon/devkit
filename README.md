@@ -421,6 +421,7 @@ Below it, what the other run said about its suite is followed by the reason it g
 the eval run at head wrote no result (claude exited with status 1)
 ```
 
+When a signal ended the run, the parentheses name the signal, as in `claude was ended by signal SIGKILL`.
 When the run at the base commit writes no result, `compare-evals` ends before the run of the working tree starts.
 The harness leaves a case whose file it failed to load out of its result, and names the case and the error on stderr, by the path of its directory or of its `case.yaml` where it has one.
 The comparison repeats that line below the table, with its commit and the path from the root (measured on Claude Code 2.1.283):

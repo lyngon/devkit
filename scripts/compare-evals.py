@@ -519,9 +519,25 @@ def run_suite(checkout: pathlib.Path, side: str, scratch: pathlib.Path, launcher
     elif found_no_case(progress, run.returncode):
         data = {"cases": [], "costUsd": 0.0, "partial": False}
     else:
-        status = f"{launcher.name} exited with status {run.returncode}"
-        raise RunError(f"the eval run at {side} wrote no result ({status})", said)
+        raise RunError(f"the eval run at {side} wrote no result ({how_it_ended(launcher.name, run.returncode)})", said)
     return parse_result(data, side, progress, said, traces_directory(scratch) / side)
+
+
+def how_it_ended(name: str, status: int) -> str:
+    """Say how a process that this program started ended, from the status that subprocess gives it.
+
+    A negative status is no exit status: it is the number of the signal that
+    ended the process, which a shell would report as 128 plus that number. A
+    signal that Python has no name for, such as a real-time one, is named by
+    its number.
+    """
+    if status >= 0:
+        return f"{name} exited with status {status}"
+    try:
+        ended_by = signal.Signals(-status).name
+    except ValueError:
+        ended_by = str(-status)
+    return f"{name} was ended by signal {ended_by}"
 
 
 def found_no_case(progress: ct.Iterable[str], status: int) -> bool:
@@ -863,11 +879,11 @@ def harness_version(harness: str) -> str:
     version = said.stdout.strip()
     if said.returncode == 0 and version:
         return version
-    cannot = f"cannot read the version of Claude Code from {harness}: --version"
+    cannot = f"cannot read the version of Claude Code from {harness}"
     if said.returncode == 0:
-        raise CompareError(f"{cannot} printed nothing")
+        raise CompareError(f"{cannot}: --version printed nothing")
     stderr = said.stderr.strip()
-    raise CompareError(f"{cannot} exited with status {said.returncode}" + (f": {stderr}" if stderr else ""))
+    raise CompareError(f"{cannot}: {how_it_ended('--version', said.returncode)}" + (f": {stderr}" if stderr else ""))
 
 
 def launchers() -> tuple[str, Launcher, Launcher]:
