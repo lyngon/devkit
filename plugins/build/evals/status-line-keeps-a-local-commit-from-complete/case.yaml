@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: status-line-keeps-a-local-commit-from-complete
+context:
+  scaffold_script: seed-workspace.sh
