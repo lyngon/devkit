@@ -338,6 +338,7 @@ let
     runtimeInputs = [
       pkgs.bash
       pkgs.coreutils
+      pkgs.git
       pkgs.jq
       pkgs.yq-go
     ];
