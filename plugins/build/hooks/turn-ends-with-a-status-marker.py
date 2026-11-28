@@ -209,7 +209,7 @@ def lead_answer(message: str, running: list[str], cwd: pathlib.Path) -> dict[str
     else:
         way = (
             f"Write the whole message again and end it with one of these lines alone: {Status.YOUR_MOVE.value} "
-            "when progress needs the operator, saying what you need, or "
+            "when progress needs the operator, or "
             f"{Status.COMPLETE.value} when nothing is left for you to do and nothing exists only in the checkout. "
             f"When unsure, end with {Status.YOUR_MOVE.value}."
         )

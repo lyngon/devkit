@@ -806,7 +806,7 @@ turn_sent_back() {
   jq -n --arg reason "The message cannot end the turn. $1 $2 Put no marker anywhere else." '{decision: "block", reason: $reason}'
 }
 
-pick_one="Write the whole message again and end it with one of these lines alone: $your_move when progress needs the operator, saying what you need, or $complete when nothing is left for you to do and nothing exists only in the checkout. When unsure, end with $your_move."
+pick_one="Write the whole message again and end it with one of these lines alone: $your_move when progress needs the operator, or $complete when nothing is left for you to do and nothing exists only in the checkout. When unsure, end with $your_move."
 
 say_what_runs() {
   echo "This still runs: $1. Write the whole message again, say in it what still runs, and end it with this line alone: $running_marker"
