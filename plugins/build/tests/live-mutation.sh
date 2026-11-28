@@ -231,6 +231,96 @@ else
   fail "the record shows the demonstration of another session, after the run" "got:"$'\n'"$record"
 fi
 
+new_repository old new
+mutation session-one propose set-value --derive "$derive" --show "$show" --run "$apply" --check "matches=$matches"
+digest=$(sed -n 's/^Proposal `set-value` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+printed=$(sed -n "/ run set-value $digest --go-ahead /p" <<<"$output")
+quoting="write each \`'\` in them as \`'\\''\`"
+if [[ -n "$printed" && "$output" == *"$quoting"* ]] && "$BASH" -n -c "$printed" 2>/dev/null; then
+  pass "the printed go-ahead command parses as it is printed, and the proposal says how to quote an apostrophe"
+else
+  fail "the printed go-ahead command parses as it is printed, and the proposal says how to quote an apostrophe" \
+    "the command is:"$'\n'"$printed"$'\n'"in:"$'\n'"$output"
+fi
+words="Yes, it's fine"
+filled="${printed%"'"*"'"}'${words//"'"/"'\\''"}'"
+status=0
+output=$(cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$BASH" -c "$filled" 2>&1) || status=$?
+expect "the printed go-ahead command, filled in with words that hold an apostrophe, runs the proposal" 0 'The run passes'
+mutation session-one record set-value
+record=$(contents "$repository/tmp/live-mutation/session-one/set-value/record-1.md")
+if [[ "$record" == *$'\n'"- Go-ahead at "*", in the owner's words: \"Yes, it's fine\""$'\n'* ]]; then
+  pass "the record quotes a go-ahead that holds an apostrophe word for word"
+else
+  fail "the record quotes a go-ahead that holds an apostrophe word for word" "got:"$'\n'"$record"
+fi
+
+new_repository old new
+cat >"$repository/gate.py" <<'EOF'
+import os, pathlib, time
+gate = pathlib.Path("gate")
+if gate.is_dir():
+    (gate / str(os.getpid())).touch()
+    end = time.monotonic() + 3
+    while len(list(gate.iterdir())) < 2 and time.monotonic() < end:
+        time.sleep(0.05)
+EOF
+mutation session-one propose run-once --derive "python3 gate.py && $derive" --show "$show" --run 'printf "ran\n" >>runs'
+digest=$(sed -n 's/^Proposal `run-once` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+mkdir "$repository/gate"
+for call in first second; do
+  (
+    status=0
+    cd "$repository" && env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$script" run run-once "$digest" \
+      --go-ahead "yes" >"$tmp/$call.txt" 2>&1 || status=$?
+    echo "$status" >"$tmp/$call.status"
+  ) &
+done
+wait
+statuses=$(cat "$tmp/first.status" "$tmp/second.status" | sort | tr '\n' ' ')
+refused=$(cat "$tmp/first.txt" "$tmp/second.txt")
+if [[ "$(line_count "$repository/runs")" == 1 && "$statuses" == "0 1 " &&
+  "$refused" == *"live-mutation.py: already-ran: proposal run-once ran on the go-ahead 'yes' at "* ]]; then
+  pass "two runs of one proposal started together run it once, and the second is refused as already run"
+else
+  fail "two runs of one proposal started together run it once, and the second is refused as already run" \
+    "the command ran $(line_count "$repository/runs") times, the runs exited $statuses and printed:"$'\n'"$refused"
+fi
+
+new_repository old new
+cat >"$repository/hold.py" <<'EOF'
+import pathlib, sys, time
+hold = pathlib.Path("hold")
+if hold.exists():
+    pathlib.Path("held").touch()
+    end = time.monotonic() + 30
+    while hold.exists() and time.monotonic() < end:
+        time.sleep(0.05)
+    sys.exit(1)
+EOF
+mutation session-one propose killed-run --derive "python3 hold.py && $derive" --show "$show" --run 'printf "ran\n" >>runs'
+digest=$(sed -n 's/^Proposal `killed-run` at digest `\([0-9a-f]*\)`.*/\1/p' <<<"$output")
+touch "$repository/hold"
+(cd "$repository" && exec env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$script" run killed-run "$digest" \
+  --go-ahead "yes" >/dev/null 2>&1) &
+killed=$!
+for _ in $(seq 200); do
+  [[ -e "$repository/held" ]] && break
+  sleep 0.05
+done
+kill -KILL "$killed"
+wait "$killed" 2>/dev/null || true
+rm "$repository/hold"
+status=0
+output=$(cd "$repository" && timeout 20 env -i PATH="$script_tools" CLAUDE_CODE_SESSION_ID=session-one "$script" run killed-run \
+  "$digest" --go-ahead "yes" 2>&1) || status=$?
+if [[ -e "$repository/held" && "$(line_count "$repository/runs")" == 1 ]]; then
+  expect "a run killed while it holds the lock of its proposal leaves the next run free to run it" 0 'The run passes'
+else
+  fail "a run killed while it holds the lock of its proposal leaves the next run free to run it" \
+    "the killed run held the lock: $([[ -e "$repository/held" ]] && echo yes || echo no), the command ran $(line_count "$repository/runs") times, and the next run exited $status:"$'\n'"$output"
+fi
+
 new_repository new new
 mkdir -p "$repository/tmp/live-mutation"
 cp -R "$devkit/plugins/build/tests/live-mutation/released-session" "$repository/tmp/live-mutation/"
@@ -434,7 +524,7 @@ declared=$(git -C "$repository" rev-parse refs/remotes/origin/HEAD)
 set_level infra/staging
 propose_tofu staging-logs --opentofu ./infra/staging/
 expect "an update-only plan of a root module declared on origin/HEAD needs no go-ahead" 0 \
-  'tofu -chdir=infra/staging apply -no-color -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone and that the plan reaches only the target that the rule names:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the owner's words>'"
+  'tofu -chdir=infra/staging apply -no-color -input=false "\$LIVE_MUTATION_INPUTS/plan".*- `no-changes` fails \(2\): `tofu -chdir=infra/staging plan -no-color -input=false -detailed-exitcode`.*The run needs no go-ahead: `\.claude/rules/sandbox\.md` at `'"$declared"'` lists `infra/staging` under `unprotected-roots:`, and the plan deletes and replaces nothing\.'$'\n''Run it without one only when you judge that the apply can be undone and that the plan reaches only the target that the rule names:.*run staging-logs '"$digest"$'\n''```.*run staging-logs '"$digest"" --go-ahead '<the words of the owner>'"
 tofu_mutation session-one run staging-logs "$digest"
 expect "a run without a go-ahead applies the plan and checks it again" 0 'The run passes.*- `no-changes` passes'
 level=$(tofu_in infra/staging output -raw level || true)

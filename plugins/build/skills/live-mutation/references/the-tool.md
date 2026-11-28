@@ -158,12 +158,12 @@ The tool hides a sensitive value in its output as for a check.
 ## run
 
 ```sh
-live-mutation.py run <name> <digest> --go-ahead '<the owner's words>'
+live-mutation.py run <name> <digest> --go-ahead '<the words of the owner>'
 live-mutation.py run <name> <digest>
 ```
 
 It derives and renders again from live state, runs the command once when the rendering is still the one the proposal showed, then runs every check again.
-With `--go-ahead`, any proposal runs, and the go-ahead is quoted word for word.
+With `--go-ahead`, any proposal runs, and the go-ahead is quoted word for word, with each `'` in it written as `'\''`.
 Without it, only a proposal of the OpenTofu form runs, and only when its output said that it needs no go-ahead and the tool still finds so.
 For that it reads the frozen plan's JSON, its environment and the rule files again.
 A proposal that was shown waiting never runs without a go-ahead, whatever changed since.
@@ -185,6 +185,9 @@ It checks these in order, and each refusal changes nothing live:
 12. `drift-check-failed`: deriving or rendering again failed. The refusal names the directory that holds its output. `plan-unreadable` here means that `tofu show -json` cannot read the plan derived again, `state-unreadable` that it cannot read the state, and `saved-plan` that the derive command of the generic form wrote an OpenTofu saved plan.
 13. `sensitive-value-shown`: deriving or rendering again printed a value that the frozen plan, the plan derived again or the state marks sensitive. Act as for the refusal of `propose`.
 14. `drifted`: live state no longer gives the rendering the proposal showed, and the refusal prints the difference. Propose again and ask again.
+
+A run locks its proposal from the check for `already-ran` until it starts its command or is refused.
+A second run of the proposal waits for that lock, so two runs started together run it once.
 
 A run can take longer than a command in the foreground may, as a landing zone upgrade does.
 Start such a run in the background and wait for it to end.
