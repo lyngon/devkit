@@ -347,12 +347,17 @@ let
   # Fixture tests for the prune script that the correction skill ships. The
   # test hands the script a PATH of the baseline's lyngon.scriptTools and
   # nothing else, which is all a repository's shell promises a shipped script.
+  # It also seeds the ledgers of the skill's eval cases on a day that faketime
+  # gives their seed scripts.
   testPruneMistakes = pkgs.writeShellApplication {
     name = "test-prune-mistakes";
     runtimeInputs = [
       pkgs.bash
       pkgs.coreutils
+      pkgs.git
       pkgs.gnugrep
+      pkgs.gnused
+      pkgs.libfaketime
     ];
     text = ''exec "${config.devenv.root}/plugins/build/tests/prune-mistakes.sh" "${lib.makeBinPath config.lyngon.scriptTools}"'';
   };
