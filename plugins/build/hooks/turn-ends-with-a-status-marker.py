@@ -7,7 +7,7 @@ runs or waits to wake it, as Claude Code lists in the hook input, and 🔔 or �
 checkout that holds nothing that origin lacks: no path that `git status` lists, and every commit on a branch of origin
 unless HEAD is the commit of a ref there, such as the head that GitHub keeps of a pull request after its branch is
 deleted. Whether a question is open, or something the operator asked for is unfinished, is for the agent to judge.
-At the end of a subagent it sends back a report that holds a marker, since the markers say where the lead stands.
+At the end of a subagent it sends back a report that holds a marker.
 
 It sends a message back as often as the message fails, since a marker that fits is always open to the agent, and
 Claude Code ends the turn after 8 blocks in a row (CLAUDE_CODE_STOP_HOOK_BLOCK_CAP, on 2.1.321 to 2.1.329).
@@ -31,14 +31,12 @@ class Status(enum.Enum):
 
     @property
     def emoji(self) -> str:
-        """Return the emoji that starts the marker, which appears nowhere else in what the session writes."""
+        """Return the emoji that starts the marker."""
         return self.value[0]
 
 
-# A model may write an emoji with the selector that asks for its emoji form, which no reader sees.
-VARIATION_SELECTOR = "️"
+VARIATION_SELECTOR = "\N{VARIATION SELECTOR-16}"
 
-# Background tasks that Claude Code starts on its own, to consolidate memories and to scan for an auto-mode setup.
 CLAUDE_CODES_OWN_TASKS = frozenset({"dream", "auto-mode scan"})
 
 GIT_SECONDS = 10

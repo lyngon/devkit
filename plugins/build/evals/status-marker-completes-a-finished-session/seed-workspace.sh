@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Seed the run's empty working directory with a repository whose one commit is
-# on its remote: main is pushed to a bare origin under .git/forge, and nothing
-# is left to commit. Without a repository of its own the working directory lies
-# in the one that the sandbox writes into the run's home, whose untracked files
-# would keep the session from being complete.
 set -euo pipefail
 
 printf '# photo-dates\n\nA command-line tool for a folder of photos.\n' >README.md

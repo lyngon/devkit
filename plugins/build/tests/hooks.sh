@@ -778,8 +778,6 @@ run_stop_hook "\`\`\`text
 After the block $em_dash a dash in prose."
 check "a dash in prose after a closed fence: sent back" json_equals "$out" "$(sent_back "After the block $em_dash a dash in prose.")"
 
-# --- turn-ends-with-a-status-marker.py ---------------------------------------
-
 running_marker='⏳ Still running'
 your_move='🔔 Your move'
 complete='🏁 Session complete'
@@ -789,13 +787,13 @@ subagent_task='[{"id": "a7", "type": "subagent", "status": "running", "descripti
 dream_task='[{"id": "d1", "type": "dream", "status": "running", "description": "dreaming"}]'
 wake_up='[{"id": "c1", "schedule": "*/20 * * * *", "recurring": true, "prompt": "Check the CI run"}]'
 
-# run_turn_end <event> <last message> <cwd> [<background_tasks>] [<session_crons>]: end a turn as Claude Code does.
 run_turn_end() {
-  local event=$1 message=$2 cwd=$3 tasks=${4:-$no_task} crons=${5:-$no_task} command
+  local event=$1 message=$2 cwd=$3 tasks=${4:-$no_task} crons=${5:-$no_task} stop_hook_active=${6:-false} command
   command=$(jq -r --arg event "$event" '.hooks[$event][].hooks[].command' "$root/hooks/hooks.json")
   jq -n --arg event "$event" --arg message "$message" --arg cwd "$cwd" --argjson tasks "$tasks" --argjson crons "$crons" \
+    --argjson active "$stop_hook_active" \
     '{session_id: "s", transcript_path: "/dev/null", cwd: $cwd, permission_mode: "default", hook_event_name: $event,
-      stop_hook_active: false, last_assistant_message: $message, background_tasks: $tasks, session_crons: $crons}
+      stop_hook_active: $active, last_assistant_message: $message, background_tasks: $tasks, session_crons: $crons}
      + if $event == "SubagentStop" then {agent_id: "a7", agent_type: "general-purpose", agent_transcript_path: "/dev/null"} else {} end' \
     >"$tmp/stdin"
   code=0
@@ -853,6 +851,9 @@ $complete" "$outside"
 turn_sent_back_for "a message without a status marker" \
   "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
   "The fix is committed and the pull request is open." "$outside"
+turn_sent_back_for "a message without a status marker after the hook sent one back" \
+  "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
+  "The fix is committed and the pull request is open." "$outside" "$no_task" "$no_task" true
 turn_sent_back_for "an empty message" "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" "" "$outside"
 turn_sent_back_for "a status marker with a full stop" \
   "$(turn_sent_back "Its last line is no status marker alone." "$pick_one")" \
@@ -908,7 +909,6 @@ check "an input without background_tasks: exits 1" equals "$code" 1
 check "an input without background_tasks: names the missing list" equals "$out$err" \
   "turn-ends-with-a-status-marker.py: the hook input holds no list background_tasks, which Claude Code sends"
 
-# fixture_git: git with a fixed identity and none of the user's configuration.
 fixture_git() {
   env HOME="$tmp" GIT_CONFIG_NOSYSTEM=1 git -c user.name=Fixture -c user.email=fixture@example.com \
     -c init.defaultBranch=main -c advice.detachedHead=false "$@"
@@ -932,6 +932,10 @@ commit_in() {
 
 complete_in() {
   printf 'The work is merged and nothing is left for me to do.\n%s' "$complete"
+}
+
+fetch_as_the_repo_plugin_does_at_session_start() {
+  fixture_git -C "$1" fetch --quiet --prune origin
 }
 
 turn_ends "complete in a clean clone on main" "$(complete_in)" "$checkout"
@@ -968,8 +972,7 @@ fixture_git -C "$forge/seed" merge -q --squash origin/feat/squashed >/dev/null
 fixture_git -C "$forge/seed" commit -q -m "squashed (#1)"
 fixture_git -C "$forge/seed" push -q origin main
 fixture_git -C "$forge/seed" push -q origin --delete feat/squashed
-# The fetch that the repo plugin runs at the start of a session, after which the branch has no upstream.
-fixture_git -C "$squashed" fetch -q --prune origin
+fetch_as_the_repo_plugin_does_at_session_start "$squashed"
 turn_ends "complete on a branch whose pull request merged as a squash and whose remote branch is deleted" \
   "$(complete_in)" "$squashed"
 commit_in "$squashed" "after the merge"
